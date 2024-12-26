@@ -8,11 +8,22 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var ratesViewModel = RatesViewModel()
+    
     var body: some View {
         TabView {
             NavigationView {
-                Text("Home")
-                    .navigationTitle("Octopus Agile")
+                ScrollView {
+                    VStack {
+                        LowestUpcomingRateCardView(viewModel: ratesViewModel)
+                        HighestUpcomingRateCardView(viewModel: ratesViewModel)
+                        AverageUpcomingRateCardView(viewModel: ratesViewModel)
+                    }
+                }
+                .navigationTitle("Octopus Agile")
+                .refreshable {
+                    await ratesViewModel.refreshRates()
+                }
             }
             .tabItem {
                 Label("Home", systemImage: "house")
@@ -25,11 +36,13 @@ struct ContentView: View {
                 Label("Settings", systemImage: "gear")
             }
         }
+        .task {
+            await ratesViewModel.loadRates()
+        }
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+#Preview {
+    ContentView()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

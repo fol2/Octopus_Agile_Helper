@@ -15,11 +15,24 @@
 
 ## Milestone 2: API Data Model & Local Storage Setup (In Progress)
 
-### December 26, 2023
+### 26 December 2024
 - Created RateModel.swift with Codable structs for Octopus API response
 - Implemented OctopusAPIClient for handling API requests
 - Added RatesManager for coordinating between API and local storage
 - Created RatesPersistence service for Core Data operations
 - Added proper error handling for API requests and data persistence
 - Implemented ISO8601 date formatting for API responses
-- Set up basic authentication using API key from settings 
+- Set up basic authentication using API key from settings
+
+## Milestone 3: Cards for Lowest, Highest, and Average Rates (In Progress)
+
+### 26 December 2024
+- Created RatesViewModel to handle rate calculations and data management
+- Implemented shared card styling with RateCardStyle
+- Added three card views for rate display:
+  - LowestUpcomingRateCardView
+  - HighestUpcomingRateCardView
+  - AverageUpcomingRateCardView
+- Updated ContentView with ScrollView and pull-to-refresh
+- Integrated settings-driven average hours parameter
+- Added loading states and error handling in cards 
