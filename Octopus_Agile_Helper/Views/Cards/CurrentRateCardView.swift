@@ -6,6 +6,7 @@ struct CurrentRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @EnvironmentObject var globalTimer: GlobalTimer
     
     // MARK: - Body
     var body: some View {
@@ -16,6 +17,8 @@ struct CurrentRateCardView: View {
                 Text("Current Rate")
                     .font(.headline)
                 Spacer()
+                Image(systemName: "chevron.right.circle.fill")
+                    .foregroundStyle(.secondary.opacity(0.7))
             }
             
             if viewModel.isLoading {
@@ -45,9 +48,40 @@ struct CurrentRateCardView: View {
             }
         }
         .rateCardStyle()
+        .onTapGesture {
+            presentAllRatesView()
+        }
     }
     
     // MARK: - Helper Methods
+    private func presentAllRatesView() {
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first,
+           let rootViewController = window.rootViewController {
+            let allRatesView = NavigationView {
+                AllRatesListView(viewModel: viewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
+                                rootViewController.dismiss(animated: true)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary.opacity(0.9))
+                            }
+                        }
+                    }
+            }
+            .environmentObject(globalTimer)
+            .environmentObject(globalSettings)
+            .preferredColorScheme(colorScheme)
+            
+            let hostingController = UIHostingController(rootView: allRatesView)
+            hostingController.modalPresentationStyle = .fullScreen
+            hostingController.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+            rootViewController.present(hostingController, animated: true)
+        }
+    }
+    
     private func getCurrentRate() -> RateEntity? {
         let now = Date()
         return viewModel.upcomingRates.first { rate in

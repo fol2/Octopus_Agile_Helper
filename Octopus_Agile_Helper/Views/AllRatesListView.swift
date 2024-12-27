@@ -4,6 +4,7 @@ import CoreData
 struct AllRatesListView: View {
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -40,10 +41,14 @@ struct AllRatesListView: View {
                                     .font(.subheadline)
                                     .frame(minWidth: 110, alignment: .leading)
                                 
+                                let parts = viewModel.formatRate(
+                                    rate.valueIncludingVAT,
+                                    showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                ).split(separator: " ")
                                 HStack(alignment: .firstTextBaseline, spacing: 1) {
-                                    Text(String(format: "%.2f", rate.valueIncludingVAT))
+                                    Text(parts[0])  // Now includes currency symbol
                                         .font(.headline)
-                                    Text("p/kWh")
+                                    Text(parts[1])  // Just "/kWh"
                                         .font(.caption)
                                 }
                                 .frame(minWidth: 80, alignment: .trailing)
@@ -95,8 +100,10 @@ struct AllRatesListView: View {
 }
 
 #Preview {
-    let timer = GlobalTimer()
+    let globalTimer = GlobalTimer()
+    let viewModel = RatesViewModel(globalTimer: globalTimer)
     NavigationView {
-        AllRatesListView(viewModel: RatesViewModel(globalTimer: timer))
+        AllRatesListView(viewModel: viewModel)
+            .environmentObject(GlobalSettingsManager())
     }
 } 

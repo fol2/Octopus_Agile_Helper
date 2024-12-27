@@ -263,9 +263,9 @@ class RatesViewModel: ObservableObject {
         if showRatesInPounds {
             // Convert pence to pounds: 100 pence = £1
             let poundsValue = value / 100.0
-            return String(format: "%.2f £/kWh", poundsValue)
+            return String(format: "£%.4f /kWh", poundsValue)
         } else {
-            return String(format: "%.2f p/kWh", value)
+            return String(format: "%.2fp /kWh", value)
         }
     }
     

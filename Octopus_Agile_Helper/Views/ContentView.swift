@@ -7,10 +7,13 @@
 
 import SwiftUI
 import CoreData
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject private var ratesViewModel: RatesViewModel
+    @Environment(\.colorScheme) var colorScheme
     
     init() {
         // We need to initialize ratesViewModel with globalTimer,
@@ -21,39 +24,28 @@ struct ContentView: View {
     }
     
     var body: some View {
-        TabView {
-            NavigationView {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        CurrentRateCardView(viewModel: ratesViewModel)
-                        LowestUpcomingRateCardView(viewModel: ratesViewModel)
-                        HighestUpcomingRateCardView(viewModel: ratesViewModel)
-                        AverageUpcomingRateCardView(viewModel: ratesViewModel)
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 0) {
+                    CurrentRateCardView(viewModel: ratesViewModel)
+                    LowestUpcomingRateCardView(viewModel: ratesViewModel)
+                    HighestUpcomingRateCardView(viewModel: ratesViewModel)
+                    AverageUpcomingRateCardView(viewModel: ratesViewModel)
+                }
+                .padding(.vertical)
+            }
+            .navigationTitle("Octopus Agile")
+            .refreshable {
+                // Force update when user pulls to refresh
+                await ratesViewModel.refreshRates(force: true)
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gear")
+                            .foregroundColor(.primary)
                     }
-                    .padding(.vertical)
                 }
-                .navigationTitle("Octopus Agile")
-                .refreshable {
-                    // Force update when user pulls to refresh
-                    await ratesViewModel.refreshRates(force: true)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        NavigationLink("All Rates") {
-                            AllRatesListView(viewModel: ratesViewModel)
-                        }
-                    }
-                }
-            }
-            .tabItem {
-                Label("Home", systemImage: "house")
-            }
-            
-            NavigationView {
-                SettingsView()
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gear")
             }
         }
         .task {
@@ -72,5 +64,6 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
             .environmentObject(GlobalTimer())
+            .environmentObject(GlobalSettingsManager())
     }
 }
