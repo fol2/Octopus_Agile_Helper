@@ -202,6 +202,53 @@ class RatesViewModel: ObservableObject {
         isLoading = false
     }
     
+    func getLowestAverages(hours: Double, maxCount: Int) -> [ThreeHourAverageEntry] {
+        // 1) Gather all *future* half-hour rate slots from upcomingRates,
+        //    sorted by validFrom ascending
+        let now = Date()
+        let futureSlots = upcomingRates
+            .filter { ($0.validFrom ?? .distantPast) >= now }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+        
+        // 2) Calculate how many 30-minute slots we need for the user's chosen hours
+        let slotsNeeded = Int(hours * 2) // 2 slots per hour
+        
+        // 3) We'll iterate over each future half-hour slot as a potential "start"
+        var results = [ThreeHourAverageEntry]()
+        let slotCount = futureSlots.count
+        
+        for (index, slot) in futureSlots.enumerated() {
+            let endIndex = index + (slotsNeeded - 1)
+            guard endIndex < slotCount else {
+                // Not enough future slots to make a full window
+                break
+            }
+            // gather the slots
+            let windowSlots = futureSlots[index...endIndex]
+            
+            // Compute average
+            let sum = windowSlots.reduce(0.0) { partial, rateEntity in
+                partial + rateEntity.valueIncludingVAT
+            }
+            let avg = sum / Double(slotsNeeded)
+            
+            // The time range is from the validFrom of the first slot
+            // to validTo of the last slot
+            let startDate = slot.validFrom ?? now
+            let lastSlot = windowSlots.last!
+            let endDate = lastSlot.validTo ?? (startDate.addingTimeInterval(1800)) // fallback
+            
+            let entry = ThreeHourAverageEntry(start: startDate,
+                                            end: endDate,
+                                            average: avg)
+            results.append(entry)
+        }
+        
+        // 4) Sort by ascending average and return up to maxCount
+        results.sort { $0.average < $1.average }
+        return Array(results.prefix(maxCount))
+    }
+    
     // MARK: - Formatting Helpers
     
     func formatRate(_ value: Double) -> String {

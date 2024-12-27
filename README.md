@@ -75,5 +75,15 @@ The app provides three main views for rate information:
 2. At 4pm daily, if the next day's data is missing, we fetch from Octopus.
 3. If you open the app and have no data, or you do a pull-to-refresh, we fetch from Octopus.
 
+## Configuration
+
+#### Global vs Local Settings
+
+- **Global Settings**: Configure app-wide settings like postcode, API key, and language in the main Settings view.
+- **Local Card Settings**: Each card can have its own configuration:
+  - Click the gear icon on a card to access its local settings
+  - Customize settings like average hours and number of items to display
+  - Settings are saved per-card and persist between app launches
+
 ## License
 TBD 

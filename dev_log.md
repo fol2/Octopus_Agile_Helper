@@ -130,3 +130,11 @@
   - If no data on app open
   - If user force refreshes
 - All cards now re-calculate every minute automatically 
+
+## 2024-12-27: Local vs. Global Settings
+
+- Created `CardSettings` model and `CardSettingsManager` for managing local card settings (e.g. average hours, list size).
+- Added local settings support to `AverageUpcomingRateCardView` with a gear icon for accessing card-specific settings.
+- Added `getLowestAverages` method to `RatesViewModel` to support custom hours and max count per card.
+- Global settings (postcode, API key, language) remain in `SettingsView`.
+- Local card settings are stored in `UserDefaults` with card-specific keys. 
