@@ -13,7 +13,7 @@ struct ThreeHourAverageEntry: Identifiable {
 @MainActor
 class RatesViewModel: ObservableObject {
     private let repository = RatesRepository.shared
-    @AppStorage("averageHours") var averageHours: Double = 2.0
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     private var cancellables = Set<AnyCancellable>()
     private var currentTimer: GlobalTimer?
     
@@ -81,16 +81,16 @@ class RatesViewModel: ObservableObject {
         return upcoming.max { $0.valueIncludingVAT < $1.valueIncludingVAT }
     }
     
-    var averageUpcomingRate: Double? {
+    func averageUpcomingRate(hours: Double) -> Double? {
         let now = Date()
-        let endDate = now.addingTimeInterval(averageHours * 3600) // Convert hours to seconds
+        let endDate = now.addingTimeInterval(hours * 3600) // Convert hours to seconds
         
         let relevantRates = upcomingRates.filter { rate in
             guard let validFrom = rate.validFrom, let validTo = rate.validTo else { return false }
             return validFrom >= now && validTo <= endDate
         }
         
-        print("DEBUG: Found \(relevantRates.count) rates for average calculation over \(averageHours) hours")
+        print("DEBUG: Found \(relevantRates.count) rates for average calculation over \(hours) hours")
         
         guard !relevantRates.isEmpty else { return nil }
         
@@ -120,7 +120,7 @@ class RatesViewModel: ObservableObject {
         return sum / Double(topTen.count)
     }
     
-    var lowestTenThreeHourAverages: [ThreeHourAverageEntry] {
+    func lowestTenThreeHourAverages(hours: Double) -> [ThreeHourAverageEntry] {
         // 1) Gather all *future* half-hour rate slots from upcomingRates,
         //    sorted by validFrom ascending
         let now = Date()
@@ -129,7 +129,7 @@ class RatesViewModel: ObservableObject {
             .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
         
         // 2) Calculate how many 30-minute slots we need for the user's chosen hours
-        let slotsNeeded = Int(averageHours * 2) // 2 slots per hour
+        let slotsNeeded = Int(hours * 2) // 2 slots per hour
         
         // 3) We'll iterate over each future half-hour slot as a potential "start"
         var results = [ThreeHourAverageEntry]()
@@ -260,7 +260,11 @@ class RatesViewModel: ObservableObject {
     // MARK: - Formatting Helpers
     
     func formatRate(_ value: Double) -> String {
-        String(format: "%.2f p/kWh", value)
+        if globalSettings.settings.showRatesInPounds {
+            return String(format: "%.2f £/kWh", value / 100.0)  // Convert pence to pounds
+        } else {
+            return String(format: "%.2f p/kWh", value)
+        }
     }
     
     func formatTime(_ date: Date) -> String {

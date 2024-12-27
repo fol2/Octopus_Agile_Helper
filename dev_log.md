@@ -189,7 +189,7 @@
 - Apply same pattern to other cards if they need local settings
 - Consider adding settings migration if needed for existing users 
 
-## 2024-12-28: Added Current Rate Card
+## 2024-12-27: Added Current Rate Card
 ### Added
 - Created new `CurrentRateCardView` to display the active rate
 - Integrated into main screen at the top of the card stack
@@ -201,3 +201,16 @@
 - Users can immediately see their current rate
 - Clear indication of when the rate will change
 - Consistent with existing card styling and layout 
+
+## 2024-12-27: Global Settings Refactor
+
+1. **Removed Global `averageHours`**
+   - Removed the global `averageHours` setting as it's now managed locally by each card
+   - Updated `RatesViewModel` to accept hours as a parameter in relevant functions
+   - Cleaned up `SettingsView` UI
+
+2. **Added Rate Display Toggle**
+   - Added new global setting `showRatesInPounds` to toggle between pence (p/kWh) and pounds (£/kWh)
+   - Enhanced `RatesViewModel.formatRate()` to handle both display formats
+   - Added toggle in Settings UI for user preference
+   - Rates are now displayed consistently across all cards based on user preference 

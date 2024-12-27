@@ -30,7 +30,7 @@ struct SettingsView: View {
             Section(header: HStack {
                 Text("Preferences")
                 Spacer()
-                InfoButton(message: "Set language and average hours for rate calculations.")
+                InfoButton(message: "Set language and rate display preferences.")
             }) {
                 Picker("Language", selection: $globalSettings.settings.selectedLanguage) {
                     ForEach(languages, id: \.self) { language in
@@ -38,18 +38,15 @@ struct SettingsView: View {
                     }
                 }
                 
-                VStack(alignment: .leading) {
-                    Text("Average Hours: \(String(format: "%.1f", globalSettings.settings.averageHours))")
-                    Slider(value: $globalSettings.settings.averageHours, in: 0.5...24, step: 0.5)
-                }
+                Toggle("Display Rates in Pounds (£)", isOn: $globalSettings.settings.showRatesInPounds)
             }
         }
         .navigationTitle("Settings")
         .onAppear {
             print("DEBUG: Settings loaded - API Key length: \(globalSettings.settings.apiKey.count)")
-            print("DEBUG: Settings loaded - Average Hours: \(globalSettings.settings.averageHours)")
             print("DEBUG: Settings loaded - Selected Language: \(globalSettings.settings.selectedLanguage)")
             print("DEBUG: Settings loaded - Postcode: \(globalSettings.settings.postcode)")
+            print("DEBUG: Settings loaded - Show Rates in Pounds: \(globalSettings.settings.showRatesInPounds)")
         }
     }
 }

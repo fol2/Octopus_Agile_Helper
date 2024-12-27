@@ -4,14 +4,14 @@ struct GlobalSettings: Codable {
     var postcode: String
     var apiKey: String
     var selectedLanguage: String
-    var averageHours: Double
+    var showRatesInPounds: Bool
 }
 
 extension GlobalSettings {
     static let defaultSettings = GlobalSettings(postcode: "",
                                               apiKey: "",
                                               selectedLanguage: "English",
-                                              averageHours: 2.0)
+                                              showRatesInPounds: false)
 }
 
 class GlobalSettingsManager: ObservableObject {

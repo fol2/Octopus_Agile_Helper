@@ -26,7 +26,8 @@ The app provides three main views for rate information:
    - Special handling for cross-day periods
 
 ### Rate Formatting
-- Values shown as "21.83p/kWh"
+- Values shown as either "21.83p/kWh" or "0.22 £/kWh" based on user preference
+- Toggle in Settings to switch between pence and pounds display
 - Main rate: Large value (34pt), smaller unit (17pt)
 - Secondary rates: Medium value (17pt), smaller unit (13pt)
 - Times shown as "22:30-23:00" or "27 Dec 22:30-23:00"
