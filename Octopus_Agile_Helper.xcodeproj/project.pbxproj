@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		BFE3DE742D1E0707003E74A4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BFC264112D1F14E600279D9E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Octopus_Agile_Helper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFE3DE732D1E0707003E74A4 /* Octopus_Agile_HelperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Octopus_Agile_HelperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFE3DE7D2D1E0707003E74A4 /* Octopus_Agile_HelperUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Octopus_Agile_HelperUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +93,7 @@
 		BFE3DE532D1E0705003E74A4 = {
 			isa = PBXGroup;
 			children = (
+				BFC264112D1F14E600279D9E /* Localizable.xcstrings */,
 				BFE3DE5E2D1E0706003E74A4 /* Octopus_Agile_Helper */,
 				BFE3DE762D1E0707003E74A4 /* Octopus_Agile_HelperTests */,
 				BFE3DE802D1E0707003E74A4 /* Octopus_Agile_HelperUITests */,
@@ -205,6 +211,7 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hant",
 			);
 			mainGroup = BFE3DE532D1E0705003E74A4;
 			minimizedProjectReferenceProxies = 1;
@@ -225,6 +232,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -407,6 +415,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -463,6 +472,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

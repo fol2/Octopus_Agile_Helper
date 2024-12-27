@@ -38,7 +38,7 @@ struct ContentView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("Octopus Agile")
+            .navigationTitle(LocalizedStringKey("Octopus Agile"))
             .refreshable {
                 await ratesViewModel.refreshRates(force: true)
             }
@@ -72,7 +72,7 @@ struct CardLockedView: View {
         VStack(spacing: 8) {
             HStack {
                 Image(systemName: "lock.fill")
-                Text("\(definition.displayName) (Locked)")
+                Text(LocalizedStringKey("\(definition.displayName) (Locked)"))
             }
             .font(.headline)
             
@@ -80,8 +80,10 @@ struct CardLockedView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
-            Button("Unlock") {
+            Button {
                 // Hook into your IAP or purchasing logic
+            } label: {
+                Text("Unlock", comment: "Button to unlock a premium feature")
             }
             .buttonStyle(.borderedProminent)
         }

@@ -4,6 +4,7 @@ struct CardManagementView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var editMode = EditMode.active
     @State private var selectedCard: CardConfig?
+    @State private var refreshTrigger = false
     
     var body: some View {
         List {
@@ -16,7 +17,7 @@ struct CardManagementView: View {
                 .onMove(perform: moveCards)
             } header: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Drag to reorder cards")
+                    Text("Drag to reorder cards", comment: "Instructions for reordering cards")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -24,7 +25,7 @@ struct CardManagementView: View {
                 .padding(.bottom, 8)
             }
         }
-        .navigationTitle("Manage Cards")
+        .navigationTitle(LocalizedStringKey("Manage Cards"))
         .listStyle(.insetGrouped)
         .environment(\.editMode, $editMode)
         .safeAreaInset(edge: .bottom) {
@@ -36,7 +37,13 @@ struct CardManagementView: View {
         .sheet(item: $selectedCard) { config in
             if let definition = CardRegistry.shared.definition(for: config.cardType) {
                 CardInfoSheet(definition: definition)
+                    .environmentObject(globalSettings)
+                    .environment(\.locale, globalSettings.locale)
             }
+        }
+        .id(refreshTrigger)
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
         }
     }
     
@@ -59,6 +66,7 @@ struct CardManagementView: View {
 struct CardRowView: View {
     @Binding var cardConfig: CardConfig
     @Environment(\.editMode) private var editMode
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let onInfoTap: () -> Void
     
     var body: some View {
@@ -77,7 +85,7 @@ struct CardRowView: View {
             .frame(width: 44)
             .contentShape(Rectangle())
             
-            Text(formatCardTypeName(cardConfig.cardType.rawValue))
+            Text(LocalizedStringKey(getCardDisplayName(cardConfig.cardType)))
                 .font(.body)
             
             Spacer()
@@ -91,11 +99,15 @@ struct CardRowView: View {
             .padding(.trailing, 8)
             
             if cardConfig.isPurchased {
-                Toggle("Enabled", isOn: $cardConfig.isEnabled)
-                    .labelsHidden()
+                Toggle(isOn: $cardConfig.isEnabled) {
+                    Text("Enable card", comment: "Toggle to enable/disable a card")
+                }
+                .labelsHidden()
             } else {
-                Button("Unlock") {
+                Button {
                     purchaseCard()
+                } label: {
+                    Text("Unlock", comment: "Button to unlock a premium card")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -123,10 +135,17 @@ struct CardRowView: View {
         }
     }
     
-    private func formatCardTypeName(_ name: String) -> String {
-        name.replacingOccurrences(of: "([A-Z])", with: " $1", options: [.regularExpression])
-            .trimmingCharacters(in: .whitespaces)
-            .capitalized
+    private func getCardDisplayName(_ cardType: CardType) -> String {
+        switch cardType {
+        case .currentRate:
+            return "Current Rate"
+        case .lowestUpcoming:
+            return "Lowest Upcoming Rates"
+        case .highestUpcoming:
+            return "Highest Upcoming Rates"
+        case .averageUpcoming:
+            return "Average Upcoming Rates"
+        }
     }
     
     private func purchaseCard() {
@@ -137,23 +156,27 @@ struct CardRowView: View {
 
 struct CardInfoSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let definition: CardDefinition
     
     var body: some View {
         NavigationView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(definition.displayName)
+                Text(LocalizedStringKey(definition.displayName))
                     .font(.title)
                     .padding(.bottom, 8)
+                    .environment(\.locale, locale)
                 
-                Text(definition.description)
+                Text(LocalizedStringKey(definition.description))
                     .font(.body)
+                    .environment(\.locale, locale)
                 
                 if definition.isPremium {
                     HStack {
                         Image(systemName: "star.fill")
                             .foregroundColor(.yellow)
-                        Text("Premium Feature")
+                        Text("Premium Feature", comment: "Label indicating a premium feature")
                             .font(.headline)
                     }
                     .padding(.top, 8)
@@ -165,11 +188,14 @@ struct CardInfoSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Text("Done", comment: "Button to dismiss the info sheet")
                     }
                 }
             }
         }
+        .environment(\.locale, locale)
     }
 } 

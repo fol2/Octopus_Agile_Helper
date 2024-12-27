@@ -17,7 +17,7 @@ struct AllRatesListView: View {
             if let date = rate.validFrom {
                 return dateFormatter.string(from: date)
             }
-            return "Unknown Date"
+            return String(localized: "Unknown Date", comment: "Fallback text when a rate's date is not available")
         }
         // Sort by date ascending (earliest first)
         return grouped.map { ($0.key, $0.value) }
@@ -56,7 +56,7 @@ struct AllRatesListView: View {
                                 Spacer()
                                 
                                 if isRateCurrentlyActive(rate) {
-                                    Text("NOW")
+                                    Text("NOW", comment: "Label indicating the currently active rate")
                                         .font(.caption)
                                         .fontWeight(.bold)
                                         .foregroundColor(.white)
@@ -88,7 +88,7 @@ struct AllRatesListView: View {
                 }
             }
         }
-        .navigationTitle("All Rates")
+        .navigationTitle(String(localized: "All Rates", comment: "Navigation title for the list of all electricity rates"))
         .navigationBarTitleDisplayMode(.inline)
     }
     

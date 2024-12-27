@@ -1,7 +1,597 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-
+    "%@ - %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ - %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ - %2$@"
+          }
+        }
+      }
+    },
+    "%@ (Locked)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ (Locked)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (已鎖定)"
+          }
+        }
+      }
+    },
+    "%lld Active" : {
+      "comment" : "Shows number of currently active cards",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 個已啟用"
+          }
+        }
+      }
+    },
+    "Additional Rates to Show: %lld" : {
+      "comment" : "Label for stepper controlling how many additional rates to display",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示額外費率數量：%lld"
+          }
+        }
+      }
+    },
+    "All Rates" : {
+      "comment" : "Navigation title for the list of all electricity rates",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有費率"
+          }
+        }
+      }
+    },
+    "API Configuration" : {
+      "comment" : "Header for the API configuration section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 設定"
+          }
+        }
+      }
+    },
+    "API Key" : {
+      "comment" : "Placeholder for API key input field",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 金鑰"
+          }
+        }
+      }
+    },
+    "API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'." : {
+      "comment" : "Help text explaining the API key field",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看費率時 API 金鑰為選填。存取個人資料時則為必填。您可以在 Octopus Energy 儀表板的「API Access」中取得。"
+          }
+        }
+      }
+    },
+    "Average Upcoming Rates" : {
+      "comment" : "Navigation title for average rates settings",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均即將到來費率"
+          }
+        }
+      }
+    },
+    "Card Settings" : {
+      "comment" : "Header for the card's settings section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片設定"
+          }
+        }
+      }
+    },
+    "Cards" : {
+      "comment" : "Header for the cards management section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片"
+          }
+        }
+      }
+    },
+    "Current Rate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Rate"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前費率"
+          }
+        }
+      }
+    },
+    "Custom Average Hours: %@" : {
+      "comment" : "Label for stepper controlling the duration of average calculation",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自訂平均小時數：%@"
+          }
+        }
+      }
+    },
+    "Display Rates in Pounds (£)" : {
+      "comment" : "Toggle for showing rates in pounds instead of pence",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以英鎊顯示費率 (£)"
+          }
+        }
+      }
+    },
+    "Displays the ongoing rate for the current half-hour slot." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Displays the ongoing rate for the current half-hour slot."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示目前半小時時段的進行中費率。"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "comment" : "Button to dismiss the info sheet\nButton to dismiss the settings sheet",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
+      }
+    },
+    "Drag to reorder cards" : {
+      "comment" : "Instructions for reordering cards",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖曳以重新排序卡片"
+          }
+        }
+      }
+    },
+    "Enable card" : {
+      "comment" : "Toggle to enable/disable a card",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟用卡片"
+          }
+        }
+      }
+    },
+    "Highest Upcoming Rates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highest Upcoming Rates"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高即將到來費率"
+          }
+        }
+      }
+    },
+    "Language" : {
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "語言"
+          }
+        }
+      }
+    },
+    "Lowest [count] ([hours]-hour Averages)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lowest [count] ([hours]-hour Averages)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低 [count] 個（[hours] 小時平均）"
+          }
+        }
+      }
+    },
+    "Lowest %lld (%@-hour Averages)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lowest %1$lld (%2$@-hour Averages)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低 %1$lld 個（%2$@ 小時平均）"
+          }
+        }
+      }
+    },
+    "Lowest Upcoming Rates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lowest Upcoming Rates"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低即將到來費率"
+          }
+        }
+      }
+    },
+    "Manage Cards" : {
+      "comment" : "Button to open card management screen",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理卡片"
+          }
+        }
+      }
+    },
+    "Manage which cards are shown and their order." : {
+      "comment" : "Help text explaining the cards management section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理要顯示哪些卡片及其順序。"
+          }
+        }
+      }
+    },
+    "Max List Count: %lld" : {
+      "comment" : "Label for stepper controlling how many averages to display",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大列表數量：%lld"
+          }
+        }
+      }
+    },
+    "No current rate available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No current rate available"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前沒有可用費率"
+          }
+        }
+      }
+    },
+    "No upcoming data for [hours]-hour averages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No upcoming data for [hours]-hour averages"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有 [hours] 小時平均的即將到來資料"
+          }
+        }
+      }
+    },
+    "No upcoming data for %@-hour averages" : {
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有 %@ 小時平均的即將到來資料"
+          }
+        }
+      }
+    },
+    "No upcoming rates available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No upcoming rates available"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有即將到來的費率"
+          }
+        }
+      }
+    },
+    "NOW" : {
+      "comment" : "Label indicating the currently active rate",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前"
+          }
+        }
+      }
+    },
+    "Octopus Agile" : {
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Octopus Agile"
+          }
+        }
+      }
+    },
+    "Postcode" : {
+      "comment" : "Placeholder for postcode input field",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "郵遞區號"
+          }
+        }
+      }
+    },
+    "Postcode determines your region for accurate rates. Default is region 'H'." : {
+      "comment" : "Help text explaining the postcode field",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "郵遞區號決定您的地區以取得準確費率。預設地區為 'H'。"
+          }
+        }
+      }
+    },
+    "Preferences" : {
+      "comment" : "Header for the preferences section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏好設定"
+          }
+        }
+      }
+    },
+    "Premium Feature" : {
+      "comment" : "Label indicating a premium feature",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "進階功能"
+          }
+        }
+      }
+    },
+    "Region Lookup" : {
+      "comment" : "Header for the region lookup section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地區查詢"
+          }
+        }
+      }
+    },
+    "Set language and rate display preferences." : {
+      "comment" : "Help text explaining the preferences section",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定語言和費率顯示偏好。"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定"
+          }
+        }
+      }
+    },
+    "Shows the average cost over selected periods or the next 10 lowest windows." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the average cost over selected periods or the next 10 lowest windows."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示所選時段或接下來 10 個最低時段的平均費用。"
+          }
+        }
+      }
+    },
+    "Shows upcoming times with the cheapest electricity rates." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows upcoming times with the cheapest electricity rates."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示最便宜電費的即將到來時段。"
+          }
+        }
+      }
+    },
+    "Unknown Date" : {
+      "comment" : "Fallback text when a rate's date is not available",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知日期"
+          }
+        }
+      }
+    },
+    "Unlock" : {
+      "comment" : "Button to unlock a premium card\nButton to unlock a premium feature",
+      "localizations" : {
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解鎖"
+          }
+        }
+      }
+    },
+    "Until [time]" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Until [time]"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直到 [time]"
+          }
+        }
+      }
+    },
+    "Until %@ %@" : {
+      "comment" : "Time range format when showing date and time",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Until %1$@ %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直到 %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Warns you of upcoming peak pricing times." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warns you of upcoming peak pricing times."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒您即將到來的尖峰費率時段。"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

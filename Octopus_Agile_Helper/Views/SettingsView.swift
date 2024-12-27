@@ -4,71 +4,67 @@ import Foundation
 struct SettingsView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     
-    private let languages = ["English", "Other"]
-    
     var body: some View {
         Form {
             Section(header: HStack {
-                Text("Region Lookup")
+                Text(LocalizedStringKey("Region Lookup"))
                 Spacer()
-                InfoButton(message: "Postcode determines your region for accurate rates. Default is region 'H'.")
+                InfoButton(message: LocalizedStringKey("Postcode determines your region for accurate rates. Default is region 'H'."))
             }) {
-                TextField("Postcode", text: $globalSettings.settings.postcode)
+                TextField(LocalizedStringKey("Postcode"), text: $globalSettings.settings.postcode, prompt: Text(LocalizedStringKey("Postcode")))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .textCase(.uppercase)
             }
             
             Section(header: HStack {
-                Text("API Configuration")
+                Text(LocalizedStringKey("API Configuration"))
                 Spacer()
-                InfoButton(message: "API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'.")
+                InfoButton(message: LocalizedStringKey("API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'."))
             }) {
-                SecureField("API Key", text: $globalSettings.settings.apiKey)
+                SecureField(LocalizedStringKey("API Key"), text: $globalSettings.settings.apiKey, prompt: Text(LocalizedStringKey("API Key")))
             }
             
             Section(header: HStack {
-                Text("Preferences")
+                Text(LocalizedStringKey("Preferences"))
                 Spacer()
-                InfoButton(message: "Set language and rate display preferences.")
+                InfoButton(message: LocalizedStringKey("Set language and rate display preferences."))
             }) {
-                Picker("Language", selection: $globalSettings.settings.selectedLanguage) {
-                    ForEach(languages, id: \.self) { language in
-                        Text(language)
+                Picker(LocalizedStringKey("Language"), selection: $globalSettings.settings.selectedLanguage) {
+                    ForEach(Language.allCases, id: \.displayName) { language in
+                        Text(language.displayName)
                     }
                 }
                 
-                Toggle("Display Rates in Pounds (£)", isOn: $globalSettings.settings.showRatesInPounds)
+                Toggle(LocalizedStringKey("Display Rates in Pounds (£)"), 
+                       isOn: $globalSettings.settings.showRatesInPounds)
             }
             
             Section(header: HStack {
-                Text("Cards")
+                Text(LocalizedStringKey("Cards"))
                 Spacer()
-                InfoButton(message: "Manage which cards are shown and their order.")
+                InfoButton(message: LocalizedStringKey("Manage which cards are shown and their order."))
             }) {
                 NavigationLink(destination: CardManagementView()) {
                     HStack {
-                        Text("Manage Cards")
+                        Text(LocalizedStringKey("Manage Cards"))
                         Spacer()
-                        Text("\(globalSettings.settings.cardSettings.filter { $0.isEnabled }.count) Active")
+                        Text(LocalizedStringKey("\(globalSettings.settings.cardSettings.filter { $0.isEnabled }.count) Active"))
                             .foregroundColor(.gray)
                     }
                 }
             }
         }
-        .navigationTitle("Settings")
-        .onAppear {
-            print("DEBUG: Settings loaded - API Key length: \(globalSettings.settings.apiKey.count)")
-            print("DEBUG: Settings loaded - Selected Language: \(globalSettings.settings.selectedLanguage)")
-            print("DEBUG: Settings loaded - Postcode: \(globalSettings.settings.postcode)")
-            print("DEBUG: Settings loaded - Show Rates in Pounds: \(globalSettings.settings.showRatesInPounds)")
-        }
+        .environment(\.locale, globalSettings.locale)
+        .navigationTitle(LocalizedStringKey("Settings"))
     }
 }
 
 struct InfoButton: View {
-    let message: String
+    let message: LocalizedStringKey
     @State private var showingInfo = false
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @State private var refreshID = UUID()
     
     var body: some View {
         Button(action: {
@@ -81,6 +77,11 @@ struct InfoButton: View {
             Text(message)
                 .padding()
                 .presentationCompactAdaptation(.popover)
+                .environment(\.locale, globalSettings.locale)
+                .id(refreshID)
+        }
+        .onChange(of: globalSettings.locale) { _, _ in
+            refreshID = UUID()
         }
     }
 }

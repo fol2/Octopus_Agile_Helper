@@ -73,7 +73,7 @@ struct AverageUpcomingRateCardView: View {
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .foregroundColor(.blue)
-                Text("Lowest \(localSettings.settings.maxListCount) (\(String(format: "%.1f", localSettings.settings.customAverageHours))-hour Averages)")
+                Text(LocalizedStringKey("Lowest \(localSettings.settings.maxListCount) (\(String(format: "%.1f", localSettings.settings.customAverageHours))-hour Averages)"))
                     .font(.headline)
                 Spacer()
                 Button(action: {
@@ -91,7 +91,7 @@ struct AverageUpcomingRateCardView: View {
             } else {
                 let averages = viewModel.getLowestAverages(hours: localSettings.settings.customAverageHours, maxCount: localSettings.settings.maxListCount)
                 if averages.isEmpty {
-                    Text("No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages")
+                    Text(LocalizedStringKey("No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages"))
                         .foregroundColor(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -131,21 +131,25 @@ private struct AverageCardSettingsSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Card Settings")) {
-                    Stepper("Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))",
+                Section(header: Text("Card Settings", comment: "Header for the card's settings section")) {
+                    Stepper(String(localized: "Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))", 
+                           comment: "Label for stepper controlling the duration of average calculation"),
                             value: $localSettings.settings.customAverageHours,
                             in: 1...24,
                             step: 0.5)
-                    Stepper("Max List Count: \(localSettings.settings.maxListCount)",
+                    Stepper(String(localized: "Max List Count: \(localSettings.settings.maxListCount)", 
+                           comment: "Label for stepper controlling how many averages to display"),
                             value: $localSettings.settings.maxListCount,
                             in: 1...50)
                 }
             }
-            .navigationTitle("Average Upcoming Rates")
+            .navigationTitle(String(localized: "Average Upcoming Rates", comment: "Navigation title for average rates settings"))
             .toolbar {
                 ToolbarItem(placement: .automatic) {
-                    Button("Done") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Text("Done", comment: "Button to dismiss the settings sheet")
                     }
                 }
             }

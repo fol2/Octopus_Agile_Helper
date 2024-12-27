@@ -29,8 +29,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .currentRate,
-                displayName: "Current Rate",
-                description: "Displays the ongoing rate for the current half-hour slot.",
+                displayName: String(localized: "Current Rate"),
+                description: String(localized: "Displays the ongoing rate for the current half-hour slot."),
                 isPremium: false,
                 makeView: { vm in AnyView(CurrentRateCardView(viewModel: vm)) }
             )
@@ -39,8 +39,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .lowestUpcoming,
-                displayName: "Lowest Upcoming Rates",
-                description: "Shows upcoming times with the cheapest electricity rates.",
+                displayName: String(localized: "Lowest Upcoming Rates"),
+                description: String(localized: "Shows upcoming times with the cheapest electricity rates."),
                 isPremium: false,
                 makeView: { vm in AnyView(LowestUpcomingRateCardView(viewModel: vm)) }
             )
@@ -49,8 +49,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .highestUpcoming,
-                displayName: "Highest Upcoming Rates",
-                description: "Warns you of upcoming peak pricing times.",
+                displayName: String(localized: "Highest Upcoming Rates"),
+                description: String(localized: "Warns you of upcoming peak pricing times."),
                 isPremium: false,
                 makeView: { vm in AnyView(HighestUpcomingRateCardView(viewModel: vm)) }
             )
@@ -59,8 +59,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .averageUpcoming,
-                displayName: "Average Upcoming Rates",
-                description: "Shows the average cost over selected periods or the next 10 lowest windows.",
+                displayName: String(localized: "Average Upcoming Rates"),
+                description: String(localized: "Shows the average cost over selected periods or the next 10 lowest windows."),
                 isPremium: true,
                 makeView: { vm in AnyView(AverageUpcomingRateCardView(viewModel: vm)) }
             )

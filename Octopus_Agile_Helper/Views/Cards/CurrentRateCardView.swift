@@ -14,7 +14,7 @@ struct CurrentRateCardView: View {
             HStack {
                 Image(systemName: "clock.fill")
                     .foregroundColor(.blue)
-                Text("Current Rate")
+                Text("Current Rate", comment: "Title of the card showing the current electricity rate")
                     .font(.headline)
                 Spacer()
                 Image(systemName: "chevron.right.circle.fill")
@@ -43,7 +43,7 @@ struct CurrentRateCardView: View {
                     }
                 }
             } else {
-                Text("No current rate available")
+                Text("No current rate available", comment: "Message shown when no current rate data is available")
                     .foregroundColor(.secondary)
             }
         }
@@ -107,7 +107,8 @@ struct CurrentRateCardView: View {
         if calendar.isDate(fromDay, inSameDayAs: nowDay) {
             return "Until \(timeFormatter.string(from: to))"
         } else {
-            return "Until \(dateFormatter.string(from: to)) \(timeFormatter.string(from: to))"
+            return String(localized: "Until \(dateFormatter.string(from: to)) \(timeFormatter.string(from: to))", 
+                        comment: "Time range format when showing date and time")
         }
     }
 }

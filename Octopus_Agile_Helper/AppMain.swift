@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 
 @main
-struct AppMain: App {
+struct Octopus_Agile_HelperApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var globalSettings = GlobalSettingsManager()
@@ -13,6 +13,7 @@ struct AppMain: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(globalTimer)
                 .environmentObject(globalSettings)
+                .environment(\.locale, globalSettings.locale)
                 .onAppear {
                     globalTimer.startTimer()
                 }

@@ -65,7 +65,7 @@ struct LowestUpcomingRateCardView: View {
             HStack {
                 Image(systemName: "arrow.down.circle.fill")
                     .foregroundColor(.green)
-                Text("Lowest Upcoming Rates")
+                Text("Lowest Upcoming Rates", comment: "Title of the card showing the lowest upcoming electricity rates")
                     .font(.headline)
                 Spacer()
                 Button(action: {
@@ -129,7 +129,7 @@ struct LowestUpcomingRateCardView: View {
                     }
                 }
             } else {
-                Text("No upcoming rates available")
+                Text("No upcoming rates available", comment: "Message shown when no upcoming rate data is available")
                     .foregroundColor(.secondary)
             }
         }
@@ -148,17 +148,20 @@ private struct LowestRateCardSettingsSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Card Settings")) {
-                    Stepper("Additional Rates to Show: \(localSettings.settings.additionalRatesCount)",
+                Section(header: Text("Card Settings", comment: "Header for the card's settings section")) {
+                    Stepper(String(localized: "Additional Rates to Show: \(localSettings.settings.additionalRatesCount)", 
+                           comment: "Label for stepper controlling how many additional rates to display"),
                             value: $localSettings.settings.additionalRatesCount,
                             in: 0...10)
                 }
             }
-            .navigationTitle("Lowest Upcoming Rates")
+            .navigationTitle(LocalizedStringKey("Lowest Upcoming Rates"))
             .toolbar {
                 ToolbarItem(placement: .automatic) {
-                    Button("Done") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Text("Done", comment: "Button to dismiss the settings sheet")
                     }
                 }
             }
