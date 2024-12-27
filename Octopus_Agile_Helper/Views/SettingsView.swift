@@ -1,10 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @AppStorage("apiKey") private var apiKey: String = ""
-    @AppStorage("selectedLanguage") private var selectedLanguage: String = "English"
-    @AppStorage("averageHours") private var averageHours: Double = 2.0
-    @AppStorage("postcode") private var postcode: String = ""
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     
     private let languages = ["English", "Other"]
     
@@ -15,14 +12,10 @@ struct SettingsView: View {
                 Spacer()
                 InfoButton(message: "Postcode determines your region for accurate rates. Default is region 'H'.")
             }) {
-                TextField("Postcode", text: $postcode)
+                TextField("Postcode", text: $globalSettings.settings.postcode)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .textCase(.uppercase)
-                    .onChange(of: postcode) { newValue in
-                        print("DEBUG: Postcode changed to: \(newValue)")
-                        UserDefaults.standard.synchronize()
-                    }
             }
             
             Section(header: HStack {
@@ -30,7 +23,7 @@ struct SettingsView: View {
                 Spacer()
                 InfoButton(message: "API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'.")
             }) {
-                SecureField("API Key", text: $apiKey)
+                SecureField("API Key", text: $globalSettings.settings.apiKey)
             }
             
             Section(header: HStack {
@@ -38,24 +31,24 @@ struct SettingsView: View {
                 Spacer()
                 InfoButton(message: "Set language and average hours for rate calculations.")
             }) {
-                Picker("Language", selection: $selectedLanguage) {
+                Picker("Language", selection: $globalSettings.settings.selectedLanguage) {
                     ForEach(languages, id: \.self) { language in
                         Text(language)
                     }
                 }
                 
                 VStack(alignment: .leading) {
-                    Text("Average Hours: \(String(format: "%.1f", averageHours))")
-                    Slider(value: $averageHours, in: 0.5...24, step: 0.5)
+                    Text("Average Hours: \(String(format: "%.1f", globalSettings.settings.averageHours))")
+                    Slider(value: $globalSettings.settings.averageHours, in: 0.5...24, step: 0.5)
                 }
             }
         }
         .navigationTitle("Settings")
         .onAppear {
-            print("DEBUG: Settings loaded - API Key length: \(apiKey.count)")
-            print("DEBUG: Settings loaded - Average Hours: \(averageHours)")
-            print("DEBUG: Settings loaded - Selected Language: \(selectedLanguage)")
-            print("DEBUG: Settings loaded - Postcode: \(postcode)")
+            print("DEBUG: Settings loaded - API Key length: \(globalSettings.settings.apiKey.count)")
+            print("DEBUG: Settings loaded - Average Hours: \(globalSettings.settings.averageHours)")
+            print("DEBUG: Settings loaded - Selected Language: \(globalSettings.settings.selectedLanguage)")
+            print("DEBUG: Settings loaded - Postcode: \(globalSettings.settings.postcode)")
         }
     }
 }
@@ -83,6 +76,7 @@ struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
             SettingsView()
+                .environmentObject(GlobalSettingsManager())
         }
     }
 } 

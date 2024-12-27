@@ -77,13 +77,14 @@ The app provides three main views for rate information:
 
 ## Configuration
 
-#### Global vs Local Settings
+### Global Settings
+We store global settings (postcode, API key, language, etc.) in `GlobalSettingsManager`, a single reference to which is created in `AppMain.swift`. This ensures we can easily synchronize changes across the app. Settings are saved in `UserDefaults` as JSON.
 
-- **Global Settings**: Configure app-wide settings like postcode, API key, and language in the main Settings view.
-- **Local Card Settings**: Each card can have its own configuration:
-  - Click the gear icon on a card to access its local settings
-  - Customize settings like average hours and number of items to display
-  - Settings are saved per-card and persist between app launches
+### Local Card Settings
+Each card can have its own `CardSettingsManager` for more granular configuration:
+- Click the gear icon on a card to access its local settings
+- Customize settings like average hours and number of items to display
+- Settings are saved per-card and persist between app launches
 
 ## License
 TBD 

@@ -138,3 +138,14 @@
 - Added `getLowestAverages` method to `RatesViewModel` to support custom hours and max count per card.
 - Global settings (postcode, API key, language) remain in `SettingsView`.
 - Local card settings are stored in `UserDefaults` with card-specific keys. 
+
+## 2024-12-28: Unified GlobalSettingsManager
+- Replaced old `@AppStorage` usage in `SettingsView` with a single `GlobalSettingsManager`
+- Global settings are stored in `UserDefaults` as JSON
+- Created clear separation between global and local card settings
+- Added `GlobalSettingsManager` to app environment for consistent access
+- Benefits:
+  - Single source of truth for global settings
+  - Type-safe settings access
+  - Easier to extend with new settings
+  - Consistent settings management across the app 
