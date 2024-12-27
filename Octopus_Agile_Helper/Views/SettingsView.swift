@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct SettingsView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
@@ -73,10 +74,12 @@ struct InfoButton: View {
 }
 
 struct SettingsView_Previews: PreviewProvider {
+    static let globalSettings = GlobalSettingsManager()
+    
     static var previews: some View {
         NavigationView {
             SettingsView()
-                .environmentObject(GlobalSettingsManager())
+                .environmentObject(globalSettings)
         }
     }
 } 

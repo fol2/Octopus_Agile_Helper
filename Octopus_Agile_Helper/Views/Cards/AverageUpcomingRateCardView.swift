@@ -1,8 +1,42 @@
 import SwiftUI
+import Foundation
+
+// Local settings for this card
+private struct AverageCardLocalSettings: Codable {
+    var customAverageHours: Double
+    var maxListCount: Int
+    
+    static let `default` = AverageCardLocalSettings(customAverageHours: 3.0, maxListCount: 10)
+}
+
+private class AverageCardLocalSettingsManager: ObservableObject {
+    @Published var settings: AverageCardLocalSettings {
+        didSet {
+            saveSettings()
+        }
+    }
+    
+    private let userDefaultsKey = "AverageCardSettings"
+    
+    init() {
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+           let decoded = try? JSONDecoder().decode(AverageCardLocalSettings.self, from: data) {
+            self.settings = decoded
+        } else {
+            self.settings = .default
+        }
+    }
+    
+    func saveSettings() {
+        if let encoded = try? JSONEncoder().encode(settings) {
+            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+        }
+    }
+}
 
 struct AverageUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
-    @StateObject private var localSettings = CardSettingsManager(cardKey: "AverageCard")
+    @StateObject private var localSettings = AverageCardLocalSettingsManager()
     @State private var showingLocalSettings = false
     
     var body: some View {
@@ -48,12 +82,42 @@ struct AverageUpcomingRateCardView: View {
         .sheet(isPresented: $showingLocalSettings) {
             AverageCardSettingsSheet(localSettings: localSettings)
         }
-        .rateCardStyle()
+        .modifier(RateCardStyle())
+    }
+}
+
+// Settings sheet for this card
+private struct AverageCardSettingsSheet: View {
+    @ObservedObject var localSettings: AverageCardLocalSettingsManager
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Local Card Settings")) {
+                    Stepper("Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))",
+                            value: $localSettings.settings.customAverageHours,
+                            in: 1...24,
+                            step: 0.5)
+                    Stepper("Max List Count: \(localSettings.settings.maxListCount)",
+                            value: $localSettings.settings.maxListCount,
+                            in: 1...50)
+                }
+            }
+            .navigationTitle("Card Settings")
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
 #Preview {
     let timer = GlobalTimer()
-    return AverageUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
+    AverageUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
         .preferredColorScheme(.dark)
 } 
