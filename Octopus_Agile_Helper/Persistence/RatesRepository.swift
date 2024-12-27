@@ -10,8 +10,8 @@ extension NSManagedObjectContext {
                 do {
                     let result = try block()
                     continuation.resume(returning: result)
-                } catch let thrownError as Error {
-                    continuation.resume(throwing: thrownError)
+                } catch let error {
+                    continuation.resume(throwing: error)
                 }
             }
         }
