@@ -3,15 +3,15 @@ import SwiftUI
 /// Identifies a single card's metadata and how to produce its SwiftUI view
 final class CardDefinition {
     let id: CardType                 // we'll reuse CardType as the unique identifier
-    let displayName: String          // e.g. "Current Rate Card"
-    let description: String          // short info about the card
+    let displayNameKey: String       // e.g. "Current Rate Card"
+    let descriptionKey: String       // short info about the card
     let isPremium: Bool             // indicates if the card requires purchase
     let makeView: (RatesViewModel) -> AnyView
     
-    init(id: CardType, displayName: String, description: String, isPremium: Bool, makeView: @escaping (RatesViewModel) -> AnyView) {
+    init(id: CardType, displayNameKey: String, descriptionKey: String, isPremium: Bool, makeView: @escaping (RatesViewModel) -> AnyView) {
         self.id = id
-        self.displayName = displayName
-        self.description = description
+        self.displayNameKey = displayNameKey
+        self.descriptionKey = descriptionKey
         self.isPremium = isPremium
         self.makeView = makeView
     }
@@ -29,8 +29,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .currentRate,
-                displayName: String(localized: "Current Rate"),
-                description: String(localized: "Displays the ongoing rate for the current half-hour slot."),
+                displayNameKey: "Current Rate",
+                descriptionKey: "Displays the ongoing rate for the current half-hour slot.",
                 isPremium: false,
                 makeView: { vm in AnyView(CurrentRateCardView(viewModel: vm)) }
             )
@@ -39,8 +39,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .lowestUpcoming,
-                displayName: String(localized: "Lowest Upcoming Rates"),
-                description: String(localized: "Shows upcoming times with the cheapest electricity rates."),
+                displayNameKey: "Lowest Upcoming Rates",
+                descriptionKey: "Shows upcoming times with the cheapest electricity rates.",
                 isPremium: false,
                 makeView: { vm in AnyView(LowestUpcomingRateCardView(viewModel: vm)) }
             )
@@ -49,8 +49,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .highestUpcoming,
-                displayName: String(localized: "Highest Upcoming Rates"),
-                description: String(localized: "Warns you of upcoming peak pricing times."),
+                displayNameKey: "Highest Upcoming Rates",
+                descriptionKey: "Warns you of upcoming peak pricing times.",
                 isPremium: false,
                 makeView: { vm in AnyView(HighestUpcomingRateCardView(viewModel: vm)) }
             )
@@ -59,8 +59,8 @@ final class CardRegistry {
         register(
             CardDefinition(
                 id: .averageUpcoming,
-                displayName: String(localized: "Average Upcoming Rates"),
-                description: String(localized: "Shows the average cost over selected periods or the next 10 lowest windows."),
+                displayNameKey: "Average Upcoming Rates",
+                descriptionKey: "Shows the average cost over selected periods or the next 10 lowest windows.",
                 isPremium: true,
                 makeView: { vm in AnyView(AverageUpcomingRateCardView(viewModel: vm)) }
             )

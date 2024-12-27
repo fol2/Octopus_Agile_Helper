@@ -39,6 +39,7 @@ struct CardManagementView: View {
                 CardInfoSheet(definition: definition)
                     .environmentObject(globalSettings)
                     .environment(\.locale, globalSettings.locale)
+                    .presentationDragIndicator(.visible)
             }
         }
         .id(refreshTrigger)
@@ -136,16 +137,10 @@ struct CardRowView: View {
     }
     
     private func getCardDisplayName(_ cardType: CardType) -> String {
-        switch cardType {
-        case .currentRate:
-            return "Current Rate"
-        case .lowestUpcoming:
-            return "Lowest Upcoming Rates"
-        case .highestUpcoming:
-            return "Highest Upcoming Rates"
-        case .averageUpcoming:
-            return "Average Upcoming Rates"
+        if let definition = CardRegistry.shared.definition(for: cardType) {
+            return definition.displayNameKey
         }
+        return ""  // Fallback empty string if definition not found
     }
     
     private func purchaseCard() {
@@ -162,29 +157,35 @@ struct CardInfoSheet: View {
     
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(LocalizedStringKey(definition.displayName))
-                    .font(.title)
-                    .padding(.bottom, 8)
-                    .environment(\.locale, locale)
-                
-                Text(LocalizedStringKey(definition.description))
-                    .font(.body)
-                    .environment(\.locale, locale)
-                
-                if definition.isPremium {
-                    HStack {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                        Text("Premium Feature", comment: "Label indicating a premium feature")
-                            .font(.headline)
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(LocalizedStringKey(definition.displayNameKey))
+                            .font(.title)
+                            .padding(.bottom, 8)
+                            .environment(\.locale, locale)
+                        
+                        Text(LocalizedStringKey(definition.descriptionKey))
+                            .font(.body)
+                            .environment(\.locale, locale)
+                        
+                        if definition.isPremium {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.yellow)
+                                Text("Premium Feature", comment: "Label indicating a premium feature")
+                                    .font(.headline)
+                            }
+                            .padding(.top, 8)
+                        }
                     }
-                    .padding(.top, 8)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                
-                Spacer()
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
-            .padding()
+            .listStyle(.plain)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

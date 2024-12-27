@@ -172,6 +172,7 @@
       }
     },
     "Displays the ongoing rate for the current half-hour slot." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -489,6 +490,7 @@
       }
     },
     "Shows the average cost over selected periods or the next 10 lowest windows." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -505,6 +507,7 @@
       }
     },
     "Shows upcoming times with the cheapest electricity rates." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -577,6 +580,7 @@
       }
     },
     "Warns you of upcoming peak pricing times." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

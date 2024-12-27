@@ -72,11 +72,11 @@ struct CardLockedView: View {
         VStack(spacing: 8) {
             HStack {
                 Image(systemName: "lock.fill")
-                Text(LocalizedStringKey("\(definition.displayName) (Locked)"))
+                Text(LocalizedStringKey("\(definition.displayNameKey) (Locked)"))
             }
             .font(.headline)
             
-            Text(definition.description)
+            Text(LocalizedStringKey(definition.descriptionKey))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
