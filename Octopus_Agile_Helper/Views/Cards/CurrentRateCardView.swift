@@ -81,8 +81,10 @@ struct CurrentRateCardView: View {
 #if DEBUG
 struct CurrentRateCardView_Previews: PreviewProvider {
     static var previews: some View {
-        let viewModel = RatesViewModel(globalTimer: GlobalTimer())
+        let globalTimer = GlobalTimer()
+        let viewModel = RatesViewModel(globalTimer: globalTimer)
         CurrentRateCardView(viewModel: viewModel)
+            .environmentObject(GlobalSettingsManager())
             .previewLayout(.sizeThatFits)
             .padding()
             .preferredColorScheme(.dark)

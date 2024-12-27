@@ -215,7 +215,7 @@
    - Added toggle in Settings UI for user preference
    - Rates are now displayed consistently across all cards based on user preference 
 
-## 2024-03-19: Fixed @EnvironmentObject Crash
+## 2024-12-27: Fixed @EnvironmentObject Crash
 
 1. **Removed `@EnvironmentObject` from `RatesViewModel`**
    - Fixed crash by removing `@EnvironmentObject` from non-SwiftUI class
@@ -237,3 +237,25 @@
    - Maintained proper SwiftUI view hierarchy
    - Preserved rate display toggle functionality
    - Improved code architecture with better dependency injection 
+
+## 2024-12-27: Fixed SwiftUI Preview Environment Objects
+
+1. **Updated Card View Previews**
+   - Added `.environmentObject(GlobalSettingsManager())` to all card previews
+   - Fixed "Preview is missing environment object" error
+   - Affected views:
+     - `CurrentRateCardView`
+     - `LowestUpcomingRateCardView`
+     - `HighestUpcomingRateCardView`
+     - `AverageUpcomingRateCardView`
+
+2. **Preview Code Cleanup**
+   - Improved preview code structure with clearer variable names
+   - Separated timer and viewModel creation for better readability
+   - Maintained consistent preview setup across all cards
+
+3. **Benefits**
+   - Restored stable preview functionality
+   - Consistent environment object injection pattern
+   - Better preview code organization
+   - Proper SwiftUI preview hierarchy 

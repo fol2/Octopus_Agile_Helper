@@ -167,7 +167,9 @@ private struct HighestRateCardSettingsSheet: View {
 }
 
 #Preview {
-    let timer = GlobalTimer()
-    return HighestUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
+    let globalTimer = GlobalTimer()
+    let viewModel = RatesViewModel(globalTimer: globalTimer)
+    HighestUpcomingRateCardView(viewModel: viewModel)
+        .environmentObject(GlobalSettingsManager())
         .preferredColorScheme(.dark)
 } 

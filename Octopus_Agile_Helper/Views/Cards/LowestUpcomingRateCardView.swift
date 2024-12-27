@@ -167,7 +167,9 @@ private struct LowestRateCardSettingsSheet: View {
 }
 
 #Preview {
-    let timer = GlobalTimer()
-    return LowestUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
+    let globalTimer = GlobalTimer()
+    let viewModel = RatesViewModel(globalTimer: globalTimer)
+    LowestUpcomingRateCardView(viewModel: viewModel)
+        .environmentObject(GlobalSettingsManager())
         .preferredColorScheme(.dark)
 } 

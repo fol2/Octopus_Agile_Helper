@@ -154,7 +154,9 @@ private struct AverageCardSettingsSheet: View {
 }
 
 #Preview {
-    let timer = GlobalTimer()
-    AverageUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
+    let globalTimer = GlobalTimer()
+    let viewModel = RatesViewModel(globalTimer: globalTimer)
+    AverageUpcomingRateCardView(viewModel: viewModel)
+        .environmentObject(GlobalSettingsManager())
         .preferredColorScheme(.dark)
 } 
