@@ -3,12 +3,15 @@ import SwiftUI
 struct CardManagementView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var editMode = EditMode.active
+    @State private var selectedCard: CardConfig?
     
     var body: some View {
         List {
             Section {
                 ForEach($globalSettings.settings.cardSettings) { $cardConfig in
-                    CardRowView(cardConfig: $cardConfig)
+                    CardRowView(cardConfig: $cardConfig, onInfoTap: {
+                        selectedCard = cardConfig
+                    })
                 }
                 .onMove(perform: moveCards)
             } header: {
@@ -23,14 +26,17 @@ struct CardManagementView: View {
         }
         .navigationTitle("Manage Cards")
         .listStyle(.insetGrouped)
-        // Use @State editMode instead of constant
         .environment(\.editMode, $editMode)
-        // Add extra bleeding areas for dragging
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 100)
         }
         .safeAreaInset(edge: .top) {
             Color.clear.frame(height: 20)
+        }
+        .sheet(item: $selectedCard) { config in
+            if let definition = CardRegistry.shared.definition(for: config.cardType) {
+                CardInfoSheet(definition: definition)
+            }
         }
     }
     
@@ -46,12 +52,6 @@ struct CardManagementView: View {
             
             globalSettings.settings.cardSettings = cards
             globalSettings.saveSettings()
-            
-            // Reset edit mode briefly to refresh drag state
-            editMode = .inactive
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                editMode = .active
-            }
         }
     }
 }
@@ -59,6 +59,7 @@ struct CardManagementView: View {
 struct CardRowView: View {
     @Binding var cardConfig: CardConfig
     @Environment(\.editMode) private var editMode
+    let onInfoTap: () -> Void
     
     var body: some View {
         HStack(spacing: 12) {
@@ -81,6 +82,14 @@ struct CardRowView: View {
             
             Spacer()
             
+            // Info button
+            Button(action: onInfoTap) {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 8)
+            
             if cardConfig.isPurchased {
                 Toggle("Enabled", isOn: $cardConfig.isEnabled)
                     .labelsHidden()
@@ -97,9 +106,7 @@ struct CardRowView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         .padding(.vertical, 6)
         .background(Color.clear)
-        // Make the entire row draggable
         .contentShape(Rectangle())
-        // Add haptic feedback for drag
         .sensoryFeedback(.selection, trigger: cardConfig.sortOrder)
     }
     
@@ -125,5 +132,44 @@ struct CardRowView: View {
     private func purchaseCard() {
         // In a real app, this would integrate with StoreKit
         cardConfig.isPurchased = true
+    }
+}
+
+struct CardInfoSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let definition: CardDefinition
+    
+    var body: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(definition.displayName)
+                    .font(.title)
+                    .padding(.bottom, 8)
+                
+                Text(definition.description)
+                    .font(.body)
+                
+                if definition.isPremium {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                        Text("Premium Feature")
+                            .font(.headline)
+                    }
+                    .padding(.top, 8)
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 } 

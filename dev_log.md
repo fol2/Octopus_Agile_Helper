@@ -157,3 +157,30 @@
 - [ ] Add card usage analytics
 - [ ] Consider adding custom card creation
 - [ ] Add card preview in management view 
+
+## 2024-12-27: Card Registry and Management System Improvements
+
+### Added Features
+1. **Card Registry System**
+   - Added `CardRegistry` singleton to centralize card definitions
+   - Each card now has metadata (display name, description, premium status)
+   - Cards can be created without modifying `ContentView`
+   - Improved extensibility for future card types
+
+2. **Enhanced Card Management**
+   - Fixed reordering glitch by removing forced edit mode toggling
+   - Added info button to view card details
+   - Added premium card UI with lock indicator
+   - Improved visual feedback during reordering
+
+3. **Card Info Sheet**
+   - New modal view showing card details
+   - Displays card name, description, and premium status
+   - Consistent UI for viewing card information
+
+### Benefits
+- More maintainable card system
+- Better user experience with smooth reordering
+- Easier to add new cards in the future
+- Cleaner separation of concerns
+- Foundation for premium features 

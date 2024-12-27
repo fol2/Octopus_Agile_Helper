@@ -25,16 +25,13 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(sortedCardConfigs()) { config in
-                        if config.isEnabled && config.isPurchased {
-                            switch config.cardType {
-                            case .currentRate:
-                                CurrentRateCardView(viewModel: ratesViewModel)
-                            case .lowestUpcoming:
-                                LowestUpcomingRateCardView(viewModel: ratesViewModel)
-                            case .highestUpcoming:
-                                HighestUpcomingRateCardView(viewModel: ratesViewModel)
-                            case .averageUpcoming:
-                                AverageUpcomingRateCardView(viewModel: ratesViewModel)
+                        if config.isEnabled {
+                            if let definition = CardRegistry.shared.definition(for: config.cardType) {
+                                if config.isPurchased || !definition.isPremium {
+                                    definition.makeView(ratesViewModel)
+                                } else {
+                                    CardLockedView(definition: definition, config: config)
+                                }
                             }
                         }
                     }
@@ -64,6 +61,31 @@ struct ContentView: View {
     
     private func sortedCardConfigs() -> [CardConfig] {
         globalSettings.settings.cardSettings.sorted { $0.sortOrder < $1.sortOrder }
+    }
+}
+
+struct CardLockedView: View {
+    let definition: CardDefinition
+    let config: CardConfig
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: "lock.fill")
+                Text("\(definition.displayName) (Locked)")
+            }
+            .font(.headline)
+            
+            Text(definition.description)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Button("Unlock") {
+                // Hook into your IAP or purchasing logic
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .rateCardStyle()
     }
 }
 
