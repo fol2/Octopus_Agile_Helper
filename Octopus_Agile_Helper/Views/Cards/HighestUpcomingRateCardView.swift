@@ -141,13 +141,13 @@ private struct HighestRateCardSettingsSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Local Card Settings")) {
+                Section(header: Text("Card Settings")) {
                     Stepper("Additional Rates to Show: \(localSettings.settings.additionalRatesCount)",
                             value: $localSettings.settings.additionalRatesCount,
                             in: 0...10)
                 }
             }
-            .navigationTitle("Card Settings")
+            .navigationTitle("Highest Upcoming Rates")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     Button("Done") {

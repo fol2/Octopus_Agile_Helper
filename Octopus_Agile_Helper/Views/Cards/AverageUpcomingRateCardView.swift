@@ -127,7 +127,7 @@ private struct AverageCardSettingsSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Local Card Settings")) {
+                Section(header: Text("Card Settings")) {
                     Stepper("Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))",
                             value: $localSettings.settings.customAverageHours,
                             in: 1...24,
@@ -137,7 +137,7 @@ private struct AverageCardSettingsSheet: View {
                             in: 1...50)
                 }
             }
-            .navigationTitle("Card Settings")
+            .navigationTitle("Average Upcoming Rates")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     Button("Done") {
