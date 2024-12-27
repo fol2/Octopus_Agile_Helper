@@ -10,7 +10,11 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Region Lookup")) {
+            Section(header: HStack {
+                Text("Region Lookup")
+                Spacer()
+                InfoButton(message: "Your postcode is used to determine your region for accurate Agile tariff rates. If not provided, region 'H' will be used as default. This doesn't affect your account or billing.")
+            }) {
                 TextField("Postcode", text: $postcode)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
@@ -21,11 +25,19 @@ struct SettingsView: View {
                     }
             }
             
-            Section(header: Text("API Configuration")) {
+            Section(header: HStack {
+                Text("API Configuration")
+                Spacer()
+                InfoButton(message: "API Key is optional for viewing Agile rates. Only required if you want to access your personal consumption data. You can get your API key from your Octopus Energy online dashboard under 'API Access'.")
+            }) {
                 SecureField("API Key", text: $apiKey)
             }
             
-            Section(header: Text("Preferences")) {
+            Section(header: HStack {
+                Text("Preferences")
+                Spacer()
+                InfoButton(message: "Configure your preferences for language and time periods. Average Hours affects how the app calculates and displays average rates.")
+            }) {
                 Picker("Language", selection: $selectedLanguage) {
                     ForEach(languages, id: \.self) { language in
                         Text(language)
@@ -44,6 +56,25 @@ struct SettingsView: View {
             print("DEBUG: Settings loaded - Average Hours: \(averageHours)")
             print("DEBUG: Settings loaded - Selected Language: \(selectedLanguage)")
             print("DEBUG: Settings loaded - Postcode: \(postcode)")
+        }
+    }
+}
+
+struct InfoButton: View {
+    let message: String
+    @State private var showingInfo = false
+    
+    var body: some View {
+        Button(action: {
+            showingInfo.toggle()
+        }) {
+            Image(systemName: "info.circle")
+                .foregroundColor(.blue)
+        }
+        .popover(isPresented: $showingInfo) {
+            Text(message)
+                .padding()
+                .presentationCompactAdaptation(.popover)
         }
     }
 }

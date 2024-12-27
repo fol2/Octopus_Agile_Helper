@@ -48,6 +48,28 @@ class RatesViewModel: ObservableObject {
         return totalValue / Double(relevantRates.count)
     }
     
+    var lowestTenAverageRate: Double? {
+        let now = Date()
+        // 1) Filter upcoming rates
+        let upcoming = upcomingRates.filter { 
+            guard let validFrom = $0.validFrom else { return false }
+            return validFrom > now 
+        }
+        
+        // 2) Sort ascending by cost
+        let sorted = upcoming.sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
+        
+        // 3) Take up to 10
+        let topTen = Array(sorted.prefix(10))
+        guard !topTen.isEmpty else { return nil }
+        
+        print("DEBUG: Found \(topTen.count) rates for lowest 10 average calculation")
+        
+        // 4) Calculate average
+        let sum = topTen.reduce(0.0) { $0 + $1.valueIncludingVAT }
+        return sum / Double(topTen.count)
+    }
+    
     // MARK: - Methods
     
     func loadRates() async {

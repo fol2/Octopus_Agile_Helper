@@ -50,25 +50,25 @@ class RatesRepository {
     }
     
     func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
-        print("DEBUG: Starting region lookup for postcode: \(postcode) (attempt \(retryCount + 1))")
-        
         // Clean and validate postcode
         let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedPostcode.isEmpty else {
-            print("DEBUG: Empty postcode provided")
-            return nil
+        if cleanedPostcode.isEmpty {
+            print("DEBUG: No postcode provided, using default region 'H'")
+            return "H"
         }
+        
+        print("DEBUG: Starting region lookup for postcode: \(cleanedPostcode) (attempt \(retryCount + 1))")
         
         // URL encode the postcode
         guard let encodedPostcode = cleanedPostcode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            print("DEBUG: Failed to encode postcode")
-            return nil
+            print("DEBUG: Failed to encode postcode, using default region 'H'")
+            return "H"
         }
         
         let urlString = "https://api.octopus.energy/v1/industry/grid-supply-points/?postcode=\(encodedPostcode)"
         guard let url = URL(string: urlString) else {
-            print("DEBUG: Failed to create URL with postcode: \(cleanedPostcode)")
-            return nil
+            print("DEBUG: Failed to create URL with postcode: \(cleanedPostcode), using default region 'H'")
+            return "H"
         }
         
         print("DEBUG: Fetching region from URL: \(url.absoluteString)")
@@ -82,18 +82,18 @@ class RatesRepository {
             let (data, response) = try await urlSession.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("DEBUG: Invalid response type")
-                return nil
+                print("DEBUG: Invalid response type, using default region 'H'")
+                return "H"
             }
             
             print("DEBUG: Region lookup response status: \(httpResponse.statusCode)")
             
             guard (200...299).contains(httpResponse.statusCode) else {
-                print("DEBUG: Error response: \(httpResponse.statusCode)")
+                print("DEBUG: Error response: \(httpResponse.statusCode), using default region 'H'")
                 if let errorText = String(data: data, encoding: .utf8) {
                     print("DEBUG: Error details: \(errorText)")
                 }
-                return nil
+                return "H"
             }
             
             let decoder = JSONDecoder()
@@ -104,8 +104,8 @@ class RatesRepository {
                 print("DEBUG: Successfully found region: \(groupId), using: \(cleanGroupId)")
                 return cleanGroupId
             } else {
-                print("DEBUG: No region found in response")
-                return nil
+                print("DEBUG: No region found in response, using default region 'H'")
+                return "H"
             }
             
         } catch let urlError as URLError where urlError.code == .cancelled {
@@ -117,41 +117,28 @@ class RatesRepository {
                 try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * (retryCount + 1))) // Exponential backoff
                 return try await fetchRegionID(for: postcode, retryCount: retryCount + 1)
             } else {
-                print("DEBUG: Max retries exceeded")
-                throw urlError
+                print("DEBUG: Max retries exceeded, using default region 'H'")
+                return "H"
             }
         } catch {
-            print("DEBUG: Region lookup failed with error: \(error.localizedDescription)")
+            print("DEBUG: Region lookup failed with error: \(error.localizedDescription), using default region 'H'")
             if let urlError = error as? URLError {
                 print("DEBUG: URL Error code: \(urlError.code.rawValue)")
                 print("DEBUG: URL Error description: \(urlError.localizedDescription)")
             }
-            throw error
+            return "H"
         }
     }
     
     func updateRates() async throws {
         print("DEBUG: Starting rate update")
         
-        // Validate postcode
-        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedPostcode.isEmpty else {
-            print("DEBUG: No postcode set in settings")
-            throw OctopusAPIError.invalidResponse
-        }
-        
-        print("DEBUG: Using postcode: \(cleanedPostcode)")
-        
         // Create a task that won't be cancelled when the view disappears
         let task = Task {
             do {
                 // Fetch region ID from postcode with retries
-                guard let regionID = try await fetchRegionID(for: cleanedPostcode) else {
-                    print("DEBUG: Could not determine region for postcode \(cleanedPostcode)")
-                    throw OctopusAPIError.invalidResponse
-                }
-                
-                print("DEBUG: Found region ID: \(regionID) for postcode: \(cleanedPostcode)")
+                let regionID = try await fetchRegionID(for: postcode) ?? "H"
+                print("DEBUG: Using region ID: \(regionID)")
                 
                 // Fetch rates using the region ID
                 let rates = try await apiClient.fetchRates(regionID: regionID)

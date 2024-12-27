@@ -112,3 +112,12 @@
 ### Known Issues
 - Need to add validation for postcode format
 - Could add caching for region lookups to reduce API calls 
+
+## Latest Changes
+
+### 2024-12-27
+- Redesigned "Average Rate" card to show average of next 10 lowest rates instead of time-based average
+- Added new "All Rates List" view accessible from home screen toolbar
+  - Shows all rates in chronological order
+  - Automatically scrolls to and highlights current active rate
+  - Accessible via "All Rates" button in navigation bar 

@@ -25,6 +25,13 @@ struct ContentView: View {
                 .refreshable {
                     await ratesViewModel.refreshRates()
                 }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        NavigationLink("All Rates") {
+                            AllRatesListView(viewModel: ratesViewModel)
+                        }
+                    }
+                }
             }
             .tabItem {
                 Label("Home", systemImage: "house")
