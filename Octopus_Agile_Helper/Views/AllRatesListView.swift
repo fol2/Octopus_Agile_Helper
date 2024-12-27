@@ -5,19 +5,25 @@ struct AllRatesListView: View {
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @State private var refreshTrigger = false
     
-    private let dateFormatter: DateFormatter = {
+    private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "E, MMM d"  // e.g., "Mon, Dec 25"
+        if globalSettings.locale.language.languageCode?.identifier == "zh" {
+            formatter.dateFormat = "MM月dd日"
+        } else {
+            formatter.dateFormat = "d MMM"  // UK format
+        }
+        formatter.locale = globalSettings.locale
         return formatter
-    }()
+    }
     
     private var ratesByDate: [(String, [RateEntity])] {
         let grouped = Dictionary(grouping: viewModel.allRates) { rate in
             if let date = rate.validFrom {
                 return dateFormatter.string(from: date)
             }
-            return String(localized: "Unknown Date", comment: "Fallback text when a rate's date is not available")
+            return String(localized: "Unknown Date")
         }
         // Sort by date ascending (earliest first)
         return grouped.map { ($0.key, $0.value) }
@@ -56,7 +62,7 @@ struct AllRatesListView: View {
                                 Spacer()
                                 
                                 if isRateCurrentlyActive(rate) {
-                                    Text("NOW", comment: "Label indicating the currently active rate")
+                                    Text("NOW")
                                         .font(.caption)
                                         .fontWeight(.bold)
                                         .foregroundColor(.white)
@@ -88,8 +94,13 @@ struct AllRatesListView: View {
                 }
             }
         }
-        .navigationTitle(String(localized: "All Rates", comment: "Navigation title for the list of all electricity rates"))
+        .navigationTitle(LocalizedStringKey("All Rates"))
         .navigationBarTitleDisplayMode(.inline)
+        .environment(\.locale, globalSettings.locale)
+        .id("all-rates-\(refreshTrigger)")
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
+        }
     }
     
     private func isRateCurrentlyActive(_ rate: RateEntity) -> Bool {

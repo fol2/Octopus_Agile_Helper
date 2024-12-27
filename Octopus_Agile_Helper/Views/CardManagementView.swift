@@ -17,7 +17,7 @@ struct CardManagementView: View {
                 .onMove(perform: moveCards)
             } header: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Drag to reorder cards", comment: "Instructions for reordering cards")
+                    Text("Drag to reorder cards")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -101,14 +101,14 @@ struct CardRowView: View {
             
             if cardConfig.isPurchased {
                 Toggle(isOn: $cardConfig.isEnabled) {
-                    Text("Enable card", comment: "Toggle to enable/disable a card")
+                    Text("Enable card")
                 }
                 .labelsHidden()
             } else {
                 Button {
                     purchaseCard()
                 } label: {
-                    Text("Unlock", comment: "Button to unlock a premium card")
+                    Text("Unlock")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -163,17 +163,15 @@ struct CardInfoSheet: View {
                         Text(LocalizedStringKey(definition.displayNameKey))
                             .font(.title)
                             .padding(.bottom, 8)
-                            .environment(\.locale, locale)
                         
                         Text(LocalizedStringKey(definition.descriptionKey))
                             .font(.body)
-                            .environment(\.locale, locale)
                         
                         if definition.isPremium {
                             HStack {
                                 Image(systemName: "star.fill")
                                     .foregroundColor(.yellow)
-                                Text("Premium Feature", comment: "Label indicating a premium feature")
+                                Text("Premium Feature")
                                     .font(.headline)
                             }
                             .padding(.top, 8)
@@ -192,7 +190,7 @@ struct CardInfoSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("Done", comment: "Button to dismiss the info sheet")
+                        Text("Done")
                     }
                 }
             }

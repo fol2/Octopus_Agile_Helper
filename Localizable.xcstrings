@@ -171,23 +171,6 @@
         }
       }
     },
-    "Displays the ongoing rate for the current half-hour slot." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Displays the ongoing rate for the current half-hour slot."
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示目前半小時時段的進行中費率。"
-          }
-        }
-      }
-    },
     "Done" : {
       "comment" : "Button to dismiss the info sheet\nButton to dismiss the settings sheet",
       "localizations" : {
@@ -489,40 +472,6 @@
         }
       }
     },
-    "Shows the average cost over selected periods or the next 10 lowest windows." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shows the average cost over selected periods or the next 10 lowest windows."
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示所選時段或接下來 10 個最低時段的平均費用。"
-          }
-        }
-      }
-    },
-    "Shows upcoming times with the cheapest electricity rates." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shows upcoming times with the cheapest electricity rates."
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示最便宜電費的即將到來時段。"
-          }
-        }
-      }
-    },
     "Unknown Date" : {
       "comment" : "Fallback text when a rate's date is not available",
       "localizations" : {
@@ -562,36 +511,12 @@
         }
       }
     },
-    "Until %@ %@" : {
-      "comment" : "Time range format when showing date and time",
+    "Until %@" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Until %1$@ %2$@"
-          }
-        },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "直到 %1$@ %2$@"
-          }
-        }
-      }
-    },
-    "Warns you of upcoming peak pricing times." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warns you of upcoming peak pricing times."
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提醒您即將到來的尖峰費率時段。"
+            "value" : "直至 %@"
           }
         }
       }

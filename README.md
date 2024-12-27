@@ -22,6 +22,18 @@ To manage your cards:
 3. Drag cards to reorder them
 4. Use toggles to show/hide cards
 
+### Localization Support
+The app is fully localized and supports:
+- English (UK)
+- Traditional Chinese (zh-Hant)
+
+All UI elements, including:
+- Rate displays
+- Date and time formats
+- Settings menus
+- Card descriptions
+are properly localized and follow system conventions for each language.
+
 ## Installation
 
 ### Requirements
@@ -38,6 +50,7 @@ To manage your cards:
 ## Configuration
 
 ### Settings
+- **Language**: Choose your preferred display language
 - **Postcode**: Set your region for accurate rates
 - **API Key**: Enable personal data access
 - **Display Options**: Configure rate display in pounds/pence
@@ -52,6 +65,13 @@ To manage your cards:
 
 ### Contributing
 Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+
+#### Adding New Languages
+To add support for a new language:
+1. Open the `Localizable.xcstrings` file
+2. Add the new language in Xcode's localization editor
+3. Provide translations for all strings
+4. Test the UI in the new language
 
 ## Support
 

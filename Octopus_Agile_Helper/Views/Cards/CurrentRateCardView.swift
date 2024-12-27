@@ -7,6 +7,7 @@ struct CurrentRateCardView: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var globalTimer: GlobalTimer
+    @State private var refreshTrigger = false
     
     // MARK: - Body
     var body: some View {
@@ -14,7 +15,7 @@ struct CurrentRateCardView: View {
             HStack {
                 Image(systemName: "clock.fill")
                     .foregroundColor(.blue)
-                Text("Current Rate", comment: "Title of the card showing the current electricity rate")
+                Text("Current Rate")
                     .font(.headline)
                 Spacer()
                 Image(systemName: "chevron.right.circle.fill")
@@ -37,17 +38,24 @@ struct CurrentRateCardView: View {
                             .font(.system(size: 17))
                             .foregroundColor(.secondary)
                         Spacer()
-                        Text(formatTimeRange(currentRate.validFrom, currentRate.validTo))
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
+                        if let validTo = currentRate.validTo {
+                            Text(LocalizedStringKey("Until \(timeFormatter.string(from: validTo))"))
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                        }
                     }
                 }
             } else {
-                Text("No current rate available", comment: "Message shown when no current rate data is available")
+                Text("No current rate available")
                     .foregroundColor(.secondary)
             }
         }
         .rateCardStyle()
+        .environment(\.locale, globalSettings.locale)
+        .id("current-rate-\(refreshTrigger)")
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
+        }
         .onTapGesture {
             presentAllRatesView()
         }
@@ -60,6 +68,7 @@ struct CurrentRateCardView: View {
            let rootViewController = window.rootViewController {
             let allRatesView = NavigationView {
                 AllRatesListView(viewModel: viewModel)
+                    .environment(\.locale, globalSettings.locale)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button {
@@ -73,6 +82,8 @@ struct CurrentRateCardView: View {
             }
             .environmentObject(globalTimer)
             .environmentObject(globalSettings)
+            .environment(\.locale, globalSettings.locale)
+            .id("all-rates-nav-\(globalSettings.locale.identifier)")
             .preferredColorScheme(colorScheme)
             
             let hostingController = UIHostingController(rootView: allRatesView)
@@ -90,26 +101,11 @@ struct CurrentRateCardView: View {
         }
     }
     
-    private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
-        guard let from = from, let to = to else { return "" }
-        let now = Date()
-        let calendar = Calendar.current
-        
-        let fromDay = calendar.startOfDay(for: from)
-        let nowDay = calendar.startOfDay(for: now)
-        
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "d MMM"
-        
-        if calendar.isDate(fromDay, inSameDayAs: nowDay) {
-            return "Until \(timeFormatter.string(from: to))"
-        } else {
-            return String(localized: "Until \(dateFormatter.string(from: to)) \(timeFormatter.string(from: to))", 
-                        comment: "Time range format when showing date and time")
-        }
+    private var timeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = globalSettings.locale
+        return formatter
     }
 }
 

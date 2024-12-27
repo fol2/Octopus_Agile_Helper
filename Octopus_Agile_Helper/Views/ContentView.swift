@@ -14,6 +14,7 @@ struct ContentView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject private var ratesViewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
+    @State private var refreshTrigger = false
     
     init() {
         let tempTimer = GlobalTimer()
@@ -29,8 +30,12 @@ struct ContentView: View {
                             if let definition = CardRegistry.shared.definition(for: config.cardType) {
                                 if config.isPurchased || !definition.isPremium {
                                     definition.makeView(ratesViewModel)
+                                        .environment(\.locale, globalSettings.locale)
+                                        .id("\(config.id)-\(refreshTrigger)")
                                 } else {
                                     CardLockedView(definition: definition, config: config)
+                                        .environment(\.locale, globalSettings.locale)
+                                        .id("\(config.id)-\(refreshTrigger)")
                                 }
                             }
                         }
@@ -44,12 +49,18 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
+                    NavigationLink(destination: SettingsView()
+                        .environment(\.locale, globalSettings.locale)
+                        .id("settings-view-\(refreshTrigger)")) {
                         Image(systemName: "gear")
                             .foregroundColor(.primary)
                     }
                 }
             }
+        }
+        .environment(\.locale, globalSettings.locale)
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
         }
         .task {
             await ratesViewModel.loadRates()
@@ -83,7 +94,7 @@ struct CardLockedView: View {
             Button {
                 // Hook into your IAP or purchasing logic
             } label: {
-                Text("Unlock", comment: "Button to unlock a premium feature")
+                Text("Unlock")
             }
             .buttonStyle(.borderedProminent)
         }

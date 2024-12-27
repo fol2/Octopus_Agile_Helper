@@ -38,6 +38,7 @@ struct LowestUpcomingRateCardView: View {
     @StateObject private var localSettings = LowestRateCardLocalSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var showingLocalSettings = false
+    @State private var refreshTrigger = false
     
     private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
         guard let from = from, let to = to else { return "" }
@@ -49,9 +50,15 @@ struct LowestUpcomingRateCardView: View {
         
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
+        timeFormatter.locale = globalSettings.locale
         
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "d MMM"
+        if globalSettings.locale.language.languageCode?.identifier == "zh" {
+            dateFormatter.dateFormat = "MM月dd日"
+        } else {
+            dateFormatter.dateFormat = "d MMM"  // UK format
+        }
+        dateFormatter.locale = globalSettings.locale
         
         if calendar.isDate(fromDay, inSameDayAs: nowDay) {
             return "\(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
@@ -65,7 +72,7 @@ struct LowestUpcomingRateCardView: View {
             HStack {
                 Image(systemName: "arrow.down.circle.fill")
                     .foregroundColor(.green)
-                Text("Lowest Upcoming Rates", comment: "Title of the card showing the lowest upcoming electricity rates")
+                Text("Lowest Upcoming Rates")
                     .font(.headline)
                 Spacer()
                 Button(action: {
@@ -129,14 +136,20 @@ struct LowestUpcomingRateCardView: View {
                     }
                 }
             } else {
-                Text("No upcoming rates available", comment: "Message shown when no upcoming rate data is available")
+                Text("No upcoming rates available")
                     .foregroundColor(.secondary)
             }
         }
         .sheet(isPresented: $showingLocalSettings) {
             LowestRateCardSettingsSheet(localSettings: localSettings)
+                .environment(\.locale, globalSettings.locale)
         }
         .rateCardStyle()
+        .environment(\.locale, globalSettings.locale)
+        .id("lowest-rate-\(refreshTrigger)")
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
+        }
     }
 }
 
@@ -144,27 +157,33 @@ struct LowestUpcomingRateCardView: View {
 private struct LowestRateCardSettingsSheet: View {
     @ObservedObject var localSettings: LowestRateCardLocalSettingsManager
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @State private var refreshTrigger = false
 
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Card Settings", comment: "Header for the card's settings section")) {
-                    Stepper(String(localized: "Additional Rates to Show: \(localSettings.settings.additionalRatesCount)", 
-                           comment: "Label for stepper controlling how many additional rates to display"),
+                Section(header: Text("Card Settings")) {
+                    Stepper("Additional Rates to Show: \(localSettings.settings.additionalRatesCount)",
                             value: $localSettings.settings.additionalRatesCount,
                             in: 0...10)
                 }
             }
-            .navigationTitle(LocalizedStringKey("Lowest Upcoming Rates"))
+            .navigationTitle("Lowest Upcoming Rates")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     Button {
                         dismiss()
                     } label: {
-                        Text("Done", comment: "Button to dismiss the settings sheet")
+                        Text("Done")
                     }
                 }
             }
+        }
+        .environment(\.locale, globalSettings.locale)
+        .id("settings-sheet-\(refreshTrigger)")
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
         }
     }
 }

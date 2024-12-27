@@ -39,6 +39,7 @@ struct AverageUpcomingRateCardView: View {
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var showingLocalSettings = false
+    @State private var refreshTrigger = false
     
     private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
         guard let from = from, let to = to else { return "" }
@@ -51,9 +52,15 @@ struct AverageUpcomingRateCardView: View {
         
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
+        timeFormatter.locale = globalSettings.locale
         
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "d MMM"
+        if globalSettings.locale.language.languageCode?.identifier == "zh" {
+            dateFormatter.dateFormat = "MM月dd日"
+        } else {
+            dateFormatter.dateFormat = "d MMM"  // UK format
+        }
+        dateFormatter.locale = globalSettings.locale
         
         if calendar.isDate(fromDay, inSameDayAs: toDay) {
             // Same day for start and end
@@ -73,7 +80,7 @@ struct AverageUpcomingRateCardView: View {
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .foregroundColor(.blue)
-                Text(LocalizedStringKey("Lowest \(localSettings.settings.maxListCount) (\(String(format: "%.1f", localSettings.settings.customAverageHours))-hour Averages)"))
+                Text("Lowest \(localSettings.settings.maxListCount) (\(String(format: "%.1f", localSettings.settings.customAverageHours))-hour Averages)")
                     .font(.headline)
                 Spacer()
                 Button(action: {
@@ -91,7 +98,7 @@ struct AverageUpcomingRateCardView: View {
             } else {
                 let averages = viewModel.getLowestAverages(hours: localSettings.settings.customAverageHours, maxCount: localSettings.settings.maxListCount)
                 if averages.isEmpty {
-                    Text(LocalizedStringKey("No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages"))
+                    Text("No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages")
                         .foregroundColor(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -118,8 +125,14 @@ struct AverageUpcomingRateCardView: View {
         }
         .sheet(isPresented: $showingLocalSettings) {
             AverageCardSettingsSheet(localSettings: localSettings)
+                .environment(\.locale, globalSettings.locale)
         }
         .modifier(RateCardStyle())
+        .environment(\.locale, globalSettings.locale)
+        .id("average-rate-\(refreshTrigger)")
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
+        }
     }
 }
 
@@ -127,32 +140,37 @@ struct AverageUpcomingRateCardView: View {
 private struct AverageCardSettingsSheet: View {
     @ObservedObject var localSettings: AverageCardLocalSettingsManager
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @State private var refreshTrigger = false
 
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Card Settings", comment: "Header for the card's settings section")) {
-                    Stepper(String(localized: "Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))", 
-                           comment: "Label for stepper controlling the duration of average calculation"),
+                Section(header: Text("Card Settings")) {
+                    Stepper("Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))",
                             value: $localSettings.settings.customAverageHours,
                             in: 1...24,
                             step: 0.5)
-                    Stepper(String(localized: "Max List Count: \(localSettings.settings.maxListCount)", 
-                           comment: "Label for stepper controlling how many averages to display"),
+                    Stepper("Max List Count: \(localSettings.settings.maxListCount)",
                             value: $localSettings.settings.maxListCount,
                             in: 1...50)
                 }
             }
-            .navigationTitle(String(localized: "Average Upcoming Rates", comment: "Navigation title for average rates settings"))
+            .navigationTitle("Average Upcoming Rates")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     Button {
                         dismiss()
                     } label: {
-                        Text("Done", comment: "Button to dismiss the settings sheet")
+                        Text("Done")
                     }
                 }
             }
+        }
+        .environment(\.locale, globalSettings.locale)
+        .id("settings-sheet-\(refreshTrigger)")
+        .onChange(of: globalSettings.locale) { oldValue, newValue in
+            refreshTrigger.toggle()
         }
     }
 }
