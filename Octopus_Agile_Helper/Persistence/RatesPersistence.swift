@@ -1,6 +1,24 @@
 import Foundation
 import CoreData
+import SwiftUI
 
+// Extend NSManagedObjectContext with async support
+extension NSManagedObjectContext {
+    func performAsync<T>(_ block: @escaping () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            perform {
+                do {
+                    let result = try block()
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+}
+
+@MainActor
 class RatesPersistence {
     static let shared = RatesPersistence()
     private let context: NSManagedObjectContext
@@ -10,13 +28,13 @@ class RatesPersistence {
     }
     
     func saveRates(_ rates: [OctopusRate]) async throws {
-        try await context.perform {
+        try await context.performAsync {
             // First, fetch existing rates to avoid duplicates
             let fetchRequest: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
             let existingRates = try self.context.fetch(fetchRequest)
             
             // Create a dictionary of existing rates by their valid_from date for quick lookup
-            let existingRatesByDate = Dictionary(uniqueKeysWithValues: existingRates.map { ($0.validFrom, $0) })
+            let existingRatesByDate = Dictionary(uniqueKeysWithValues: existingRates.map { ($0.validFrom!, $0) })
             
             // Update or insert rates
             for rate in rates {
@@ -42,7 +60,7 @@ class RatesPersistence {
     }
     
     func fetchAllRates() async throws -> [RateEntity] {
-        try await context.perform {
+        try await context.performAsync {
             let fetchRequest: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
             fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
             return try self.context.fetch(fetchRequest)
@@ -50,11 +68,11 @@ class RatesPersistence {
     }
     
     func deleteAllRates() async throws {
-        try await context.perform {
+        try await context.performAsync {
             let fetchRequest: NSFetchRequest<NSFetchRequestResult> = RateEntity.fetchRequest()
             let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
             try self.context.execute(deleteRequest)
             try self.context.save()
         }
     }
-} 
+}

@@ -1,5 +1,8 @@
 import SwiftUI
 
+// Import view model
+@_implementationOnly import class Octopus_Agile_Helper.RatesViewModel
+
 struct LowestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     
@@ -30,13 +33,11 @@ struct LowestUpcomingRateCardView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .rateCardStyle()
-    }
-}
-
-#Preview {
-    NavigationView {
-        LowestUpcomingRateCardView(viewModel: RatesViewModel())
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(radius: 4)
+        .padding(.horizontal)
+        .padding(.vertical, 4)
     }
 } 

@@ -7,14 +7,8 @@
 
 import SwiftUI
 
-@main
-struct Octopus_Agile_HelperApp: App {
-    let persistenceController = PersistenceController.shared
-
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-        }
-    }
+// This file is kept as a placeholder to avoid breaking existing references
+// The main app entry point has been moved to AppMain.swift
+struct Octopus_Agile_HelperApp {
+    // Empty placeholder
 }

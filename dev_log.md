@@ -35,4 +35,18 @@
   - AverageUpcomingRateCardView
 - Updated ContentView with ScrollView and pull-to-refresh
 - Integrated settings-driven average hours parameter
-- Added loading states and error handling in cards 
+- Added loading states and error handling in cards
+
+### 26 December 2024
+- Restructured app entry point to fix top-level code conflicts:
+  - Created AppMain.swift as the new entry point
+  - Kept Octopus_Agile_HelperApp.swift as a placeholder
+- Improved project organization:
+  - Added Shared/SharedImports.swift for common imports
+  - Reorganized Core Data setup with Persistence.swift
+  - Updated preview providers to use older style syntax
+  - Fixed module import issues across views
+- Cleaned up Core Data implementation:
+  - Removed default Item entity
+  - Streamlined preview container setup
+  - Improved error handling in persistence layer 
