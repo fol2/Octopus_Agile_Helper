@@ -35,9 +35,8 @@ struct HighestUpcomingRateCardView: View {
     }
 }
 
-struct HighestUpcomingRateCardView_Previews: PreviewProvider {
-    static var previews: some View {
-        HighestUpcomingRateCardView(viewModel: RatesViewModel())
-            .preferredColorScheme(.dark)
-    }
+#Preview {
+    let timer = GlobalTimer()
+    return HighestUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
+        .preferredColorScheme(.dark)
 } 

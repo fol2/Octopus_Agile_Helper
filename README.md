@@ -68,5 +68,12 @@ The app provides three main views for rate information:
 2. **Highest Rate**: Shows the highest upcoming rate with its time slot
 3. **Average Rate**: Displays the average rate for a user-defined period
 
+## Auto-Refresh Logic
+
+1. We run a 1-minute global timer. Each minute:
+   - The app re-checks upcoming rates & hides expired slots.
+2. At 4pm daily, if the next day's data is missing, we fetch from Octopus.
+3. If you open the app and have no data, or you do a pull-to-refresh, we fetch from Octopus.
+
 ## License
 TBD 

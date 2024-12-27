@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import CoreData
+import Combine
 
 struct ThreeHourAverageEntry: Identifiable {
     let id = UUID()
@@ -13,10 +14,52 @@ struct ThreeHourAverageEntry: Identifiable {
 class RatesViewModel: ObservableObject {
     private let repository = RatesRepository.shared
     @AppStorage("averageHours") var averageHours: Double = 2.0
+    private var cancellables = Set<AnyCancellable>()
+    private var currentTimer: GlobalTimer?
     
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
     @Published private(set) var upcomingRates: [RateEntity] = []
+    
+    init(globalTimer: GlobalTimer) {
+        setupTimer(globalTimer)
+    }
+    
+    func updateTimer(_ newTimer: GlobalTimer) {
+        // Cancel existing subscription
+        cancellables.removeAll()
+        // Set up with new timer
+        setupTimer(newTimer)
+    }
+    
+    private func setupTimer(_ timer: GlobalTimer) {
+        currentTimer = timer
+        timer.$currentTime
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newTime in
+                self?.handleTimerTick(newTime)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func handleTimerTick(_ now: Date) {
+        // Re-filter upcoming rates based on the new current time
+        let filtered = repository.currentCachedRates.filter {
+            guard let start = $0.validFrom else { return false }
+            return start > now
+        }
+        upcomingRates = filtered
+        
+        // Check if we need to fetch new data (at 4 PM)
+        Task {
+            do {
+                try await repository.updateRates()
+            } catch {
+                self.error = error
+                print("DEBUG: Error updating rates: \(error)")
+            }
+        }
+    }
     
     // MARK: - Computed Properties
     
@@ -142,13 +185,13 @@ class RatesViewModel: ObservableObject {
         isLoading = false
     }
     
-    func refreshRates() async {
-        print("DEBUG: Starting to refresh rates")
+    func refreshRates(force: Bool = false) async {
+        print("DEBUG: Starting to refresh rates (force: \(force))")
         isLoading = true
         error = nil
         
         do {
-            try await repository.updateRates()
+            try await repository.updateRates(force: force)
             upcomingRates = try await repository.fetchAllRates()
             print("DEBUG: Successfully refreshed rates, now have \(upcomingRates.count) rates")
         } catch {

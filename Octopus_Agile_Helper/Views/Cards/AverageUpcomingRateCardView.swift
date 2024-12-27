@@ -40,6 +40,7 @@ struct AverageUpcomingRateCardView: View {
 }
 
 #Preview {
-    AverageUpcomingRateCardView(viewModel: RatesViewModel())
+    let timer = GlobalTimer()
+    return AverageUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
         .preferredColorScheme(.dark)
 } 

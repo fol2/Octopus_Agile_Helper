@@ -35,9 +35,8 @@ struct LowestUpcomingRateCardView: View {
     }
 }
 
-struct LowestUpcomingRateCardView_Previews: PreviewProvider {
-    static var previews: some View {
-        LowestUpcomingRateCardView(viewModel: RatesViewModel())
-            .preferredColorScheme(.dark)
-    }
+#Preview {
+    let timer = GlobalTimer()
+    return LowestUpcomingRateCardView(viewModel: RatesViewModel(globalTimer: timer))
+        .preferredColorScheme(.dark)
 } 

@@ -121,3 +121,12 @@
   - Shows all rates in chronological order
   - Automatically scrolls to and highlights current active rate
   - Accessible via "All Rates" button in navigation bar 
+
+## 2024-12-27: Timed Refresh & 4PM Fetch
+- Moved the 1-minute timer to `AppMain` via GlobalTimer
+- RatesViewModel re-filters upcoming data each minute
+- Only fetch from Octopus:
+  - If 4pm & next day's data is missing
+  - If no data on app open
+  - If user force refreshes
+- All cards now re-calculate every minute automatically 

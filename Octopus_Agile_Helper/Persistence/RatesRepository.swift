@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import SwiftUI
+import Combine
 
 // Response models for region lookup
 struct SupplyPointsResponse: Codable {
@@ -29,11 +30,12 @@ extension NSManagedObjectContext {
 }
 
 @MainActor
-class RatesRepository {
+class RatesRepository: ObservableObject {
     static let shared = RatesRepository()
     private let apiClient = OctopusAPIClient.shared
     private let context: NSManagedObjectContext
     @AppStorage("postcode") private var postcode: String = ""
+    @Published var currentCachedRates: [RateEntity] = []
     
     // Dedicated URLSession for region lookups
     private let urlSession: URLSession
@@ -130,35 +132,57 @@ class RatesRepository {
         }
     }
     
-    func updateRates() async throws {
-        print("DEBUG: Starting rate update")
+    func updateRates(force: Bool = false) async throws {
+        print("DEBUG: Starting rate update (force: \(force))")
         
-        // Create a task that won't be cancelled when the view disappears
-        let task = Task {
-            do {
-                // Fetch region ID from postcode with retries
-                let regionID = try await fetchRegionID(for: postcode) ?? "H"
-                print("DEBUG: Using region ID: \(regionID)")
-                
-                // Fetch rates using the region ID
-                let rates = try await apiClient.fetchRates(regionID: regionID)
-                print("DEBUG: Fetched \(rates.count) rates from API, saving to Core Data")
-                
-                // Save the rates
-                try await saveRates(rates)
-                print("DEBUG: Completed saving rates to Core Data")
-                
-            } catch let urlError as URLError where urlError.code == .cancelled {
-                print("DEBUG: Region lookup was cancelled after all retries")
-                throw OctopusAPIError.networkError(urlError)
-            } catch {
-                print("DEBUG: Error during rate update: \(error.localizedDescription)")
-                throw error
-            }
+        if force {
+            try await doActualFetch()
+            return
         }
         
-        // Wait for the task to complete, but don't cancel it if the view disappears
-        try await task.value
+        // Check if it's 4 PM UK time
+        let now = Date()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/London") ?? .current
+        let hour = calendar.component(.hour, from: now)
+        let minute = calendar.component(.minute, from: now)
+        let is4pm = (hour == 16 && minute == 0)
+        
+        // Check if we have tomorrow's rates
+        let hasNextDay = hasRatesForTomorrow()
+        
+        if is4pm && !hasNextDay {
+            print("DEBUG: It's 4pm and we don't have tomorrow's data. Fetching...")
+            try await doActualFetch()
+        } else if currentCachedRates.isEmpty {
+            print("DEBUG: No data found. Fetching at app open.")
+            try await doActualFetch()
+        } else {
+            print("DEBUG: No fetch needed.")
+        }
+    }
+    
+    private func doActualFetch() async throws {
+        let regionID = try await fetchRegionID(for: postcode) ?? "H"
+        print("DEBUG: Using region ID: \(regionID)")
+        let newRates = try await apiClient.fetchRates(regionID: regionID)
+        try await saveRates(newRates)
+    }
+    
+    private func hasRatesForTomorrow() -> Bool {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        let midnight = Calendar.current.startOfDay(for: tomorrow)
+        return currentCachedRates.contains { $0.validFrom ?? .distantPast >= midnight }
+    }
+    
+    func fetchAllRates() async throws -> [RateEntity] {
+        let rates = try await context.performAsync {
+            let fetchRequest: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
+            return try self.context.fetch(fetchRequest)
+        }
+        currentCachedRates = rates // Update the cached rates
+        return rates
     }
     
     private func saveRates(_ rates: [OctopusRate]) async throws {
@@ -201,22 +225,8 @@ class RatesRepository {
             try self.context.save()
             print("DEBUG: Successfully saved all changes to Core Data")
         }
-    }
-    
-    func fetchAllRates() async throws -> [RateEntity] {
-        try await context.performAsync {
-            let fetchRequest: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
-            let rates = try self.context.fetch(fetchRequest)
-            print("DEBUG: Fetched \(rates.count) rates from Core Data")
-            
-            // Debug upcoming rates
-            let now = Date()
-            let upcomingRates = rates.filter { ($0.validFrom ?? .distantPast) > now }
-            print("DEBUG: Of which \(upcomingRates.count) are upcoming (validFrom > now)")
-            
-            return rates
-        }
+        // After saving, update the cached rates
+        currentCachedRates = try await fetchAllRates()
     }
     
     func deleteAllRates() async throws {

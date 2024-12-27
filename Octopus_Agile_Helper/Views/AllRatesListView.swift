@@ -46,7 +46,8 @@ struct AllRatesListView: View {
 }
 
 #Preview {
+    let timer = GlobalTimer()
     NavigationView {
-        AllRatesListView(viewModel: RatesViewModel())
+        AllRatesListView(viewModel: RatesViewModel(globalTimer: timer))
     }
 } 

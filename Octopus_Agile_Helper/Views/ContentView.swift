@@ -9,7 +9,16 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
-    @StateObject private var ratesViewModel = RatesViewModel()
+    @EnvironmentObject var globalTimer: GlobalTimer
+    @StateObject private var ratesViewModel: RatesViewModel
+    
+    init() {
+        // We need to initialize ratesViewModel with globalTimer,
+        // but we can't use @EnvironmentObject in init
+        // So we create a temporary instance just for init
+        let tempTimer = GlobalTimer()
+        _ratesViewModel = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
+    }
     
     var body: some View {
         TabView {
@@ -23,7 +32,8 @@ struct ContentView: View {
                 }
                 .navigationTitle("Octopus Agile")
                 .refreshable {
-                    await ratesViewModel.refreshRates()
+                    // Force update when user pulls to refresh
+                    await ratesViewModel.refreshRates(force: true)
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -45,7 +55,12 @@ struct ContentView: View {
             }
         }
         .task {
+            // Initial load when app opens
             await ratesViewModel.loadRates()
+        }
+        .onAppear {
+            // Replace the temporary timer with the real one from environment
+            ratesViewModel.updateTimer(globalTimer)
         }
     }
 }
@@ -54,5 +69,6 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environmentObject(GlobalTimer())
     }
 }
