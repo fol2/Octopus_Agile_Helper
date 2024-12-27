@@ -5,6 +5,9 @@ import SwiftUI
 enum Language: String, Codable, CaseIterable {
     case english = "en"
     case traditionalChinese = "zh-Hant"
+    case simplifiedChinese = "zh-Hans"
+    case spanish = "es"
+    case french = "fr"
     
     var displayName: String {
         switch self {
@@ -12,6 +15,12 @@ enum Language: String, Codable, CaseIterable {
             return "English"
         case .traditionalChinese:
             return "繁體中文"
+        case .simplifiedChinese:
+            return "简体中文"
+        case .spanish:
+            return "Español"
+        case .french:
+            return "Français"
         }
     }
     
