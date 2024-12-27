@@ -6,7 +6,7 @@ struct RateCardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding()
-            .background(colorScheme == .dark ? Color.black : Color.white)
+            .background(colorScheme == .dark ? Color(.systemBackground) : Color(.systemBackground))
             .cornerRadius(12)
             .shadow(radius: 4)
             .padding(.horizontal)

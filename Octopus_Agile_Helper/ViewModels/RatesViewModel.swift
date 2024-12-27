@@ -19,13 +19,13 @@ class RatesViewModel: ObservableObject {
     
     var lowestUpcomingRate: RateEntity? {
         upcomingRates
-            .filter { $0.validFrom ?? <#default value#> > Date() }
+            .filter { ($0.validFrom ?? .distantPast) > Date() }
             .min { $0.valueIncludingVAT < $1.valueIncludingVAT }
     }
     
     var highestUpcomingRate: RateEntity? {
         upcomingRates
-            .filter { $0.validFrom ?? <#default value#> > Date() }
+            .filter { ($0.validFrom ?? .distantPast) > Date() }
             .max { $0.valueIncludingVAT < $1.valueIncludingVAT }
     }
     

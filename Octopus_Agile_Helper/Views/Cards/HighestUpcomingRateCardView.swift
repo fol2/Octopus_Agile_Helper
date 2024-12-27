@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HighestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -21,7 +22,7 @@ struct HighestUpcomingRateCardView: View {
                         .font(.title)
                         .foregroundColor(.primary)
                     
-                    Text("at \(viewModel.formatTime(highestRate.validFrom ?? <#default value#>))")
+                    Text("at \(viewModel.formatTime(highestRate.validFrom ?? Date()))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -34,7 +35,9 @@ struct HighestUpcomingRateCardView: View {
     }
 }
 
-#Preview {
-    HighestUpcomingRateCardView(viewModel: RatesViewModel())
-        .preferredColorScheme(.dark)
+struct HighestUpcomingRateCardView_Previews: PreviewProvider {
+    static var previews: some View {
+        HighestUpcomingRateCardView(viewModel: RatesViewModel())
+            .preferredColorScheme(.dark)
+    }
 } 

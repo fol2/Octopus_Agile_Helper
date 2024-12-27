@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreData
 
 struct LowestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
@@ -23,7 +22,7 @@ struct LowestUpcomingRateCardView: View {
                         .font(.title)
                         .foregroundColor(.primary)
                     
-                    Text("at \(viewModel.formatTime(lowestRate.validFrom ?? <#default value#>))")
+                    Text("at \(viewModel.formatTime(lowestRate.validFrom ?? Date()))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -32,12 +31,7 @@ struct LowestUpcomingRateCardView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .padding()
-        .background(colorScheme == .dark ? Color.black : Color.white)
-        .cornerRadius(12)
-        .shadow(radius: 4)
-        .padding(.horizontal)
-        .padding(.vertical, 4)
+        .rateCardStyle()
     }
 }
 
