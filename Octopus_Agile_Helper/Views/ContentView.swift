@@ -24,11 +24,13 @@ struct ContentView: View {
         TabView {
             NavigationView {
                 ScrollView {
-                    VStack {
+                    VStack(spacing: 0) {
+                        CurrentRateCardView(viewModel: ratesViewModel)
                         LowestUpcomingRateCardView(viewModel: ratesViewModel)
                         HighestUpcomingRateCardView(viewModel: ratesViewModel)
                         AverageUpcomingRateCardView(viewModel: ratesViewModel)
                     }
+                    .padding(.vertical)
                 }
                 .navigationTitle("Octopus Agile")
                 .refreshable {

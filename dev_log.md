@@ -188,3 +188,16 @@
 ### Next Steps
 - Apply same pattern to other cards if they need local settings
 - Consider adding settings migration if needed for existing users 
+
+## 2024-12-28: Added Current Rate Card
+### Added
+- Created new `CurrentRateCardView` to display the active rate
+- Integrated into main screen at the top of the card stack
+- Shows:
+  - Current active rate in p/kWh
+  - Valid until time
+  - Loading and empty states
+### Benefits
+- Users can immediately see their current rate
+- Clear indication of when the rate will change
+- Consistent with existing card styling and layout 
