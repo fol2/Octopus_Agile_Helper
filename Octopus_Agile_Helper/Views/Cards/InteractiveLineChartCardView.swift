@@ -85,6 +85,13 @@ struct InteractiveLineChartCardView: View {
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
     @State private var showingLocalSettings = false
     
+    private var upcomingRates: [RateEntity] {
+        viewModel.upcomingRates.filter {
+            guard let validFrom = $0.validFrom else { return false }
+            return validFrom > Date()
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
@@ -106,20 +113,20 @@ struct InteractiveLineChartCardView: View {
             
             if viewModel.isLoading {
                 ProgressView()
+            } else if upcomingRates.isEmpty {
+                Text("No upcoming rates available")
+                    .foregroundColor(.secondary)
             } else {
-                // Placeholder for chart content
-                Rectangle()
-                    .foregroundColor(.gray.opacity(0.3))
-                    .frame(height: 200)
-                    .overlay {
-                        VStack(spacing: 8) {
-                            Text("Chart coming soon")
-                            Text("Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))")
-                                .font(.caption)
-                            Text("Max List: \(localSettings.settings.maxListCount)")
-                                .font(.caption)
-                        }
+                Chart {
+                    ForEach(upcomingRates, id: \.validFrom) { rateEntity in
+                        LineMark(
+                            x: .value("Time", rateEntity.validFrom ?? Date()),
+                            y: .value("Price", rateEntity.valueIncludingVAT)
+                        )
+                        .foregroundStyle(rateEntity.valueIncludingVAT < 0 ? .red : .blue)
                     }
+                }
+                .frame(height: 200)
             }
         }
         .sheet(isPresented: $showingLocalSettings) {
