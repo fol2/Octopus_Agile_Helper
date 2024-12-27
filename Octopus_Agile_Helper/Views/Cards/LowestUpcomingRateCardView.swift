@@ -1,10 +1,9 @@
 import SwiftUI
-
-// Import view model
-@_implementationOnly import class Octopus_Agile_Helper.RatesViewModel
+import CoreData
 
 struct LowestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,7 +23,7 @@ struct LowestUpcomingRateCardView: View {
                         .font(.title)
                         .foregroundColor(.primary)
                     
-                    Text("at \(viewModel.formatTime(lowestRate.validFrom))")
+                    Text("at \(viewModel.formatTime(lowestRate.validFrom ?? <#default value#>))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -34,10 +33,17 @@ struct LowestUpcomingRateCardView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(colorScheme == .dark ? Color.black : Color.white)
         .cornerRadius(12)
         .shadow(radius: 4)
         .padding(.horizontal)
         .padding(.vertical, 4)
+    }
+}
+
+struct LowestUpcomingRateCardView_Previews: PreviewProvider {
+    static var previews: some View {
+        LowestUpcomingRateCardView(viewModel: RatesViewModel())
+            .preferredColorScheme(.dark)
     }
 } 

@@ -86,6 +86,10 @@
 ### Removed
 - Removed `RatesPersistence.swift` as its functionality was fully covered by `RatesRepository.swift`
 - Removed `SharedImports.swift` as it was not essential and could cause confusion
+- Removed `RatesManager` class from `OctopusAPIClient.swift` as its functionality was moved to `RatesRepository`
 ### Verified
 - Confirmed `OctopusRate` and `OctopusRatesResponse` are only defined in `RateModel.swift`
-- No duplicate model definitions found in the codebase 
+- No duplicate model definitions found in the codebase
+### Known Issues
+- Import resolution needs to be fixed for `RatesViewModel` in card views
+- Card styling needs to be standardized across views 

@@ -21,7 +21,7 @@ struct HighestUpcomingRateCardView: View {
                         .font(.title)
                         .foregroundColor(.primary)
                     
-                    Text("at \(viewModel.formatTime(highestRate.validFrom))")
+                    Text("at \(viewModel.formatTime(highestRate.validFrom ?? <#default value#>))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
