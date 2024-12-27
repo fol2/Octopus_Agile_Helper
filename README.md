@@ -29,11 +29,8 @@ Currently in development - Milestone 3: Cards for Lowest, Highest, and Average R
 ```
 Octopus_Agile_Helper/
 ├── AppMain.swift                     # Main app entry point
-├── Octopus_Agile_HelperApp.swift     # App placeholder
 ├── Models/
-│   ├── RateModel.swift
-│   ├── RateEntity+CoreDataClass.swift
-│   └── RateEntity+CoreDataProperties.swift
+│   └── RateModel.swift               # OctopusRate, OctopusRatesResponse
 ├── ViewModels/
 │   └── RatesViewModel.swift
 ├── Views/
@@ -46,13 +43,10 @@ Octopus_Agile_Helper/
 │   └── SharedUI/
 │       └── RateCardStyle.swift
 ├── Services/
-│   ├── OctopusAPIClient.swift
-│   └── RatesManager.swift
+│   └── OctopusAPIClient.swift        # API integration
 ├── Persistence/
-│   ├── Persistence.swift             # Core Data setup
-│   └── RatesPersistence.swift        # Rate-specific persistence
-├── Shared/
-│   └── SharedImports.swift           # Common imports and type declarations
+│   ├── PersistenceController.swift   # Core Data setup
+│   └── RatesRepository.swift         # Rate data management
 ├── Resources/
 │   └── Assets.xcassets/
 └── Preview Content/

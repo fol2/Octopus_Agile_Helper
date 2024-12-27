@@ -4,7 +4,7 @@ import CoreData
 
 @MainActor
 class RatesViewModel: ObservableObject {
-    private let ratesManager = RatesManager.shared
+    private let repository = RatesRepository.shared
     @AppStorage("averageHours") private var averageHours: Double = 2.0
     
     @Published private(set) var isLoading = false
@@ -34,7 +34,8 @@ class RatesViewModel: ObservableObject {
         let endDate = now.addingTimeInterval(averageHours * 3600) // Convert hours to seconds
         
         let relevantRates = upcomingRates.filter { rate in
-            rate.validFrom >= now && rate.validTo <= endDate
+            guard let validFrom = rate.validFrom, let validTo = rate.validTo else { return false }
+            return validFrom >= now && validTo <= endDate
         }
         
         guard !relevantRates.isEmpty else { return nil }
@@ -50,7 +51,7 @@ class RatesViewModel: ObservableObject {
         error = nil
         
         do {
-            upcomingRates = try await ratesManager.loadStoredRates()
+            upcomingRates = try await repository.fetchAllRates()
         } catch {
             self.error = error
         }
@@ -63,8 +64,8 @@ class RatesViewModel: ObservableObject {
         error = nil
         
         do {
-            try await ratesManager.updateRates()
-            upcomingRates = try await ratesManager.loadStoredRates()
+            try await repository.updateRates()
+            upcomingRates = try await repository.fetchAllRates()
         } catch {
             self.error = error
         }

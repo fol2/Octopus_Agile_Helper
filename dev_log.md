@@ -50,3 +50,34 @@
   - Removed default Item entity
   - Streamlined preview container setup
   - Improved error handling in persistence layer 
+
+## 2024-12-27: Codebase Cleanup
+
+### Changes Made
+1. **Model Consolidation**
+   - Removed duplicate model definitions from `OctopusAPIClient.swift`
+   - All rate models are now defined in `RateModel.swift`
+
+2. **Repository Pattern Implementation**
+   - Created new `RatesRepository.swift` that combines functionality from:
+     - `RatesManager` (API integration)
+     - `RatesPersistence` (Core Data operations)
+   - Removed redundant files:
+     - Deleted `RatesManager.swift`
+     - Deleted `RatesPersistence.swift`
+
+3. **App Structure Cleanup**
+   - Removed `Octopus_Agile_HelperApp.swift` (using `AppMain.swift` as entry point)
+   - Removed `SharedImports.swift` (using direct imports)
+   - Updated `RatesViewModel` to use the new `RatesRepository`
+
+### Benefits
+- Simplified data flow with single source of truth
+- Removed code duplication
+- Clearer project structure
+- Better separation of concerns
+
+### Next Steps
+- Add comprehensive error handling
+- Implement unit tests for the repository
+- Add data refresh scheduling 
