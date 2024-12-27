@@ -13,7 +13,7 @@ struct SettingsView: View {
             Section(header: HStack {
                 Text("Region Lookup")
                 Spacer()
-                InfoButton(message: "Your postcode is used to determine your region for accurate Agile tariff rates. If not provided, region 'H' will be used as default. This doesn't affect your account or billing.")
+                InfoButton(message: "Postcode determines your region for accurate rates. Default is region 'H'.")
             }) {
                 TextField("Postcode", text: $postcode)
                     .textInputAutocapitalization(.never)
@@ -28,7 +28,7 @@ struct SettingsView: View {
             Section(header: HStack {
                 Text("API Configuration")
                 Spacer()
-                InfoButton(message: "API Key is optional for viewing Agile rates. Only required if you want to access your personal consumption data. You can get your API key from your Octopus Energy online dashboard under 'API Access'.")
+                InfoButton(message: "API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'.")
             }) {
                 SecureField("API Key", text: $apiKey)
             }
@@ -36,7 +36,7 @@ struct SettingsView: View {
             Section(header: HStack {
                 Text("Preferences")
                 Spacer()
-                InfoButton(message: "Configure your preferences for language and time periods. Average Hours affects how the app calculates and displays average rates.")
+                InfoButton(message: "Set language and average hours for rate calculations.")
             }) {
                 Picker("Language", selection: $selectedLanguage) {
                     ForEach(languages, id: \.self) { language in

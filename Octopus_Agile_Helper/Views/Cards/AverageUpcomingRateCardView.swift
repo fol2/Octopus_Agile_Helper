@@ -8,26 +8,31 @@ struct AverageUpcomingRateCardView: View {
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .foregroundColor(.blue)
-                Text("Lowest 10 Upcoming Rates (Avg)")
+                Text("Lowest 10 (\(String(format: "%.1f", viewModel.averageHours))-hour Averages)")
                     .font(.headline)
                 Spacer()
             }
             
             if viewModel.isLoading {
                 ProgressView()
-            } else if let lowestTenAvg = viewModel.lowestTenAverageRate {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(viewModel.formatRate(lowestTenAvg))
-                        .font(.title)
-                        .foregroundColor(.primary)
-                    
-                    Text("Average of next 10 lowest rates")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
             } else {
-                Text("No upcoming rates available")
-                    .foregroundColor(.secondary)
+                let averages = viewModel.lowestTenThreeHourAverages
+                if averages.isEmpty {
+                    Text("No upcoming data for 3-hour averages")
+                        .foregroundColor(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(averages) { entry in
+                            HStack {
+                                Text(viewModel.formatRate(entry.average))
+                                    .font(.headline)
+                                Spacer()
+                                Text("\(viewModel.formatTime(entry.start)) - \(viewModel.formatTime(entry.end))")
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                }
             }
         }
         .rateCardStyle()

@@ -2,10 +2,17 @@ import Foundation
 import SwiftUI
 import CoreData
 
+struct ThreeHourAverageEntry: Identifiable {
+    let id = UUID()
+    let start: Date
+    let end: Date
+    let average: Double
+}
+
 @MainActor
 class RatesViewModel: ObservableObject {
     private let repository = RatesRepository.shared
-    @AppStorage("averageHours") private var averageHours: Double = 2.0
+    @AppStorage("averageHours") var averageHours: Double = 2.0
     
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
@@ -68,6 +75,53 @@ class RatesViewModel: ObservableObject {
         // 4) Calculate average
         let sum = topTen.reduce(0.0) { $0 + $1.valueIncludingVAT }
         return sum / Double(topTen.count)
+    }
+    
+    var lowestTenThreeHourAverages: [ThreeHourAverageEntry] {
+        // 1) Gather all *future* half-hour rate slots from upcomingRates,
+        //    sorted by validFrom ascending
+        let now = Date()
+        let futureSlots = upcomingRates
+            .filter { ($0.validFrom ?? .distantPast) >= now }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+        
+        // 2) Calculate how many 30-minute slots we need for the user's chosen hours
+        let slotsNeeded = Int(averageHours * 2) // 2 slots per hour
+        
+        // 3) We'll iterate over each future half-hour slot as a potential "start"
+        var results = [ThreeHourAverageEntry]()
+        let slotCount = futureSlots.count
+        
+        for (index, slot) in futureSlots.enumerated() {
+            let endIndex = index + (slotsNeeded - 1)
+            guard endIndex < slotCount else {
+                // Not enough future slots to make a full window
+                break
+            }
+            // gather the slots
+            let windowSlots = futureSlots[index...endIndex]
+            
+            // Compute average
+            let sum = windowSlots.reduce(0.0) { partial, rateEntity in
+                partial + rateEntity.valueIncludingVAT
+            }
+            let avg = sum / Double(slotsNeeded)
+            
+            // The time range is from the validFrom of the first slot
+            // to validTo of the last slot
+            let startDate = slot.validFrom ?? now
+            let lastSlot = windowSlots.last!
+            let endDate = lastSlot.validTo ?? (startDate.addingTimeInterval(1800)) // fallback
+            
+            let entry = ThreeHourAverageEntry(start: startDate,
+                                            end: endDate,
+                                            average: avg)
+            results.append(entry)
+        }
+        
+        // 4) Sort by ascending average and return up to 10
+        results.sort { $0.average < $1.average }
+        return Array(results.prefix(10))
     }
     
     // MARK: - Methods
