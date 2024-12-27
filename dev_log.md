@@ -93,3 +93,22 @@
 ### Known Issues
 - Import resolution needs to be fixed for `RatesViewModel` in card views
 - Card styling needs to be standardized across views 
+
+## [Feature] Postcode-Based Region Lookup - 2024-12-27
+### Added
+- Added postcode field to `SettingsView` with proper text input configuration
+- Implemented region lookup functionality in `RatesRepository`:
+  - New `fetchRegionID(for:)` method to get region from postcode
+  - Added `SupplyPointsResponse` and `SupplyPoint` models
+### Changed
+- Modified `OctopusAPIClient` to use region-based URLs:
+  - Removed API key requirement for rate fetching
+  - Updated `fetchRates()` to accept regionID parameter
+  - Simplified URL construction with dynamic region
+### Benefits
+- Simplified user experience by removing API key requirement
+- More accurate rate data by using correct regional tariffs
+- Better error handling for region lookup failures
+### Known Issues
+- Need to add validation for postcode format
+- Could add caching for region lookups to reduce API calls 

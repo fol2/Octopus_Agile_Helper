@@ -4,11 +4,23 @@ struct SettingsView: View {
     @AppStorage("apiKey") private var apiKey: String = ""
     @AppStorage("selectedLanguage") private var selectedLanguage: String = "English"
     @AppStorage("averageHours") private var averageHours: Double = 2.0
+    @AppStorage("postcode") private var postcode: String = ""
     
     private let languages = ["English", "Other"]
     
     var body: some View {
         Form {
+            Section(header: Text("Region Lookup")) {
+                TextField("Postcode", text: $postcode)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    .textCase(.uppercase)
+                    .onChange(of: postcode) { newValue in
+                        print("DEBUG: Postcode changed to: \(newValue)")
+                        UserDefaults.standard.synchronize()
+                    }
+            }
+            
             Section(header: Text("API Configuration")) {
                 SecureField("API Key", text: $apiKey)
             }
@@ -27,6 +39,12 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .onAppear {
+            print("DEBUG: Settings loaded - API Key length: \(apiKey.count)")
+            print("DEBUG: Settings loaded - Average Hours: \(averageHours)")
+            print("DEBUG: Settings loaded - Selected Language: \(selectedLanguage)")
+            print("DEBUG: Settings loaded - Postcode: \(postcode)")
+        }
     }
 }
 

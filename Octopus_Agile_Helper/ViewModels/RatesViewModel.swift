@@ -18,15 +18,17 @@ class RatesViewModel: ObservableObject {
     }
     
     var lowestUpcomingRate: RateEntity? {
-        upcomingRates
+        let upcoming = upcomingRates
             .filter { ($0.validFrom ?? .distantPast) > Date() }
-            .min { $0.valueIncludingVAT < $1.valueIncludingVAT }
+        print("DEBUG: Found \(upcoming.count) upcoming rates for lowest rate calculation")
+        return upcoming.min { $0.valueIncludingVAT < $1.valueIncludingVAT }
     }
     
     var highestUpcomingRate: RateEntity? {
-        upcomingRates
+        let upcoming = upcomingRates
             .filter { ($0.validFrom ?? .distantPast) > Date() }
-            .max { $0.valueIncludingVAT < $1.valueIncludingVAT }
+        print("DEBUG: Found \(upcoming.count) upcoming rates for highest rate calculation")
+        return upcoming.max { $0.valueIncludingVAT < $1.valueIncludingVAT }
     }
     
     var averageUpcomingRate: Double? {
@@ -38,6 +40,8 @@ class RatesViewModel: ObservableObject {
             return validFrom >= now && validTo <= endDate
         }
         
+        print("DEBUG: Found \(relevantRates.count) rates for average calculation over \(averageHours) hours")
+        
         guard !relevantRates.isEmpty else { return nil }
         
         let totalValue = relevantRates.reduce(0.0) { $0 + $1.valueIncludingVAT }
@@ -47,27 +51,33 @@ class RatesViewModel: ObservableObject {
     // MARK: - Methods
     
     func loadRates() async {
+        print("DEBUG: Starting to load rates")
         isLoading = true
         error = nil
         
         do {
             upcomingRates = try await repository.fetchAllRates()
+            print("DEBUG: Successfully loaded \(upcomingRates.count) rates")
         } catch {
             self.error = error
+            print("DEBUG: Error loading rates: \(error)")
         }
         
         isLoading = false
     }
     
     func refreshRates() async {
+        print("DEBUG: Starting to refresh rates")
         isLoading = true
         error = nil
         
         do {
             try await repository.updateRates()
             upcomingRates = try await repository.fetchAllRates()
+            print("DEBUG: Successfully refreshed rates, now have \(upcomingRates.count) rates")
         } catch {
             self.error = error
+            print("DEBUG: Error refreshing rates: \(error)")
         }
         
         isLoading = false

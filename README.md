@@ -6,7 +6,7 @@ A SwiftUI-based iOS application designed to help users manage and optimize their
 Currently in development - Milestone 3: Cards for Lowest, Highest, and Average Rates
 
 ### Features
-- API Key configuration for Octopus Energy integration
+- Automatic region detection using postcode
 - Language selection support
 - Customizable average hours for usage planning
 - Octopus Agile rate data fetching and storage
@@ -23,7 +23,7 @@ Currently in development - Milestone 3: Cards for Lowest, Highest, and Average R
 - iOS 16.0+
 - Xcode 14.0+
 - Swift 5.0+
-- Octopus Energy API key (for rate data)
+- UK Postcode (for region detection)
 
 ## Project Structure
 ```
@@ -46,7 +46,7 @@ Octopus_Agile_Helper/
 │   └── OctopusAPIClient.swift        # API integration
 ├── Persistence/
 │   ├── PersistenceController.swift   # Core Data setup
-│   └── RatesRepository.swift         # Rate data management
+│   └── RatesRepository.swift         # Rate data & region management
 ├── Resources/
 │   └── Assets.xcassets/
 └── Preview Content/
@@ -56,12 +56,11 @@ Octopus_Agile_Helper/
 ## Development
 Check `dev_log.md` for detailed development progress and updates.
 
-## API Integration
-The app integrates with the Octopus Energy API to fetch Agile tariff rates. Users need to provide their API key in the settings. The app handles:
-- Secure API key storage
-- Rate data fetching
-- Local data persistence
-- Offline access to previously fetched rates
+## Region & Rate Lookup
+The app uses the Octopus Energy API to:
+1. Determine your region from your postcode
+2. Fetch the correct Agile tariff rates for your region
+3. Store rates locally for offline access
 
 ## Rate Display
 The app provides three main views for rate information:
