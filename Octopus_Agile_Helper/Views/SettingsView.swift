@@ -31,8 +31,8 @@ struct SettingsView: View {
                 InfoButton(message: LocalizedStringKey("Set language and rate display preferences."))
             }) {
                 Picker(LocalizedStringKey("Language"), selection: $globalSettings.settings.selectedLanguage) {
-                    ForEach(Language.allCases, id: \.displayName) { language in
-                        Text(language.displayName)
+                    ForEach(Language.allCases, id: \.self) { lang in
+                        Text(lang.displayName)
                     }
                 }
                 
