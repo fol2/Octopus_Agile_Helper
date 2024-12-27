@@ -39,6 +39,34 @@ struct AverageUpcomingRateCardView: View {
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
     @State private var showingLocalSettings = false
     
+    private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
+        guard let from = from, let to = to else { return "" }
+        let now = Date()
+        let calendar = Calendar.current
+        
+        let fromDay = calendar.startOfDay(for: from)
+        let toDay = calendar.startOfDay(for: to)
+        let nowDay = calendar.startOfDay(for: now)
+        
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "d MMM"
+        
+        if calendar.isDate(fromDay, inSameDayAs: toDay) {
+            // Same day for start and end
+            if calendar.isDate(fromDay, inSameDayAs: nowDay) {
+                return "\(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
+            } else {
+                return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
+            }
+        } else {
+            // Different days for start and end
+            return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(dateFormatter.string(from: to)) \(timeFormatter.string(from: to))"
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -68,11 +96,16 @@ struct AverageUpcomingRateCardView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(averages) { entry in
                             HStack {
-                                Text(viewModel.formatRate(entry.average))
-                                    .font(.headline)
+                                let parts = viewModel.formatRate(entry.average).split(separator: " ")
+                                Text(parts[0] + "p")
+                                    .font(.system(size: 17, weight: .medium))
+                                Text("/kWh")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
                                 Spacer()
-                                Text("\(viewModel.formatTime(entry.start)) - \(viewModel.formatTime(entry.end))")
-                                    .font(.subheadline)
+                                Text(formatTimeRange(entry.start, entry.end))
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
                             }
                         }
                     }

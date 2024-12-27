@@ -1,6 +1,60 @@
 # Octopus Agile Helper
 
-A SwiftUI-based iOS application designed to help users manage and optimize their energy usage with the Octopus Agile tariff. This app provides insights and tools to make the most of variable rate electricity pricing.
+A SwiftUI app to help monitor and optimize usage of the Octopus Agile tariff.
+
+## Features
+
+### Rate Display
+The app provides three main views for rate information:
+
+1. **Lowest Rate Card**:
+   - Shows the lowest upcoming rate prominently
+   - Configurable number of next lowest rates (0-10)
+   - Each rate shows value and time slot
+   - Date prefix for next-day rates
+
+2. **Highest Rate Card**:
+   - Shows the highest upcoming rate prominently
+   - Configurable number of next highest rates (0-10)
+   - Each rate shows value and time slot
+   - Date prefix for next-day rates
+
+3. **Average Rate Card**:
+   - Shows lowest periods for running longer appliances
+   - Configurable period length (0.5 to 24 hours)
+   - Configurable number of periods to show
+   - Special handling for cross-day periods
+
+### Rate Formatting
+- Values shown as "21.83p/kWh"
+- Main rate: Large value (34pt), smaller unit (17pt)
+- Secondary rates: Medium value (17pt), smaller unit (13pt)
+- Times shown as "22:30-23:00" or "27 Dec 22:30-23:00"
+
+### Card Settings
+Each card has its own local settings accessible via a gear icon:
+- Settings persist independently in UserDefaults
+- Individual control over display options
+- Changes take effect immediately
+- Settings specific to each card's purpose
+
+### Auto-Refresh Logic
+1. We run a 1-minute global timer. Each minute:
+   - The app re-checks upcoming rates & hides expired slots.
+2. At 4pm daily, if the next day's data is missing, we fetch from Octopus.
+3. If you open the app and have no data, or you do a pull-to-refresh, we fetch from Octopus.
+
+## Configuration
+
+### Global Settings
+We store global settings (postcode, API key, language, etc.) in `GlobalSettingsManager`, a single reference to which is created in `AppMain.swift`. This ensures we can easily synchronize changes across the app. Settings are saved in `UserDefaults` as JSON.
+
+### Local Card Settings
+Each card maintains its own settings:
+- Lowest/Highest cards: Number of additional rates to show
+- Average card: Period length and number of periods
+- All settings persist independently
+- Each card has its own settings UI
 
 ## Current Status
 Currently in development - Milestone 3: Cards for Lowest, Highest, and Average Rates
@@ -81,10 +135,12 @@ The app provides three main views for rate information:
 We store global settings (postcode, API key, language, etc.) in `GlobalSettingsManager`, a single reference to which is created in `AppMain.swift`. This ensures we can easily synchronize changes across the app. Settings are saved in `UserDefaults` as JSON.
 
 ### Local Card Settings
-Each card can have its own `CardSettingsManager` for more granular configuration:
-- Click the gear icon on a card to access its local settings
-- Customize settings like average hours and number of items to display
-- Settings are saved per-card and persist between app launches
+Each card manages its own settings internally:
+- Settings are defined within each card's view file
+- Each card has its own private settings types and manager
+- Settings are accessed via a gear icon in the card's header
+- Settings are saved per-card in `UserDefaults` and persist between app launches
+- No global settings manager needed - each card is self-contained
 
 ## License
 TBD 

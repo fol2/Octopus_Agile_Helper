@@ -12,7 +12,7 @@ struct AllRatesListView: View {
     }()
     
     private var ratesByDate: [(String, [RateEntity])] {
-        let grouped = Dictionary(grouping: viewModel.upcomingRates) { rate in
+        let grouped = Dictionary(grouping: viewModel.allRates) { rate in
             if let date = rate.validFrom {
                 return dateFormatter.string(from: date)
             }
@@ -76,7 +76,7 @@ struct AllRatesListView: View {
             }
             .listStyle(.plain)
             .onAppear {
-                if let currentRate = viewModel.upcomingRates.first(where: { isRateCurrentlyActive($0) }) {
+                if let currentRate = viewModel.allRates.first(where: { isRateCurrentlyActive($0) }) {
                     withAnimation {
                         scrollProxy.scrollTo(currentRate.objectID, anchor: .center)
                     }

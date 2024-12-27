@@ -122,6 +122,22 @@
   - Automatically scrolls to and highlights current active rate
   - Accessible via "All Rates" button in navigation bar 
 
+## 2024-12-27: Card View Enhancements
+- Enhanced rate display formatting:
+  - Split rate into value and unit (e.g., "21.83p" and "/kWh")
+  - Larger font for rate value (34pt for main, 17pt for secondary)
+  - Smaller font for unit (17pt for main, 13pt for secondary)
+- Improved time display:
+  - Added date prefix for next-day rates (e.g., "27 Dec 22:30-23:00")
+  - Special handling for cross-day ranges in average card
+  - Aligned all times to the right
+  - Changed to primary color for better visibility
+- Added local settings to rate cards:
+  - Configurable number of additional rates (0-10)
+  - Persistent settings via UserDefaults
+  - Settings gear icon in each card
+  - Individual settings for lowest/highest rate cards
+
 ## 2024-12-27: Timed Refresh & 4PM Fetch
 - Moved the 1-minute timer to `AppMain` via GlobalTimer
 - RatesViewModel re-filters upcoming data each minute
@@ -129,15 +145,16 @@
   - If 4pm & next day's data is missing
   - If no data on app open
   - If user force refreshes
-- All cards now re-calculate every minute automatically 
+- All cards now re-calculate every minute automatically
 
 ## 2024-12-27: Local vs. Global Settings
-
-- Created `CardSettings` model and `CardSettingsManager` for managing local card settings (e.g. average hours, list size).
-- Added local settings support to `AverageUpcomingRateCardView` with a gear icon for accessing card-specific settings.
-- Added `getLowestAverages` method to `RatesViewModel` to support custom hours and max count per card.
-- Global settings (postcode, API key, language) remain in `SettingsView`.
-- Local card settings are stored in `UserDefaults` with card-specific keys. 
+- Created separate settings managers for each card view
+- Global settings remain in `GlobalSettingsManager`
+- Each card now has its own local settings:
+  - AverageCard: Custom hours and list count
+  - LowestCard: Additional rates count
+  - HighestCard: Additional rates count
+- All settings persist independently in UserDefaults
 
 ## 2024-12-28: Unified GlobalSettingsManager
 - Replaced old `@AppStorage` usage in `SettingsView` with a single `GlobalSettingsManager`
@@ -149,3 +166,25 @@
   - Type-safe settings access
   - Easier to extend with new settings
   - Consistent settings management across the app 
+
+## 2024-12-27: Card Settings Restructuring
+### Removed
+- Deleted `CardSettings.swift` and its global `CardSettingsManager`
+- Removed `AverageCardSettingsSheet.swift` (moved into card view)
+
+### Changed
+- Restructured card settings to be fully self-contained:
+  - Each card now manages its own settings within its SwiftUI view file
+  - Settings types are private to each card (e.g., `AverageCardLocalSettings`)
+  - Settings manager is scoped to individual cards (e.g., `AverageCardLocalSettingsManager`)
+  - Settings sheet is now defined alongside its parent card view
+
+### Benefits
+- Better encapsulation: Each card fully owns its settings
+- Reduced coupling: No shared settings manager to coordinate
+- Clearer ownership: Settings code lives with the view that uses it
+- Easier maintenance: Changing one card's settings won't affect others
+
+### Next Steps
+- Apply same pattern to other cards if they need local settings
+- Consider adding settings migration if needed for existing users 

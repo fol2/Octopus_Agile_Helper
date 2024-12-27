@@ -20,6 +20,7 @@ class RatesViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var error: Error?
     @Published private(set) var upcomingRates: [RateEntity] = []
+    @Published private(set) var allRates: [RateEntity] = []
     
     init(globalTimer: GlobalTimer) {
         setupTimer(globalTimer)
@@ -44,11 +45,10 @@ class RatesViewModel: ObservableObject {
     
     private func handleTimerTick(_ now: Date) {
         // Re-filter upcoming rates based on the new current time
-        let filtered = repository.currentCachedRates.filter {
+        upcomingRates = allRates.filter {
             guard let start = $0.validFrom else { return false }
             return start > now
         }
-        upcomingRates = filtered
         
         // Check if we need to fetch new data (at 4 PM)
         Task {
@@ -175,7 +175,11 @@ class RatesViewModel: ObservableObject {
         error = nil
         
         do {
-            upcomingRates = try await repository.fetchAllRates()
+            allRates = try await repository.fetchAllRates()
+            upcomingRates = allRates.filter { rate in
+                guard let start = rate.validFrom else { return false }
+                return start > Date()
+            }
             print("DEBUG: Successfully loaded \(upcomingRates.count) rates")
         } catch {
             self.error = error
@@ -192,7 +196,11 @@ class RatesViewModel: ObservableObject {
         
         do {
             try await repository.updateRates(force: force)
-            upcomingRates = try await repository.fetchAllRates()
+            allRates = try await repository.fetchAllRates()
+            upcomingRates = allRates.filter { rate in
+                guard let start = rate.validFrom else { return false }
+                return start > Date()
+            }
             print("DEBUG: Successfully refreshed rates, now have \(upcomingRates.count) rates")
         } catch {
             self.error = error
