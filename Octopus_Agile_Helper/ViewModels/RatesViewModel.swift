@@ -13,7 +13,6 @@ struct ThreeHourAverageEntry: Identifiable {
 @MainActor
 class RatesViewModel: ObservableObject {
     private let repository = RatesRepository.shared
-    @EnvironmentObject var globalSettings: GlobalSettingsManager
     private var cancellables = Set<AnyCancellable>()
     private var currentTimer: GlobalTimer?
     
@@ -259,9 +258,12 @@ class RatesViewModel: ObservableObject {
     
     // MARK: - Formatting Helpers
     
-    func formatRate(_ value: Double) -> String {
-        if globalSettings.settings.showRatesInPounds {
-            return String(format: "%.2f £/kWh", value / 100.0)  // Convert pence to pounds
+    /// Format the `value` (in pence) as either p/kWh or £/kWh, controlled by `showRatesInPounds`.
+    func formatRate(_ value: Double, showRatesInPounds: Bool = false) -> String {
+        if showRatesInPounds {
+            // Convert pence to pounds: 100 pence = £1
+            let poundsValue = value / 100.0
+            return String(format: "%.2f £/kWh", poundsValue)
         } else {
             return String(format: "%.2f p/kWh", value)
         }

@@ -36,6 +36,7 @@ struct LowestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var localSettings = LowestRateCardLocalSettingsManager()
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var showingLocalSettings = false
     
     private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
@@ -83,11 +84,14 @@ struct LowestUpcomingRateCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Main lowest rate
                     HStack(alignment: .center) {
-                        let parts = viewModel.formatRate(lowestRate.valueIncludingVAT).split(separator: " ")
-                        Text(parts[0] + "p")
+                        let parts = viewModel.formatRate(
+                            lowestRate.valueIncludingVAT,
+                            showRatesInPounds: globalSettings.settings.showRatesInPounds
+                        ).split(separator: " ")
+                        Text(parts[0])
                             .font(.system(size: 34, weight: .medium))
                             .foregroundColor(.primary)
-                        Text("/kWh")
+                        Text(parts[1])
                             .font(.system(size: 17))
                             .foregroundColor(.secondary)
                         Spacer()
@@ -106,10 +110,13 @@ struct LowestUpcomingRateCardView: View {
                             Divider()
                             ForEach(upcomingRates.prefix(localSettings.settings.additionalRatesCount + 1).dropFirst(), id: \.validFrom) { rate in
                                 HStack {
-                                    let parts = viewModel.formatRate(rate.valueIncludingVAT).split(separator: " ")
-                                    Text(parts[0] + "p")
+                                    let parts = viewModel.formatRate(
+                                        rate.valueIncludingVAT,
+                                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                    ).split(separator: " ")
+                                    Text(parts[0])
                                         .font(.system(size: 17, weight: .medium))
-                                    Text("/kWh")
+                                    Text(parts[1])
                                         .font(.system(size: 13))
                                         .foregroundColor(.secondary)
                                     Spacer()

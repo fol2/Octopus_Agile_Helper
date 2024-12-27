@@ -37,6 +37,7 @@ private class AverageCardLocalSettingsManager: ObservableObject {
 struct AverageUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var showingLocalSettings = false
     
     private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
@@ -96,10 +97,13 @@ struct AverageUpcomingRateCardView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(averages) { entry in
                             HStack {
-                                let parts = viewModel.formatRate(entry.average).split(separator: " ")
-                                Text(parts[0] + "p")
+                                let parts = viewModel.formatRate(
+                                    entry.average,
+                                    showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                ).split(separator: " ")
+                                Text(parts[0])
                                     .font(.system(size: 17, weight: .medium))
-                                Text("/kWh")
+                                Text(parts[1])
                                     .font(.system(size: 13))
                                     .foregroundColor(.secondary)
                                 Spacer()

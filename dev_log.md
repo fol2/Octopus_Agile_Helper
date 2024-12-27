@@ -214,3 +214,26 @@
    - Enhanced `RatesViewModel.formatRate()` to handle both display formats
    - Added toggle in Settings UI for user preference
    - Rates are now displayed consistently across all cards based on user preference 
+
+## 2024-03-19: Fixed @EnvironmentObject Crash
+
+1. **Removed `@EnvironmentObject` from `RatesViewModel`**
+   - Fixed crash by removing `@EnvironmentObject` from non-SwiftUI class
+   - Updated `formatRate()` to accept `showRatesInPounds` parameter
+   - Improved code stability and SwiftUI compliance
+
+2. **Updated Card Views**
+   - Added `@EnvironmentObject var globalSettings` to each card view
+   - Modified rate formatting calls to pass `showRatesInPounds` from global settings
+   - Updated text display to handle both "p/kWh" and "£/kWh" formats
+   - Affected views:
+     - `CurrentRateCardView`
+     - `LowestUpcomingRateCardView`
+     - `HighestUpcomingRateCardView`
+     - `AverageUpcomingRateCardView`
+
+3. **Benefits**
+   - Fixed runtime crash from incorrect `@EnvironmentObject` usage
+   - Maintained proper SwiftUI view hierarchy
+   - Preserved rate display toggle functionality
+   - Improved code architecture with better dependency injection 

@@ -5,6 +5,7 @@ struct CurrentRateCardView: View {
     // MARK: - Dependencies
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     
     // MARK: - Body
     var body: some View {
@@ -22,11 +23,14 @@ struct CurrentRateCardView: View {
             } else if let currentRate = getCurrentRate() {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .center) {
-                        let parts = viewModel.formatRate(currentRate.valueIncludingVAT).split(separator: " ")
-                        Text(parts[0] + "p")
+                        let parts = viewModel.formatRate(
+                            currentRate.valueIncludingVAT,
+                            showRatesInPounds: globalSettings.settings.showRatesInPounds
+                        ).split(separator: " ")
+                        Text(parts[0])
                             .font(.system(size: 34, weight: .medium))
                             .foregroundColor(.primary)
-                        Text("/kWh")
+                        Text(parts[1])
                             .font(.system(size: 17))
                             .foregroundColor(.secondary)
                         Spacer()
