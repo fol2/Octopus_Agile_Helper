@@ -16,9 +16,6 @@ struct ContentView: View {
     @Environment(\.colorScheme) var colorScheme
     
     init() {
-        // We need to initialize ratesViewModel with globalTimer,
-        // but we can't use @EnvironmentObject in init
-        // So we create a temporary instance just for init
         let tempTimer = GlobalTimer()
         _ratesViewModel = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
     }
@@ -27,16 +24,25 @@ struct ContentView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
-                    CurrentRateCardView(viewModel: ratesViewModel)
-                    LowestUpcomingRateCardView(viewModel: ratesViewModel)
-                    HighestUpcomingRateCardView(viewModel: ratesViewModel)
-                    AverageUpcomingRateCardView(viewModel: ratesViewModel)
+                    ForEach(sortedCardConfigs()) { config in
+                        if config.isEnabled && config.isPurchased {
+                            switch config.cardType {
+                            case .currentRate:
+                                CurrentRateCardView(viewModel: ratesViewModel)
+                            case .lowestUpcoming:
+                                LowestUpcomingRateCardView(viewModel: ratesViewModel)
+                            case .highestUpcoming:
+                                HighestUpcomingRateCardView(viewModel: ratesViewModel)
+                            case .averageUpcoming:
+                                AverageUpcomingRateCardView(viewModel: ratesViewModel)
+                            }
+                        }
+                    }
                 }
                 .padding(.vertical)
             }
             .navigationTitle("Octopus Agile")
             .refreshable {
-                // Force update when user pulls to refresh
                 await ratesViewModel.refreshRates(force: true)
             }
             .toolbar {
@@ -49,13 +55,15 @@ struct ContentView: View {
             }
         }
         .task {
-            // Initial load when app opens
             await ratesViewModel.loadRates()
         }
         .onAppear {
-            // Replace the temporary timer with the real one from environment
             ratesViewModel.updateTimer(globalTimer)
         }
+    }
+    
+    private func sortedCardConfigs() -> [CardConfig] {
+        globalSettings.settings.cardSettings.sorted { $0.sortOrder < $1.sortOrder }
     }
 }
 

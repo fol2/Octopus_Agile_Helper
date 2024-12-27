@@ -119,3 +119,41 @@
 - More reliable data handling
 - Improved performance and stability
 - Consistent visual design across the app 
+
+## 2024-12-27: Card Management System Implementation
+
+### Added Features
+1. **Card Configuration System**
+   - Added `CardType` enum for different card types
+   - Added `CardConfig` struct for card settings (enabled/disabled, purchase status, sort order)
+   - Integrated with `GlobalSettings` for persistence
+
+2. **Card Management UI**
+   - Created new `CardManagementView` with drag-to-reorder functionality
+   - Added card-specific icons for better visual identification:
+     - Current Rate: clock.fill
+     - Lowest Upcoming: arrow.down.circle.fill
+     - Highest Upcoming: arrow.up.circle.fill
+     - Average Upcoming: chart.bar.fill
+   - Implemented toggle switches for enabling/disabling cards
+   - Added "Unlock" buttons for premium features (preparation for future in-app purchases)
+
+3. **UX Improvements**
+   - Smooth drag-and-drop reordering with haptic feedback
+   - Visual indicators for draggable areas
+   - Top and bottom bleeding areas for easier card manipulation
+   - Responsive touch targets (44pt minimum)
+   - Clear visual hierarchy with secondary colors for drag indicators
+
+### Technical Details
+- Cards use SwiftUI's native list reordering system
+- Card configurations are stored in UserDefaults via GlobalSettings
+- Each card maintains its sort order for consistent display
+- Implemented proper state management for drag gestures
+- Added brief edit mode reset after moves to maintain responsiveness
+
+### Future Improvements
+- [ ] Implement StoreKit integration for premium card features
+- [ ] Add card usage analytics
+- [ ] Consider adding custom card creation
+- [ ] Add card preview in management view 

@@ -40,6 +40,21 @@ struct SettingsView: View {
                 
                 Toggle("Display Rates in Pounds (£)", isOn: $globalSettings.settings.showRatesInPounds)
             }
+            
+            Section(header: HStack {
+                Text("Cards")
+                Spacer()
+                InfoButton(message: "Manage which cards are shown and their order.")
+            }) {
+                NavigationLink(destination: CardManagementView()) {
+                    HStack {
+                        Text("Manage Cards")
+                        Spacer()
+                        Text("\(globalSettings.settings.cardSettings.filter { $0.isEnabled }.count) Active")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
         }
         .navigationTitle("Settings")
         .onAppear {
