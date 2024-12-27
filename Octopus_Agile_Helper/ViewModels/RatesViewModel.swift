@@ -46,7 +46,7 @@ class RatesViewModel: ObservableObject {
     private func handleTimerTick(_ now: Date) {
         // Re-filter upcoming rates based on the new current time
         upcomingRates = allRates.filter {
-            guard let start = $0.validFrom, let end = $0.validTo else { return false }
+            guard let _ = $0.validFrom, let end = $0.validTo else { return false }
             return end > now  // Include any rate that hasn't ended yet
         }
         
@@ -177,7 +177,7 @@ class RatesViewModel: ObservableObject {
         do {
             allRates = try await repository.fetchAllRates()
             upcomingRates = allRates.filter { rate in
-                guard let start = rate.validFrom, let end = rate.validTo else { return false }
+                guard let _ = rate.validFrom, let end = rate.validTo else { return false }
                 return end > Date()  // Include any rate that hasn't ended yet
             }
             print("DEBUG: Successfully loaded \(upcomingRates.count) rates")
@@ -198,7 +198,7 @@ class RatesViewModel: ObservableObject {
             try await repository.updateRates(force: force)
             allRates = try await repository.fetchAllRates()
             upcomingRates = allRates.filter { rate in
-                guard let start = rate.validFrom, let end = rate.validTo else { return false }
+                guard let _ = rate.validFrom, let end = rate.validTo else { return false }
                 return end > Date()  // Include any rate that hasn't ended yet
             }
             print("DEBUG: Successfully refreshed rates, now have \(upcomingRates.count) rates")
