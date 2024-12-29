@@ -69,6 +69,41 @@
         }
       }
     },
+    "%@ → %@p" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ → %2$@p"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@p"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@p"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@p"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@p"
+          }
+        }
+      }
+    },
     "%lld Active" : {
       "comment" : "Shows number of currently active cards",
       "localizations" : {
@@ -94,6 +129,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld 個已啟用"
+          }
+        }
+      }
+    },
+    "A dynamic line chart showing rates, best time ranges, and more." : {
+      "comment" : "descriptionKey for lineChart",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A dynamic line chart showing rates, best time ranges, and more."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un gráfico de líneas dinámico que muestra las tarifas, los mejores rangos de tiempo y más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un graphique linéaire dynamique montrant les taux de frais, les meilleures plages horaires, et plus encore."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "动态折线图显示费率、最佳时间范围等。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一個動態折線圖顯示費率、最佳時間範圍等資訊。"
           }
         }
       }
@@ -423,6 +494,42 @@
         }
       }
     },
+    "Displays the ongoing rate for the current half-hour slot." : {
+      "comment" : "descriptionKey for Current Rate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Displays the ongoing rate for the current half-hour slot."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra la tarifa actual para el intervalo de media hora en curso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche le tarif en cours pour la plage horaire actuelle de trente minutes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示当前半小时时段的实时费率。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示目前半小時時段的實時費率。"
+          }
+        }
+      }
+    },
     "Done" : {
       "comment" : "Button to dismiss the info sheet\nButton to dismiss the settings sheet",
       "localizations" : {
@@ -510,6 +617,34 @@
         }
       }
     },
+    "End" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fin"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fin"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結束"
+          }
+        }
+      }
+    },
     "Highest Upcoming Rates" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -541,6 +676,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最高即將到來費率"
+          }
+        }
+      }
+    },
+    "Interactive Rate Chart" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gráfico de tarifas interactivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graphique de tarifs interactif"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "互动费率图表"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "互動費率圖表"
           }
         }
       }
@@ -764,6 +927,70 @@
         }
       }
     },
+    "MaxPrice" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precio máximo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prix maximum"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高价格"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高價格"
+          }
+        }
+      }
+    },
+    "MaxY" : {
+
+    },
+    "MinPrice" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precio mínimo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prix minimum"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低价格"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低價格"
+          }
+        }
+      }
+    },
+    "MinY" : {
+
+    },
     "No current rate available" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -857,7 +1084,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沒�� %@ 小時平均的即將到來資料"
+            "value" : "沒有 %@ 小時平均的即將到來資料"
           }
         }
       }
@@ -897,6 +1124,35 @@
         }
       }
     },
+    "Now" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在"
+          }
+        }
+      }
+    },
     "NOW" : {
       "comment" : "Label indicating the currently active rate",
       "localizations" : {
@@ -925,6 +1181,9 @@
           }
         }
       }
+    },
+    "NowLine" : {
+
     },
     "Octopus Agile" : {
       "localizations" : {
@@ -1070,6 +1329,34 @@
         }
       }
     },
+    "Price" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prix"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "价格"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "價格"
+          }
+        }
+      }
+    },
     "Region Lookup" : {
       "comment" : "Header for the region lookup section",
       "localizations" : {
@@ -1152,6 +1439,134 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定"
+          }
+        }
+      }
+    },
+    "Shows the average cost over selected periods or the next 10 lowest windows." : {
+      "comment" : "descriptionKey for Average Rate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the average cost over selected periods or the next 10 lowest windows."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra el costo promedio durante los períodos seleccionados o las próximas 10 ventanas más bajas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche le coût moyen sur les périodes sélectionnées ou les 10 prochaines fenêtres les plus basses."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示所选时段的平均费用或接下来10个最低费率时段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示所選時段的平均費用或接下來10個最低費率時段。"
+          }
+        }
+      }
+    },
+    "Shows upcoming times with the cheapest electricity rates." : {
+      "comment" : "descriptionKey for Lowest Upcoming Rate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows upcoming times with the cheapest electricity rates."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra los próximos horarios con las tarifas de electricidad más económicas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche les prochaines périodes avec les tarifs d'électricité les plus bas."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示即将到来的最低电费时段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示即將到來的最低電費時段。"
+          }
+        }
+      }
+    },
+    "Start" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Début"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始"
+          }
+        }
+      }
+    },
+    "Time" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heure"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時間"
           }
         }
       }
@@ -1273,6 +1688,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "直至 %@"
+          }
+        }
+      }
+    },
+    "Warns you of upcoming peak pricing times." : {
+      "comment" : "descriptionKey for Highest Upcoming Rate",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warns you of upcoming peak pricing times."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Te advierte sobre los próximos horarios de precios máximos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous avertit des prochaines périodes de tarification de pointe."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒您即将到来的高峰价格时段。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提醒您即將到來的高峰價格時段。"
           }
         }
       }

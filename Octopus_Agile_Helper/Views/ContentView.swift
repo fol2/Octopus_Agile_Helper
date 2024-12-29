@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import Combine
 import UIKit
 
 struct ContentView: View {
@@ -15,6 +16,7 @@ struct ContentView: View {
     @StateObject private var ratesViewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
     @State private var refreshTrigger = false
+    @State private var forcedRefresh = false
     
     init() {
         let tempTimer = GlobalTimer()
@@ -31,17 +33,18 @@ struct ContentView: View {
                                 if config.isPurchased || !definition.isPremium {
                                     definition.makeView(ratesViewModel)
                                         .environment(\.locale, globalSettings.locale)
-                                        .id("\(config.id)-\(refreshTrigger)")
+                                        .id("\(config.id)-\(refreshTrigger)-\(forcedRefresh)")
                                 } else {
                                     CardLockedView(definition: definition, config: config)
                                         .environment(\.locale, globalSettings.locale)
-                                        .id("\(config.id)-\(refreshTrigger)")
+                                        .id("\(config.id)-\(refreshTrigger)-\(forcedRefresh)")
                                 }
                             }
                         }
                     }
                 }
                 .padding(.vertical)
+                .id("vstack-\(forcedRefresh)")
             }
             .navigationTitle(LocalizedStringKey("Octopus Agile"))
             .refreshable {
@@ -67,6 +70,10 @@ struct ContentView: View {
         }
         .onAppear {
             ratesViewModel.updateTimer(globalTimer)
+            Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                forcedRefresh.toggle()
+                print("Forcing re-render at \(Date())")
+            }
         }
     }
     

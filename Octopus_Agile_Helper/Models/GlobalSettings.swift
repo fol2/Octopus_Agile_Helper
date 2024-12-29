@@ -34,6 +34,7 @@ enum CardType: String, Codable, CaseIterable {
     case lowestUpcoming
     case highestUpcoming
     case averageUpcoming
+    case interactiveChart
 }
 
 struct CardConfig: Identifiable, Codable {
@@ -58,12 +59,7 @@ extension GlobalSettings {
         apiKey: "",
         selectedLanguage: .english,
         showRatesInPounds: false,
-        cardSettings: [
-            CardConfig(id: UUID(), cardType: .currentRate, isEnabled: true, isPurchased: true, sortOrder: 1),
-            CardConfig(id: UUID(), cardType: .lowestUpcoming, isEnabled: true, isPurchased: true, sortOrder: 2),
-            CardConfig(id: UUID(), cardType: .highestUpcoming, isEnabled: true, isPurchased: true, sortOrder: 3),
-            CardConfig(id: UUID(), cardType: .averageUpcoming, isEnabled: true, isPurchased: true, sortOrder: 4)
-        ]
+        cardSettings: []  // Empty array - cards will be added by mergeMissingCards
     )
 }
 
@@ -90,6 +86,41 @@ class GlobalSettingsManager: ObservableObject {
         } else {
             self.settings = .defaultSettings
             self.locale = Language.english.locale
+        }
+        
+        // Merge any missing cards from the registry
+        mergeMissingCards()
+    }
+    
+    private func mergeMissingCards() {
+        let registry = CardRegistry.shared
+        var changed = false
+        
+        // Gather existing card types the user has
+        let existingTypes = Set(settings.cardSettings.map { $0.cardType })
+        
+        // For each card definition in the registry
+        for cardType in CardType.allCases {
+            if let definition = registry.definition(for: cardType),
+               !existingTypes.contains(cardType) {
+                // It's missing from user settings—add a new CardConfig
+                let newConfig = CardConfig(
+                    id: UUID(),
+                    cardType: definition.id,
+                    isEnabled: definition.defaultIsEnabled,
+                    isPurchased: definition.defaultIsPurchased,
+                    sortOrder: definition.defaultSortOrder
+                )
+                settings.cardSettings.append(newConfig)
+                changed = true
+            }
+        }
+        
+        // Keep them sorted by sortOrder
+        settings.cardSettings.sort { $0.sortOrder < $1.sortOrder }
+        
+        if changed {
+            saveSettings()
         }
     }
     

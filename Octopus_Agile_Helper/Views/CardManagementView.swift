@@ -74,9 +74,11 @@ struct CardRowView: View {
         HStack(spacing: 12) {
             // Card-specific icon with drag indicator
             HStack(spacing: 4) {
-                Image(systemName: iconName(for: cardConfig.cardType))
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 18))
+                if let definition = CardRegistry.shared.definition(for: cardConfig.cardType) {
+                    Image(systemName: definition.iconName)
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 18))
+                }
                 
                 // Small drag indicator
                 Image(systemName: "grip.horizontal")
@@ -121,19 +123,6 @@ struct CardRowView: View {
         .background(Color.clear)
         .contentShape(Rectangle())
         .sensoryFeedback(.selection, trigger: cardConfig.sortOrder)
-    }
-    
-    private func iconName(for cardType: CardType) -> String {
-        switch cardType {
-        case .currentRate:
-            return "clock.fill"
-        case .lowestUpcoming:
-            return "arrow.down.circle.fill"
-        case .highestUpcoming:
-            return "arrow.up.circle.fill"
-        case .averageUpcoming:
-            return "chart.bar.fill"
-        }
     }
     
     private func getCardDisplayName(_ cardType: CardType) -> String {

@@ -2,6 +2,7 @@ import Foundation
 import CoreData
 import SwiftUI
 import Combine
+import Darwin
 
 // Response models for region lookup
 struct SupplyPointsResponse: Codable {
@@ -26,6 +27,17 @@ extension NSManagedObjectContext {
                 }
             }
         }
+    }
+}
+
+@MainActor
+extension Date {
+    /// Convert a Date (interpreted as Europe/London local time) to its equivalent in UTC.
+    /// - Warning: This makes sense only if `self` was constructed with a London-based Calendar/time zone.
+    func toUTC(from timeZone: TimeZone) -> Date? {
+        // TimeZone.secondsFromGMT(for:) gives the offset (in seconds) from GMT at this date
+        let offset = timeZone.secondsFromGMT(for: self)
+        return Calendar(identifier: .gregorian).date(byAdding: .second, value: -offset, to: self)
     }
 }
 
@@ -133,33 +145,73 @@ class RatesRepository: ObservableObject {
     }
     
     func updateRates(force: Bool = false) async throws {
-        print("DEBUG: Starting rate update (force: \(force))")
+        print("DEBUG: Starting rate update with UK-time logic (force: \(force))")
         
         if force {
             try await doActualFetch()
             return
         }
         
-        // Check if it's 4 PM UK time
-        let now = Date()
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/London") ?? .current
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
-        let is4pm = (hour == 16 && minute == 0)
-        
-        // Check if we have tomorrow's rates
-        let hasNextDay = hasRatesForTomorrow()
-        
-        if is4pm && !hasNextDay {
-            print("DEBUG: It's 4pm and we don't have tomorrow's data. Fetching...")
-            try await doActualFetch()
-        } else if currentCachedRates.isEmpty {
-            print("DEBUG: No data found. Fetching at app open.")
+        // Check if we have data through the "expected end date" in UK time.
+        // If not, we do an actual fetch.
+        if !hasDataThroughExpectedEndUKTime() {
+            print("DEBUG: We do NOT have data through the expected end date. Fetching now...")
             try await doActualFetch()
         } else {
-            print("DEBUG: No fetch needed.")
+            print("DEBUG: We have enough data through the expected end date. No fetch needed.")
         }
+    }
+    
+    /// Check if we already have data extending through the "expected end" based on UK time:
+    /// - If now < 16:00 UK => we want data up to "today at 23:00" UK time
+    /// - If now >= 16:00 UK => we want data up to "tomorrow at 23:00" UK time
+    ///
+    /// Compare that final time (in UTC) to the maximum validTo in our currentCachedRates.
+    private func hasDataThroughExpectedEndUKTime() -> Bool {
+        // 1) Get "now" in the UK time zone
+        guard let londonTimeZone = TimeZone(identifier: "Europe/London") else {
+            // Fallback: if we can't get the zone, let's force a fetch
+            return false
+        }
+        var londonCalendar = Calendar(identifier: .gregorian)
+        londonCalendar.timeZone = londonTimeZone
+        
+        let now = Date() // "raw" Date is in UTC reference, but we'll interpret hour using londonCalendar
+        let hour = londonCalendar.component(.hour, from: now)
+        
+        // 2) Decide if we want "today" or "tomorrow" at 23:00 UK time
+        let dayOffset = (hour < 16) ? 0 : 1
+        
+        // Build a date (in London time) that is "today/tomorrow at 23:00"
+        guard
+            let base = londonCalendar.date(byAdding: .day, value: dayOffset, to: now),
+            let endOfDayLondon = londonCalendar.date(
+                bySettingHour: 23,
+                minute: 0,
+                second: 0,
+                of: base
+            )
+        else {
+            print("DEBUG: Could not compute endOfDayLondon.")
+            return false
+        }
+        
+        // 3) Convert endOfDayLondon to UTC, because typically `validTo` is stored as UTC
+        guard let endOfDayUTC = endOfDayLondon.toUTC(from: londonTimeZone) else {
+            print("DEBUG: Could not convert endOfDayLondon to UTC.")
+            return false
+        }
+        
+        // 4) Check if our currentCachedRates contain at least one entry with `validTo >= endOfDayUTC`
+        //    i.e., do we have coverage through that time?
+        guard let maxValidTo = currentCachedRates.compactMap({ $0.validTo }).max() else {
+            // If we have no rates at all, obviously we don't meet the requirement
+            return false
+        }
+        
+        let hasCoverage = maxValidTo >= endOfDayUTC
+        print("DEBUG: endOfDayUTC = \(endOfDayUTC), maxValidTo = \(maxValidTo), hasCoverage = \(hasCoverage)")
+        return hasCoverage
     }
     
     private func doActualFetch() async throws {
@@ -167,12 +219,6 @@ class RatesRepository: ObservableObject {
         print("DEBUG: Using region ID: \(regionID)")
         let newRates = try await apiClient.fetchRates(regionID: regionID)
         try await saveRates(newRates)
-    }
-    
-    private func hasRatesForTomorrow() -> Bool {
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-        let midnight = Calendar.current.startOfDay(for: tomorrow)
-        return currentCachedRates.contains { $0.validFrom ?? .distantPast >= midnight }
     }
     
     func fetchAllRates() async throws -> [RateEntity] {
