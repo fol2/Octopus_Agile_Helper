@@ -167,7 +167,7 @@ class RatesRepository: ObservableObject {
     /// - If now >= 16:00 UK => we want data up to "tomorrow at 23:00" UK time
     ///
     /// Compare that final time (in UTC) to the maximum validTo in our currentCachedRates.
-    private func hasDataThroughExpectedEndUKTime() -> Bool {
+    func hasDataThroughExpectedEndUKTime() -> Bool {
         // 1) Get "now" in the UK time zone
         guard let londonTimeZone = TimeZone(identifier: "Europe/London") else {
             // Fallback: if we can't get the zone, let's force a fetch

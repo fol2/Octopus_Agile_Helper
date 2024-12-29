@@ -5,6 +5,7 @@
 ## User settings
 xcuserdata/
 Documentation/
+dev_log.*
 
 ## Obj-C/Swift specific
 *.hmap
