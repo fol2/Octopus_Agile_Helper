@@ -8,7 +8,6 @@
 import SwiftUI
 import CoreData
 import Combine
-import UIKit
 
 // MARK: - Scroll Offset Key
 
@@ -56,9 +55,6 @@ struct ContentView: View {
         NavigationView {
             ScrollView(.vertical, showsIndicators: true) {
                 
-                // This invisible view tracks scrolling offset at the top
-                OffsetTrackingView()
-                
                 // The main content (cards)
                 VStack(spacing: 0) {
                     ForEach(sortedCardConfigs()) { config in
@@ -77,10 +73,16 @@ struct ContentView: View {
                         }
                     }
                 }
+                .padding(.top, 22)  // Add spacing between title and first card
+                // (Optionally keep OffsetTrackingView here, if you want to measure offset.)
+                OffsetTrackingView()
                 .padding(.vertical)
                 .id("vstack-\(forcedRefresh)")
                 
             }
+            .background(Theme.mainBackground)
+            .scrollContentBackground(.hidden)
+            
             .coordinateSpace(name: "scrollArea")  // for offset detection
             .navigationTitle(LocalizedStringKey("Octopus Agile"))
             .navigationBarTitleDisplayMode(.large)
@@ -114,7 +116,8 @@ struct ContentView: View {
                             .environment(\.locale, globalSettings.locale)
                             .id("settings-view-\(refreshTrigger)")) {
                             Image(systemName: "gear")
-                                .foregroundColor(.primary)
+                                .foregroundColor(Theme.secondaryTextColor)
+                                .font(Theme.secondaryFont())
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: ratesViewModel.fetchStatus)
@@ -149,7 +152,7 @@ struct ContentView: View {
         }
     }
     
-    /// Sort user’s card configs by sortOrder
+    /// Sort user's card configs by sortOrder
     private func sortedCardConfigs() -> [CardConfig] {
         globalSettings.settings.cardSettings.sorted { $0.sortOrder < $1.sortOrder }
     }
@@ -163,7 +166,8 @@ private struct InlineCenteredTitle: View {
         HStack {
             Spacer()
             Text("Octopus Agile")
-                .font(.headline)
+                .font(Theme.titleFont())
+                .foregroundColor(Theme.mainTextColor)
             Spacer()
         }
     }
@@ -179,20 +183,24 @@ struct CardLockedView: View {
         VStack(spacing: 8) {
             HStack {
                 Image(systemName: "lock.fill")
+                    .foregroundColor(Theme.icon)
                 Text(LocalizedStringKey("\(definition.displayNameKey) (Locked)"))
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.mainTextColor)
             }
-            .font(.headline)
             
             Text(LocalizedStringKey(definition.descriptionKey))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
             
             Button {
                 // Hook into your IAP or purchasing logic
             } label: {
                 Text("Unlock")
+                    .font(Theme.secondaryFont())
             }
             .buttonStyle(.borderedProminent)
+            .tint(Theme.mainColor)
         }
         .rateCardStyle()
     }
@@ -212,11 +220,12 @@ struct StatusIndicatorView: View {
                 .fill(dotColor)
                 .frame(width: 8, height: 8)
             Text(textKey)
-                .font(.caption)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.thinMaterial)
+        .background(Theme.secondaryBackground)
         .cornerRadius(8)
     }
     

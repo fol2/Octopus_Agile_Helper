@@ -24,7 +24,10 @@ private struct AverageCardLocalSettings: Codable {
     var customAverageHours: Double
     var maxListCount: Int
     
-    static let `default` = AverageCardLocalSettings(customAverageHours: 3.0, maxListCount: 10)
+    static let `default` = AverageCardLocalSettings(
+        customAverageHours: 3.0,
+        maxListCount: 10
+    )
 }
 
 private class AverageCardLocalSettingsManager: ObservableObject {
@@ -50,76 +53,190 @@ private class AverageCardLocalSettingsManager: ObservableObject {
     }
 }
 
-// MARK: - Settings Sheet
-private struct AverageCardSettingsSheet: View {
-    @ObservedObject var localSettings: AverageCardLocalSettingsManager
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var globalSettings: GlobalSettingsManager
-    @State private var refreshTrigger = false
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Card Settings")) {
-                    Stepper(
-                        "Custom Average Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))",
-                        value: $localSettings.settings.customAverageHours,
-                        in: 1...24,
-                        step: 0.5
-                    )
-                    Stepper(
-                        "Max List Count: \(localSettings.settings.maxListCount)",
-                        value: $localSettings.settings.maxListCount,
-                        in: 1...50
-                    )
-                }
-            }
-            .navigationTitle("Average Upcoming Rates")
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        .environment(\.locale, globalSettings.locale)
-        .id("settings-sheet-\(refreshTrigger)")
-        .onChange(of: globalSettings.locale) { _, _ in
-            refreshTrigger.toggle()
-        }
-    }
-}
-
-// MARK: - Interactive Line Chart Card
-
+// MARK: - Interactive Bar Chart Card (Flip-Card Style)
 struct InteractiveLineChartCardView: View {
     @ObservedObject var viewModel: RatesViewModel
+    
+    // Theme / environment
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.colorScheme) var colorScheme
     
-    // Refresh triggers
-    @State private var refreshTrigger = false
+    // For local settings
+    @StateObject private var localSettings = AverageCardLocalSettingsManager()
     
-    // 'now' updated every minute
+    // Flip state for front/back
+    @State private var flipped = false
+    
+    // Timer for “now” line re-render
     @State private var now: Date = Date()
     let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-    @State private var forcedRefresh = false
     
-    // Hover/tapping states
+    // Additional triggers
+    @State private var forcedRefresh = false
+    @State private var refreshTrigger = false
+    
+    // Chart hover/tap states
     @State private var hoveredPrice: Double? = nil
     @State private var hoveredTime: Date? = nil
     @State private var labelPosition: CGPoint = .zero
     
-    // Local settings
-    @StateObject private var localSettings = AverageCardLocalSettingsManager()
-    @State private var showingLocalSettings = false
+    // MARK: - Body
+    var body: some View {
+        ZStack {
+            // FRONT side: bar chart
+            frontSide
+                .opacity(flipped ? 0 : 1)
+                .rotation3DEffect(.degrees(flipped ? 180 : 0),
+                                  axis: (x: 0, y: 1, z: 0),
+                                  perspective: 0.8)
+            
+            // BACK side: settings
+            backSide
+                .opacity(flipped ? 1 : 0)
+                .rotation3DEffect(.degrees(flipped ? 0 : -180),
+                                  axis: (x: 0, y: 1, z: 0),
+                                  perspective: 0.8)
+        }
+        .rateCardStyle()
+        .environment(\.locale, globalSettings.locale)
+        .onChange(of: globalSettings.locale) { _, _ in
+            refreshTrigger.toggle()
+        }
+        .id("interactive-chart-\(refreshTrigger)")
+    }
     
-    // MARK: - Data
+    // MARK: - Front Side (the bar chart)
+    private var frontSide: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header row
+            HStack {
+                // Use iconName from registry for .interactiveChart
+                if let def = CardRegistry.shared.definition(for: .interactiveChart) {
+                    Image(systemName: def.iconName)
+                        .foregroundColor(Theme.icon)
+                } else {
+                    Image(systemName: "chart.xyaxis.line")
+                        .foregroundColor(Theme.icon)
+                }
+                
+                Text("Interactive Rate Chart")
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Spacer()
+                Button {
+                    withAnimation(.spring()) {
+                        flipped = true
+                    }
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
+            
+            if viewModel.isLoading {
+                ProgressView()
+            } else if filteredRates.isEmpty {
+                Text("No upcoming rates available")
+                    .foregroundColor(Theme.secondaryTextColor)
+            } else {
+                chartView
+            }
+        }
+        // Update ‘now’ every minute
+        .onReceive(timer) { _ in
+            print("Timer fired at \(Date())")
+            forcedRefresh.toggle()
+            withAnimation(.easeIn(duration: 0.3)) {
+                now = Date()
+            }
+        }
+        // Re-render chart
+        .id("chart-\(forcedRefresh)")
+    }
     
-    /// We'll read from `viewModel.allRates`
-    /// Then filter to 1 hour behind 'now' + 24 hours ahead
+    // MARK: - Back Side (the card settings)
+    private var backSide: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header row
+            HStack {
+                if let def = CardRegistry.shared.definition(for: .interactiveChart) {
+                    Image(systemName: def.iconName)
+                        .foregroundColor(Theme.icon)
+                } else {
+                    Image(systemName: "chart.xyaxis.line")
+                        .foregroundColor(Theme.icon)
+                }
+                
+                Text("Card Settings")
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                
+                Spacer()
+                // Flip back
+                Button {
+                    withAnimation(.spring()) {
+                        flipped = false
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
+            
+            // Stepper controls
+            HStack(alignment: .top) {
+                Text("Custom Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))")
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                
+                Spacer()
+                Stepper(
+                    "",
+                    value: $localSettings.settings.customAverageHours,
+                    in: 1...24,
+                    step: 0.5
+                )
+                .labelsHidden()
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
+                .tint(Theme.secondaryColor)
+                .padding(.horizontal, 6)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(8)
+            }
+            
+            HStack(alignment: .top) {
+                Text("Max List Count: \(localSettings.settings.maxListCount)")
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                
+                Spacer()
+                Stepper(
+                    "",
+                    value: $localSettings.settings.maxListCount,
+                    in: 1...50
+                )
+                .labelsHidden()
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
+                .tint(Theme.secondaryColor)
+                .padding(.horizontal, 6)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(8)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+    
+    // MARK: - Chart Logic
+
+    /// We'll read from `viewModel.allRates` then filter to 1 hour behind 'now' + 24h ahead
     private var filteredRates: [RateEntity] {
-        let earliestWanted = now.addingTimeInterval(-3600) // 1 hour behind
-        let latestWanted   = now.addingTimeInterval(24 * 3600) // 24h ahead
+        let earliestWanted = now.addingTimeInterval(-3600)
+        let latestWanted   = now.addingTimeInterval(24 * 3600)
         
         return viewModel.allRates
             .filter { $0.validFrom != nil }
@@ -135,21 +252,32 @@ struct InteractiveLineChartCardView: View {
         let values = filteredRates.map(\.valueIncludingVAT)
         guard !values.isEmpty else { return (0, 50) }
         
-        let rawMin = values.min() ?? 0
         let rawMax = values.max() ?? 0
-        let minVal = (rawMin < 0) ? (rawMin - 2) : max(0, rawMin - 2)
-        let maxVal = rawMax + 2
+        let minVal = 0.0
+        let maxVal = rawMax + 2.0
         return (minVal, maxVal)
     }
     
-    /// Merged best time windows to highlight
+    /// Domain for x-axis
+    private var domainRange: ClosedRange<Date> {
+        guard let earliestData = filteredRates.first?.validFrom,
+              let latestData = filteredRates.last?.validFrom
+        else {
+            // fallback if no data
+            let fallbackEnd = now.addingTimeInterval(3600)
+            return now...fallbackEnd
+        }
+        return earliestData...(latestData.addingTimeInterval(300))
+    }
+    
+    /// Merge best time windows
     private var bestTimeRanges: [(Date, Date)] {
         let bestWindows = viewModel.getLowestAverages(
             hours: localSettings.settings.customAverageHours,
             maxCount: localSettings.settings.maxListCount
         )
-        let rawWindows = bestWindows.map { ($0.start, $0.end) }
-        return mergeTimeWindows(rawWindows)
+        let raw = bestWindows.map { ($0.start, $0.end) }
+        return mergeTimeWindows(raw)
     }
     
     private func mergeTimeWindows(_ windows: [(Date, Date)]) -> [(Date, Date)] {
@@ -166,38 +294,8 @@ struct InteractiveLineChartCardView: View {
         }
         return merged
     }
-    
-    /// Times to show on the x-axis (start/end of each best window).
-    /// Make sure to include the domain upper bound so the far-right label doesn't vanish.
-    private var highlightTickDates: [Date] {
-        var dates = bestTimeRanges.flatMap { [$0.0, $0.1] }
-        
-        // Make sure we include the domain’s upper bound
-        let upperBound = domainRange.upperBound
-        if let last = dates.last, upperBound > last {
-            dates.append(upperBound)
-        } else if dates.isEmpty {
-            // If we have no ranges at all, at least add the domain end so the axis can show up
-            dates.append(upperBound)
-        }
-        
-        return dates.sorted()
-    }
-    
-    /// Actual domain for the x-axis
-    private var domainRange: ClosedRange<Date> {
-        guard let earliestData = filteredRates.first?.validFrom,
-              let latestData = filteredRates.last?.validFrom
-        else {
-            // fallback if no data
-            let fallbackEnd = now.addingTimeInterval(3600)
-            return now...fallbackEnd
-        }
-        // Add a small padding to ensure the last point is fully visible
-        return earliestData...(latestData.addingTimeInterval(300))
-    }
-    
-    /// Find nearest price at a given date
+
+    /// If user taps, find nearest price
     private func findNearestPrice(_ date: Date) -> Double? {
         guard !filteredRates.isEmpty else { return nil }
         return filteredRates.min {
@@ -205,10 +303,63 @@ struct InteractiveLineChartCardView: View {
             abs(($1.validFrom ?? .distantPast).timeIntervalSince(date))
         }?.valueIncludingVAT
     }
+
+    // MARK: - Ticks for X Axis
+    private var xAxisTickDates: [Date] {
+        let cal = Calendar.current
+        // The day containing domainRange.lowerBound
+        let startOfFirstDay = cal.startOfDay(for: domainRange.lowerBound)
+        // The day containing domainRange.upperBound, plus 1 day
+        let endOfLastDay = cal.date(byAdding: .day, value: 1,
+                                    to: cal.startOfDay(for: domainRange.upperBound))
+            ?? domainRange.upperBound
+        
+        var ticks: [Date] = []
+        var currentDay = startOfFirstDay
+        
+        // Step day by day until we pass endOfLastDay
+        while currentDay <= endOfLastDay {
+            for hour in [0, 6, 12, 18, 23] {
+                if let tickDate = cal.date(bySettingHour: hour, minute: 0, second: 0, of: currentDay) {
+                    // Only add if it's within domainRange
+                    if tickDate >= domainRange.lowerBound && tickDate <= domainRange.upperBound {
+                        ticks.append(tickDate)
+                    }
+                }
+            }
+            // Move currentDay to the next day
+            if let nextDay = cal.date(byAdding: .day, value: 1, to: currentDay) {
+                currentDay = nextDay
+            } else {
+                break
+            }
+        }
+        
+        return ticks.sorted()
+    }
     
-    // MARK: - Formatting
+    // MARK: - “Now” label
+    private var timePriceLabel: String {
+        let df = DateFormatter()
+        df.locale = globalSettings.locale
+        df.dateFormat = "HH:mm"
+        let t = df.string(from: now)
+        
+        if let p = findNearestPrice(now) {
+            return "\(t) (\(shortLabelPrice(p)))"
+        } else {
+            return "\(t)"
+        }
+    }
     
-    /// Short price label, e.g. "20p", "20.5p", or "£1.2"
+    // MARK: - Helpers
+    private func shortTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = globalSettings.locale
+        formatter.dateFormat = "ha"
+        return formatter.string(from: date).lowercased()
+    }
+    
     private func shortLabelPrice(_ price: Double) -> String {
         if globalSettings.settings.showRatesInPounds {
             let pounds = price / 100.0
@@ -226,15 +377,6 @@ struct InteractiveLineChartCardView: View {
         }
     }
     
-    /// For less text on x-axis: e.g. "2am", "3pm"
-    private func shortTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = globalSettings.locale
-        formatter.dateFormat = "ha"  // "2am", "3pm"
-        return formatter.string(from: date).lowercased()
-    }
-    
-    /// For detailed time range display: e.g. "1:00-1:30"
     private func detailedTimeRange(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = globalSettings.locale
@@ -251,30 +393,15 @@ struct InteractiveLineChartCardView: View {
             comps.minute = minute
         }
         let start = cal.date(from: comps) ?? date
-        let end = start.addingTimeInterval(1800)
-        return (start, end)
+        return (start, start.addingTimeInterval(1800))
     }
     
-    /// The label for the dashed "Now" line
-    private var timePriceLabel: String {
-        let df = DateFormatter()
-        df.locale = globalSettings.locale
-        df.dateFormat = "HH:mm"
-        let t = df.string(from: now)
-        
-        if let p = findNearestPrice(now) {
-            return "\(t) (\(shortLabelPrice(p)))"
-        } else {
-            return "\(t)"
-        }
-    }
-    
-    // MARK: - Subview
+    // MARK: - The Bar Chart Itself
     private var chartView: some View {
         let (minY, maxY) = chartPriceRange
         
         return Chart {
-            // Highlighted windows
+            // Highlight windows
             ForEach(bestTimeRanges, id: \.0) { (start, end) in
                 RectangleMark(
                     xStart: .value("Start", start),
@@ -285,42 +412,34 @@ struct InteractiveLineChartCardView: View {
                 .foregroundStyle(
                     .linearGradient(
                         Gradient(colors: [
-                            .blue.opacity(0.08),
-                            .blue.opacity(0.25)
+                            Theme.mainColor.opacity(0.12),
+                            Theme.mainColor.opacity(0.25)
                         ]),
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
-                // Place it behind the main line
                 .zIndex(-2)
             }
             
-            // Rate line
+            // The main bars
             ForEach(filteredRates, id: \.validFrom) { rate in
                 if let validFrom = rate.validFrom {
-                    LineMark(
+                    BarMark(
                         x: .value("Time", validFrom),
                         y: .value("Price", rate.valueIncludingVAT)
                     )
-                    .lineStyle(.init(lineWidth: 2))
-                    .foregroundStyle(
-                        rate.valueIncludingVAT < 0
-                        ? .red.opacity(0.8)
-                        : .blue.opacity(0.9)
-                    )
+                    .foregroundStyle(Theme.mainColor)
+                    .cornerRadius(3)
                 }
             }
             
-            // "Now" rule
+            // “Now” rule
             RuleMark(x: .value("NowLine", now))
-                // Slightly thicker line with no dash
                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4,2]))
-                // Vertical green gradient
                 .foregroundStyle(.green.opacity(0.8))
                 .annotation(position: .top, alignment: .center) {
                     Text(timePriceLabel)
-                        // Force a new identity each time 'now' changes
                         .id("now-\(now.timeIntervalSince1970)")
                         .transition(.opacity)
                         .font(.system(size: 14, weight: .medium))
@@ -331,25 +450,28 @@ struct InteractiveLineChartCardView: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(Color.black.opacity(0.65))
                         )
-                        .offset(x: 40, y: 16)
+                        .offset(x: 40, y: 0)
                 }
         }
-        // Give the chart a bit more breathing room
-        .frame(minHeight: 200, maxHeight: 240)
-        // Domain from earliest to latest data, plus some padding
+        .frame(minHeight: 220, maxHeight: 240)
+        .chartPlotStyle { content in
+            content.padding(.top, 20)
+            content.padding(.bottom, 8)
+        }
         .chartXScale(domain: domainRange, range: .plotDimension(padding: 0))
-        // Use highlightTickDates for x-axis
+        
+        // Custom X-axis with ticks at hours [0,6,12,18,23]
         .chartXAxis {
-            AxisMarks(values: highlightTickDates) { value in
+            AxisMarks(values: xAxisTickDates) { value in
                 AxisGridLine()
                     .foregroundStyle(Color.secondary.opacity(0.2))
                 AxisValueLabel {
                     if let date = value.as(Date.self) {
-                        Text(shortTime(date))
+                        let hour = Calendar.current.component(.hour, from: date)
+                        Text(String(format: "%02d", hour))
                             .font(.system(size: 12))
                     }
                 }
-                // Hide axis ticks
                 AxisTick(centered: false, length: 0)
             }
         }
@@ -361,15 +483,14 @@ struct InteractiveLineChartCardView: View {
                         Text(shortLabelPrice(dbl))
                             .font(.system(size: 12))
                     }
-                    // Use very light lines or none
                     AxisGridLine()
                         .foregroundStyle(Color.secondary.opacity(0.2))
-                    // Hide ticks
                     AxisTick(centered: false, length: 0)
                 }
             }
         }
-        // Overlay for tap gesture + circle + label
+        
+        // Tap overlay
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle()
@@ -395,21 +516,17 @@ struct InteractiveLineChartCardView: View {
                 if let time = hoveredTime, let price = hoveredPrice {
                     if
                         let xPos = proxy.position(forX: time),
-                        let yPos = proxy.position(forY: price),
                         let plotFrame = proxy.plotFrame
                     {
                         let plotRect = geo[plotFrame]
                         
-                        // Dot on the chart
-                        Circle()
-                            .fill(.blue)
-                            .frame(width: 8, height: 8)
-                            .position(
-                                x: plotRect.minX + xPos,
-                                y: plotRect.minY + yPos
-                            )
+                        // Highlight bar
+                        Rectangle()
+                            .fill(Theme.mainColor.opacity(0.4))
+                            .frame(width: 4)
+                            .position(x: plotRect.minX + xPos, y: plotRect.midY)
+                            .frame(height: plotRect.height)
                         
-                        // Label pinned near the top
                         let label = "\(detailedTimeRange(time))\n\(shortLabelPrice(price))"
                         
                         Text(label)
@@ -447,63 +564,5 @@ struct InteractiveLineChartCardView: View {
                 }
             }
         }
-    }
-    
-    // MARK: - Body
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Image(systemName: "chart.xyaxis.line")
-                    .foregroundColor(.blue)
-                Text("Interactive Rate Chart")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    showingLocalSettings.toggle()
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.footnote)
-                        .foregroundColor(.secondary.opacity(0.7))
-                }
-                .padding(.trailing, 4)
-            }
-            
-            if viewModel.isLoading {
-                ProgressView()
-            } else if filteredRates.isEmpty {
-                Text("No upcoming rates available")
-                    .foregroundColor(.secondary)
-            } else {
-                chartView
-            }
-        }
-        .sheet(isPresented: $showingLocalSettings) {
-            AverageCardSettingsSheet(localSettings: localSettings)
-                .environment(\.locale, globalSettings.locale)
-        }
-        // If you have a custom style, apply it here
-        .rateCardStyle()
-        .environment(\.locale, globalSettings.locale)
-        .id("interactive-chart-\(refreshTrigger)")
-        // Refresh if locale changes
-        .onChange(of: globalSettings.locale) { _, _ in
-            refreshTrigger.toggle()
-        }
-        // Update 'now' every minute
-        .onReceive(timer) { _ in
-            // Debug: confirm the timer is actually firing on the device
-            print("Timer fired at \(Date())")
-            
-            // 1) Force the chart to re-calculate by toggling a boolean
-            forcedRefresh.toggle()
-            
-            // 2) Update 'now' with a small animation
-            withAnimation(.easeIn(duration: 0.3)) {
-                now = Date()  // triggers a new timePriceLabel
-            }
-        }
-        // Force entire chart to refresh whenever forcedRefresh changes
-        .id("chart-\(forcedRefresh)")
     }
 }

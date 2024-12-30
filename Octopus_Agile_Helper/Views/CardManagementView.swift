@@ -18,8 +18,8 @@ struct CardManagementView: View {
             } header: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Drag to reorder cards")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
                 .textCase(nil)
                 .padding(.bottom, 8)
@@ -27,6 +27,8 @@ struct CardManagementView: View {
         }
         .navigationTitle(LocalizedStringKey("Manage Cards"))
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.mainBackground)
         .environment(\.editMode, $editMode)
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 100)
@@ -76,27 +78,29 @@ struct CardRowView: View {
             HStack(spacing: 4) {
                 if let definition = CardRegistry.shared.definition(for: cardConfig.cardType) {
                     Image(systemName: definition.iconName)
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 18))
+                        .foregroundColor(Theme.icon)
+                        .font(Theme.subFont())
                 }
                 
                 // Small drag indicator
                 Image(systemName: "grip.horizontal")
-                    .foregroundColor(.secondary.opacity(0.5))
-                    .font(.system(size: 12))
+                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                    .font(Theme.subFont())
             }
             .frame(width: 44)
             .contentShape(Rectangle())
             
             Text(LocalizedStringKey(getCardDisplayName(cardConfig.cardType)))
-                .font(.body)
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
             
             Spacer()
             
             // Info button
             Button(action: onInfoTap) {
                 Image(systemName: "info.circle")
-                    .foregroundColor(.blue)
+                    .foregroundColor(Theme.secondaryTextColor)
+                    .font(Theme.subFont())
             }
             .buttonStyle(.plain)
             .padding(.trailing, 8)
@@ -106,21 +110,23 @@ struct CardRowView: View {
                     Text("Enable card")
                 }
                 .labelsHidden()
+                .tint(Theme.secondaryColor)
             } else {
                 Button {
                     purchaseCard()
                 } label: {
                     Text("Unlock")
+                        .font(Theme.secondaryFont())
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .foregroundColor(.accentColor)
+                .tint(Theme.mainColor)
             }
         }
         .listRowSeparator(.hidden)
+        .listRowBackground(Theme.secondaryBackground)
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         .padding(.vertical, 6)
-        .background(Color.clear)
         .contentShape(Rectangle())
         .sensoryFeedback(.selection, trigger: cardConfig.sortOrder)
     }
@@ -150,18 +156,22 @@ struct CardInfoSheet: View {
                 Section {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(LocalizedStringKey(definition.displayNameKey))
-                            .font(.title)
+                            .font(Theme.mainFont())
+                            .foregroundColor(Theme.mainTextColor)
                             .padding(.bottom, 8)
                         
                         Text(LocalizedStringKey(definition.descriptionKey))
-                            .font(.body)
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.secondaryTextColor)
                         
                         if definition.isPremium {
                             HStack {
                                 Image(systemName: "star.fill")
                                     .foregroundColor(.yellow)
+                                    .font(Theme.subFont())
                                 Text("Premium Feature")
-                                    .font(.headline)
+                                    .font(Theme.titleFont())
+                                    .foregroundColor(Theme.mainTextColor)
                             }
                             .padding(.top, 8)
                         }
@@ -169,10 +179,12 @@ struct CardInfoSheet: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                 }
-                .listRowBackground(Color.clear)
+                .listRowBackground(Theme.secondaryBackground)
                 .listRowInsets(EdgeInsets())
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Theme.mainBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -180,6 +192,8 @@ struct CardInfoSheet: View {
                         dismiss()
                     } label: {
                         Text("Done")
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.mainColor)
                     }
                 }
             }
