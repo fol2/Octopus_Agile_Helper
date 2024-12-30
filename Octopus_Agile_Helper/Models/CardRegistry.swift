@@ -95,19 +95,19 @@ final class CardRegistry {
                 defaultSortOrder: 2,
                 mediaItems: [
                     MediaItem(
-                        localName: "imgLowestRatesOverview",
+                        localName: "imgLowestRateInfo",
                         remoteURL: nil,
                         isVideo: false,
-                        caption: LocalizedStringKey("Overview of lowest rates card")
+                        caption: LocalizedStringKey("Simple card view to find lowest rates")
                     ),
                     MediaItem(
-                        localName: "vidLowestRatesDemo",
+                        localName: "imgLowestRateInfo2",
                         remoteURL: nil,
-                        isVideo: true,
-                        caption: LocalizedStringKey("How to find the best rates")
+                        isVideo: false,
+                        caption: LocalizedStringKey("Settings to list more lower rates")
                     )
                 ],
-                learnMoreURL: URL(string: "https://octopus.energy/help/lowest-rates")
+                learnMoreURL: URL(string: "")
             )
         )
         
@@ -122,19 +122,19 @@ final class CardRegistry {
                 defaultSortOrder: 3,
                 mediaItems: [
                     MediaItem(
-                        localName: "imgHighestRatesOverview",
+                        localName: "imgHighestRateInfo",
                         remoteURL: nil,
                         isVideo: false,
                         caption: LocalizedStringKey("Overview of highest rates card")
                     ),
                     MediaItem(
-                        localName: "vidHighestRatesDemo",
+                        localName: "imgHighestRateInfo2",
                         remoteURL: nil,
-                        isVideo: true,
-                        caption: LocalizedStringKey("How to find the best rates")
+                        isVideo: false,
+                        caption: LocalizedStringKey("How to find more higher rates")
                     )
                 ],
-                learnMoreURL: URL(string: "https://octopus.energy/help/highest-rates")
+                learnMoreURL: URL(string: "")
             )
         )
         
@@ -149,19 +149,19 @@ final class CardRegistry {
                 defaultSortOrder: 4,
                 mediaItems: [
                     MediaItem(
-                        localName: "imgAverageRatesOverview",
+                        localName: "imgAvgRateInfo",
                         remoteURL: nil,
                         isVideo: false,
                         caption: LocalizedStringKey("Overview of average rates card")
                     ),
                     MediaItem(
-                        localName: "vidAverageRatesDemo",
+                        localName: "imgAvgRateInfo2",
                         remoteURL: nil,
-                        isVideo: true,
-                        caption: LocalizedStringKey("How to find the best rates")
+                        isVideo: false,
+                        caption: LocalizedStringKey("You can choose length of period to average and how many rates to show")
                     )
                 ],
-                learnMoreURL: URL(string: "https://octopus.energy/help/average-rates")
+                learnMoreURL: URL(string: "")
             )
         )
         
@@ -176,19 +176,19 @@ final class CardRegistry {
                 defaultSortOrder: 5,
                 mediaItems: [
                     MediaItem(
-                        localName: "imgInteractiveChartOverview",
+                        localName: "imgChartRateInfo",
                         remoteURL: nil,
                         isVideo: false,
-                        caption: LocalizedStringKey("Overview of interactive chart card")
+                        caption: LocalizedStringKey("An interactive chart to see rates over time, also shows best time ranges")
                     ),
                     MediaItem(
-                        localName: "vidInteractiveChartDemo",
+                        localName: "imgChartRateInfo2",
                         remoteURL: nil,
-                        isVideo: true,
-                        caption: LocalizedStringKey("How to use interactive chart")
+                        isVideo: false,
+                        caption: LocalizedStringKey("You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards")
                     )
                 ],
-                learnMoreURL: URL(string: "https://octopus.energy/help/interactive-chart")
+                learnMoreURL: URL(string: "")
             )
         )
     }

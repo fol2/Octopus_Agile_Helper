@@ -20,6 +20,12 @@ struct SettingsView: View {
     
     var body: some View {
         Form {
+            if let cached = OctopusAPIClient.shared.getCachedAgileMetadata() {
+                Text(cached.fullName)
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                    .listRowBackground(Theme.mainBackground)
+            }
             Section(header: HStack {
                 Text("Region Lookup")
                     .font(Theme.subFont())

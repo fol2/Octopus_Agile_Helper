@@ -12,7 +12,8 @@
             "value" : "%1$@\n%2$@"
           }
         }
-      }
+      },
+      "shouldTranslate" : false
     },
     "%@ - %@" : {
       "localizations" : {
@@ -56,7 +57,8 @@
             "value" : "%1$@ (%2$@)"
           }
         }
-      }
+      },
+      "shouldTranslate" : false
     },
     "%@ (Locked)" : {
       "localizations" : {
@@ -160,6 +162,12 @@
     "Additional Rates to Show: %lld" : {
       "comment" : "Label for stepper controlling how many additional rates to display",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additional Rates to Show: %lld"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -189,6 +197,12 @@
     "All Rates" : {
       "comment" : "Navigation title for the list of all electricity rates",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Rates"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -215,9 +229,49 @@
         }
       }
     },
+    "An interactive chart to see rates over time, also shows best time ranges" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An interactive chart to see rates over time, also shows best time ranges"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un gráfico interactivo para ver tarifas a lo largo del tiempo, también muestra los mejores rangos de tiempo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un graphique interactif pour voir les tarifs dans le temps, montre également les meilleures plages horaires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一个交互式图表，用于查看随时间变化的费率，同时显示最佳时间范围"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一個互動式圖表，用於查看隨時間變化的費率，同時顯示最佳時間範圍"
+          }
+        }
+      }
+    },
     "API Configuration" : {
       "comment" : "Header for the API configuration section",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Configuration"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -247,6 +301,12 @@
     "API Key" : {
       "comment" : "Placeholder for API key input field",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -426,7 +486,38 @@
       }
     },
     "Current Rate Card in the Cards view" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Rate Card in the Cards view"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarjeta de tarifa actual en la vista de tarjetas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carte du tarif actuel dans la vue des cartes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片视图中的当前费率卡片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片視圖中的目前費率卡片"
+          }
+        }
+      }
     },
     "Custom Average Hours: %@" : {
       "comment" : "Label for stepper controlling the duration of average calculation",
@@ -458,7 +549,38 @@
       }
     },
     "Detailed rates list after expanded" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detailed rates list after expanded"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lista detallada de tarifas después de expandir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liste détaillée des tarifs après expansion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展开后的详细费率列表"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展開後的詳細費率列表"
+          }
+        }
+      }
     },
     "Display Rates in Pounds (£)" : {
       "comment" : "Toggle for showing rates in pounds instead of pence",
@@ -587,6 +709,12 @@
       "comment" : "Toggle to enable/disable a card",
       "extractionState" : "stale",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable card"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -676,15 +804,49 @@
         }
       }
     },
-    "How to find the best rates" : {
-
-    },
-    "How to use interactive chart" : {
-
+    "How to find more higher rates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How to find more higher rates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo encontrar más tarifas altas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment trouver plus de tarifs élevés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如何查找更多高费率"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如何查找更多高費率"
+          }
+        }
+      }
     },
     "Interactive Rate Chart" : {
       "extractionState" : "stale",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interactive Rate Chart"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -768,19 +930,174 @@
       }
     },
     "Learn more" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más información"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En savoir plus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多"
+          }
+        }
+      }
     },
     "Learn more about API access" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about API access"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más información sobre el acceso a la API"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En savoir plus sur l'accès à l'API"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多关于 API 访问的信息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多關於 API 存取的資訊"
+          }
+        }
+      }
     },
     "Learn more about cards" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about cards"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más información sobre las tarjetas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En savoir plus sur les cartes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多关于卡片的信息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多關於卡片的資訊"
+          }
+        }
+      }
     },
     "Learn more about preferences" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about preferences"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más información sobre las preferencias"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En savoir plus sur les préférences"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多关于偏好设置的信息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多關於偏好設定的資訊"
+          }
+        }
+      }
     },
     "Learn more about regions" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learn more about regions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más información sobre las regiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En savoir plus sur les régions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多关于地区的信息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "了解更多關於地區的資訊"
+          }
+        }
+      }
     },
     "Lowest [count] ([hours]-hour Averages)" : {
       "extractionState" : "manual",
@@ -945,7 +1262,38 @@
       }
     },
     "Max" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máx"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最大"
+          }
+        }
+      }
     },
     "Max List Count: %lld" : {
       "comment" : "Label for stepper controlling how many averages to display",
@@ -1012,7 +1360,38 @@
       }
     },
     "Min" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Min"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mín"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最小"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最小"
+          }
+        }
+      }
     },
     "MinY" : {
       "extractionState" : "stale",
@@ -1183,11 +1562,48 @@
       }
     },
     "Now" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在"
+          }
+        }
+      }
     },
     "NOW" : {
       "comment" : "Label indicating the currently active rate",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOW"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1284,16 +1700,72 @@
       }
     },
     "Overview of average rates card" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview of average rates card"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumen de la tarjeta de tarifas promedio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aperçu de la carte des tarifs moyens"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均费率卡片概览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均費率卡片概覽"
+          }
+        }
+      }
     },
     "Overview of highest rates card" : {
-
-    },
-    "Overview of interactive chart card" : {
-
-    },
-    "Overview of lowest rates card" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview of highest rates card"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumen de la tarjeta de tarifas más altas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aperçu de la carte des tarifs les plus élevés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高费率卡片概览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高費率卡片概覽"
+          }
+        }
+      }
     },
     "Postcode" : {
       "comment" : "Placeholder for postcode input field",
@@ -1525,6 +1997,40 @@
         }
       }
     },
+    "Settings to list more lower rates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings to list more lower rates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes para listar más tarifas bajas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paramètres pour afficher plus de tarifs bas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列出更多低费率的设置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列出更多低費率的設定"
+          }
+        }
+      }
+    },
     "Shows the average cost over selected periods or the next 10 lowest windows." : {
       "comment" : "descriptionKey for Average Rate",
       "extractionState" : "manual",
@@ -1593,6 +2099,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "顯示即將到來的最低電費時段。"
+          }
+        }
+      }
+    },
+    "Simple card view to find lowest rates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simple card view to find lowest rates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vista simple de tarjeta para encontrar las tarifas más bajas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vue carte simple pour trouver les tarifs les plus bas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找最低费率的简单卡片视图"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找最低費率的簡單卡片視圖"
           }
         }
       }
@@ -1793,6 +2333,12 @@
       "comment" : "Fallback text when a rate's date is not available",
       "extractionState" : "stale",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Date"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1943,6 +2489,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "提醒您即將到來的高峰價格時段。"
+          }
+        }
+      }
+    },
+    "You can choose length of period to average and how many rates to show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can choose length of period to average and how many rates to show"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puedes elegir la duración del período para promediar y cuántas tarifas mostrar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez choisir la durée de la période à moyenner et le nombre de tarifs à afficher"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您可以选择要平均的时间段长度和显示的费率数量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您可以選擇要平均的時間段長度和顯示的費率數量"
+          }
+        }
+      }
+    },
+    "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puedes personalizar los mejores rangos de tiempo, por ejemplo, establecer las horas promedio y cuántas mostrar en la lista, lo que hemos aprendido de las tarjetas de tarifas promedio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez personnaliser les meilleures plages horaires, par exemple définir les heures moyennes et leur nombre dans la liste, ce que nous avons appris des cartes de tarifs moyens"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您可以自定义最佳时间范围，例如设置平均小时数和列表中显示的数量，这些我们从平均费率卡片中学到"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您可以自訂最佳時間範圍，例如設定平均小時數和列表中顯示的數量，這些我們從平均費率卡片中學到"
           }
         }
       }
