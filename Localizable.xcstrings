@@ -2166,6 +2166,7 @@
       }
     },
     "StatusIndicator.Done" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2200,6 +2201,7 @@
       }
     },
     "StatusIndicator.Failed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2234,6 +2236,7 @@
       }
     },
     "StatusIndicator.Fetching" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2268,6 +2271,7 @@
       }
     },
     "StatusIndicator.Pending" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
