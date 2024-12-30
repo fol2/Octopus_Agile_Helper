@@ -17,9 +17,10 @@ let package = Package(
     targets: [
         .target(
             name: "Octopus_Agile_Helper",
-            dependencies: []),
+            path: "Octopus_Agile_Helper"),
         .testTarget(
             name: "Octopus_Agile_HelperTests",
-            dependencies: ["Octopus_Agile_Helper"]),
+            dependencies: ["Octopus_Agile_Helper"],
+            path: "Octopus_Agile_HelperTests")
     ]
 ) 
