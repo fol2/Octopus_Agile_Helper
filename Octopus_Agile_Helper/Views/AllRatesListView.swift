@@ -184,6 +184,115 @@ private struct RateRowView: View {
     let viewModel: RatesViewModel
     let globalSettings: GlobalSettingsManager
     
+    private func getDayRates(for date: Date) -> [RateEntity] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        return viewModel.allRates.filter { rate in
+            guard let validFrom = rate.validFrom else { return false }
+            return validFrom >= startOfDay && validFrom < endOfDay
+        }.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+    }
+    
+    private func calculateMaxDayChange(rates: [RateEntity]) -> Double {
+        guard rates.count > 1 else { return 0 }
+        
+        var maxChange = 0.0
+        for i in 0..<(rates.count - 1) {
+            let rate1 = rates[i]
+            let rate2 = rates[i + 1]
+            let change = abs((rate2.valueIncludingVAT - rate1.valueIncludingVAT) / rate1.valueIncludingVAT * 100)
+            maxChange = max(maxChange, change)
+        }
+        return maxChange
+    }
+    
+    private func calculateOpacity(currentChange: Double, maxChange: Double) -> Double {
+        guard maxChange > 0 else { return 0.3 }
+        return min(1.0, max(0.3, abs(currentChange) / maxChange))
+    }
+    
+    private func getLastRateOfPreviousDay(from date: Date) -> RateEntity? {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let startOfPreviousDay = calendar.date(byAdding: .day, value: -1, to: startOfDay)!
+        
+        let previousDayRates = viewModel.allRates.filter { rate in
+            guard let validFrom = rate.validFrom else { return false }
+            return validFrom >= startOfPreviousDay && validFrom < startOfDay
+        }.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+        
+        return previousDayRates.last
+    }
+    
+    private func getTrend() -> (trend: TrendType, opacity: Double) {
+        guard let currentValidFrom = rate.validFrom else {
+            return (.noChange, 0)
+        }
+        
+        let dayRates = getDayRates(for: currentValidFrom)
+        
+        // Find the previous rate (either from same day or previous day)
+        guard let currentIndex = dayRates.firstIndex(where: { $0.validFrom == currentValidFrom }) else {
+            return (.noChange, 0)
+        }
+        
+        let previousRate: RateEntity?
+        if currentIndex > 0 {
+            // Not the first rate of the day, use previous rate from same day
+            previousRate = dayRates[currentIndex - 1]
+        } else {
+            // First rate of the day, get last rate from previous day
+            previousRate = getLastRateOfPreviousDay(from: currentValidFrom)
+        }
+        
+        guard let previousRate = previousRate else {
+            return (.noChange, 0)
+        }
+        
+        let currentValue = rate.valueIncludingVAT
+        let previousValue = previousRate.valueIncludingVAT
+        
+        // Calculate percentage change
+        let percentageChange = ((currentValue - previousValue) / previousValue) * 100
+        
+        // If there's no change
+        if abs(percentageChange) < 0.01 {
+            return (.noChange, 1.0)
+        }
+        
+        // Calculate opacity based on the relative size of the change
+        let maxDayChange = calculateMaxDayChange(rates: dayRates)
+        let opacity = calculateOpacity(currentChange: percentageChange, maxChange: maxDayChange)
+        
+        return (percentageChange > 0 ? .up : .down, opacity)
+    }
+    
+    private func getRateColor() -> Color {
+        return RateColor.getColor(for: rate, allRates: viewModel.allRates)
+    }
+    
+    private enum TrendType {
+        case up, down, noChange
+        
+        var iconName: String {
+            switch self {
+            case .up: return "arrow.up.circle.fill"
+            case .down: return "arrow.down.circle.fill"
+            case .noChange: return "circle.fill"
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .up: return .red.opacity(0.5)
+            case .down: return Color(red: 0.2, green: 0.8, blue: 0.4)  // Match the rate color
+            case .noChange: return .gray.opacity(0.5)
+            }
+        }
+    }
+    
     var body: some View {
         HStack(spacing: 8) {
             Text("\(viewModel.formatTime(rate.validFrom ?? Date())) - \(viewModel.formatTime(rate.validTo ?? Date()))")
@@ -195,15 +304,27 @@ private struct RateRowView: View {
                 rate.valueIncludingVAT,
                 showRatesInPounds: globalSettings.settings.showRatesInPounds
             ).split(separator: " ")
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(parts[0])  // Now includes currency symbol
-                    .font(Theme.mainFont2())
-                    .foregroundStyle(Theme.mainTextColor)
-                Text(parts[1])  // Just "/kWh"
+            
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(parts[0])  // Rate value
+                        .font(Theme.mainFont2())
+                        .foregroundStyle(getRateColor())
+                    
+                    Text(parts[1])  // "/kWh"
+                        .font(Theme.subFont())
+                        .foregroundStyle(Theme.secondaryTextColor)
+                }
+                .frame(width: 140, alignment: .trailing)
+                
+                let trend = getTrend()
+                Image(systemName: trend.trend.iconName)
+                    .foregroundStyle(trend.trend.color.opacity(trend.opacity))
                     .font(Theme.subFont())
-                    .foregroundStyle(Theme.secondaryTextColor)
+                    .imageScale(.medium)
+                    .padding(.leading, 8)
+                    .frame(width: 24)
             }
-            .frame(minWidth: 80, alignment: .trailing)
             
             Spacer()
             

@@ -4,6 +4,16 @@
     "" : {
       "shouldTranslate" : false
     },
+    "%@\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        }
+      }
+    },
     "%@ - %@" : {
       "localizations" : {
         "en" : {
@@ -34,6 +44,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ - %2$@"
+          }
+        }
+      }
+    },
+    "%@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
           }
         }
       }
@@ -284,6 +304,7 @@
     },
     "Average Upcoming Rates" : {
       "comment" : "Navigation title for average rates settings",
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -649,6 +670,35 @@
       }
     },
     "Interactive Rate Chart" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gráfico de tarifas interactivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graphique de tarifs interactif"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "互动费率图表"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "互動費率圖表"
+          }
+        }
+      }
+    },
+    "Interactive Rates" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -866,6 +916,9 @@
         }
       }
     },
+    "Max" : {
+
+    },
     "Max List Count: %lld" : {
       "comment" : "Label for stepper controlling how many averages to display",
       "localizations" : {
@@ -896,6 +949,7 @@
       }
     },
     "MaxY" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -929,7 +983,11 @@
         }
       }
     },
+    "Min" : {
+
+    },
     "MinY" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1096,6 +1154,9 @@
         }
       }
     },
+    "Now" : {
+
+    },
     "NOW" : {
       "comment" : "Label indicating the currently active rate",
       "localizations" : {
@@ -1126,6 +1187,7 @@
       }
     },
     "NowLine" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1689,6 +1751,7 @@
     },
     "Unknown Date" : {
       "comment" : "Fallback text when a rate's date is not available",
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {

@@ -115,7 +115,7 @@ struct InfoButton: View {
         }) {
             Image(systemName: "info.circle")
                 .font(Theme.subFont())
-                .foregroundColor(Theme.icon)
+                .foregroundColor(Theme.secondaryTextColor)
         }
         .popover(isPresented: $showingInfo) {
             Text(message)

@@ -48,6 +48,7 @@ class InteractiveChartSettingsManager: ObservableObject {
 struct InteractiveLineChartCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @StateObject private var localSettings = InteractiveChartSettingsManager()
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     
     /// Flip state
     @State private var isFlipped = false
@@ -138,7 +139,7 @@ extension InteractiveLineChartCardView {
                     .foregroundStyle(Theme.secondaryTextColor)
             } else {
                 chartView
-                    .frame(height: 250)
+                    .frame(height: 220)
                     .padding(.top, 30)
             }
         }
@@ -148,7 +149,7 @@ extension InteractiveLineChartCardView {
     private var chartView: some View {
         let (minVal, maxVal) = yRange
         return Chart {
-            // 1) Highlight best windows
+            // 1) Highlight best windows (NOT expanded).
             ForEach(bestTimeRanges, id: \.0) { (start, end) in
                 RectangleMark(
                     xStart: .value("Start", start),
@@ -156,7 +157,7 @@ extension InteractiveLineChartCardView {
                     yStart: .value("Min", minVal),
                     yEnd:   .value("Max", maxVal)
                 )
-                .foregroundStyle(Theme.mainColor.opacity(0.15))
+                .foregroundStyle(Theme.mainColor.opacity(0.2))
             }
             
             // 2) "Now" RuleMark (moved before bars)
@@ -165,7 +166,7 @@ extension InteractiveLineChartCardView {
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .foregroundStyle(Theme.secondaryColor.opacity(0.7))
                     .annotation(position: .top) {
-                        Text("\(formatFullTime(now)) (\(formatPrice(currentPeriod.price, showDecimals: true)))")
+                        Text("\(formatFullTime(now)) (\(formatPrice(currentPeriod.price, showDecimals: true, forceFullDecimals: true)))")
                             .font(Theme.subFont().weight(.light))
                             .scaleEffect(0.85)
                             .padding(4)
@@ -182,18 +183,31 @@ extension InteractiveLineChartCardView {
                         x: .value("Time", validFrom),
                         y: .value("Price", rate.valueIncludingVAT)
                     )
-                    .foregroundStyle(Theme.mainColor)
+                    .foregroundStyle(
+                        rate.valueIncludingVAT < 0 
+                            ? Theme.secondaryColor  // or any other color for negative values
+                            : Theme.mainColor
+                    )
                 }
             }
         }
-        .chartXScale(domain: xDomain)
+        .chartXScale(
+            domain: xDomain,
+            range: .plotDimension(padding: 0.12)
+        )
         .chartYScale(domain: minVal...maxVal)
+        .chartPlotStyle { plotContent in
+            plotContent
+                .padding(.horizontal, 8)
+                .padding(.leading,0)
+        }
         .chartXAxis {
             AxisMarks(values: strideXticks) { value in
                 AxisGridLine()
-                AxisValueLabel {
+                AxisValueLabel(anchor: .top) {
                     if let date = value.as(Date.self) {
                         xAxisLabel(for: date)
+                            .offset(x: 8, y: 0)
                     }
                 }
             }
@@ -220,7 +234,7 @@ extension InteractiveLineChartCardView {
                                 guard let plotFrame = proxy.plotFrame else { return }
                                 
                                 let globalLocation = drag.location
-                                let plotRect = geo[plotFrame]  // Now using unwrapped value
+                                let plotRect = geo[plotFrame]
                                 
                                 // Clamp x position to plot bounds
                                 let clampedX = min(max(globalLocation.x, plotRect.minX), plotRect.maxX)
@@ -263,7 +277,7 @@ extension InteractiveLineChartCardView {
                 // If we have a hovered date/price, show highlight & tooltip
                 if let time = hoveredTime, let price = hoveredPrice {
                     if let xPos = proxy.position(forX: time),
-                    let plotArea = proxy.plotFrame {
+                       let plotArea = proxy.plotFrame {
                         
                         let rect = geo[plotArea]
                         // Draw the vertical highlight line
@@ -321,11 +335,16 @@ extension InteractiveLineChartCardView {
     }
 
     private func xAxisLabel(for date: Date) -> some View {
+        // First check if date is within bounds, if not return EmptyView
+        guard isDateWithinChartBounds(date) else {
+            return Text("").foregroundStyle(.clear)
+        }
+
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: date)
         let text = formatAxisTime(date)
         
-        if hour == 0 && isDateWithinChartBounds(date) {
+        if hour == 0 {
             // For midnight, show date underneath
             let day = calendar.component(.day, from: date)
             let month = calendar.component(.month, from: date)
@@ -388,7 +407,7 @@ extension InteractiveLineChartCardView {
             VStack(alignment: .leading, spacing: 12) {
                 // customAverageHours
                 HStack(alignment: .top) {
-                    Text("Custom Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))")
+                    Text("Custom Average Hours: \(localSettings.settings.customAverageHours.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", localSettings.settings.customAverageHours) : String(format: "%.1f", localSettings.settings.customAverageHours))")
                         .font(Theme.secondaryFont())
                         .foregroundStyle(Theme.mainTextColor)
                     Spacer()
@@ -456,7 +475,7 @@ extension InteractiveLineChartCardView {
     private var yRange: (Double, Double) {
         let prices = filteredRates.map { $0.valueIncludingVAT }
         guard !prices.isEmpty else { return (0, 10) }
-        let minVal = 0.0
+        let minVal = min(0, (prices.min() ?? 0) - 2)  // Allow negative values and add padding
         let maxVal = (prices.max() ?? 0) + 2
         return (minVal, maxVal)
     }
@@ -515,18 +534,20 @@ extension InteractiveLineChartCardView {
         }?.valueIncludingVAT
     }
     
-    /// Best time windows from viewModel
+    /// Best time windows from the ViewModel (merged, but not expanded)
     private var bestTimeRanges: [(Date, Date)] {
+        // 1) get the raw windows
         let windows = viewModel.getLowestAveragesIncludingPastHour(
             hours: localSettings.settings.customAverageHours,
             maxCount: localSettings.settings.maxListCount
         )
-        // Flatten to (start, end)
+        // 2) flatten into (start, end)
         let raw = windows.map { ($0.start, $0.end) }
+        // 3) merge any overlapping windows
         return mergeWindows(raw)
     }
     
-    /// Merge overlapping windows
+    /// Merge overlapping windows but do NOT expand to bar boundaries
     private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
         if input.isEmpty { return [] }
         let sorted = input.sorted { $0.0 < $1.0 }
@@ -565,12 +586,10 @@ extension InteractiveLineChartCardView {
 
 // MARK: - Formatting
 extension InteractiveLineChartCardView {
-    private func formatPrice(_ pence: Double, showDecimals: Bool = false) -> String {
-        // Could read a boolean from globalSettings, for brevity:
-        let showPounds = false  // or however you prefer
-        if showPounds {
+    private func formatPrice(_ pence: Double, showDecimals: Bool = false, forceFullDecimals: Bool = false) -> String {
+        if globalSettings.settings.showRatesInPounds {
             let pounds = pence / 100.0
-            return String(format: "£%.2f", pounds)
+            return forceFullDecimals ? String(format: "£%.4f", pounds) : String(format: "£%.2f", pounds)
         } else {
             return String(format: showDecimals ? "%.2fp" : "%.0fp", pence)
         }

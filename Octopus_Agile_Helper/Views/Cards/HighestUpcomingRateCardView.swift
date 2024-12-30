@@ -101,7 +101,7 @@ struct HighestUpcomingRateCardView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text(parts[0])
                             .font(Theme.mainFont())
-                            .foregroundColor(Theme.mainTextColor)
+                            .foregroundColor(RateColor.getColor(for: highestRate, allRates: viewModel.allRates))
                         
                         if parts.count > 1 {
                             Text(parts[1])
@@ -136,7 +136,7 @@ struct HighestUpcomingRateCardView: View {
                                 HStack(alignment: .firstTextBaseline) {
                                     Text(rateParts[0])
                                         .font(Theme.mainFont2())
-                                        .foregroundColor(Theme.mainTextColor)
+                                        .foregroundColor(RateColor.getColor(for: rate, allRates: viewModel.allRates))
                                     
                                     if rateParts.count > 1 {
                                         Text(rateParts[1])

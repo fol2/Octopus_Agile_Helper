@@ -85,7 +85,7 @@ struct AverageUpcomingRateCardView: View {
                     Image(systemName: def.iconName)
                         .foregroundColor(Theme.icon)
                 }
-                Text("Lowest \(localSettings.settings.maxListCount) (\(String(format: "%.1f", localSettings.settings.customAverageHours))-hour Averages)")
+                Text("Lowest \(localSettings.settings.maxListCount) (\(localSettings.settings.customAverageHours.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", localSettings.settings.customAverageHours) : String(format: "%.1f", localSettings.settings.customAverageHours))-hour Averages)")
                     .font(Theme.titleFont())
                     .foregroundColor(Theme.secondaryTextColor)
                 
@@ -125,7 +125,7 @@ struct AverageUpcomingRateCardView: View {
                                 
                                 Text(parts[0])
                                     .font(Theme.mainFont2())
-                                    .foregroundColor(Theme.mainTextColor)
+                                    .foregroundColor(getRateColorForAverage(entry.average, entry.start, entry.end))
                                 
                                 if parts.count > 1 {
                                     Text(parts[1])
@@ -170,7 +170,7 @@ struct AverageUpcomingRateCardView: View {
             
             // Stepper controls
             HStack(alignment: .center) {
-                Text("Custom Hours: \(String(format: "%.1f", localSettings.settings.customAverageHours))")
+                Text("Custom Average Hours: \(localSettings.settings.customAverageHours.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", localSettings.settings.customAverageHours) : String(format: "%.1f", localSettings.settings.customAverageHours))")
                     .font(Theme.secondaryFont())
                     .foregroundColor(Theme.mainTextColor)
                 
@@ -178,7 +178,7 @@ struct AverageUpcomingRateCardView: View {
                 Stepper(
                     "",
                     value: $localSettings.settings.customAverageHours,
-                    in: 1...24,
+                    in: 0.5...24,
                     step: 0.5
                 )
                 .labelsHidden()
@@ -191,7 +191,7 @@ struct AverageUpcomingRateCardView: View {
             }
             
             HStack(alignment: .center) {
-                Text("Max Count: \(localSettings.settings.maxListCount)")
+                Text("Max List Count: \(localSettings.settings.maxListCount)")
                     .font(Theme.secondaryFont())
                     .foregroundColor(Theme.mainTextColor)
                 
@@ -249,5 +249,45 @@ struct AverageUpcomingRateCardView: View {
             // different days for start and end
             return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(dateFormatter.string(from: to)) \(timeFormatter.string(from: to))"
         }
+    }
+    
+    // MARK: - Color Helper
+    private func getRateColorForAverage(_ average: Double, _ start: Date, _ end: Date) -> Color {
+        // Get all rates sorted by time
+        let sortedRates = viewModel.allRates
+            .filter { $0.validFrom != nil }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+        
+        // Find the rate that starts closest to our average's start time
+        let nearestRate = sortedRates
+            .min { rate1, rate2 in
+                let diff1 = abs((rate1.validFrom ?? .distantFuture).timeIntervalSince(start))
+                let diff2 = abs((rate2.validFrom ?? .distantFuture).timeIntervalSince(start))
+                return diff1 < diff2
+            }
+        
+        // Find rates that overlap with our average period
+        let overlappingRates = sortedRates.filter { rate in
+            guard let rateStart = rate.validFrom, let rateEnd = rate.validTo else { return false }
+            return (rateStart < end && rateEnd > start)
+        }
+        
+        // If we have overlapping rates, use the one closest in value to our average
+        if !overlappingRates.isEmpty {
+            let closestRate = overlappingRates
+                .min { rate1, rate2 in
+                    abs(rate1.valueIncludingVAT - average) < abs(rate2.valueIncludingVAT - average)
+                }
+            if let rate = closestRate {
+                return RateColor.getColor(for: rate, allRates: viewModel.allRates)
+            }
+        }
+        
+        // Fallback to nearest rate by time if no overlapping rates
+        if let rate = nearestRate {
+            return RateColor.getColor(for: rate, allRates: viewModel.allRates)
+        }
+        
+        return .white
     }
 }

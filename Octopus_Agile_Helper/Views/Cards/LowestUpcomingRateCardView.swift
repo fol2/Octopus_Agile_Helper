@@ -111,7 +111,7 @@ struct LowestUpcomingRateCardView: View {
                         
                         Text(parts[0])
                             .font(Theme.mainFont())
-                            .foregroundColor(Theme.mainTextColor)
+                            .foregroundColor(RateColor.getColor(for: lowestRate, allRates: viewModel.allRates))
                         
                         if parts.count > 1 {
                             Text(parts[1])
@@ -142,7 +142,7 @@ struct LowestUpcomingRateCardView: View {
                                 HStack(alignment: .firstTextBaseline) {
                                     Text(subParts[0])
                                         .font(Theme.mainFont2())
-                                        .foregroundColor(Theme.mainTextColor)
+                                        .foregroundColor(RateColor.getColor(for: rate, allRates: viewModel.allRates))
                                     
                                     if subParts.count > 1 {
                                         Text(subParts[1])
@@ -195,7 +195,7 @@ struct LowestUpcomingRateCardView: View {
             
             // Minimal row: label + stepper
             HStack(alignment: .top) {
-                Text("Additional Rates: \(localSettings.settings.additionalRatesCount)")
+                Text("Additional Rates to Show: \(localSettings.settings.additionalRatesCount)")
                     .font(Theme.secondaryFont())
                     .foregroundColor(Theme.mainTextColor)
                 
