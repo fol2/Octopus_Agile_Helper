@@ -9,6 +9,7 @@ struct AllRatesListView: View {
     @State private var displayedRatesByDate: [(String, [RateEntity])] = []
     @State private var currentPage = 0
     @State private var hasInitiallyLoaded = false
+    @State private var currentRateID: NSManagedObjectID?
     private let pageSize = 48 // 24 hours worth of 30-minute intervals
     
     private var dateFormatter: DateFormatter {
@@ -68,24 +69,39 @@ struct AllRatesListView: View {
         print("DEBUG: Loading initial data")
         let sortedGroups = groupAndSortRates(viewModel.allRates)
         
+        // Store the current rate's ID for scrolling
+        currentRateID = viewModel.allRates.first(where: { isRateCurrentlyActive($0) })?.objectID
+        
+        // If we have less than one page of data, just load everything
+        if sortedGroups.count <= pageSize {
+            displayedRatesByDate = sortedGroups
+            currentPage = 1
+            hasInitiallyLoaded = true
+            return
+        }
+        
         // Find the group containing the current rate
         if let currentGroupIndex = sortedGroups.firstIndex(where: { _, rates in
             rates.contains { isRateCurrentlyActive($0) }
         }) {
             print("DEBUG: Found current rate in group \(currentGroupIndex)")
             // Calculate the page that would contain the current rate
-            currentPage = max(0, (currentGroupIndex / pageSize) - 1) // One page before current if possible
-            let startIndex = currentPage * pageSize
-            let endIndex = min(startIndex + (pageSize * 2), sortedGroups.count) // Load two pages initially
+            let pageOfCurrentRate = currentGroupIndex / pageSize
+            
+            // Load the page containing current rate and one page before if possible
+            let startPage = max(0, pageOfCurrentRate - 1)
+            let startIndex = startPage * pageSize
+            let endIndex = min(startIndex + (pageSize * 2), sortedGroups.count)
+            
             displayedRatesByDate = Array(sortedGroups[startIndex..<endIndex])
             currentPage = endIndex / pageSize
-            print("DEBUG: Loaded pages \(startIndex/pageSize) to \(currentPage)")
+            print("DEBUG: Loaded pages \(startPage) to \(currentPage)")
         } else {
             print("DEBUG: No current rate found, loading from start")
-            // If no current rate found, start from the beginning
-            let endIndex = min(pageSize, sortedGroups.count)
+            // If no current rate found, load first two pages from the beginning
+            let endIndex = min(pageSize * 2, sortedGroups.count)
             displayedRatesByDate = Array(sortedGroups[0..<endIndex])
-            currentPage = 1
+            currentPage = 2
         }
         
         hasInitiallyLoaded = true
@@ -151,11 +167,11 @@ struct AllRatesListView: View {
                 loadInitialData()
                 
                 // Scroll to current rate if exists
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    if let currentRate = viewModel.allRates.first(where: { isRateCurrentlyActive($0) }) {
-                        print("DEBUG: Scrolling to current rate")
+                if let currentRateID = currentRateID {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         withAnimation {
-                            scrollProxy.scrollTo(currentRate.objectID, anchor: .center)
+                            scrollProxy.scrollTo(currentRateID, anchor: .center)
+                            print("DEBUG: Scrolling to current rate")
                         }
                     }
                 }

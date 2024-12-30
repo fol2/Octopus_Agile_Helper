@@ -425,6 +425,9 @@
         }
       }
     },
+    "Current Rate Card in the Cards view" : {
+
+    },
     "Custom Average Hours: %@" : {
       "comment" : "Label for stepper controlling the duration of average calculation",
       "localizations" : {
@@ -453,6 +456,9 @@
           }
         }
       }
+    },
+    "Detailed rates list after expanded" : {
+
     },
     "Display Rates in Pounds (£)" : {
       "comment" : "Toggle for showing rates in pounds instead of pence",
@@ -579,6 +585,7 @@
     },
     "Enable card" : {
       "comment" : "Toggle to enable/disable a card",
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -669,6 +676,12 @@
         }
       }
     },
+    "How to find the best rates" : {
+
+    },
+    "How to use interactive chart" : {
+
+    },
     "Interactive Rate Chart" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -753,6 +766,21 @@
           }
         }
       }
+    },
+    "Learn more" : {
+
+    },
+    "Learn more about API access" : {
+
+    },
+    "Learn more about cards" : {
+
+    },
+    "Learn more about preferences" : {
+
+    },
+    "Learn more about regions" : {
+
     },
     "Lowest [count] ([hours]-hour Averages)" : {
       "extractionState" : "manual",
@@ -1254,6 +1282,18 @@
           }
         }
       }
+    },
+    "Overview of average rates card" : {
+
+    },
+    "Overview of highest rates card" : {
+
+    },
+    "Overview of interactive chart card" : {
+
+    },
+    "Overview of lowest rates card" : {
+
     },
     "Postcode" : {
       "comment" : "Placeholder for postcode input field",

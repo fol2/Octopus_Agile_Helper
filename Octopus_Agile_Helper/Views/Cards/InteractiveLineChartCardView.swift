@@ -84,6 +84,23 @@ struct InteractiveLineChartCardView: View {
         return calendar.date(from: snappedComps) ?? date
     }
     
+    /// Calculate dynamic bar width based on data points
+    private var dynamicBarWidth: Double {
+        // Using 65 as our base number for better proportions
+        let maxPossibleBars = 65.0
+        let currentBars = Double(filteredRates.count)
+        
+        // Direct proportional calculation:
+        // At maxPossibleBars (65) -> width should be 5
+        // At fewer bars -> width should scale up proportionally
+        let width = (maxPossibleBars / currentBars) * 5.0
+        
+        // For debugging
+        print("Bars: \(currentBars), Width: \(width)")
+        
+        return width
+    }
+    
     var body: some View {
         ZStack {
             // FRONT side
@@ -181,11 +198,12 @@ extension InteractiveLineChartCardView {
                 if let validFrom = rate.validFrom {
                     BarMark(
                         x: .value("Time", validFrom),
-                        y: .value("Price", rate.valueIncludingVAT)
+                        y: .value("Price", rate.valueIncludingVAT),
+                        width: .fixed(dynamicBarWidth)
                     )
                     .foregroundStyle(
                         rate.valueIncludingVAT < 0 
-                            ? Theme.secondaryColor  // or any other color for negative values
+                            ? Theme.secondaryColor
                             : Theme.mainColor
                     )
                 }
@@ -193,13 +211,13 @@ extension InteractiveLineChartCardView {
         }
         .chartXScale(
             domain: xDomain,
-            range: .plotDimension(padding: 0.12)
+            range: .plotDimension(padding: 0)
         )
         .chartYScale(domain: minVal...maxVal)
         .chartPlotStyle { plotContent in
             plotContent
-                .padding(.horizontal, 8)
-                .padding(.leading,0)
+                .padding(.horizontal, 0)
+                .frame(maxWidth: .infinity)
         }
         .chartXAxis {
             AxisMarks(values: strideXticks) { value in
@@ -207,7 +225,7 @@ extension InteractiveLineChartCardView {
                 AxisValueLabel(anchor: .top) {
                     if let date = value.as(Date.self) {
                         xAxisLabel(for: date)
-                            .offset(x: 8, y: 0)
+                            .offset(x: 0, y: 0)
                     }
                 }
             }
@@ -458,10 +476,10 @@ extension InteractiveLineChartCardView {
 
 // MARK: - Data Logic
 extension InteractiveLineChartCardView {
-    /// Filter from 1 hr behind now -> next 24 hours
+    /// Filter from 1 hr behind now -> next 48 hours
     private var filteredRates: [RateEntity] {
         let start = now.addingTimeInterval(-3600)
-        let end   = now.addingTimeInterval(24 * 3600)
+        let end   = now.addingTimeInterval(48 * 3600)
         return viewModel.allRates
             .filter { $0.validFrom != nil && $0.validTo != nil }
             .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }

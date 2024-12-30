@@ -1,18 +1,25 @@
 import SwiftUI
 
+struct MediaItem {
+    let localName: String?
+    let remoteURL: URL?
+    let isVideo: Bool
+    let caption: LocalizedStringKey?
+}
+
 /// Identifies a single card's metadata and how to produce its SwiftUI view
 final class CardDefinition {
-    let id: CardType                 // we'll reuse CardType as the unique identifier
-    let displayNameKey: String       // e.g. "Current Rate Card"
-    let descriptionKey: String       // short info about the card
-    let isPremium: Bool             // indicates if the card requires purchase
+    let id: CardType
+    let displayNameKey: String
+    let descriptionKey: String
+    let isPremium: Bool
     let makeView: (RatesViewModel) -> AnyView
-    let iconName: String            // SF Symbol name for the card
-    
-    // Default config fields
+    let iconName: String
     let defaultIsEnabled: Bool
     let defaultIsPurchased: Bool
     let defaultSortOrder: Int
+    let mediaItems: [MediaItem]
+    let learnMoreURL: URL?
     
     init(
         id: CardType,
@@ -23,7 +30,9 @@ final class CardDefinition {
         iconName: String,
         defaultIsEnabled: Bool = true,
         defaultIsPurchased: Bool = true,
-        defaultSortOrder: Int
+        defaultSortOrder: Int,
+        mediaItems: [MediaItem] = [],
+        learnMoreURL: URL? = nil
     ) {
         self.id = id
         self.displayNameKey = displayNameKey
@@ -34,6 +43,8 @@ final class CardDefinition {
         self.defaultIsEnabled = defaultIsEnabled
         self.defaultIsPurchased = defaultIsPurchased
         self.defaultSortOrder = defaultSortOrder
+        self.mediaItems = mediaItems
+        self.learnMoreURL = learnMoreURL
     }
 }
 
@@ -54,9 +65,22 @@ final class CardRegistry {
                 isPremium: false,
                 makeView: { vm in AnyView(CurrentRateCardView(viewModel: vm)) },
                 iconName: "clock.fill",
-                defaultIsEnabled: true,
-                defaultIsPurchased: true,
-                defaultSortOrder: 1
+                defaultSortOrder: 1,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgCurrentRateInfo",
+                        remoteURL: nil,
+                        isVideo: false,
+                        caption: LocalizedStringKey("Current Rate Card in the Cards view")
+                    ),
+                    MediaItem(
+                        localName: "imgCurrentRateInfo2",
+                        remoteURL: nil,
+                        isVideo: false,
+                        caption: LocalizedStringKey("Detailed rates list after expanded")
+                    )
+                ],
+                learnMoreURL: URL(string: "")
             )
         )
         
@@ -67,10 +91,23 @@ final class CardRegistry {
                 descriptionKey: "Shows upcoming times with the cheapest electricity rates.",
                 isPremium: false,
                 makeView: { vm in AnyView(LowestUpcomingRateCardView(viewModel: vm)) },
-                iconName: "arrow.down.circle.fill",
-                defaultIsEnabled: true,
-                defaultIsPurchased: true,
-                defaultSortOrder: 2
+                iconName: "chevron.down",
+                defaultSortOrder: 2,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgLowestRatesOverview",
+                        remoteURL: nil,
+                        isVideo: false,
+                        caption: LocalizedStringKey("Overview of lowest rates card")
+                    ),
+                    MediaItem(
+                        localName: "vidLowestRatesDemo",
+                        remoteURL: nil,
+                        isVideo: true,
+                        caption: LocalizedStringKey("How to find the best rates")
+                    )
+                ],
+                learnMoreURL: URL(string: "https://octopus.energy/help/lowest-rates")
             )
         )
         
@@ -81,10 +118,23 @@ final class CardRegistry {
                 descriptionKey: "Warns you of upcoming peak pricing times.",
                 isPremium: false,
                 makeView: { vm in AnyView(HighestUpcomingRateCardView(viewModel: vm)) },
-                iconName: "arrow.up.circle.fill",
-                defaultIsEnabled: true,
-                defaultIsPurchased: true,
-                defaultSortOrder: 3
+                iconName: "chevron.up",
+                defaultSortOrder: 3,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgHighestRatesOverview",
+                        remoteURL: nil,
+                        isVideo: false,
+                        caption: LocalizedStringKey("Overview of highest rates card")
+                    ),
+                    MediaItem(
+                        localName: "vidHighestRatesDemo",
+                        remoteURL: nil,
+                        isVideo: true,
+                        caption: LocalizedStringKey("How to find the best rates")
+                    )
+                ],
+                learnMoreURL: URL(string: "https://octopus.energy/help/highest-rates")
             )
         )
         
@@ -96,9 +146,22 @@ final class CardRegistry {
                 isPremium: true,
                 makeView: { vm in AnyView(AverageUpcomingRateCardView(viewModel: vm)) },
                 iconName: "chart.bar.fill",
-                defaultIsEnabled: true,
-                defaultIsPurchased: true,
-                defaultSortOrder: 4
+                defaultSortOrder: 4,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgAverageRatesOverview",
+                        remoteURL: nil,
+                        isVideo: false,
+                        caption: LocalizedStringKey("Overview of average rates card")
+                    ),
+                    MediaItem(
+                        localName: "vidAverageRatesDemo",
+                        remoteURL: nil,
+                        isVideo: true,
+                        caption: LocalizedStringKey("How to find the best rates")
+                    )
+                ],
+                learnMoreURL: URL(string: "https://octopus.energy/help/average-rates")
             )
         )
         
@@ -110,9 +173,22 @@ final class CardRegistry {
                 isPremium: true,
                 makeView: { vm in AnyView(InteractiveLineChartCardView(viewModel: vm)) },
                 iconName: "chart.xyaxis.line",
-                defaultIsEnabled: true,
-                defaultIsPurchased: true,
-                defaultSortOrder: 5
+                defaultSortOrder: 5,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgInteractiveChartOverview",
+                        remoteURL: nil,
+                        isVideo: false,
+                        caption: LocalizedStringKey("Overview of interactive chart card")
+                    ),
+                    MediaItem(
+                        localName: "vidInteractiveChartDemo",
+                        remoteURL: nil,
+                        isVideo: true,
+                        caption: LocalizedStringKey("How to use interactive chart")
+                    )
+                ],
+                learnMoreURL: URL(string: "https://octopus.energy/help/interactive-chart")
             )
         )
     }

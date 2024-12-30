@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 struct CardManagementView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
@@ -7,35 +8,44 @@ struct CardManagementView: View {
     @State private var refreshTrigger = false
     
     var body: some View {
-        List {
-            Section {
-                ForEach($globalSettings.settings.cardSettings) { $cardConfig in
+        VStack(spacing: 0) {
+            // Title
+            HStack {
+                Text(LocalizedStringKey("Manage Cards"))
+                    .font(Theme.mainFont())
+                    .foregroundColor(Theme.mainTextColor)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 22)
+            
+            // Instruction text
+            HStack {
+                Text(LocalizedStringKey("Drag to reorder cards"))
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            
+            // List of cards
+            List {
+                ForEach($globalSettings.settings.cardSettings, id: \.id) { $cardConfig in
                     CardRowView(cardConfig: $cardConfig, onInfoTap: {
                         selectedCard = cardConfig
                     })
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
                 .onMove(perform: moveCards)
-            } header: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Drag to reorder cards")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-                .textCase(nil)
-                .padding(.bottom, 8)
             }
+            .listStyle(.plain)
         }
-        .navigationTitle(LocalizedStringKey("Manage Cards"))
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Theme.mainBackground)
+        .background(Theme.mainBackground.ignoresSafeArea())
         .environment(\.editMode, $editMode)
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 100)
-        }
-        .safeAreaInset(edge: .top) {
-            Color.clear.frame(height: 20)
-        }
         .sheet(item: $selectedCard) { config in
             if let definition = CardRegistry.shared.definition(for: config.cardType) {
                 CardInfoSheet(definition: definition)
@@ -45,7 +55,7 @@ struct CardManagementView: View {
             }
         }
         .id(refreshTrigger)
-        .onChange(of: globalSettings.locale) { oldValue, newValue in
+        .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
     }
@@ -73,74 +83,133 @@ struct CardRowView: View {
     let onInfoTap: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Card-specific icon with drag indicator
-            HStack(spacing: 4) {
-                if let definition = CardRegistry.shared.definition(for: cardConfig.cardType) {
+        if let definition = CardRegistry.shared.definition(for: cardConfig.cardType) {
+            ZStack {
+                // Row background
+                Theme.secondaryBackground
+                    .cornerRadius(12)
+                
+                HStack(spacing: 12) {
+                    // Leading icon
                     Image(systemName: definition.iconName)
                         .foregroundColor(Theme.icon)
-                        .font(Theme.subFont())
-                }
-                
-                // Small drag indicator
-                Image(systemName: "grip.horizontal")
-                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                    .font(Theme.subFont())
-            }
-            .frame(width: 44)
-            .contentShape(Rectangle())
-            
-            Text(LocalizedStringKey(getCardDisplayName(cardConfig.cardType)))
-                .font(Theme.secondaryFont())
-                .foregroundColor(Theme.mainTextColor)
-            
-            Spacer()
-            
-            // Info button
-            Button(action: onInfoTap) {
-                Image(systemName: "info.circle")
-                    .foregroundColor(Theme.secondaryTextColor)
-                    .font(Theme.subFont())
-            }
-            .buttonStyle(.plain)
-            .padding(.trailing, 8)
-            
-            if cardConfig.isPurchased {
-                Toggle(isOn: $cardConfig.isEnabled) {
-                    Text("Enable card")
-                }
-                .labelsHidden()
-                .tint(Theme.secondaryColor)
-            } else {
-                Button {
-                    purchaseCard()
-                } label: {
-                    Text("Unlock")
+                        .font(Theme.titleFont())
+                        .padding(.leading, 12)
+                    
+                    // Card name
+                    Text(LocalizedStringKey(definition.displayNameKey))
                         .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.mainTextColor)
+                        .textCase(.none)
+                    
+                    Spacer()
+                    
+                    // Info button
+                    Button(action: onInfoTap) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .font(Theme.subFont())
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // Toggle or 'Unlock' button
+                    if cardConfig.isPurchased {
+                        Toggle(isOn: $cardConfig.isEnabled) {
+                            EmptyView()
+                        }
+                        .labelsHidden()
+                        .tint(Theme.secondaryColor)
+                    } else {
+                        Button {
+                            purchaseCard()
+                        } label: {
+                            Text(LocalizedStringKey("Unlock"))
+                                .font(Theme.secondaryFont())
+                                .textCase(.none)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .tint(Theme.mainColor)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(Theme.mainColor)
+                .padding(.vertical, 10)
             }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 16)
+            .contentShape(Rectangle())
+            .sensoryFeedback(.selection, trigger: cardConfig.sortOrder)
         }
-        .listRowSeparator(.hidden)
-        .listRowBackground(Theme.secondaryBackground)
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .sensoryFeedback(.selection, trigger: cardConfig.sortOrder)
-    }
-    
-    private func getCardDisplayName(_ cardType: CardType) -> String {
-        if let definition = CardRegistry.shared.definition(for: cardType) {
-            return definition.displayNameKey
-        }
-        return ""  // Fallback empty string if definition not found
     }
     
     private func purchaseCard() {
-        // In a real app, this would integrate with StoreKit
+        // In a real app, integrate with StoreKit, etc.
         cardConfig.isPurchased = true
+    }
+}
+
+struct MediaItemView: View {
+    let item: MediaItem
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let caption = item.caption {
+                Text(caption)
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                    .textCase(.none)
+                    .padding(.horizontal, 20)
+            }
+            
+            if let localName = item.localName {
+                if item.isVideo {
+                    if let videoURL = Bundle.main.url(forResource: localName, withExtension: "mp4") {
+                        VideoPlayer(player: AVPlayer(url: videoURL))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 200)
+                            .padding(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Theme.secondaryColor, lineWidth: 2)
+                            )
+                    }
+                } else {
+                    Image(localName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Theme.secondaryColor, lineWidth: 2)
+                        )
+                        .frame(maxWidth: .infinity)
+                }
+            } else if let remoteURL = item.remoteURL {
+                if item.isVideo {
+                    VideoPlayer(player: AVPlayer(url: remoteURL))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .padding(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Theme.secondaryColor, lineWidth: 2)
+                        )
+                } else {
+                    AsyncImage(url: remoteURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Theme.secondaryColor, lineWidth: 2)
+                            )
+                    } placeholder: {
+                        ProgressView()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
     }
 }
 
@@ -152,38 +221,62 @@ struct CardInfoSheet: View {
     
     var body: some View {
         NavigationView {
-            List {
-                Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(LocalizedStringKey(definition.displayNameKey))
-                            .font(Theme.mainFont())
-                            .foregroundColor(Theme.mainTextColor)
-                            .padding(.bottom, 8)
-                        
-                        Text(LocalizedStringKey(definition.descriptionKey))
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                        
-                        if definition.isPremium {
-                            HStack {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.yellow)
-                                    .font(Theme.subFont())
-                                Text("Premium Feature")
-                                    .font(Theme.titleFont())
-                                    .foregroundColor(Theme.mainTextColor)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(LocalizedStringKey(definition.displayNameKey))
+                        .font(Theme.mainFont())
+                        .foregroundColor(Theme.mainTextColor)
+                        .textCase(.none)
+                        .padding(.bottom, 8)
+                        .padding(.horizontal, 20)
+                    
+                    Text(LocalizedStringKey(definition.descriptionKey))
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .textCase(.none)
+                        .padding(.horizontal, 20)
+                    
+                    if !definition.mediaItems.isEmpty {
+                        VStack(alignment: .leading, spacing: 24) {
+                            ForEach(definition.mediaItems.indices, id: \.self) { index in
+                                MediaItemView(item: definition.mediaItems[index])
                             }
-                            .padding(.top, 8)
                         }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
+                    
+                    if definition.isPremium {
+                        HStack {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                                .font(Theme.subFont())
+                            Text(LocalizedStringKey("Premium Feature"))
+                                .font(Theme.titleFont())
+                                .foregroundColor(Theme.mainTextColor)
+                                .textCase(.none)
+                        }
+                        .padding(.top, 8)
+                        .padding(.horizontal, 20)
+                    }
+                    
+                    if let learnMoreURL = definition.learnMoreURL {
+                        Link(destination: learnMoreURL) {
+                            HStack {
+                                Text(LocalizedStringKey("Learn more"))
+                                    .font(Theme.secondaryFont())
+                                    .foregroundColor(Theme.mainColor)
+                                    .textCase(.none)
+                                Image(systemName: "arrow.up.right")
+                                    .font(Theme.subFont())
+                                    .foregroundColor(Theme.mainColor)
+                            }
+                        }
+                        .padding(.top, 8)
+                        .padding(.horizontal, 20)
+                    }
                 }
-                .listRowBackground(Theme.secondaryBackground)
-                .listRowInsets(EdgeInsets())
+                .padding(.vertical, 16)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(Theme.mainBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -191,13 +284,14 @@ struct CardInfoSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("Done")
+                        Text(LocalizedStringKey("Done"))
                             .font(Theme.secondaryFont())
                             .foregroundColor(Theme.mainColor)
+                            .textCase(.none)
                     }
                 }
             }
         }
         .environment(\.locale, locale)
     }
-} 
+}
