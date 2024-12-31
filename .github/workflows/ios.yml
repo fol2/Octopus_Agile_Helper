@@ -33,29 +33,38 @@ jobs:
           echo "Project structure:"
           ls -R Octopus_Agile_Helper.xcodeproj
           echo "Project file contents:"
-          plutil -p Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          plutil -convert xml1 Octopus_Agile_Helper.xcodeproj/project.pbxproj -o - | grep -v "^$"
+          
+      - name: Clean Project File
+        run: |
+          plutil -convert xml1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
           
       - name: Build
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
         run: |
-          xcodebuild clean build \
+          set -o pipefail && xcodebuild clean build \
             -project Octopus_Agile_Helper.xcodeproj \
             -scheme Octopus_Agile_Helper \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
             -sdk iphonesimulator \
-            -allowProvisioningUpdates \
+            -configuration Debug \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=YES
+            ONLY_ACTIVE_ARCH=YES | xcpretty
           
       - name: Test
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
         run: |
-          xcodebuild test \
+          set -o pipefail && xcodebuild test \
             -project Octopus_Agile_Helper.xcodeproj \
             -scheme Octopus_Agile_Helper \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
             -sdk iphonesimulator \
+            -configuration Debug \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=YES
+            ONLY_ACTIVE_ARCH=YES | xcpretty
