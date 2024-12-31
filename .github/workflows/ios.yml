@@ -28,16 +28,39 @@ jobs:
           echo "Available simulators:"
           xcrun simctl list devices
           
-      - name: Verify Project Structure
+      - name: Check Workspace Structure
         run: |
-          echo "Project structure:"
-          ls -R Octopus_Agile_Helper.xcodeproj
-          echo "Project file contents:"
-          plutil -convert xml1 Octopus_Agile_Helper.xcodeproj/project.pbxproj -o - | grep -v "^$"
+          echo "Current directory:"
+          pwd
+          echo "\nDirectory contents:"
+          ls -la
+          echo "\nFull directory structure:"
+          find . -type f -name "*.xcodeproj" -o -name "*.swift"
           
-      - name: Clean Project File
+      - name: Repair Project File
         run: |
+          # First verify the project exists
+          if [ ! -f "Octopus_Agile_Helper.xcodeproj/project.pbxproj" ]; then
+            echo "Error: project.pbxproj not found at expected location"
+            exit 1
+          fi
+          
+          echo "Backing up project file..."
+          cp Octopus_Agile_Helper.xcodeproj/project.pbxproj Octopus_Agile_Helper.xcodeproj/project.pbxproj.backup
+          
+          echo "Converting to XML and back to ensure proper format..."
           plutil -convert xml1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          plutil -convert binary1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          
+          echo "Fixing object version..."
+          sed -i '' 's/objectVersion = 77;/objectVersion = 56;/g' Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          
+          echo "Removing potential problematic sections..."
+          sed -i '' '/Begin PBXFileSystemSynchronizedBuildFileExceptionSet/,/End PBXFileSystemSynchronizedBuildFileExceptionSet/d' Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          sed -i '' '/Begin PBXFileSystemSynchronizedRootGroup/,/End PBXFileSystemSynchronizedRootGroup/d' Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          
+          echo "Verifying project file..."
+          plutil -lint Octopus_Agile_Helper.xcodeproj/project.pbxproj
           
       - name: Build
         env:
