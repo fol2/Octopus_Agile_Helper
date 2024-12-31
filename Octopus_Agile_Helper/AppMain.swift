@@ -2,6 +2,7 @@ import SwiftUI
 import CoreData
 
 @main
+@available(iOS 17.0, *)
 struct Octopus_Agile_HelperApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var globalTimer = GlobalTimer()

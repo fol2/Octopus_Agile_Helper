@@ -1,26 +1,29 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 5.10
 import PackageDescription
 
 let package = Package(
     name: "Octopus_Agile_Helper",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v17)
     ],
     products: [
-        .library(
+        .executable(
             name: "Octopus_Agile_Helper",
             targets: ["Octopus_Agile_Helper"]),
     ],
     dependencies: [],
     targets: [
-        .target(
+        .executableTarget(
             name: "Octopus_Agile_Helper",
             dependencies: [],
             path: "Octopus_Agile_Helper",
             resources: [
-                .process("Resources"),
                 .process("Assets.xcassets"),
-                .process("Preview Content")
+                .process("Preview Content"),
+                .process("Info.plist"),
+                .process("Octopus_Agile_Helper.xcdatamodeld"),
+                .process("Octopus_Agile_Helper.entitlements")
             ]
         ),
         .testTarget(
