@@ -71,10 +71,3 @@ extension Octopus_HelperWidgetsAttributes.ContentState {
          Octopus_HelperWidgetsAttributes.ContentState(emoji: "🤩")
      }
 }
-
-#Preview("Notification", as: .content, using: Octopus_HelperWidgetsAttributes.preview) {
-   Octopus_HelperWidgetsLiveActivity()
-} contentStates: {
-    Octopus_HelperWidgetsAttributes.ContentState.smiley
-    Octopus_HelperWidgetsAttributes.ContentState.starEyes
-}

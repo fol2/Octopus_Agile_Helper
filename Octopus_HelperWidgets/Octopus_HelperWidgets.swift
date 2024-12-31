@@ -7,6 +7,7 @@
 
 import WidgetKit
 import SwiftUI
+import AppIntents
 import OctopusHelperShared
 
 struct Provider: AppIntentTimelineProvider {
@@ -148,7 +149,7 @@ struct AverageRateMiniWidget: View {
                     .font(.title2)
                     .bold()
                 
-                Text("\(rates.count) upcoming rates")
+                Text("Next 24 hours")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -168,7 +169,7 @@ struct CurrentRateMiniWidget: View {
     var body: some View {
         if let current = rates.first(where: { 
             guard let validFrom = $0.validFrom, let validTo = $0.validTo else { return false }
-            return validFrom <= Date() && validTo > Date()
+            return Date() >= validFrom && Date() < validTo
         }) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Current Rate")
@@ -188,7 +189,7 @@ struct CurrentRateMiniWidget: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding()
         } else {
-            Text("No current rate")
+            Text("No current rate available")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -199,21 +200,25 @@ struct Octopus_HelperWidgets: Widget {
     let kind: String = "Octopus_HelperWidgets"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: ConfigurationAppIntent.self,
+            provider: Provider()
+        ) { entry in
             CardWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Octopus Rate Card")
         .description("Display your chosen rate card.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall])
     }
 }
 
 #Preview(as: .systemSmall) {
     Octopus_HelperWidgets()
 } timeline: {
-    SimpleEntry(date: .now, configuration: ConfigurationAppIntent(cardType: .lowestUpcoming), rates: [
-        RateEntity(validFrom: Date(), validTo: Date().addingTimeInterval(1800), valueIncludingVAT: 15.5),
-        RateEntity(validFrom: Date().addingTimeInterval(1800), validTo: Date().addingTimeInterval(3600), valueIncludingVAT: 20.0)
+    SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: [])
+    SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: [
+        RateEntity(validFrom: Date(), validTo: Date().addingTimeInterval(1800), valueIncludingVAT: 15.5)
     ])
 }

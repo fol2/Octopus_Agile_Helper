@@ -5,32 +5,39 @@
 //  Created by James To on 31/12/2024.
 //
 
+// AppIntent.swift
 import WidgetKit
 import AppIntents
-import OctopusHelperShared
 
-struct ConfigurationAppIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Configuration" }
-    static var description: IntentDescription { "Choose which rate card to display." }
+// 1) Define your CardType enum here with AppEnum
+enum CardType: String, CaseIterable, AppEnum {
+    case lowestUpcoming
+    case highestUpcoming
+    case averageUpcoming
+    case currentRate
+    case interactiveChart   // Include if you want to switch on it
 
-    @Parameter(title: "Card Type")
-    var cardType: CardType
+    // Compile-time static properties:
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Card Type")
 
-    init() {
-        self.cardType = .lowestUpcoming
-    }
-
-    init(cardType: CardType) {
-        self.cardType = cardType
-    }
+    static let caseDisplayRepresentations: [CardType: DisplayRepresentation] = [
+        .lowestUpcoming: "Lowest Upcoming",
+        .highestUpcoming: "Highest Upcoming",
+        .averageUpcoming: "Average Upcoming",
+        .currentRate: "Current Rate",
+        .interactiveChart: "Interactive Chart"
+    ]
 }
 
-extension CardType: AppEnum {
-    public static var typeDisplayRepresentation: TypeDisplayRepresentation = "Card Type"
-    public static var caseDisplayRepresentations: [CardType: DisplayRepresentation] = [
-        .lowestUpcoming: "Lowest Upcoming Rate",
-        .highestUpcoming: "Highest Upcoming Rate",
-        .averageUpcoming: "Average Upcoming Rate",
-        .currentRate: "Current Rate"
-    ]
+// 2) Define your ConfigurationAppIntent in the same file
+struct ConfigurationAppIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Configuration"
+    static var description: IntentDescription = "Choose which rate card to display."
+
+    // We can give a default, or let it be optional.
+    // Non-optional + default is often easiest:
+    @Parameter(title: "Card Type", default: .lowestUpcoming)
+    var cardType: CardType
+
+    init() {}
 }

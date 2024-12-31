@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BF47C0922D24ABB900BA093D /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BF47C0912D24ABB900BA093D /* OctopusHelperShared */; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
 		BFF9574D2D248B6A002EE392 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; };
 		BFF9574F2D248B6A002EE392 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
-		BFF957602D248B6B002EE392 /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,10 +41,9 @@
 		BFF957612D248B6B002EE392 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/AppClips";
+			dstSubfolderSpec = 16;
 			files = (
-				BFF957602D248B6B002EE392 /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -135,6 +134,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFF9574F2D248B6A002EE392 /* SwiftUI.framework in Frameworks */,
+				BF47C0922D24ABB900BA093D /* OctopusHelperShared in Frameworks */,
 				BFF9574D2D248B6A002EE392 /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -267,6 +267,7 @@
 			);
 			name = Octopus_HelperWidgetsExtension;
 			packageProductDependencies = (
+				BF47C0912D24ABB900BA093D /* OctopusHelperShared */,
 			);
 			productName = Octopus_HelperWidgetsExtension;
 			productReference = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */;
@@ -543,6 +544,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -608,6 +610,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -674,7 +677,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 835KUC95M7;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperUITests";
@@ -692,7 +695,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 835KUC95M7;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperUITests";
@@ -825,6 +828,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		BF47C08F2D24A4B500BA093D /* OctopusHelperShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BF47C08E2D24A4A400BA093D /* XCLocalSwiftPackageReference "Shared" */;
+			productName = OctopusHelperShared;
+		};
+		BF47C0912D24ABB900BA093D /* OctopusHelperShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = BF47C08E2D24A4A400BA093D /* XCLocalSwiftPackageReference "Shared" */;
 			productName = OctopusHelperShared;

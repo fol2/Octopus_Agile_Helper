@@ -7,12 +7,11 @@
 
 import WidgetKit
 import SwiftUI
+import OctopusHelperShared
 
 @main
 struct Octopus_HelperWidgetsBundle: WidgetBundle {
     var body: some Widget {
         Octopus_HelperWidgets()
-        Octopus_HelperWidgetsControl()
-        Octopus_HelperWidgetsLiveActivity()
     }
 }
