@@ -3,29 +3,101 @@ import SwiftUI
 
 // MARK: - Supported App Languages
 enum Language: String, Codable, CaseIterable {
+    // Instead of hardcoding languages, we'll compute them dynamically
+    static var allCases: [Language] {
+        // Get all available localizations from the app bundle
+        let availableLocalizations = Bundle.main.localizations
+            .filter { $0 != "Base" } // Exclude "Base" localization
+        
+        // Convert to Language cases, fallback to .english if conversion fails
+        return availableLocalizations.compactMap { Language(rawValue: $0) }
+    }
+    
+    // Define cases for type safety, but the actual supported languages
+    // will be determined by the available .lproj folders and Localizable.xcstrings
     case english = "en"
     case traditionalChinese = "zh-Hant"
     case simplifiedChinese = "zh-Hans"
     case spanish = "es"
     case french = "fr"
+    case german = "de"
+    case italian = "it"
+    case japanese = "ja"
+    case korean = "ko"
+    case portuguese = "pt-PT"
+    case dutch = "nl"
+    case polish = "pl"
+    case russian = "ru"
+    case turkish = "tr"
+    case arabic = "ar"
+    case czech = "cs"
+    case danish = "da"
+    case finnish = "fi"
+    case greek = "el"
+    case hebrew = "he"
+    case hindi = "hi"
+    case hungarian = "hu"
+    case indonesian = "id"
+    case norwegian = "nb"
+    case romanian = "ro"
+    case slovak = "sk"
+    case swedish = "sv"
+    case thai = "th"
+    case ukrainian = "uk"
+    case vietnamese = "vi"
     
     var displayName: String {
         switch self {
-        case .english:
-            return "English"
         case .traditionalChinese:
             return "繁體中文"
         case .simplifiedChinese:
             return "简体中文"
-        case .spanish:
-            return "Español"
-        case .french:
-            return "Français"
+        default:
+            // Use the language name in its own language (autonym)
+            return self.localizedName(in: self.locale)
         }
+    }
+    
+    // Get language name localized in a specific language
+    func localizedName(in locale: Locale) -> String {
+        locale.localizedString(forLanguageCode: self.rawValue) ??
+        locale.localizedString(forIdentifier: self.rawValue) ??
+        self.rawValue
+    }
+    
+    // Get language name in its own language (autonym)
+    var autonym: String {
+        self.displayName  // Use our custom display name that handles Chinese variants
+    }
+    
+    // Get both localized name and autonym if they're different
+    var displayNameWithAutonym: String {
+        self.autonym  // Just use the native name
     }
     
     var locale: Locale {
         Locale(identifier: self.rawValue)
+    }
+    
+    static func systemPreferred() -> Language {
+        // Get the user's preferred languages in order
+        let preferredLanguages = Locale.preferredLanguages
+        
+        // Try to find the first preferred language that we support
+        for language in preferredLanguages {
+            // Convert to base language if needed (e.g., "en-US" -> "en")
+            let baseLanguage = language.components(separatedBy: "-").first ?? language
+            if let supported = Language(rawValue: baseLanguage) {
+                return supported
+            }
+            // Also try the full language code
+            if let supported = Language(rawValue: language) {
+                return supported
+            }
+        }
+        
+        // Fallback to English if no match found
+        return .english
     }
 }
 
@@ -95,8 +167,8 @@ class GlobalSettingsManager: ObservableObject {
             self.locale = decoded.selectedLanguage.locale
             
         } else {
-            // 2. No saved settings => pick the device’s best-matching language
-            let matchedLanguage = GlobalSettingsManager.findBestSupportedLanguage()
+            // 2. No saved settings => use system preferred language
+            let matchedLanguage = Language.systemPreferred()
             
             self.settings = GlobalSettings(
                 postcode: "",
@@ -117,15 +189,7 @@ class GlobalSettingsManager: ObservableObject {
     // -------------------------------------------
     /// We make this `static` so it does not depend on `self`.
     private static func findBestSupportedLanguage() -> Language {
-        let supportedIdentifiers = Language.allCases.map { $0.rawValue }
-        let preferred = Bundle.preferredLocalizations(from: supportedIdentifiers)
-        
-        if let bestMatch = preferred.first,
-           let lang = Language(rawValue: bestMatch) {
-            return lang
-        }
-        
-        return .english
+        return Language.systemPreferred()
     }
     
     // -------------------------------------------

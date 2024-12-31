@@ -94,7 +94,7 @@ struct SettingsView: View {
             }) {
                 Picker(LocalizedStringKey("Language"), selection: $globalSettings.settings.selectedLanguage) {
                     ForEach(Language.allCases, id: \.self) { lang in
-                        Text(lang.displayName)
+                        Text(lang.displayNameWithAutonym)
                             .font(Theme.secondaryFont())
                             .textCase(.none)
                     }
