@@ -11,6 +11,60 @@
             "state" : "new",
             "value" : "%1$@\n%2$@"
           }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@\n%2$@"
+          }
         }
       },
       "shouldTranslate" : false
@@ -222,6 +276,60 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@(%2$@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@（%2$@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "new",
             "value" : "%1$@ (%2$@)"
           }
         }
@@ -1383,6 +1491,54 @@
             "value" : "Um gráfico interativo para ver tarifas ao longo do tempo, também mostra os melhores intervalos de tempo"
           }
         },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Un grafic interactiv pentru a vedea tarifele de-a lungul timpului, arată, de asemenea, cele mai bune intervale de timp"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Interaktívny graf na zobrazenie sadzieb v priebehu času, zobrazuje aj najlepšie časové intervaly"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Interaktivni graf za ogled cen skozi čas, prikazuje tudi najboljše časovne intervale"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ett interaktivt diagram för att se priser över tid, visar också bästa tidsintervaller"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "แผนภูมิโต้ตอบเพื่อดูอัตราเมื่อเวลาผ่านไป ยังแสดงช่วงเวลาที่ดีที่สุด"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Zaman içinde tarifeleri görmek için etkileşimli bir grafik, ayrıca en iyi zaman aralıklarını da gösterir"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Інтерактивний графік для перегляду тарифів у часі, також показує найкращі часові діапазони"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Biểu đồ tương tác để xem giá theo thời gian, cũng cho thấy các phạm vi thời gian tốt nhất"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1850,7 +2006,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A chave API é opcional para a maioria das funcionalidades como visualização de tarifas Agile, tendências de preços e dados históricos.\n\nSó precisa de uma chave API se quiser aceder aos seus dados pessoais como:\n• Os seus dados de consumo reais\n• As suas informações de faturação\n• Os detalhes da sua tarifa\n\nA sua chave API é armazenada de forma segura apenas no seu dispositivo e nunca é partilhada com os desenvolvedores da aplicação ou terceiros."
+            "value" : "A chave API é opcional para a maioria dasfuncionalidades como visualização de tarifas Agile, tendências de preços e dados históricos.\n\nSó precisa de uma chave API se quiser aceder aos seus dados pessoais como:\n• Os seus dados de consumo reais\n• As suas informações de faturação\n• Os detalhes da sua tarifa\n\nA sua chave API é armazenada de forma segura apenas no seu dispositivo e nunca é partilhada com os desenvolvedores da aplicação ou terceiros."
           }
         },
         "zh-Hans" : {
@@ -2471,6 +2627,54 @@
             "value" : "Tarifa atual"
           }
         },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rată curentă"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Aktuálna sadzba"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Trenutna cena"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Aktuellt pris"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "อัตราปัจจุบัน"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mevcut Tarife"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Поточний тариф"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Giá hiện tại"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2487,40 +2691,10 @@
     },
     "Current Rate Card in the Cards view" : {
       "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "بطاقة السعر الحالي في عرض البطاقات"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Targeta de tarifa actual a la vista de targetes"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Karta aktuální sazby v zobrazení karet"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nuværende priskort i kortvisningen"
-          }
-        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aktuelle Tarifkarte in der Kartenansicht"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Κάρτα τρέχουσας τιμής στην προβολή καρτών"
           }
         },
         "en" : {
@@ -2535,46 +2709,10 @@
             "value" : "Tarjeta de tarifa actual en la vista de tarjetas"
           }
         },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nykyinen hintakortti korttinäkymässä"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Carte du tarif actuel dans la vue des cartes"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "כרטיס תעריף נוכחי בתצוגת הכרטיסים"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "कार्ड्स व्यू में वर्तमान दर कार्ड"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartica trenutne stope u prikazu kartica"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jelenlegi díjkártya a kártyák nézetben"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartu Tarif Saat Ini dalam tampilan Kartu"
           }
         },
         "it" : {
@@ -2595,82 +2733,10 @@
             "value" : "카드 보기의 현재 요금 카드"
           }
         },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kad Kadar Semasa dalam paparan Kad"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nåværende priskort i kortvisningen"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Huidige tariefkaart in de kaartenweergave"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Karta aktualnej stawki w widoku kart"
-          }
-        },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cartão de tarifa atual na vista de cartões"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Card cu tariful curent în vizualizarea cardurilor"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Karta aktuálnej sadzby v zobrazení kariet"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartica trenutne tarife v pogledu kartic"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aktuellt priskort i kortvisningen"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "การ์ดอัตราปัจจุบันในมุมมองการ์ด"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartlar görünümünde mevcut tarife kartı"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Картка поточного тарифу в перегляді карток"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thẻ giá hiện tại trong chế độ xem Thẻ"
           }
         },
         "zh-Hans" : {
@@ -2690,46 +2756,10 @@
     "Custom Average Hours: %@" : {
       "comment" : "Label for stepper controlling the duration of average calculation",
       "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "متوسط الساعات المخصص: %@"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hores mitjanes personalitzades: %@"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vlastní průměrné hodiny: %@"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tilpassede gennemsnitstimer: %@"
-          }
-        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Benutzerdefinierte Durchschnittsstunden: %@"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Προσαρμοσμένες μέσες ώρες: %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Custom Average Hours: %@"
           }
         },
         "es" : {
@@ -2738,46 +2768,10 @@
             "value" : "Horas promedio personalizadas: %@"
           }
         },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mukautetut keskimääräiset tunnit: %@"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Heures moyennes personnalisées : %@"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "שעות ממוצעות מותאמות אישית: %@"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "कस्टम औसत घंटे: %@"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prilagođeni prosječni sati: %@"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Egyéni átlagos órák: %@"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jam Rata-rata Kustom: %@"
           }
         },
         "it" : {
@@ -2798,82 +2792,10 @@
             "value" : "사용자 지정 평균 시간: %@"
           }
         },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Purata Jam Tersuai: %@"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tilpassede gjennomsnittlige timer: %@"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aangepaste gemiddelde uren: %@"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Niestandardowe średnie godziny: %@"
-          }
-        },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Horas médias personalizadas: %@"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ore medii personalizate: %@"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vlastné priemerné hodiny: %@"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prilagojene povprečne ure: %@"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anpassade genomsnittstimmar: %@"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ชั่วโมงเฉลี่ยที่กำหนดเอง: %@"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Özel Ortalama Saat: %@"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Користувацькі середні години: %@"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Số giờ trung bình tùy chỉnh: %@"
           }
         },
         "zh-Hans" : {
@@ -2892,40 +2814,10 @@
     },
     "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage." : {
       "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "قم بتخصيص لوحة المعلومات الخاصة بك عن طريق إدارة بطاقاتك:\n\n• تمكين/تعطيل البطاقات لإظهار ما يهمك فقط\n• إعادة ترتيب البطاقات عن طريق السحب لترتيب تخطيطك المثالي\n• تقدم كل بطاقة رؤى فريدة حول استخدام الطاقة والأسعار\n\nترقب وحدات البطاقات الجديدة - نحن نطور باستمرار ميزات جديدة لمساعدتك على فهم وإدارة استخدام الطاقة بشكل أفضل."
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Personalitzeu el vostre tauler gestionant les vostres targetes:\n\n• Activeu/desactiveu targetes per mostrar només el que us importa\n• Reordeneu les targetes arrossegant per organitzar la vostra disposició perfecta\n• Cada targeta ofereix informació única sobre el vostre ús d'energia i tarifes\n\nEstigueu atents als nous mòduls de targetes - estem desenvolupant constantment noves funcions per ajudar-vos a entendre i gestionar millor el vostre ús d'energia."
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přizpůsobte si svůj panel správou karet:\n\n• Povolte/zakažte karty pro zobrazení pouze toho, co je pro vás důležité\n• Přeuspořádejte karty přetažením pro vytvoření dokonalého rozložení\n• Každá karta nabízí jedinečné poznatky o vašem využití energie a sazbách\n\nSledujte nové moduly karet - neustále vyvíjíme nové funkce, které vám pomohou lépe porozumět a spravovat vaše využití energie."
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tilpas dit dashboard ved at administrere dine kort:\n\n• Aktiver/deaktiver kort for kun at vise det, der betyder noget for dig\n• Omarranger kort ved at trække for at skabe dit perfekte layout\n• Hvert kort giver unikke indsigter i dit energiforbrug og priser\n\nHold øje med nye kortmoduler - vi udvikler konstant nye funktioner for at hjælpe dig med bedre at forstå og administrere dit energiforbrug."
-          }
-        },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Passen Sie Ihr Dashboard durch die Verwaltung Ihrer Karten an:\n\n• Aktivieren/deaktivieren Sie Karten, um nur das anzuzeigen, was für Sie wichtig ist\n• Ordnen Sie Karten durch Ziehen neu an, um Ihr perfektes Layout zu erstellen\n• Jede Karte bietet einzigartige Einblicke in Ihren Energieverbrauch und Ihre Tarife\n\nBleiben Sie dran für neue Kartenmodule - wir entwickeln ständig neue Funktionen, um Ihnen zu helfen, Ihren Energieverbrauch besser zu verstehen und zu verwalten."
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Προσαρμόστε τον πίνακα ελέγχου σας διαχειριζόμενοι τις κάρτες σας:\n\n• Ενεργοποιήστε/απενεργοποιήστε κάρτες για να εμφανίζετε μόνο ό,τι έχει σημασία για εσάς\n• Αναδιατάξτε τις κάρτες σύροντάς τες για να δημιουργήσετε την τέλεια διάταξη\n• Κάθε κάρτα προσφέρει μοναδικές πληροφορίες για τη χρήση ενέργειας και τις τιμές σας\n\nΜείνετε συντονισμένοι για νέα μοντέλα καρτών - αναπτύσσουμε συνεχώς νέες λειτουργίες για να σας βοηθήσουμε να κατανοήσετε και να διαχειριστείτε καλύτερα τη χρήση ενέργειάς σας."
           }
         },
         "en" : {
@@ -2940,46 +2832,10 @@
             "value" : "Personaliza tu panel de control gestionando tus tarjetas:\n\n• Activa/desactiva tarjetas para mostrar solo lo que te importa\n• Reordena las tarjetas arrastrándolas para crear tu diseño perfecto\n• Cada tarjeta ofrece información única sobre tu consumo de energía y tarifas\n\nEstá atento a nuevos módulos de tarjetas - constantemente desarrollamos nuevas funciones para ayudarte a entender y gestionar mejor tu consumo de energía."
           }
         },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mukauta kojelautaasi hallinnoimalla korttejasi:\n\n• Ota käyttöön/poista käytöstä kortteja näyttääksesi vain sinulle tärkeät asiat\n• Järjestä kortit vetämällä luodaksesi täydellisen asettelun\n• Jokainen kortti tarjoaa ainutlaatuisia näkemyksiä energiankulutuksestasi ja hinnoista\n\nPysy kuulolla uusien korttimoduulien varalta - kehitämme jatkuvasti uusia ominaisuuksia auttaaksemme sinua ymmärtämään ja hallitsemaan energiankulutustasi paremmin."
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Personnalisez votre tableau de bord en gérant vos cartes :\n\n• Activez/désactivez les cartes pour n'afficher que ce qui compte pour vous\n• Réorganisez les cartes en les faisant glisser pour créer votre disposition parfaite\n• Chaque carte offre des aperçus uniques de votre consommation d'énergie et des tarifs\n\nRestez à l'écoute pour les nouveaux modules de cartes - nous développons constamment de nouvelles fonctionnalités pour vous aider à mieux comprendre et gérer votre consommation d'énergie."
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "התאם אישית את לוח המחוונים שלך על ידי ניהול הכרטיסים שלך:\n\n• הפעל/השבת כרטיסים כדי להציג רק את מה שחשוב לך\n• סדר מחדש כרטיסים על ידי גרירה כדי לארגן את הפריסה המושלמת שלך\n• כל כרטיס מציע תובנות ייחודיות לגבי צריכת האנרגיה והתעריפים שלך\n\nהישאר מעודכן לגבי מודולי כרטיסים חדשים - אנחנו מפתחים באופן מתמיד תכונות חדשות כדי לעזור לך להבין ולנהל טוב יותר את צריכת האנרגיה שלך."
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "अपने कार्ड्स को प्रबंधित करके अपना डैशबोर्ड अनुकूलित करें:\n\n• केवल वही दिखाने के लिए कार्ड्स को सक्षम/अक्षम करें जो आपके लिए महत्वपूर्ण है\n• अपना सर्वोत्तम लेआउट बनाने के लिए कार्ड्स को खींचकर पुनर्व्यवस्थित करें\n• प्रत्येक कार्ड आपके ऊर्जा उपयोग और दरों के बारे में अनूठी जानकारी प्रदान करता है\n\nनए कार्ड मॉड्यूल के लिए बने रहें - हम आपको अपने ऊर्जा उपयोग को बेहतर ढंग से समझने और प्रबंधित करने में मदद करने के लिए लगातार नई सुविधाएं विकसित कर रहे हैं।"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prilagodite svoju nadzornu ploču upravljanjem karticama:\n\n• Omogućite/onemogućite kartice kako biste prikazali samo ono što vam je važno\n• Promijenite redoslijed kartica povlačenjem za stvaranje savršenog rasporeda\n• Svaka kartica nudi jedinstvene uvide u vašu potrošnju energije i stope\n\nPratite nove module kartica - stalno razvijamo nove značajke kako bismo vam pomogli bolje razumjeti i upravljati vašom potrošnjom energije."
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Testreszabhatja irányítópultját a kártyák kezelésével:\n\n• Engedélyezze/tiltsa le a kártyákat, hogy csak azt mutassa, ami fontos Önnek\n• Rendezze át a kártyákat húzással a tökéletes elrendezés kialakításához\n• Minden kártya egyedi betekintést nyújt az energiafelhasználásába és díjaiba\n\nFigyelje az új kártyamodulokat - folyamatosan fejlesztünk új funkciókat, hogy segítsünk jobban megérteni és kezelni az energiafelhasználását."
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sesuaikan dasbor Anda dengan mengelola kartu Anda:\n\n• Aktifkan/nonaktifkan kartu untuk menampilkan hanya yang penting bagi Anda\n• Susun ulang kartu dengan menyeret untuk mengatur tata letak sempurna Anda\n• Setiap kartu menawarkan wawasan unik tentang penggunaan energi dan tarif Anda\n\nNantikan modul kartu baru - kami terus mengembangkan fitur baru untuk membantu Anda lebih memahami dan mengelola penggunaan energi Anda."
           }
         },
         "it" : {
@@ -3000,82 +2856,10 @@
             "value" : "카드를 관리하여 대시보드를 사용자 지정하세요:\n\n• 카드를 활성화/비활성화하여 중요한 정보만 표시\n• 카드를 드래그하여 완벽한 레이아웃으로 재정렬\n• 각 카드는 에너지 사용량과 요금에 대한 고유한 인사이트 제공\n\n새로운 카드 모듈을 기대해 주세요 - 에너지 사용을 더 잘 이해하고 관리할 수 있도록 새로운 기능을 지속적으로 개발하고 있습니다."
           }
         },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sesuaikan papan pemuka anda dengan menguruskan kad anda:\n\n• Dayakan/nyahdayakan kad untuk menunjukkan hanya apa yang penting untuk anda\n• Susun semula kad dengan menyeret untuk mengatur susun atur sempurna anda\n• Setiap kad menawarkan pandangan unik tentang penggunaan tenaga dan kadar anda\n\nNantikan modul kad baharu - kami sentiasa membangunkan ciri baharu untuk membantu anda lebih memahami dan mengurus penggunaan tenaga anda."
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tilpass dashbordet ditt ved å administrere kortene dine:\n\n• Aktiver/deaktiver kort for å vise kun det som betyr noe for deg\n• Omorganiser kort ved å dra for å arrangere ditt perfekte oppsett\n• Hvert kort gir unike innsikter i energiforbruket og prisene dine\n\nFølg med på nye kortmoduler - vi utvikler stadig nye funksjoner for å hjelpe deg å bedre forstå og administrere energiforbruket ditt."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pas je dashboard aan door je kaarten te beheren:\n\n• Schakel kaarten in/uit om alleen te tonen wat voor jou belangrijk is\n• Herorden kaarten door ze te slepen om je perfecte indeling te maken\n• Elke kaart biedt unieke inzichten in je energieverbruik en tarieven\n\nHoud je klaar voor nieuwe kaartmodules - we ontwikkelen voortdurend nieuwe functies om je te helpen je energieverbruik beter te begrijpen en te beheren."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dostosuj swój panel zarządzając kartami:\n\n• Włącz/wyłącz karty, aby pokazać tylko to, co jest dla Ciebie ważne\n• Zmień kolejność kart przeciągając je, aby stworzyć idealny układ\n• Każda karta oferuje unikalne wglądy w Twoje zużycie energii i stawki\n\nŚledź nowe moduły kart - stale rozwijamy nowe funkcje, aby pomóc Ci lepiej zrozumieć i zarządzać zużyciem energii."
-          }
-        },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Personalize o seu painel gerindo os seus cartões:\n\n• Ative/desative cartões para mostrar apenas o que é importante para si\n• Reordene cartões arrastando para organizar o seu layout perfeito\n• Cada cartão oferece insights únicos sobre o seu consumo de energia e tarifas\n\nFique atento a novos módulos de cartões - estamos constantemente a desenvolver novas funcionalidades para o ajudar a compreender e gerir melhor o seu consumo de energia."
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Personalizați-vă tabloul de bord gestionând cardurile:\n\n• Activați/dezactivați carduri pentru a afișa doar ce contează pentru dvs.\n• Reordonați cardurile prin tragere pentru a aranja aspectul perfect\n• Fiecare card oferă informații unice despre consumul dvs. de energie și tarife\n\nRămâneți la curent pentru noi module de carduri - dezvoltăm constant noi funcționalități pentru a vă ajuta să înțelegeți și să gestionați mai bine consumul de energie."
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prispôsobte si svoj panel správou kariet:\n\n• Povoľte/zakážte karty pre zobrazenie len toho, čo je pre vás dôležité\n• Preusporiadajte karty pretiahnutím pre vytvorenie dokonalého rozloženia\n• Každá karta ponúka jedinečné pohľady na vaše využitie energie a sadzby\n\nSledujte nové moduly kariet - neustále vyvíjame nové funkcie, ktoré vám pomôžu lepšie porozumieť a spravovať vaše využitie energie."
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prilagodite svojo nadzorno ploščo z upravljanjem kartic:\n\n• Omogočite/onemogočite kartice za prikaz samo tistega, kar vam je pomembno\n• Prerazporedite kartice z vlečenjem za popolno postavitev\n• Vsaka kartica ponuja edinstvene vpoglede v vašo porabo energije in tarife\n\nSpremljajte nove module kartic - nenehno razvijamo nove funkcije, ki vam bodo pomagale bolje razumeti in upravljati vašo porabo energije."
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anpassa din instrumentpanel genom att hantera dina kort:\n\n• Aktivera/inaktivera kort för att visa endast det som är viktigt för dig\n• Omordna kort genom att dra för att skapa din perfekta layout\n• Varje kort erbjuder unika insikter om din energianvändning och priser\n\nHåll utkik efter nya kortmoduler - vi utvecklar ständigt nya funktioner för att hjälpa dig att bättre förstå och hantera din energianvändning."
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ปรับแต่งแดชบอร์ดของคุณโดยการจัดการการ์ดของคุณ:\n\n• เปิด/ปิดการ์ดเพื่อแสดงเฉพาะสิ่งที่สำคัญสำหรับคุณ\n• จัดเรียงการ์ดใหม่โดยการลากเพื่อจัดรูปแบบที่สมบูรณ์แบบของคุณ\n• แต่ละการ์ดนำเสนอข้อมูลเชิงลึกที่ไม่เหมือนใครเกี่ยวกับการใช้พลังงานและอัตราของคุณ\n\nติดตามโมดูลการ์ดใหม่ - เรากำลังพัฒนาฟีเจอร์ใหม่ๆ อย่างต่อเนื่องเพื่อช่วยให้คุณเข้าใจและจัดการการใช้พลังงานของคุณได้ดียิ่งขึ้น"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kartlarınızı yöneterek gösterge panelinizi özelleştirin:\n\n• Yalnızca sizin için önemli olanları göstermek için kartları etkinleştirin/devre dışı bırakın\n• Mükemmel düzeninizi oluşturmak için kartları sürükleyerek yeniden sıralayın\n• Her kart, enerji kullanımınız ve tarifeleriniz hakkında benzersiz içgörüler sunar\n\nYeni kart modülleri için takipte kalın - enerji kullanımınızı daha iyi anlamanıza ve yönetmenize yardımcı olmak için sürekli yeni özellikler geliştiriyoruz."
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Налаштуйте свою панель керування, керуючи картками:\n\n• Вмикайте/вимикайте картки, щоб показувати лише те, що важливо для вас\n• Змінюйте порядок карток перетягуванням для створення ідеального макету\n• Кожна картка надає унікальні відомості про ваше використання енергії та тарифи\n\nСлідкуйте за новими модулями карток - ми постійно розробляємо нові функції, щоб допомогти вам краще розуміти та керувати використанням енергії."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tùy chỉnh bảng điều khiển của bạn bằng cách quản lý thẻ:\n\n• Bật/tắt thẻ để chỉ hiển thị những gì quan trọng với bạn\n• Sắp xếp lại thẻ bằng cách kéo để tạo bố cục hoàn hảo\n• Mỗi thẻ cung cấp thông tin độc đáo về mức sử dụng năng lượng và giá của bạn\n\nTheo dõi các mô-đun thẻ mới - chúng tôi liên tục phát triển tính năng mới để giúp bạn hiểu và quản lý việc sử dụng năng lượng tốt hơn."
           }
         },
         "zh-Hans" : {
@@ -3722,6 +3506,12 @@
             "value" : "Interaktive Tarife"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interactive Rates"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3901,6 +3691,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Benutzerdefinierte Durchschnittsstunden: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lowest [count] ([hours]-hour Averages)"
           }
         },
         "es" : {
@@ -4594,6 +4390,12 @@
             "value" : "Keine kommenden Daten für %@-Stunden-Durchschnittswerte"
           }
         },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No upcoming data for %@-hour averages"
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4715,6 +4517,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Jetzt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now"
           }
         },
         "es" : {
@@ -6301,1220 +6109,1225 @@
             "value" : "Mostra-lhe as tarifas mais altas"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示最高费率"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示最高費率"
-          }
+        "zh-Hans" : { "stringUnit" : {
+          "state" : "translated",
+          "value" : "显示最高费率"
         }
-      }
-    },
-    "Shows you the lowest rates" : {
-      "comment" : "descriptionKey for Lowest Rates",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeigt Ihnen die niedrigsten Tarife"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shows you the lowest rates"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Te muestra las tarifas más bajas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous montre les tarifs les plus bas"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ti mostra le tariffe più basse"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最低料金を表示します"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "가장 낮은 요금을 보여줍니다"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mostra-lhe as tarifas mais baixas"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示最低费率"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示最低費率"
-          }
-        }
-      }
-    },
-    "Shows you when rates are high" : {
-      "comment" : "descriptionKey for Peak Rate Warning",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeigt Ihnen, wann die Tarife hoch sind"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shows you when rates are high"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Te muestra cuándo las tarifas son altas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous montre quand les tarifs sont élevés"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ti mostra quando le tariffe sono alte"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "料金が高い時期を表示します"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "요금이 높은 시기를 보여줍니다"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mostra-lhe quando as tarifas são altas"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示费率较高的时段"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顯示費率較高的時段"
-          }
-        }
-      }
-    },
-    "Simple card view to find lowest rates" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einfache Kartenansicht zum Finden der niedrigsten Tarife"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Simple card view to find lowest rates"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vista simple de tarjeta para encontrar las tarifas más bajas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vue carte simple pour trouver les tarifs les plus bas"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vista semplice a schede per trovare le tariffe più basse"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最低料金を見つけるためのシンプルなカードビュー"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "최저 요금을 찾기 위한 간단한 카드 보기"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vista simples de cartão para encontrar as tarifas mais baixas"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查找最低费率的简单卡片视图"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查找最低費率的簡單卡片視圖"
-          }
-        }
-      }
-    },
-    "Start" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inicio"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Début"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inizio"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開始"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시작"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Início"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開始"
-          }
-        }
-      }
-    },
-    "StatusIndicator.Done" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abruf abgeschlossen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fetch done"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obtención completada"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Récupération terminée"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recupero completato"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "取得完了"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "가져오기 완료"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Busca concluída"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "数据获取完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "資料獲取完成"
-          }
-        }
-      }
-    },
-    "StatusIndicator.Failed" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abruf fehlgeschlagen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to fetch"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Error al obtener datos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec de récupération"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recupero fallito"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "取得失敗"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "가져오기 실패"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Falha na busca"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "数据获取失败"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "資料獲取失敗"
-          }
-        }
-      }
-    },
-    "StatusIndicator.Fetching" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daten werden abgerufen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fetching data"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obteniendo datos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Récupération des données"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recupero dati in corso"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "データを取得中"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "데이터 가져오는 중"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A buscar dados"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在获取数据"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在獲取資料"
-          }
-        }
-      }
-    },
-    "StatusIndicator.Pending" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abruf ausstehend"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pending fetch"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obtención pendiente"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Récupération en attente"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recupero in attesa"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "取得待ち"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "가져오기 대기 중"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Busca pendente"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "等待获取数据"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "等待獲取資料"
-          }
-        }
-      }
-    },
-    "Threshold" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schwellenwert"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Threshold"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Umbral"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seuil"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soglia"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "しきい値"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "임계값"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Limite"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "阈值"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "閾值"
-          }
-        }
-      }
-    },
-    "Time" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeit"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hora"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heure"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ora"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "時刻"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "시간"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hora"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时间"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "時間"
-          }
-        }
-      }
-    },
-    "Unlock" : {
-      "comment" : "Button to unlock a premium card\nButton to unlock a premium feature",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Freischalten"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desbloquear"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Débloquer"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sblocca"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ロック解除"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "잠금 해제"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desbloquear"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "解锁"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "解鎖"
-          }
-        }
-      }
-    },
-    "Until [time]" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bis [time]"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Until [time]"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hasta [time]"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jusqu'à [time]"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fino a [time]"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "[time]まで"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "[time]까지"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Até [time]"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直到 [time]"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直到 [time]"
-          }
-        }
-      }
-    },
-    "Until %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bis %@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hasta %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jusqu'à %@"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fino a %@"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@まで"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@까지"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Até %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直到 %@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直至 %@"
-          }
-        }
-      }
-    },
-    "Warning Threshold: %@ p/kWh" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warnschwelle: %@ p/kWh"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warning Threshold: %@ p/kWh"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Umbral de advertencia: %@ p/kWh"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seuil d'avertissement : %@ p/kWh"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soglia di avviso: %@ p/kWh"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "警告しきい値: %@ p/kWh"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "경고 임계값: %@ p/kWh"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Limite de aviso: %@ p/kWh"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "警告阈值：%@ 便士/千瓦时"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "警告閾值：%@ 便士/千瓦時"
-          }
-        }
-      }
-    },
-    "Warns you of upcoming peak pricing times." : {
-      "comment" : "descriptionKey for Highest Upcoming Rate",
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warnt Sie vor bevorstehenden Spitzenpreiszeiten."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warns you of upcoming peak pricing times."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Te advierte sobre los próximos horarios de precios máximos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous avertit des prochaines périodes de tarification de pointe."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ti avvisa dei prossimi periodi di tariffe di punta."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今後のピーク料金時間帯についてお知らせします。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다가오는 피크 요금 시간대를 알려줍니다."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avisa-o sobre os próximos períodos de tarifa de pico."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提醒您即将到来的高峰价格时段。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "提醒您即將到來的高峰價格時段。"
-          }
-        }
-      }
-    },
-    "You can choose length of period to average and how many rates to show" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sie können die Länge des Zeitraums für den Durchschnitt und die Anzahl der anzuzeigenden Tarife wählen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can choose length of period to average and how many rates to show"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Puedes elegir la duración del período para promediar y cuántas tarifas mostrar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous pouvez choisir la durée de la période à moyenner et le nombre de tarifs à afficher"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Puoi scegliere la durata del periodo da calcolare in media e quante tariffe mostrare"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "平均を取る期間の長さと表示する料金の数を選択できます"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "평균을 내는 기간의 길이와 표시할 요금의 수를 선택할 수 있습니다"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pode escolher a duração do período para calcular a média e quantas tarifas mostrar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您可以选择要平均的时间段长度和显示的费率数量"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您可以選擇要平均的時間段長度和顯示的費率數量"
-          }
-        }
-      }
-    },
-    "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sie können die besten Zeitbereiche anpassen, zum Beispiel die durchschnittlichen Stunden und deren Anzahl in der Liste festlegen, was wir aus den Durchschnittsratenkarten gelernt haben"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Puedes personalizar los mejores rangos de tiempo, por ejemplo, establecer las horas promedio y cuántas mostrar en la lista, lo que hemos aprendido de las tarjetas de tarifas promedio"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous pouvez personnaliser les meilleures plages horaires, par exemple définir les heures moyennes et leur nombre dans la liste, ce que nous avons appris des cartes de tarifs moyens"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Puoi personalizzare i migliori intervalli di tempo, ad esempio impostare le ore medie e quante mostrarne nell'elenco, cosa che abbiamo appreso dalle schede delle tariffe medie"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "平均料金カードから学んだように、最適な時間帯をカスタマイズできます。例えば、平均時間数やリストに表示する数を設定できます"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "평균 요금 카드에서 배운 대로, 최적의 시간대를 사용자 지정할 수 있습니다. 예를 들어, 평균 시간과 목록에 표시할 개수를 설정할 수 있습니다"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pode personalizar os melhores intervalos de tempo, por exemplo, definir as horas médias e quantas mostrar na lista, o que aprendemos com os cartões de tarifas médias"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您可以自定义最佳时间范围，例如设置平均小时数和列表中显示的数量，这些都是我们从平均费率卡片中学到的"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您可以自訂最佳時間範圍，例如設定平均小時數和列表中顯示的數量，這些都是我們從平均費率卡片中學到的"
-          }
-        }
-      }
-    },
-    "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ihre Postleitzahl wird verwendet, um Ihre Stromregion für genaue Tarife zu bestimmen. Die Postleitzahl wird nur lokal auf Ihrem Gerät gespeichert und wird niemals mit App-Entwicklern geteilt.\n\nWenn die Postleitzahl leer oder ungültig ist, wird standardmäßig Region 'H' (Südengland) verwendet."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu código postal se utiliza para determinar tu región eléctrica y obtener tarifas precisas. El código postal se almacena localmente solo en tu dispositivo y nunca se comparte con los desarrolladores de la aplicación.\n\nSi el código postal está vacío o no es válido, se utilizará la región 'H' (Sur de Inglaterra) por defecto."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre code postal est utilisé pour déterminer votre région électrique et obtenir des tarifs précis. Le code postal est stocké localement uniquement sur votre appareil et n'est jamais partagé avec les développeurs de l'application.\n\nSi le code postal est vide ou invalide, la région 'H' (Sud de l'Angleterre) sera utilisée par défaut."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Il tuo codice postale viene utilizzato per determinare la tua regione elettrica per tariffe accurate. Il codice postale viene memorizzato solo localmente sul tuo dispositivo e non viene mai condiviso con gli sviluppatori dell'app.\n\nSe il codice postale è vuoto o non valido, verrà utilizzata come predefinita la regione 'H' (Inghilterra meridionale)."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "郵便番号は、正確な料金のために電力供給地域を判断するために使用されます。郵便番号はお使いのデバイスにのみローカルに保存され、アプリ開発者と共有されることは決してありません。\n\n郵便番号が空欄または無効な場合、デフォルトとしてH地域（イングランド南部）が使用されます。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "우편번호는 정확한 요금을 위해 전기 공급 지역을 결정하는 데 사용됩니다. 우편번호는 사용자의 기기에만 로컬로 저장되며 앱 개발자와 절대 공유되지 않습니다.\n\n우편번호가 비어있거나 유효하지 않은 경우, 'H' 지역(남부 잉글랜드)이 기본값으로 사용됩니다."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O seu código postal é usado para determinar a sua região elétrica para tarifas precisas. O código postal é armazenado localmente apenas no seu dispositivo e nunca é partilhado com os desenvolvedores da aplicação.\n\nSe o código postal estiver vazio ou inválido, a região 'H' (Sul de Inglaterra) será usada por defeito."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您的邮政编码用于确定您的供电区域以获取准确的费率。邮政编码仅存储在您的设备本地，绝不会与应用开发者共享。\n\n如果邮政编码为空或无效，将默认使用 'H' 区域（英格兰南部）。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "您的郵遞區號用於確定您的供電區域以取得準確的費率。郵遞區號僅儲存在您的裝置本地，絕不會與應用程式開發者共享。\n\n如果郵遞區號為空或無效，將預設使用 'H' 區域（英格蘭南部）。"
-          }
-        }
-      }
-    },
-    "Zonal pricing would make energy bills cheaper..." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zonale Preisgestaltung würde Energierechnungen günstiger machen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zonal pricing would make energy bills cheaper"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La tarificación por zonas podría abaratar las facturas de energía"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La tarification zonale pourrait réduire les factures d'énergie"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La tariffazione zonale potrebbe ridurre le bollette energetiche"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ゾーン別料金設定でエネルギー料金を抑えることができます"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "구역별 요금제로 에너지 요금을 절약할 수 있습니다"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A precificação por zonas poderia reduzir as contas de energia"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分区定价可以降低能源账单"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分區定價可以降低能源帳單"
-          }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "顯示最高費率"
         }
       }
     }
   },
-  "version" : "1.0"
+  "Shows you the lowest rates" : {
+    "comment" : "descriptionKey for Lowest Rates",
+    "extractionState" : "manual",
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Zeigt Ihnen die niedrigsten Tarife"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Shows you the lowest rates"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Te muestra las tarifas más bajas"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vous montre les tarifs les plus bas"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Ti mostra le tariffe più basse"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "最低料金を表示します"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "가장 낮은 요금을 보여줍니다"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Mostra-lhe as tarifas mais baixas"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "显示最低费率"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "顯示最低費率"
+        }
+      }
+    }
+  },
+  "Shows you when rates are high" : {
+    "comment" : "descriptionKey for Peak Rate Warning",
+    "extractionState" : "manual",
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Zeigt Ihnen, wann die Tarife hoch sind"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Shows you when rates are high"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Te muestra cuándo las tarifas son altas"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vous montre quand les tarifs sont élevés"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Ti mostra quando le tariffe sono alte"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "料金が高い時期を表示します"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "요금이 높은 시기를 보여줍니다"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Mostra-lhe quando as tarifas são altas"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "显示费率较高的时段"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "顯示費率較高的時段"
+        }
+      }
+    }
+  },
+  "Simple card view to find lowest rates" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Einfache Kartenansicht zum Finden der niedrigsten Tarife"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Simple card view to find lowest rates"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vista simple de tarjeta para encontrar las tarifas más bajas"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vue carte simple pour trouver les tarifs les plus bas"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vista semplice a schede per trovare le tariffe più basse"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "最低料金を見つけるためのシンプルなカードビュー"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "최저 요금을 찾기 위한 간단한 카드 보기"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vista simples de cartão para encontrar as tarifas mais baixas"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "查找最低费率的简单卡片视图"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "查找最低費率的簡單卡片視圖"
+        }
+      }
+    }
+  },
+  "Start" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Start"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Inicio"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Début"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Inizio"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "開始"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "시작"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Início"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "开始"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "開始"
+        }
+      }
+    }
+  },
+  "StatusIndicator.Done" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Abruf abgeschlossen"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Fetch done"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Obtención completada"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Récupération terminée"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Recupero completato"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "取得完了"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "가져오기 완료"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Busca concluída"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "数据获取完成"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "資料獲取完成"
+        }
+      }
+    }
+  },
+  "StatusIndicator.Failed" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Abruf fehlgeschlagen"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Failed to fetch"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Error al obtener datos"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Échec de récupération"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Recupero fallito"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "取得失敗"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "가져오기 실패"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Falha na busca"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "数据获取失败"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "資料獲取失敗"
+        }
+      }
+    }
+  },
+  "StatusIndicator.Fetching" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Daten werden abgerufen"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Fetching data"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Obteniendo datos"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Récupération des données"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Recupero dati in corso"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "データを取得中"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "데이터 가져오는 중"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "A buscar dados"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "正在获取数据"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "正在獲取資料"
+        }
+      }
+    }
+  },
+  "StatusIndicator.Pending" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Abruf ausstehend"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Pending fetch"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Obtención pendiente"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Récupération en attente"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Recupero in attesa"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "取得待ち"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "가져오기 대기 중"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Busca pendente"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "等待获取数据"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "等待獲取資料"
+        }
+      }
+    }
+  },
+  "Threshold" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Schwellenwert"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Threshold"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Umbral"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Seuil"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Soglia"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "しきい値"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "임계값"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Limite"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "阈值"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "閾值"
+        }
+      }
+    }
+  },
+  "Time" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Zeit"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Hora"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Heure"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Ora"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "時刻"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "시간"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Hora"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "时间"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "時間"
+        }
+      }
+    }
+  },
+  "Unlock" : {
+    "comment" : "Button to unlock a premium card\nButton to unlock a premium feature",
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Freischalten"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Desbloquear"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Débloquer"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Sblocca"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "ロック解除"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "잠금 해제"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Desbloquear"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "解锁"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "解鎖"
+        }
+      }
+    }
+  },
+  "Until [time]" : {
+    "extractionState" : "manual",
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Bis [time]"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Until [time]"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Hasta [time]"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Jusqu'à [time]"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Fino a [time]"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "[time]まで"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "[time]까지"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Até [time]"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "直到 [time]"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "直到 [time]"
+        }
+      }
+    }
+  },
+  "Until %@" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Bis %@"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Until %@"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Hasta %@"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Jusqu'à %@"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Fino a %@"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "%@まで"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "%@까지"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Até %@"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "直到 %@"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "直至 %@"
+        }
+      }
+    }
+  },
+  "Warning Threshold: %@ p/kWh" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Warnschwelle: %@ p/kWh"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Warning Threshold: %@ p/kWh"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Umbral de advertencia: %@ p/kWh"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Seuil d'avertissement : %@ p/kWh"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Soglia di avviso: %@ p/kWh"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "警告しきい値: %@ p/kWh"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "경고 임계값: %@ p/kWh"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Limite de aviso: %@ p/kWh"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "警告阈值：%@ 便士/千瓦时"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "警告閾值：%@ 便士/千瓦時"
+        }
+      }
+    }
+  },
+  "Warns you of upcoming peak pricing times." : {
+    "comment" : "descriptionKey for Highest Upcoming Rate",
+    "extractionState" : "manual",
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Warnt Sie vor bevorstehenden Spitzenpreiszeiten."
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Warns you of upcoming peak pricing times."
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Te advierte sobre los próximos horarios de precios máximos."
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vous avertit des prochaines périodes de tarification de pointe."
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Ti avvisa dei prossimi periodi di tariffe di punta."
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "今後のピーク料金時間帯についてお知らせします。"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "다가오는 피크 요금 시간대를 알려줍니다."
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Avisa-o sobre os próximos períodos de tarifa de pico."
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "提醒您即将到来的高峰价格时段。"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "提醒您即將到來的高峰價格時段。"
+        }
+      }
+    }
+  },
+  "You can choose length of period to average and how many rates to show" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Sie können die Länge des Zeitraums für den Durchschnitt und die Anzahl der anzuzeigenden Tarife wählen"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "You can choose length of period to average and how many rates to show"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Puedes elegir la duración del período para promediar y cuántas tarifas mostrar"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vous pouvez choisir la durée de la période à moyenner et le nombre de tarifs à afficher"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Puoi scegliere la durata del periodo da calcolare in media e quante tariffe mostrare"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "平均を取る期間の長さと表示する料金の数を選択できます"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "평균을 내는 기간의 길이와 표시할 요금의 수를 선택할 수 있습니다"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Pode escolher a duração do período para calcular a média e quantas tarifas mostrar"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "您可以选择要平均的时间段长度和显示的费率数量"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "您可以選擇要平均的時間段長度和顯示的費率數量"
+        }
+      }
+    }
+  },
+  "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards" : {
+    "localizations" : {
+      "de" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Sie können die besten Zeitbereiche anpassen, zum Beispiel die durchschnittlichen Stunden und deren Anzahl in der Liste festlegen, was wir aus den Durchschnittsratenkarten gelernt haben"
+        }
+      },
+      "en" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards"
+        }
+      },
+      "es" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Puedes personalizar los mejores rangos de tiempo, por ejemplo, establecer las horas promedio y cuántas mostrar en la lista, lo que hemos aprendido de las tarjetas de tarifas promedio"
+        }
+      },
+      "fr" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Vous pouvez personnaliser les meilleures plages horaires, par exemple définir les heures moyennes et leur nombre dans la liste, ce que nous avons appris des cartes de tarifs moyens"
+        }
+      },
+      "it" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Puoi personalizzare i migliori intervalli di tempo, ad esempio impostare le ore medie e quante mostrarne nell'elenco, cosa che abbiamo appreso dalle schede delle tariffe medie"
+        }
+      },
+      "ja" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "平均料金カードから学んだように、最適な時間帯をカスタマイズできます。例えば、平均時間数やリストに表示する数を設定できます"
+        }
+      },
+      "ko" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "평균 요금 카드에서 배운 대로, 최적의 시간대를 사용자 지정할 수 있습니다. 예를 들어, 평균 시간과 목록에 표시할 개수를 설정할 수 있습니다"
+        }
+      },
+      "pt-PT" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "Pode personalizar os melhores intervalos de tempo, por exemplo, definir as horas médias e quantas mostrar na lista, o que aprendemos com os cartões de tarifas médias"
+        }
+      },
+      "zh-Hans" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "您可以自定义最佳时间范围，例如设置平均小时数和列表中显示的数量，这些都是我们从平均费率卡片中学到的"
+        }
+      },
+      "zh-Hant" : {
+        "stringUnit" : {
+          "state" : "translated",
+          "value" : "您可以自訂最佳時間範圍，例如設定平均小時數和列表中顯示的數量，這些都是我們從平均費率卡片中學到的"
+        }
+      }
+    }
+  },
+"Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default." : {
+"localizations" : {
+"de" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Ihre Postleitzahl wird verwendet, um Ihre Stromregion für genaue Tarife zu bestimmen. Die Postleitzahl wird nur lokal auf Ihrem Gerät gespeichert und wird niemals mit App-Entwicklern geteilt.\n\nWenn die Postleitzahl leer oder ungültig ist, wird standardmäßig Region 'H' (Südengland) verwendet."
+}
+},
+"en" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default."
+}
+},
+"es" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Tu código postal se utiliza para determinar tu región eléctrica y obtener tarifas precisas. El código postal se almacena localmente solo en tu dispositivo y nunca se comparte con los desarrolladores de la aplicación.\n\nSi el código postal está vacío o no es válido, se utilizará la región 'H' (Sur de Inglaterra) por defecto."
+}
+},
+"fr" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Votre code postal est utilisé pour déterminer votre région électrique et obtenir des tarifs précis. Le code postal est stocké localement uniquement sur votre appareil et n'est jamais partagé avec les développeurs de l'application.\n\nSi le code postal est vide ou invalide, la région 'H' (Sud de l'Angleterre) sera utilisée par défaut."
+}
+},
+"it" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Il tuo codice postale viene utilizzato per determinare la tua regione elettrica per tariffe accurate. Il codice postale viene memorizzato solo localmente sul tuo dispositivo e non viene mai condiviso con gli sviluppatori dell'app.\n\nSe il codice postale è vuoto o non valido, verrà utilizzata come predefinita la regione 'H' (Inghilterra meridionale)."
+}
+},
+"ja" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "郵便番号は、正確な料金のために電力供給地域を判断するために使用されます。郵便番号はお使いのデバイスにのみローカルに保存され、アプリ開発者と共有されることは決してありません。\n\n郵便番号が空欄または無効な場合、デフォルトとしてH地域（イングランド南部）が使用されます。"
+}
+},
+"ko" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "우편번호는 정확한 요금을 위해 전기 공급 지역을 결정하는 데 사용됩니다. 우편번호는 사용자의 기기에만 로컬로 저장되며 앱 개발자와 절대 공유되지 않습니다.\n\n우편번호가 비어있거나 유효하지 않은 경우, 'H' 지역(남부 잉글랜드)이 기본값으로 사용됩니다."
+}
+},
+"pt-PT" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "O seu código postal é usado para determinar a sua região elétrica para tarifas precisas. O código postal é armazenado localmente apenas no seu dispositivo e nunca é partilhado com os desenvolvedores da aplicação.\n\nSe o código postal estiver vazio ou inválido, a região 'H' (Sul de Inglaterra) será usada por defeito."
+}
+},
+"zh-Hans" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "您的邮政编码用于确定您的供电区域以获取准确的费率。邮政编码仅存储在您的设备本地，绝不会与应用开发者共享。\n\n如果邮政编码为空或无效，将默认使用 'H' 区域（英格兰南部）。"
+}
+},
+"zh-Hant" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "您的郵遞區號用於確定您的供電區域以取得準確的費率。郵遞區號僅儲存在您的裝置本地，絕不會與應用程式開發者共享。\n\n如果郵遞區號為空或無效，將預設使用 'H' 區域（英格蘭南部）。"
+}
+}
+}
+},
+"Zonal pricing would make energy bills cheaper..." : {
+"localizations" : {
+"de" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Zonale Preisgestaltung würde Energierechnungen günstiger machen"
+}
+},
+"en" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "Zonal pricing would make energy bills cheaper"
+}
+},
+"es" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "La tarificación por zonas podría abaratar las facturas de energía"
+}
+},
+"fr" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "La tarification zonale pourrait réduire les factures d'énergie"
+}
+},
+"it" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "La tariffazione zonale potrebbe ridurre le bollette energetiche"
+}
+},
+"ja" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "ゾーン別料金設定でエネルギー料金を抑えることができます"
+}
+},
+"ko" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "구역별 요금제로 에너지 요금을 절약할 수 있습니다"
+}
+},
+"pt-PT" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "A precificação por zonas poderia reduzir as contas de energia"
+}
+},
+"zh-Hans" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "分区定价可以降低能源账单"
+}
+},
+"zh-Hant" : {
+"stringUnit" : {
+"state" : "translated",
+"value" : "分區定價可以降低能源帳單"
+}
+}
+}
+}
+},
+"version" : "1.0"
 }

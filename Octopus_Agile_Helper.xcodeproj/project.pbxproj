@@ -258,6 +258,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				BFF957A42D249495002EE392 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BFF957502D248B6A002EE392 /* Octopus_HelperWidgets */,
@@ -336,6 +337,9 @@
 			);
 			mainGroup = BFE3DE532D1E0705003E74A4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BFF957962D2491B7002EE392 /* XCLocalSwiftPackageReference "Shared" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BFE3DE5D2D1E0706003E74A4 /* Products */;
 			projectDirPath = "";
@@ -427,6 +431,10 @@
 			isa = PBXTargetDependency;
 			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
 			targetProxy = BFF9575E2D248B6B002EE392 /* PBXContainerItemProxy */;
+		};
+		BFF957A42D249495002EE392 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = BFF957A32D249495002EE392 /* OctopusHelperShared */;
 		};
 /* End PBXTargetDependency section */
 
@@ -797,6 +805,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BFF957962D2491B7002EE392 /* XCLocalSwiftPackageReference "Shared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Shared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BFF957A32D249495002EE392 /* OctopusHelperShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFF957962D2491B7002EE392 /* XCLocalSwiftPackageReference "Shared" */;
+			productName = OctopusHelperShared;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BFE3DE542D1E0705003E74A4 /* Project object */;
 }
