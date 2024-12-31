@@ -6,7 +6,7 @@ public class RatesRepository {
     private var cachedRates: [RateEntity] = []
     private let urlSession = URLSession.shared
     
-    private init() {}
+    public init() {}
     
     public func updateRates(force: Bool = false) async throws {
         // Fetch rates from Octopus API

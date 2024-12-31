@@ -31,6 +31,6 @@ extension CardType: AppEnum {
         .lowestUpcoming: "Lowest Upcoming Rate",
         .highestUpcoming: "Highest Upcoming Rate",
         .averageUpcoming: "Average Upcoming Rate",
-        .current: "Current Rate"
+        .currentRate: "Current Rate"
     ]
 }

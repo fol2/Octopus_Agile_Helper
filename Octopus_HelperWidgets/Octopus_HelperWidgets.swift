@@ -62,8 +62,12 @@ struct CardWidgetView: View {
             HighestRateMiniWidget(rates: entry.rates)
         case .averageUpcoming:
             AverageRateMiniWidget(rates: entry.rates)
-        case .current:
+        case .currentRate:
             CurrentRateMiniWidget(rates: entry.rates)
+        case .interactiveChart:
+            Text("Interactive Chart not available in widget")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -82,9 +86,11 @@ struct LowestRateMiniWidget: View {
                     .font(.title2)
                     .bold()
                 
-                Text(RateFormatting.formatTime(lowest.validFrom))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                if let validFrom = lowest.validFrom {
+                    Text(RateFormatting.formatTime(validFrom))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding()
@@ -110,9 +116,11 @@ struct HighestRateMiniWidget: View {
                     .font(.title2)
                     .bold()
                 
-                Text(RateFormatting.formatTime(highest.validFrom))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                if let validFrom = highest.validFrom {
+                    Text(RateFormatting.formatTime(validFrom))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding()
@@ -159,7 +167,8 @@ struct CurrentRateMiniWidget: View {
     
     var body: some View {
         if let current = rates.first(where: { 
-            $0.validFrom <= Date() && $0.validTo > Date()
+            guard let validFrom = $0.validFrom, let validTo = $0.validTo else { return false }
+            return validFrom <= Date() && validTo > Date()
         }) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Current Rate")
@@ -170,9 +179,11 @@ struct CurrentRateMiniWidget: View {
                     .font(.title2)
                     .bold()
                 
-                Text("Until \(RateFormatting.formatTime(current.validTo))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                if let validTo = current.validTo {
+                    Text("Until \(RateFormatting.formatTime(validTo))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding()
