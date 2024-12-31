@@ -139,7 +139,7 @@ struct LowestUpcomingRateCardView: View {
                         }
                         
                         Spacer()
-                        Text(formatTimeRange(lowestRate.validFrom, lowestRate.validTo))
+                        Text(formatTimeRange(lowestRate.validFrom, lowestRate.validTo, locale: globalSettings.locale))
                             .font(Theme.secondaryFont())
                             .foregroundColor(Theme.secondaryTextColor)
                     }
@@ -174,7 +174,7 @@ struct LowestUpcomingRateCardView: View {
                                             .foregroundColor(Theme.secondaryTextColor)
                                     }
                                     Spacer()
-                                    Text(formatTimeRange(rate.validFrom, rate.validTo))
+                                    Text(formatTimeRange(rate.validFrom, rate.validTo, locale: globalSettings.locale))
                                         .font(Theme.subFont())
                                         .foregroundColor(Theme.secondaryTextColor)
                                 }
@@ -243,35 +243,5 @@ struct LowestUpcomingRateCardView: View {
         .padding(8)
         // Force content to top
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-    
-    // MARK: - Helper
-    private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
-        guard let from = from, let to = to else { return "" }
-        
-        let now = Date()
-        let calendar = Calendar.current
-        let fromDay = calendar.startOfDay(for: from)
-        let nowDay = calendar.startOfDay(for: now)
-        
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        timeFormatter.locale = globalSettings.locale
-        
-        let dateFormatter = DateFormatter()
-        if globalSettings.locale.language.languageCode?.identifier == "zh" {
-            dateFormatter.dateFormat = "MM月dd日"
-        } else {
-            dateFormatter.dateFormat = "d MMM"
-        }
-        dateFormatter.locale = globalSettings.locale
-        
-        if calendar.isDate(fromDay, inSameDayAs: nowDay) {
-            // Same day
-            return "\(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
-        } else {
-            // Different day
-            return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
-        }
     }
 }

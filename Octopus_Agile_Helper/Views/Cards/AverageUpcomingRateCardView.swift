@@ -151,7 +151,7 @@ struct AverageUpcomingRateCardView: View {
                                         .foregroundColor(Theme.secondaryTextColor)
                                 }
                                 Spacer()
-                                Text(formatTimeRange(entry.start, entry.end))
+                                Text(formatTimeRange(entry.start, entry.end, locale: globalSettings.locale))
                                     .font(Theme.subFont())
                                     .foregroundColor(Theme.secondaryTextColor)
                             }
@@ -233,41 +233,6 @@ struct AverageUpcomingRateCardView: View {
     }
     
     // MARK: - Helpers
-    
-    private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
-        guard let from = from, let to = to else { return "" }
-        
-        let now = Date()
-        let calendar = Calendar.current
-        
-        let fromDay = calendar.startOfDay(for: from)
-        let toDay   = calendar.startOfDay(for: to)
-        let nowDay  = calendar.startOfDay(for: now)
-        
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        timeFormatter.locale = globalSettings.locale
-        
-        let dateFormatter = DateFormatter()
-        if globalSettings.locale.language.languageCode?.identifier == "zh" {
-            dateFormatter.dateFormat = "MM月dd日"
-        } else {
-            dateFormatter.dateFormat = "d MMM"  // UK format
-        }
-        dateFormatter.locale = globalSettings.locale
-        
-        // same day
-        if calendar.isDate(fromDay, inSameDayAs: toDay) {
-            if calendar.isDate(fromDay, inSameDayAs: nowDay) {
-                return "\(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
-            } else {
-                return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
-            }
-        } else {
-            // different days for start and end
-            return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(dateFormatter.string(from: to)) \(timeFormatter.string(from: to))"
-        }
-    }
     
     // MARK: - Color Helper
     private func getRateColorForAverage(_ average: Double, _ start: Date, _ end: Date) -> Color {
