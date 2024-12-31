@@ -34,44 +34,81 @@ jobs:
           pwd
           echo "\nDirectory contents:"
           ls -la
+          echo "\nParent directory contents:"
+          ls -la ..
           echo "\nFull directory structure:"
-          find . -type f -name "*.xcodeproj" -o -name "*.swift"
+          find . -name "*.xcodeproj" -type d
+          echo "\nProject file contents (if exists):"
+          if [ -f "Octopus_Agile_Helper.xcodeproj/project.pbxproj" ]; then
+            plutil -p Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          else
+            echo "Project file not found at Octopus_Agile_Helper.xcodeproj/project.pbxproj"
+            echo "Searching for project file:"
+            find /Users/runner/work -name "project.pbxproj"
+          fi
+          
+      - name: Navigate to Correct Directory
+        run: |
+          if [ -d "Octopus_Agile_Helper" ]; then
+            echo "Found Octopus_Agile_Helper directory, moving into it"
+            cd Octopus_Agile_Helper
+          fi
+          pwd
+          ls -la
           
       - name: Repair Project File
         run: |
-          # First verify the project exists
-          if [ ! -f "Octopus_Agile_Helper.xcodeproj/project.pbxproj" ]; then
-            echo "Error: project.pbxproj not found at expected location"
-            exit 1
+          PROJECT_PATH="Octopus_Agile_Helper.xcodeproj/project.pbxproj"
+          if [ ! -f "$PROJECT_PATH" ]; then
+            PROJECT_PATH=$(find . -name "project.pbxproj" | head -n 1)
+            if [ -z "$PROJECT_PATH" ]; then
+              echo "Error: Cannot find project.pbxproj"
+              exit 1
+            fi
+            echo "Found project at: $PROJECT_PATH"
           fi
           
           echo "Checking file encoding..."
-          file Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          file "$PROJECT_PATH"
           
-          echo "Backing up project file..."
-          cp Octopus_Agile_Helper.xcodeproj/project.pbxproj Octopus_Agile_Helper.xcodeproj/project.pbxproj.backup
+          echo "Converting to XML..."
+          plutil -convert xml1 "$PROJECT_PATH"
           
-          echo "Converting to XML and back to ensure proper format..."
-          plutil -convert xml1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          echo "Creating template..."
+          printf "%s\n" \
+            "// !$*UTF8*$!" \
+            "{" \
+            "	archiveVersion = 1;" \
+            "	classes = {" \
+            "	};" \
+            "	objectVersion = 56;" \
+            "	objects = {" > temp.pbxproj
           
-          echo "Showing current object version..."
-          grep "objectVersion" Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          echo "Extracting objects..."
+          sed -n '/objects = {/,/};/p' "$PROJECT_PATH" >> temp.pbxproj
+          echo "}" >> temp.pbxproj
           
-          echo "Fixing object version..."
-          LC_ALL=C sed -i '' 's/objectVersion = 77/objectVersion = 56/g' Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          echo "Applying fixed version..."
+          mv temp.pbxproj "$PROJECT_PATH"
           
           echo "Converting back to binary..."
-          plutil -convert binary1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          plutil -convert binary1 "$PROJECT_PATH"
           
           echo "Verifying project file..."
-          plutil -lint Octopus_Agile_Helper.xcodeproj/project.pbxproj
-          
+          plutil -lint "$PROJECT_PATH"
+      
       - name: Build
         env:
           DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
         run: |
+          PROJECT_PATH=$(find . -name "*.xcodeproj" | head -n 1)
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "Error: Cannot find .xcodeproj"
+            exit 1
+          fi
+          echo "Found project at: $PROJECT_PATH"
           set -o pipefail && xcodebuild clean build \
-            -project Octopus_Agile_Helper.xcodeproj \
+            -project "$PROJECT_PATH" \
             -scheme Octopus_Agile_Helper \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
             -sdk iphonesimulator \
@@ -80,13 +117,14 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             ONLY_ACTIVE_ARCH=YES | xcpretty
-          
+      
       - name: Test
         env:
           DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
         run: |
+          PROJECT_PATH=$(find . -name "*.xcodeproj" | head -n 1)
           set -o pipefail && xcodebuild test \
-            -project Octopus_Agile_Helper.xcodeproj \
+            -project "$PROJECT_PATH" \
             -scheme Octopus_Agile_Helper \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
             -sdk iphonesimulator \
