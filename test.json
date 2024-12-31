@@ -1040,7 +1040,9 @@
           }
         },
         "it" : {
-          "stringUnit" :"value" : "Tariffe aggiuntive da mostrare: %lld"
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tariffe aggiuntive da mostrare: %lld"
           }
         },
         "ja" : {
@@ -7167,4 +7169,170 @@
           },
           "it" : {
             "stringUnit" : {
-              "state"
+              "state": "translated",
+              "value" : "Puoi personalizzare gli intervalli di tempo migliori, ad esempio impostare le ore medie e quante visualizzarne nell'elenco, cosa che abbiamo appreso dalle schede delle tariffe medie"
+            }
+          },
+          "ja" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "平均料金カードから学んだように、最適な時間帯をカスタマイズできます。例えば、平均時間数やリストに表示する数を設定できます。"
+            }
+          },
+          "ko" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "평균 요금 카드에서 배운 것처럼 최적의 시간대를 사용자 정의할 수 있습니다. 예를 들어, 평균 시간과 목록에 표시할 개수를 설정할 수 있습니다."
+            }
+          },
+          "pt-PT" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Você pode personalizar os melhores intervalos de tempo, por exemplo, definir as horas médias e quantas mostrar na lista, o que aprendemos com os cartões de tarifas médias"
+            }
+          },
+          "zh-Hans" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "您可以自定义最佳时间范围，例如设置平均小时数和列表中显示的数量，这是我们从平均费率卡中学到的。"
+            }
+          },
+          "zh-Hant" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "您可以自訂最佳時間範圍，例如設定平均小時數和列表中顯示的數量，這是我們從平均費率卡中學到的。"
+            }
+          }
+        }
+      },
+      "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default." : {
+        "localizations" : {
+          "de" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Deine Postleitzahl wird verwendet, um deine Stromregion für genaue Tarife zu bestimmen. Die Postleitzahl wird nur lokal auf deinem Gerät gespeichert und niemals mit App-Entwicklern geteilt.\n\nWenn die Postleitzahl leer oder ungültig ist, wird standardmäßig die Region 'H' (Südengland) verwendet."
+            }
+          },
+          "en" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default."
+            }
+          },
+          "es" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Tu código postal se utiliza para determinar tu región eléctrica para obtener tarifas precisas. El código postal se almacena localmente solo en tu dispositivo y nunca se comparte con los desarrolladores de la aplicación.\n\nSi el código postal está vacío o no es válido, se utilizará la región 'H' (sur de Inglaterra) por defecto."
+            }
+          },
+          "fr" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Votre code postal est utilisé pour déterminer votre région d'électricité pour des tarifs précis. Le code postal est stocké localement sur votre appareil uniquement et n'est jamais partagé avec les développeurs d'applications.\n\nSi le code postal est vide ou invalide, la région 'H' (sud de l'Angleterre) sera utilisée par défaut."
+            }
+          },
+          "it" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Il tuo codice postale viene utilizzato per determinare la tua regione elettrica per tariffe accurate. Il codice postale è memorizzato localmente solo sul tuo dispositivo e non viene mai condiviso con gli sviluppatori di app.\n\nSe il codice postale è vuoto o non valido, verrà utilizzata come predefinita la regione 'H' (Inghilterra meridionale)."
+            }
+          },
+          "ja" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "郵便番号は、正確な料金のために電力供給地域を判断するために使用されます。郵便番号はお使いのデバイスにのみローカルに保存され、アプリ開発者と共有されることはありません。\n\n郵便番号が空欄または無効な場合、デフォルトとしてH地域（イングランド南部）が使用されます。"
+            }
+          },
+          "ko" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "우편번호는 정확한 요금을 위해 전기 공급 지역을 결정하는 데 사용됩니다. 우편번호는 사용자의 기기에만 로컬로 저장되며 앱 개발자와 절대 공유되지 않습니다.\n\n우편번호가 비어 있거나 유효하지 않은 경우, 'H' 지역(남부 잉글랜드)이 기본값으로 사용됩니다."
+            }
+          },
+          "pt-PT" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "O seu código postal é usado para determinar a sua região de eletricidade para tarifas precisas. O código postal é armazenado localmente apenas no seu dispositivo e nunca é partilhado com os desenvolvedores da aplicação.\n\nSe o código postal estiver vazio ou inválido, a região 'H' (Sul de Inglaterra) será usada por defeito."
+            }
+          },
+          "zh-Hans" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "您的邮政编码用于确定您的供电区域以获取准确的费率。邮政编码仅存储在您的设备本地，绝不会与应用开发者共享。\n\n如果邮政编码为空或无效，将默认使用 'H' 区域（英格兰南部）。"
+            }
+          },
+          "zh-Hant" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "您的郵遞區號用於確定您的供電區域以取得準確的費率。郵遞區號僅儲存在您的裝置本地，絕不會與應用程式開發者共享。\n\n如果郵遞區號為空或無效，將預設使用 'H' 區域（英格蘭南部）。"
+            }
+          }
+        }
+      },
+      "Zonal pricing would make energy bills cheaper..." : {
+        "localizations" : {
+          "de" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Zonale Preisgestaltung würde die Energierechnungen günstiger machen"
+            }
+          },
+          "en" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "Zonal pricing would make energy bills cheaper"
+            }
+          },
+          "es" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "La tarificación por zonas podría abaratar las facturas de energía"
+            }
+          },
+          "fr" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "La tarification par zone pourrait réduire les factures d'énergie"
+            }
+          },
+          "it" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "La tariffazione a zone potrebbe rendere le bollette energetiche più economiche"
+            }
+          },
+          "ja" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "ゾーン別価格設定でエネルギー料金を抑えることができます"
+            }
+          },
+          "ko" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "구역별 가격 책정으로 에너지 요금을 절약할 수 있습니다"
+            }
+          },
+          "pt-PT" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "A tarifação por zonas poderia tornar as contas de energia mais baratas"
+            }
+          },
+          "zh-Hans" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "分区定价可以降低能源账单"
+            }
+          },
+          "zh-Hant" : {
+            "stringUnit" : {
+              "state" : "translated",
+              "value" : "分區定價可以降低能源帳單"
+            }
+          }
+        }
+      }
+    },
+    "version" : "1.0"
+  }
