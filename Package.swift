@@ -4,20 +4,26 @@ import PackageDescription
 let package = Package(
     name: "Octopus_Agile_Helper",
     platforms: [
-        .iOS(.v17)
+        .iOS(.v17),
+        .macOS(.v14)
     ],
     products: [
         .library(
             name: "Octopus_Agile_Helper",
             targets: ["Octopus_Agile_Helper"]),
     ],
-    dependencies: [
-        // Add any external dependencies here if needed
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "Octopus_Agile_Helper",
-            path: "Octopus_Agile_Helper"),
+            dependencies: [],
+            path: "Octopus_Agile_Helper",
+            resources: [
+                .process("Resources"),
+                .process("Assets.xcassets"),
+                .process("Preview Content")
+            ]
+        ),
         .testTarget(
             name: "Octopus_Agile_HelperTests",
             dependencies: ["Octopus_Agile_Helper"],

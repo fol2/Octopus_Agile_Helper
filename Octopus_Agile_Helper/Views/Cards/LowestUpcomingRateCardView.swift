@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Local Settings
 private struct LowestRateCardLocalSettings: Codable {
@@ -127,9 +128,14 @@ struct LowestUpcomingRateCardView: View {
                     
                     // Additional lowest rates if configured
                     if localSettings.settings.additionalRatesCount > 0 {
-                        let upcomingRates = viewModel.upcomingRates
-                            .filter { ($0.validFrom ?? .distantPast) > Date() }
-                            .sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
+                        let upcomingRates = Array(viewModel.upcomingRates)
+                            .filter { rate in
+                                guard let validFrom = rate.validFrom else { return false }
+                                return validFrom > Date()
+                            }
+                            .sorted { rate1, rate2 in
+                                rate1.valueIncludingVAT < rate2.valueIncludingVAT
+                            }
                         
                         if upcomingRates.count > 1 {
                             Divider()
