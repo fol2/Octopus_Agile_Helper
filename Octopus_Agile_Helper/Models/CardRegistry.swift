@@ -3,8 +3,30 @@ import SwiftUI
 struct MediaItem {
     let localName: String?
     let remoteURL: URL?
-    let isVideo: Bool
+    let youtubeID: String?
     let caption: LocalizedStringKey?
+    
+    var isVideo: Bool {
+        if youtubeID != nil { return true }
+        if let localName = localName {
+            return Bundle.main.url(forResource: localName, withExtension: "mp4") != nil
+        }
+        if let remoteURL = remoteURL {
+            let pathExtension = remoteURL.pathExtension.lowercased()
+            return ["mp4", "mov", "m4v"].contains(pathExtension)
+        }
+        return false
+    }
+    
+    init(localName: String? = nil, 
+         remoteURL: URL? = nil, 
+         youtubeID: String? = nil,
+         caption: LocalizedStringKey? = nil) {
+        self.localName = localName
+        self.remoteURL = remoteURL
+        self.youtubeID = youtubeID
+        self.caption = caption
+    }
 }
 
 /// Identifies a single card's metadata and how to produce its SwiftUI view
@@ -70,13 +92,11 @@ final class CardRegistry {
                     MediaItem(
                         localName: "imgCurrentRateInfo",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("Current Rate Card in the Cards view")
                     ),
                     MediaItem(
                         localName: "imgCurrentRateInfo2",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("Detailed rates list after expanded")
                     )
                 ],
@@ -97,13 +117,11 @@ final class CardRegistry {
                     MediaItem(
                         localName: "imgLowestRateInfo",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("Simple card view to find lowest rates")
                     ),
                     MediaItem(
                         localName: "imgLowestRateInfo2",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("Settings to list more lower rates")
                     )
                 ],
@@ -124,13 +142,11 @@ final class CardRegistry {
                     MediaItem(
                         localName: "imgHighestRateInfo",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("Overview of highest rates card")
                     ),
                     MediaItem(
                         localName: "imgHighestRateInfo2",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("How to find more higher rates")
                     )
                 ],
@@ -151,13 +167,11 @@ final class CardRegistry {
                     MediaItem(
                         localName: "imgAvgRateInfo",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("Overview of average rates card")
                     ),
                     MediaItem(
                         localName: "imgAvgRateInfo2",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("You can choose length of period to average and how many rates to show")
                     )
                 ],
@@ -178,13 +192,11 @@ final class CardRegistry {
                     MediaItem(
                         localName: "imgChartRateInfo",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("An interactive chart to see rates over time, also shows best time ranges")
                     ),
                     MediaItem(
                         localName: "imgChartRateInfo2",
                         remoteURL: nil,
-                        isVideo: false,
                         caption: LocalizedStringKey("You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards")
                     )
                 ],

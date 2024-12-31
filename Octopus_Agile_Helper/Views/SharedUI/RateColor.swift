@@ -23,8 +23,15 @@ struct RateColor {
         // Handle negative rates
         if rate.valueIncludingVAT < 0 {
             if let mostNegative = dayRates.filter({ $0.valueIncludingVAT < 0 }).min(by: { $0.valueIncludingVAT < $1.valueIncludingVAT }) {
-                let percentage = abs(rate.valueIncludingVAT / mostNegative.valueIncludingVAT)
-                return Color(red: 0.2, green: 0.8, blue: 0.4).opacity(0.4 + (percentage * 0.6))
+                // Calculate percentage based on how close to 0 the rate is, but keep minimum 20% intensity
+                let rawPercentage = abs(rate.valueIncludingVAT / mostNegative.valueIncludingVAT)
+                let percentage = 0.5 + (rawPercentage * 0.5) // This ensures we keep at least 50% of the color
+                // Base green color (RGB: 0.2, 0.8, 0.4)
+                return Color(
+                    red: 1.0 - (0.8 * percentage),   // Interpolate from 1.0 to 0.2
+                    green: 1.0 - (0.2 * percentage), // Interpolate from 1.0 to 0.8
+                    blue: 1.0 - (0.6 * percentage)   // Interpolate from 1.0 to 0.4
+                )
             }
             return Color(red: 0.2, green: 0.8, blue: 0.4)
         }

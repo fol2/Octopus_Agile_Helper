@@ -5,22 +5,38 @@ A macOS application to help Octopus Energy Agile tariff customers monitor and op
 ## Features
 
 ### Rate Monitoring
-- **Current Rate Card**: Shows the current electricity rate
-- **Lowest Upcoming Rate**: Displays the lowest upcoming rate in the next 24 hours
-- **Highest Upcoming Rate**: Alerts you to peak pricing periods
-- **Average Upcoming Rate**: Helps you understand typical costs
+- **Current Rate Card**: Shows the current electricity rate with color-coded pricing
+- **Lowest Upcoming Rate**: Displays the lowest upcoming rates with configurable number of additional rates
+- **Highest Upcoming Rate**: Alerts you to peak pricing periods with configurable additional rates
+- **Average Upcoming Rate**: Helps you understand typical costs with customizable averaging periods
+- **Interactive Rate Chart**: Visual representation of rates with interactive tooltips and best-time highlighting
+
+### Smart Refresh System
+- Automatic content updates at o'clock and half o'clock (XX:00:00 and XX:30:00)
+- Pull-to-refresh for manual updates
+- Intelligent fetch status indicator showing:
+  - Fetching status
+  - Success/failure notifications
+  - Pending state for scheduled updates
+- Smart error handling with automatic retry system
 
 ### Card Management
-The app now features a flexible card management system that allows you to:
+The app features a flexible card management system that allows you to:
 - Reorder cards by dragging
 - Enable/disable specific cards
-- Access premium features (coming soon)
+- Access premium features
+- Configure card-specific settings:
+  - Number of additional rates to show
+  - Custom averaging periods
+  - Chart display preferences
 
-To manage your cards:
-1. Click the gear icon to open Settings
-2. Select "Manage Cards"
-3. Drag cards to reorder them
-4. Use toggles to show/hide cards
+### Interactive Chart Features
+- Visual rate timeline with dynamic scaling
+- Highlighted best-time windows
+- Interactive tooltips with precise rate information
+- Real-time "Now" indicator
+- Haptic feedback for time selection
+- Customizable settings for time windows and display options
 
 ### Localization Support
 The app is fully localized and supports:
@@ -37,8 +53,8 @@ are properly localized and follow system conventions for each language.
 ## Installation
 
 ### Requirements
-- macOS 13.0 or later
-- Octopus Energy Agile tariff account
+- iOS 17.0 or later
+- Octopus Energy Agile tariff account (optional)
 - API key from Octopus Energy (optional)
 
 ### Setup
@@ -55,6 +71,14 @@ are properly localized and follow system conventions for each language.
 - **API Key**: Enable personal data access
 - **Display Options**: Configure rate display in pounds/pence
 - **Card Management**: Customize your dashboard layout
+- **Card-Specific Settings**: Configure individual card behaviors
+
+### Card Settings
+Each card can be customized with its own settings:
+- **Current Rate**: Basic display options
+- **Lowest/Highest Rate**: Number of additional rates to show
+- **Average Rate**: Custom averaging period and display count
+- **Interactive Chart**: Time window and display preferences
 
 ## Development
 

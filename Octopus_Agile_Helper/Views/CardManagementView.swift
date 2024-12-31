@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import WebKit
 
 struct CardManagementView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
@@ -48,7 +49,7 @@ struct CardManagementView: View {
         .environment(\.editMode, $editMode)
         .sheet(item: $selectedCard) { config in
             if let definition = CardRegistry.shared.definition(for: config.cardType) {
-                CardInfoSheet(definition: definition)
+                InfoSheet(viewModel: InfoSheetViewModel(from: definition))
                     .environmentObject(globalSettings)
                     .environment(\.locale, globalSettings.locale)
                     .presentationDragIndicator(.visible)
@@ -144,154 +145,5 @@ struct CardRowView: View {
     private func purchaseCard() {
         // In a real app, integrate with StoreKit, etc.
         cardConfig.isPurchased = true
-    }
-}
-
-struct MediaItemView: View {
-    let item: MediaItem
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let caption = item.caption {
-                Text(caption)
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-                    .textCase(.none)
-                    .padding(.horizontal, 20)
-            }
-            
-            if let localName = item.localName {
-                if item.isVideo {
-                    if let videoURL = Bundle.main.url(forResource: localName, withExtension: "mp4") {
-                        VideoPlayer(player: AVPlayer(url: videoURL))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 200)
-                            .padding(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Theme.secondaryColor, lineWidth: 2)
-                            )
-                    }
-                } else {
-                    Image(localName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Theme.secondaryColor, lineWidth: 2)
-                        )
-                        .frame(maxWidth: .infinity)
-                }
-            } else if let remoteURL = item.remoteURL {
-                if item.isVideo {
-                    VideoPlayer(player: AVPlayer(url: remoteURL))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 200)
-                        .padding(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Theme.secondaryColor, lineWidth: 2)
-                        )
-                } else {
-                    AsyncImage(url: remoteURL) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .padding(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Theme.secondaryColor, lineWidth: 2)
-                            )
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        }
-    }
-}
-
-struct CardInfoSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.locale) private var locale
-    @EnvironmentObject var globalSettings: GlobalSettingsManager
-    let definition: CardDefinition
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(LocalizedStringKey(definition.displayNameKey))
-                        .font(Theme.mainFont())
-                        .foregroundColor(Theme.mainTextColor)
-                        .textCase(.none)
-                        .padding(.bottom, 8)
-                        .padding(.horizontal, 20)
-                    
-                    Text(LocalizedStringKey(definition.descriptionKey))
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .textCase(.none)
-                        .padding(.horizontal, 20)
-                    
-                    if !definition.mediaItems.isEmpty {
-                        VStack(alignment: .leading, spacing: 24) {
-                            ForEach(definition.mediaItems.indices, id: \.self) { index in
-                                MediaItemView(item: definition.mediaItems[index])
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    
-                    if definition.isPremium {
-                        HStack {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                                .font(Theme.subFont())
-                            Text(LocalizedStringKey("Premium Feature"))
-                                .font(Theme.titleFont())
-                                .foregroundColor(Theme.mainTextColor)
-                                .textCase(.none)
-                        }
-                        .padding(.top, 8)
-                        .padding(.horizontal, 20)
-                    }
-                    
-                    if let learnMoreURL = definition.learnMoreURL {
-                        Link(destination: learnMoreURL) {
-                            HStack {
-                                Text(LocalizedStringKey("Learn more"))
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.mainColor)
-                                    .textCase(.none)
-                                Image(systemName: "arrow.up.right")
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.mainColor)
-                            }
-                        }
-                        .padding(.top, 8)
-                        .padding(.horizontal, 20)
-                    }
-                }
-                .padding(.vertical, 16)
-            }
-            .background(Theme.mainBackground)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Text(LocalizedStringKey("Done"))
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.mainColor)
-                            .textCase(.none)
-                    }
-                }
-            }
-        }
-        .environment(\.locale, locale)
     }
 }

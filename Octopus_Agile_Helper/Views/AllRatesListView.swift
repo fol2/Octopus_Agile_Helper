@@ -140,7 +140,17 @@ struct AllRatesListView: View {
                         ForEach(rates, id: \.objectID) { rate in
                             RateRowView(rate: rate, viewModel: viewModel, globalSettings: globalSettings)
                                 .id(rate.objectID)
-                                .listRowBackground(isRateCurrentlyActive(rate) ? Theme.accent.opacity(0.1) : Theme.secondaryBackground)
+                                .listRowBackground(
+                                    Group {
+                                        if isRateCurrentlyActive(rate) {
+                                            Theme.accent.opacity(0.1)
+                                        } else if rate.valueIncludingVAT < 0 {
+                                            Color(red: 0.0, green: 0.6, blue: 0.3).opacity(0.15)
+                                        } else {
+                                            Theme.secondaryBackground
+                                        }
+                                    }
+                                )
                                 .onAppear {
                                     // If this is one of the last items, load more
                                     if rates.last?.objectID == rate.objectID &&
@@ -218,7 +228,7 @@ private struct RateRowView: View {
         for i in 0..<(rates.count - 1) {
             let rate1 = rates[i]
             let rate2 = rates[i + 1]
-            let change = abs((rate2.valueIncludingVAT - rate1.valueIncludingVAT) / rate1.valueIncludingVAT * 100)
+            let change = abs((rate2.valueIncludingVAT - rate1.valueIncludingVAT) / abs(rate1.valueIncludingVAT)) * 100
             maxChange = max(maxChange, change)
         }
         return maxChange
@@ -270,8 +280,8 @@ private struct RateRowView: View {
         let currentValue = rate.valueIncludingVAT
         let previousValue = previousRate.valueIncludingVAT
         
-        // Calculate percentage change
-        let percentageChange = ((currentValue - previousValue) / previousValue) * 100
+        // Calculate percentage change using absolute value in denominator
+        let percentageChange = ((currentValue - previousValue) / abs(previousValue)) * 100
         
         // If there's no change
         if abs(percentageChange) < 0.01 {

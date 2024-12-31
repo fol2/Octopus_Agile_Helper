@@ -55,8 +55,14 @@ struct InteractiveLineChartCardView: View {
     
     // "Now" & timer, set to fire every 60 seconds
     @State private var now = Date()
+    // Timer for "Now" annotation updates
     private let timer = Timer
-        .publish(every: 60, on: .main, in: .common)
+        .publish(every: 1, on: .main, in: .common)
+        .autoconnect()
+    
+    // Timer for content refresh
+    private let refreshTimer = Timer
+        .publish(every: 1, on: .main, in: .common)
         .autoconnect()
     
     // Chart hover states
@@ -92,7 +98,25 @@ struct InteractiveLineChartCardView: View {
                                   perspective: 0.8)
         }
         .onReceive(timer) { _ in
-            handleTimerTick()
+            let calendar = Calendar.current
+            let second = calendar.component(.second, from: Date())
+            // Only update if we're at second 0
+            if second == 0 {
+                now = Date()
+            }
+        }
+        .onReceive(refreshTimer) { _ in
+            let calendar = Calendar.current
+            let date = Date()
+            let minute = calendar.component(.minute, from: date)
+            let second = calendar.component(.second, from: date)
+            
+            // Only refresh content at o'clock and half o'clock
+            if second == 0 && (minute == 0 || minute == 30) {
+                Task {
+                    await viewModel.refreshRates()
+                }
+            }
         }
         .onChange(of: filteredRates) { oldValue, newValue in
             // If the rates change significantly, recalc bar width right away

@@ -9,6 +9,11 @@ struct CurrentRateCardView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @State private var refreshTrigger = false
     
+    // Timer for content refresh
+    private let refreshTimer = Timer
+        .publish(every: 1, on: .main, in: .common)
+        .autoconnect()
+    
     private func getDayRates(for date: Date) -> [RateEntity] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -138,6 +143,19 @@ struct CurrentRateCardView: View {
         }
         .onTapGesture {
             presentAllRatesView()
+        }
+        .onReceive(refreshTimer) { _ in
+            let calendar = Calendar.current
+            let date = Date()
+            let minute = calendar.component(.minute, from: date)
+            let second = calendar.component(.second, from: date)
+            
+            // Only refresh content at o'clock and half o'clock
+            if second == 0 && (minute == 0 || minute == 30) {
+                Task {
+                    await viewModel.refreshRates()
+                }
+            }
         }
     }
     

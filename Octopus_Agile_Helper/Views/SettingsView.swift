@@ -33,11 +33,16 @@ struct SettingsView: View {
                     .textCase(.none)
                 Spacer()
                 InfoButton(
-                    message: LocalizedStringKey("Postcode determines your region for accurate rates. Default is region 'H'."),
+                    message: LocalizedStringKey("Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default."),
                     title: LocalizedStringKey("Region Lookup"),
-                    localMediaName: "region-lookup-demo",
-                    linkURL: URL(string: "https://octopus.energy/regions"),
-                    linkText: LocalizedStringKey("Learn more about regions")
+                    mediaItems: [
+                        MediaItem(
+                            youtubeID: "2Gp68uXVGfo",
+                            caption: LocalizedStringKey("Zonal pricing would make energy bills cheaper...")
+                        )
+                    ],
+                    linkURL: URL(string: "https://octopus.energy/blog/regional-pricing-explained/"),
+                    linkText: LocalizedStringKey("How zonal pricing could make bills cheaper")
                 )
             }) {
                 TextField(LocalizedStringKey("Postcode"), 
@@ -59,12 +64,11 @@ struct SettingsView: View {
                     .textCase(.none)
                 Spacer()
                 InfoButton(
-                    message: LocalizedStringKey("API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'."),
+                    message: LocalizedStringKey("API Key is optional for most features like viewing Agile rates, price trends, and historical data.\n\nYou only need an API key if you want to access your personal data such as:\n• Your actual consumption data\n• Your billing information\n• Your tariff details\n\nYour API key is stored securely on your device only and is never shared with app developers or third parties."),
                     title: LocalizedStringKey("API Configuration"),
-                    localMediaName: "api-access-demo",
-                    isVideo: false,
-                    linkURL: URL(string: "https://octopus.energy/api-access"),
-                    linkText: LocalizedStringKey("Learn more about API access")
+                    mediaItems: [],
+                    linkURL: URL(string: "https://octopus.energy/dashboard/new/accounts/personal-details/api-access"),
+                    linkText: LocalizedStringKey("Get your API key (Login required)")
                 )
             }) {
                 SecureField(LocalizedStringKey("API Key"), 
@@ -83,12 +87,9 @@ struct SettingsView: View {
                     .textCase(.none)
                 Spacer()
                 InfoButton(
-                    message: LocalizedStringKey("Set language and rate display preferences."),
+                    message: LocalizedStringKey("Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app. Rate display changes affect how prices are shown (pence vs pounds)."),
                     title: LocalizedStringKey("Preferences"),
-                    localMediaName: "preferences-demo",
-                    isVideo: false,
-                    linkURL: URL(string: "https://octopus.energy/preferences"),
-                    linkText: LocalizedStringKey("Learn more about preferences")
+                    mediaItems: []
                 )
             }) {
                 Picker(LocalizedStringKey("Language"), selection: $globalSettings.settings.selectedLanguage) {
@@ -117,12 +118,14 @@ struct SettingsView: View {
                     .textCase(.none)
                 Spacer()
                 InfoButton(
-                    message: LocalizedStringKey("Manage which cards are shown and their order."),
+                    message: LocalizedStringKey("Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage."),
                     title: LocalizedStringKey("Cards"),
-                    localMediaName: "cards-demo",
-                    isVideo: false,
-                    linkURL: URL(string: "https://octopus.energy/cards"),
-                    linkText: LocalizedStringKey("Learn more about cards")
+                    mediaItems: [
+                        MediaItem(
+                            localName: "imgCardManagementViewInfo",
+                            caption: LocalizedStringKey("")
+                        )
+                    ]
                 )
             }) {
                 NavigationLink(destination: CardManagementView()) {
@@ -151,9 +154,7 @@ struct SettingsView: View {
 struct InfoButton: View {
     let message: LocalizedStringKey
     let title: LocalizedStringKey
-    let mediaURL: URL?
-    let localMediaName: String?
-    let isVideo: Bool
+    let mediaItems: [MediaItem]
     let linkURL: URL?
     let linkText: LocalizedStringKey?
     
@@ -161,58 +162,17 @@ struct InfoButton: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var refreshID = UUID()
     @Environment(\.locale) private var locale
-    @Environment(\.dismiss) private var dismiss
     
     init(message: LocalizedStringKey, 
          title: LocalizedStringKey, 
-         mediaURL: URL? = nil,
-         localMediaName: String? = nil,
-         isVideo: Bool = false,
+         mediaItems: [MediaItem] = [],
          linkURL: URL? = nil,
          linkText: LocalizedStringKey? = nil) {
         self.message = message
         self.title = title
-        self.mediaURL = mediaURL
-        self.localMediaName = localMediaName
-        self.isVideo = isVideo
+        self.mediaItems = mediaItems
         self.linkURL = linkURL
         self.linkText = linkText
-    }
-    
-    private var mediaView: some View {
-        Group {
-            if let localMediaName = localMediaName {
-                if isVideo {
-                    if let videoURL = Bundle.main.url(forResource: localMediaName, withExtension: "mp4") {
-                        VideoPlayer(player: AVPlayer(url: videoURL))
-                            .frame(height: 200)
-                            .cornerRadius(8)
-                    }
-                } else {
-                    Image(localMediaName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(8)
-                        .frame(height: 200)
-                }
-            } else if let mediaURL = mediaURL {
-                if isVideo {
-                    VideoPlayer(player: AVPlayer(url: mediaURL))
-                        .frame(height: 200)
-                        .cornerRadius(8)
-                } else {
-                    AsyncImage(url: mediaURL) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .cornerRadius(8)
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .frame(height: 200)
-                }
-            }
-        }
     }
     
     var body: some View {
@@ -224,61 +184,14 @@ struct InfoButton: View {
                 .foregroundColor(Theme.secondaryTextColor)
         }
         .sheet(isPresented: $showingInfo) {
-            NavigationView {
-                List {
-                    Section {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text(title)
-                                .font(Theme.mainFont())
-                                .foregroundColor(Theme.mainTextColor)
-                                .textCase(.none)
-                                .padding(.bottom, 8)
-                            
-                            Text(message)
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                                .textCase(.none)
-                            
-                            mediaView
-                            
-                            if let linkURL = linkURL, let linkText = linkText {
-                                Link(destination: linkURL) {
-                                    HStack {
-                                        Text(linkText)
-                                            .font(Theme.secondaryFont())
-                                            .foregroundColor(Theme.mainColor)
-                                            .textCase(.none)
-                                        Image(systemName: "arrow.up.right")
-                                            .font(Theme.subFont())
-                                            .foregroundColor(Theme.mainColor)
-                                    }
-                                }
-                                .padding(.top, 8)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                    }
-                    .listRowBackground(Theme.secondaryBackground)
-                    .listRowInsets(EdgeInsets())
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(Theme.mainBackground)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showingInfo = false
-                        } label: {
-                            Text("Done")
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.mainColor)
-                                .textCase(.none)
-                        }
-                    }
-                }
-            }
+            InfoSheet(viewModel: InfoSheetViewModel(
+                title: title,
+                message: message,
+                mediaItems: mediaItems,
+                linkURL: linkURL,
+                linkText: linkText
+            ))
+            .environmentObject(globalSettings)
             .environment(\.locale, locale)
             .presentationDragIndicator(.visible)
         }

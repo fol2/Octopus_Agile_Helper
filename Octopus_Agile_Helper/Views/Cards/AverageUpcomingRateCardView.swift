@@ -51,6 +51,11 @@ struct AverageUpcomingRateCardView: View {
     // For re-render triggers
     @State private var refreshTrigger = false
     
+    // Timer for content refresh
+    private let refreshTimer = Timer
+        .publish(every: 1, on: .main, in: .common)
+        .autoconnect()
+    
     var body: some View {
         ZStack {
             // FRONT side
@@ -73,6 +78,19 @@ struct AverageUpcomingRateCardView: View {
         .id("average-rate-\(refreshTrigger)")
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
+        }
+        .onReceive(refreshTimer) { _ in
+            let calendar = Calendar.current
+            let date = Date()
+            let minute = calendar.component(.minute, from: date)
+            let second = calendar.component(.second, from: date)
+            
+            // Only refresh content at o'clock and half o'clock
+            if second == 0 && (minute == 0 || minute == 30) {
+                Task {
+                    await viewModel.refreshRates()
+                }
+            }
         }
     }
     

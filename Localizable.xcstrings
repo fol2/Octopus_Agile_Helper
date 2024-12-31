@@ -333,61 +333,36 @@
         }
       }
     },
-    "API Key is optional for viewing rates. Required for personal data access. Get it from your Octopus Energy dashboard under 'API Access'." : {
-      "comment" : "Help text explaining the API key field",
+    "API Key is optional for most features like viewing Agile rates, price trends, and historical data.\n\nYou only need an API key if you want to access your personal data such as:\n• Your actual consumption data\n• Your billing information\n• Your tariff details\n\nYour API key is stored securely on your device only and is never shared with app developers or third parties." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key is optional for most features like viewing Agile rates, price trends, and historical data.\n\nYou only need an API key if you want to access your personal data such as:\n• Your actual consumption data\n• Your billing information\n• Your tariff details\n\nYour API key is stored securely on your device only and is never shared with app developers or third parties."
+          }
+        },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La clave API es opcional para ver tarifas. Requerida para acceder a datos personales. Obténla en tu panel de Octopus Energy bajo 'API Access'."
+            "value" : "La clave API es opcional para la mayoría de las funciones como ver tarifas Agile, tendencias de precios y datos históricos.\n\nSolo necesitas una clave API si deseas acceder a tus datos personales como:\n• Tus datos de consumo real\n• Tu información de facturación\n• Los detalles de tu tarifa\n\nTu clave API se almacena de forma segura solo en tu dispositivo y nunca se comparte con desarrolladores de aplicaciones o terceros."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La clé API est optionnelle pour consulter les tarifs. Requise pour accéder aux données personnelles. Obtenez-la depuis votre tableau de bord Octopus Energy sous 'API Access'."
+            "value" : "La clé API est optionnelle pour la plupart des fonctionnalités comme la consultation des tarifs Agile, des tendances de prix et des données historiques.\n\nVous n'avez besoin d'une clé API que si vous souhaitez accéder à vos données personnelles telles que :\n• Vos données de consommation réelles\n• Vos informations de facturation\n• Les détails de votre tarif\n\nVotre clé API est stockée en toute sécurité uniquement sur votre appareil et n'est jamais partagée avec les développeurs d'applications ou des tiers."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看费率时 API 密钥为选填。访问个人资料时则为必填。您可以在 Octopus Energy 仪表板的「API Access」中获取。"
+            "value" : "对于大多数功能（如查看 Agile 费率、价格趋势和历史数据），API 密钥是可选的。\n\n只有当您想访问个人数据时才需要 API 密钥，例如：\n• 您的实际用电数据\n• 您的账单信息\n• 您的资费详情\n\n您的 API 密钥仅安全存储在您的设备上，绝不会与应用开发者或第三方共享。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看費率時 API 金鑰為選填。存取個人資料時則為必填。您可以在 Octopus Energy 儀表板的「API Access」中取得。"
-          }
-        }
-      }
-    },
-    "Average Upcoming Rates" : {
-      "comment" : "Navigation title for average rates settings",
-      "extractionState" : "stale",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tarifas próximas promedio"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tarifs moyens à venir"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "平均即将到来费率"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "平均即將到來費率"
+            "value" : "對於大多數功能（如查看 Agile 費率、價格趨勢和歷史資料），API 金鑰是可選的。\n\n只有當您想存取個人資料時才需要 API 金鑰，例如：\n• 您的實際用電資料\n• 您的帳單資訊\n• 您的資費詳情\n\n您的 API 金鑰僅安全儲存在您的裝置上，絕不會與應用程式開發者或第三方共享。"
           }
         }
       }
@@ -446,6 +421,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "卡片"
+          }
+        }
+      }
+    },
+    "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app. Rate display changes affect how prices are shown (pence vs pounds)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app. Rate display changes affect how prices are shown (pence vs pounds)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura tu idioma preferido y cómo se muestran las tarifas. Los cambios de idioma se aplicarán inmediatamente en toda la aplicación. Los cambios en la visualización de tarifas afectan cómo se muestran los precios (peniques vs libras)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurez votre langue préférée et l'affichage des tarifs. Les changements de langue sont appliqués immédiatement dans toute l'application. Les modifications d'affichage des tarifs affectent la façon dont les prix sont affichés (pence ou livres)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置您的首选语言和费率显示方式。语言更改将立即在整个应用中生效。费率显示更改会影响价格的显示方式（便士与英镑）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置您的偏好語言和費率顯示方式。語言更改將立即在整個應用程式中生效。費率顯示更改會影響價格的顯示方式（便士與英鎊）。"
           }
         }
       }
@@ -544,6 +553,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自訂平均小時數：%@"
+          }
+        }
+      }
+    },
+    "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personaliza tu panel de control gestionando tus tarjetas:\n\n• Activa/desactiva tarjetas para mostrar solo lo que te importa\n• Reordena las tarjetas arrastrándolas para crear tu diseño perfecto\n• Cada tarjeta ofrece información única sobre tu consumo de energía y tarifas\n\nEstá atento a nuevos módulos de tarjetas - constantemente desarrollamos nuevas funciones para ayudarte a entender y gestionar mejor tu consumo de energía."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personnalisez votre tableau de bord en gérant vos cartes :\n\n• Activez/désactivez les cartes pour n'afficher que ce qui compte pour vous\n• Réorganisez les cartes en les faisant glisser pour créer votre disposition parfaite\n• Chaque carte offre des aperçus uniques de votre consommation d'énergie et des tarifs\n\nRestez à l'écoute pour les nouveaux modules de cartes - nous développons constamment de nouvelles fonctionnalités pour vous aider à mieux comprendre et gérer votre consommation d'énergie."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通过管理卡片自定义您的仪表板：\n\n• 启用/禁用卡片，只显示对您重要的内容\n• 通过拖动重新排序卡片，打造完美布局\n• 每张卡片都提供独特的能源使用和费率洞察\n\n敬请期待新的卡片模块 - 我们正在不断开发新功能，帮助您更好地理解和管理能源使用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "透過管理卡片自訂您的儀表板：\n\n• 啟用/停用卡片，只顯示對您重要的內容\n• 透過拖曳重新排序卡片，打造完美版面配置\n• 每張卡片都提供獨特的能源使用和費率洞察\n\n敬請期待新的卡片模組 - 我們正在不斷開發新功能，幫助您更好地理解和管理能源使用。"
           }
         }
       }
@@ -705,42 +748,6 @@
         }
       }
     },
-    "Enable card" : {
-      "comment" : "Toggle to enable/disable a card",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable card"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activar tarjeta"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activer la carte"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启用卡片"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "啟用卡片"
-          }
-        }
-      }
-    },
     "End" : {
       "localizations" : {
         "es" : {
@@ -765,6 +772,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "結束"
+          }
+        }
+      }
+    },
+    "Get your API key (Login required)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get your API key (Login required)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtén tu clave API (Requiere inicio de sesión)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtenir votre clé API (Connexion requise)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取 API 密钥（需要登录）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取得 API 金鑰（需要登入）"
           }
         }
       }
@@ -838,37 +879,36 @@
         }
       }
     },
-    "Interactive Rate Chart" : {
-      "extractionState" : "stale",
+    "How zonal pricing could make bills cheaper" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Interactive Rate Chart"
+            "value" : "How zonal pricing could make bills cheaper"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gráfico de tarifas interactivo"
+            "value" : "Cómo los precios por zonas podrían reducir las facturas"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Graphique de tarifs interactif"
+            "value" : "Comment la tarification par zone pourrait réduire les factures"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "互动费率图表"
+            "value" : "分区定价如何降低账单费用"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "互動費率圖表"
+            "value" : "分區定價如何降低帳單費用"
           }
         }
       }
@@ -959,142 +999,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "了解更多"
-          }
-        }
-      }
-    },
-    "Learn more about API access" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Learn more about API access"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Más información sobre el acceso a la API"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En savoir plus sur l'accès à l'API"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多关于 API 访问的信息"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多關於 API 存取的資訊"
-          }
-        }
-      }
-    },
-    "Learn more about cards" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Learn more about cards"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Más información sobre las tarjetas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En savoir plus sur les cartes"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多关于卡片的信息"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多關於卡片的資訊"
-          }
-        }
-      }
-    },
-    "Learn more about preferences" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Learn more about preferences"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Más información sobre las preferencias"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En savoir plus sur les préférences"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多关于偏好设置的信息"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多關於偏好設定的資訊"
-          }
-        }
-      }
-    },
-    "Learn more about regions" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Learn more about regions"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Más información sobre las regiones"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "En savoir plus sur les régions"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多关于地区的信息"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "了解更多關於地區的資訊"
           }
         }
       }
@@ -1232,35 +1136,6 @@
         }
       }
     },
-    "Manage which cards are shown and their order." : {
-      "comment" : "Help text explaining the cards management section",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gestiona qué tarjetas se muestran y su orden."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gérez quelles cartes sont affichées et leur ordre."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "管理要显示哪些卡片及其顺序。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "管理要顯示哪些卡片及其順序。"
-          }
-        }
-      }
-    },
     "Max" : {
       "localizations" : {
         "en" : {
@@ -1324,41 +1199,6 @@
         }
       }
     },
-    "MaxY" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Maximum Value"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Valor máximo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Valeur maximale"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最大值"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最大值"
-          }
-        }
-      }
-    },
     "Min" : {
       "localizations" : {
         "en" : {
@@ -1389,41 +1229,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最小"
-          }
-        }
-      }
-    },
-    "MinY" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Minimum Value"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Valor mínimo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Valeur minimale"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最小值"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最小值"
           }
         }
       }
@@ -1630,41 +1435,6 @@
         }
       }
     },
-    "NowLine" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current Time"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hora actual"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heure actuelle"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前时间"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "目前時間"
-          }
-        }
-      }
-    },
     "Octopus Agile" : {
       "localizations" : {
         "en" : {
@@ -1796,35 +1566,6 @@
         }
       }
     },
-    "Postcode determines your region for accurate rates. Default is region 'H'." : {
-      "comment" : "Help text explaining the postcode field",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El código postal determina tu región para tarifas precisas. La región predeterminada es 'H'."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le code postal détermine votre région pour des tarifs précis. La région par défaut est 'H'."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "邮政编码决定您的地区以取得准确费率。默认地区为 'H'。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "郵遞區號決定您的地區以取得準確費率。預設地區為 'H'。"
-          }
-        }
-      }
-    },
     "Preferences" : {
       "comment" : "Header for the preferences section",
       "localizations" : {
@@ -1936,35 +1677,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "地區查詢"
-          }
-        }
-      }
-    },
-    "Set language and rate display preferences." : {
-      "comment" : "Help text explaining the preferences section",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configura el idioma y las preferencias de visualización de tarifas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Définissez la langue et les préférences d'affichage des tarifs."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "设置语言和费率显示偏好。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "設定語言和費率顯示偏好。"
           }
         }
       }
@@ -2166,7 +1878,6 @@
       }
     },
     "StatusIndicator.Done" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2201,7 +1912,6 @@
       }
     },
     "StatusIndicator.Failed" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2236,7 +1946,6 @@
       }
     },
     "StatusIndicator.Fetching" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2271,7 +1980,6 @@
       }
     },
     "StatusIndicator.Pending" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2329,42 +2037,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "時間"
-          }
-        }
-      }
-    },
-    "Unknown Date" : {
-      "comment" : "Fallback text when a rate's date is not available",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unknown Date"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fecha desconocida"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Date inconnue"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未知日期"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未知日期"
           }
         }
       }
@@ -2561,6 +2233,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "您可以自訂最佳時間範圍，例如設定平均小時數和列表中顯示的數量，這些我們從平均費率卡片中學到"
+          }
+        }
+      }
+    },
+    "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu código postal se utiliza para determinar tu región eléctrica y obtener tarifas precisas. El código postal se almacena localmente solo en tu dispositivo y nunca se comparte con los desarrolladores de la aplicación.\n\nSi el código postal está vacío o no es válido, se utilizará la región 'H' (Sur de Inglaterra) por defecto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre code postal est utilisé pour déterminer votre région électrique et obtenir des tarifs précis. Le code postal est stocké localement uniquement sur votre appareil et n'est jamais partagé avec les développeurs de l'application.\n\nSi le code postal est vide ou invalide, la région 'H' (Sud de l'Angleterre) sera utilisée par défaut."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的邮政编码用于确定您的供电区域以获取准确的费率。邮政编码仅存储在您的设备本地，绝不会与应用开发者共享。\n\n如果邮政编码为空或无效，将默认使用 'H' 区域（英格兰南部）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您的郵遞區號用於確定您的供電區域以取得準確的費率。郵遞區號僅儲存在您的裝置本地，絕不會與應用程式開發者共享。\n\n如果郵遞區號為空或無效，將預設使用 'H' 區域（英格蘭南部）。"
+          }
+        }
+      }
+    },
+    "Zonal pricing would make energy bills cheaper..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zonal pricing would make energy bills cheaper..."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los precios por zonas reducirían las facturas de energía..."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tarification par zone réduirait les factures d'énergie..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分区定价将降低能源账单费用..."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分區定價將降低能源帳單費用..."
           }
         }
       }

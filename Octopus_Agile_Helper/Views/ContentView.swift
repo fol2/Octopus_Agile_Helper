@@ -43,8 +43,19 @@ struct ContentView: View {
     @State private var refreshTrigger = false
     @State private var forcedRefresh = false
     
+    // Timer for content refresh
+    private let refreshTimer = Timer
+        .publish(every: 1, on: .main, in: .common)
+        .autoconnect()
+    
     // Track if large title is collapsed enough
     @State private var isCollapsed = false
+    
+    // Dynamic copyright text
+    private var copyrightText: String {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
+    }
     
     init() {
         let tempTimer = GlobalTimer()
@@ -76,9 +87,14 @@ struct ContentView: View {
                 .padding(.top, 22)  // Add spacing between title and first card
                 // (Optionally keep OffsetTrackingView here, if you want to measure offset.)
                 OffsetTrackingView()
-                .padding(.vertical)
+                .padding(.vertical, 4)  // Reduced from default padding
                 .id("vstack-\(forcedRefresh)")
                 
+                // Copyright notice
+                Text(copyrightText)
+                    .font(.footnote)
+                    .foregroundColor(Theme.secondaryTextColor)
+                    .padding(.vertical, 8)  // Reduced from default padding to 8 points
             }
             .background(Theme.mainBackground)
             .scrollContentBackground(.hidden)
@@ -145,9 +161,19 @@ struct ContentView: View {
         // Debug forced refresh for UI
         .onAppear {
             ratesViewModel.updateTimer(globalTimer)
-            Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-                forcedRefresh.toggle()
-                print("DEBUG: Forcing re-render at \(Date())")
+        }
+        // Content refresh timer
+        .onReceive(refreshTimer) { _ in
+            let calendar = Calendar.current
+            let date = Date()
+            let minute = calendar.component(.minute, from: date)
+            let second = calendar.component(.second, from: date)
+            
+            // Only refresh content at o'clock and half o'clock
+            if second == 0 && (minute == 0 || minute == 30) {
+                Task {
+                    await ratesViewModel.refreshRates()
+                }
             }
         }
     }
