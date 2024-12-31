@@ -20,10 +20,20 @@ jobs:
         with:
           xcode-version: '15.2'
       
-      - name: Show Xcode Version
+      - name: Show Environment
         run: |
           xcodebuild -version
+          swift --version
+          xcrun --sdk iphonesimulator --show-sdk-path
+          echo "Available simulators:"
           xcrun simctl list devices
+          
+      - name: Verify Project Structure
+        run: |
+          echo "Project structure:"
+          ls -R Octopus_Agile_Helper.xcodeproj
+          echo "Project file contents:"
+          plutil -p Octopus_Agile_Helper.xcodeproj/project.pbxproj
           
       - name: Build
         run: |
@@ -31,9 +41,12 @@ jobs:
             -project Octopus_Agile_Helper.xcodeproj \
             -scheme Octopus_Agile_Helper \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -sdk iphonesimulator \
+            -allowProvisioningUpdates \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES
           
       - name: Test
         run: |
@@ -41,6 +54,8 @@ jobs:
             -project Octopus_Agile_Helper.xcodeproj \
             -scheme Octopus_Agile_Helper \
             -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -sdk iphonesimulator \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES
