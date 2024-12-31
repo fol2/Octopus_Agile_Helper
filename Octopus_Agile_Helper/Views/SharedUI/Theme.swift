@@ -8,6 +8,7 @@
 import SwiftUI
 
 /// A centralized place to define color palettes and text styles to unify the UI.
+@available(iOS 17.0, *)
 public struct Theme {
     
     // MARK: - Background Colors
@@ -72,6 +73,7 @@ public struct Theme {
         .body
     }
     
+    @available(iOS 17.0, *)
     public static func subFont() -> Font {
         .subheadline
     }
