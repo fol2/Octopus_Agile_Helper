@@ -1,17 +1,14 @@
 import SwiftUI
 
-// Local settings for this card
+// MARK: - Local Settings
 private struct HighestRateCardLocalSettings: Codable {
     var additionalRatesCount: Int
-    
     static let `default` = HighestRateCardLocalSettings(additionalRatesCount: 2)
 }
 
 private class HighestRateCardLocalSettingsManager: ObservableObject {
     @Published var settings: HighestRateCardLocalSettings {
-        didSet {
-            saveSettings()
-        }
+        didSet { saveSettings() }
     }
     
     private let userDefaultsKey = "HighestRateCardSettings"
@@ -32,14 +29,184 @@ private class HighestRateCardLocalSettingsManager: ObservableObject {
     }
 }
 
+// MARK: - Flip Card Approach
 struct HighestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
+    
     @StateObject private var localSettings = HighestRateCardLocalSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
-    @State private var showingLocalSettings = false
+    
+    @State private var flipped = false
     @State private var refreshTrigger = false
     
+    var body: some View {
+        ZStack {
+            // FRONT side
+            frontSide
+                .opacity(flipped ? 0 : 1)
+                .rotation3DEffect(.degrees(flipped ? 180 : 0),
+                                  axis: (x: 0, y: 1, z: 0),
+                                  perspective: 0.8)
+            
+            // BACK side (settings)
+            backSide
+                .opacity(flipped ? 1 : 0)
+                .rotation3DEffect(.degrees(flipped ? 0 : -180),
+                                  axis: (x: 0, y: 1, z: 0),
+                                  perspective: 0.8)
+        }
+        .frame(maxWidth: 400) // or whatever suits your layout
+        .rateCardStyle()
+        .environment(\.locale, globalSettings.locale)
+        .onChange(of: globalSettings.locale) { _, _ in
+            refreshTrigger.toggle()
+        }
+    }
+    
+    // MARK: - Front Side
+    private var frontSide: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                if let def = CardRegistry.shared.definition(for: .highestUpcoming) {
+                    Image(systemName: def.iconName)
+                        .foregroundColor(Theme.icon)
+                }
+                Text("Highest Upcoming Rates")
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Spacer()
+                // Flip to settings
+                Button {
+                    withAnimation(.spring()) {
+                        flipped = true
+                    }
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
+            
+            if viewModel.isLoading {
+                ProgressView()
+            } else if let highestRate = viewModel.highestUpcomingRate {
+                VStack(alignment: .leading, spacing: 8) {
+                    let parts = viewModel.formatRate(
+                        highestRate.valueIncludingVAT,
+                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                    )
+                    .split(separator: " ")
+                    
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(parts[0])
+                            .font(Theme.mainFont())
+                            .foregroundColor(RateColor.getColor(for: highestRate, allRates: viewModel.allRates))
+                        
+                        if parts.count > 1 {
+                            Text(parts[1])
+                                .font(Theme.subFont())
+                                .foregroundColor(Theme.secondaryTextColor)
+                        }
+                        
+                        Spacer()
+                        Text(formatTimeRange(highestRate.validFrom, highestRate.validTo))
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                    }
+                    
+                    if localSettings.settings.additionalRatesCount > 0 {
+                        let upcomingRates = viewModel.upcomingRates
+                            .filter { ($0.validFrom ?? .distantPast) > Date() }
+                            .sorted { $0.valueIncludingVAT > $1.valueIncludingVAT }
+                        
+                        if upcomingRates.count > 1 {
+                            Divider()
+                            
+                            ForEach(
+                                upcomingRates.prefix(localSettings.settings.additionalRatesCount + 1).dropFirst(),
+                                id: \.validFrom
+                            ) { rate in
+                                let rateParts = viewModel.formatRate(
+                                    rate.valueIncludingVAT,
+                                    showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                )
+                                .split(separator: " ")
+                                
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(rateParts[0])
+                                        .font(Theme.mainFont2())
+                                        .foregroundColor(RateColor.getColor(for: rate, allRates: viewModel.allRates))
+                                    
+                                    if rateParts.count > 1 {
+                                        Text(rateParts[1])
+                                            .font(Theme.subFont())
+                                            .foregroundColor(Theme.secondaryTextColor)
+                                    }
+                                    Spacer()
+                                    Text(formatTimeRange(rate.validFrom, rate.validTo))
+                                        .font(Theme.subFont())
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+            } else {
+                Text("No upcoming rates available")
+                    .foregroundColor(Theme.secondaryTextColor)
+            }
+        }
+    }
+    
+    // MARK: - Back Side (Settings)
+    private var backSide: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                if let def = CardRegistry.shared.definition(for: .highestUpcoming) {
+                    Image(systemName: def.iconName)
+                        .foregroundColor(Theme.icon)
+                }
+                Text("Card Settings")
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Spacer()
+                // Flip back
+                Button {
+                    withAnimation(.spring()) {
+                        flipped = false
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
+            
+            // The row for "Additional Rates..."
+            HStack(alignment: .center) {
+                Text("Additional Rates to Show: \(localSettings.settings.additionalRatesCount)")
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                Spacer()
+                Stepper("", value: $localSettings.settings.additionalRatesCount, in: 0...10)
+                    .labelsHidden()
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                    .tint(Theme.secondaryColor)
+                    .padding(.horizontal, 6)
+                    .background(Theme.secondaryBackground)
+                    .cornerRadius(8)
+            }
+            .padding(.top, 8)
+        }
+        .padding(8)
+        // Force the entire content to stick to the top:
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+    
+    // MARK: - Helper
     private func formatTimeRange(_ from: Date?, _ to: Date?) -> String {
         guard let from = from, let to = to else { return "" }
         let now = Date()
@@ -56,142 +223,15 @@ struct HighestUpcomingRateCardView: View {
         if globalSettings.locale.language.languageCode?.identifier == "zh" {
             dateFormatter.dateFormat = "MM月dd日"
         } else {
-            dateFormatter.dateFormat = "d MMM"  // UK format
+            dateFormatter.dateFormat = "d MMM"
         }
         dateFormatter.locale = globalSettings.locale
         
+        // If same day as 'today', just show time range
         if calendar.isDate(fromDay, inSameDayAs: nowDay) {
             return "\(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
         } else {
             return "\(dateFormatter.string(from: from)) \(timeFormatter.string(from: from))-\(timeFormatter.string(from: to))"
         }
     }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "arrow.up.circle.fill")
-                    .foregroundColor(.red)
-                Text("Highest Upcoming Rates")
-                    .font(.headline)
-                Spacer()
-                Button(action: {
-                    showingLocalSettings.toggle()
-                }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.footnote)
-                        .foregroundColor(.secondary.opacity(0.7))
-                }
-                .padding(.trailing, 4)
-            }
-            
-            if viewModel.isLoading {
-                ProgressView()
-            } else if let highestRate = viewModel.highestUpcomingRate {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Main highest rate
-                    HStack(alignment: .center) {
-                        let parts = viewModel.formatRate(
-                            highestRate.valueIncludingVAT,
-                            showRatesInPounds: globalSettings.settings.showRatesInPounds
-                        ).split(separator: " ")
-                        Text(parts[0])
-                            .font(.system(size: 34, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text(parts[1])
-                            .font(.system(size: 17))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(formatTimeRange(highestRate.validFrom, highestRate.validTo))
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                    }
-                    
-                    // Additional highest rates
-                    if localSettings.settings.additionalRatesCount > 0 {
-                        let upcomingRates = viewModel.upcomingRates
-                            .filter { ($0.validFrom ?? .distantPast) > Date() }
-                            .sorted { $0.valueIncludingVAT > $1.valueIncludingVAT }
-                        
-                        if upcomingRates.count > 1 {
-                            Divider()
-                            ForEach(upcomingRates.prefix(localSettings.settings.additionalRatesCount + 1).dropFirst(), id: \.validFrom) { rate in
-                                HStack {
-                                    let parts = viewModel.formatRate(
-                                        rate.valueIncludingVAT,
-                                        showRatesInPounds: globalSettings.settings.showRatesInPounds
-                                    ).split(separator: " ")
-                                    Text(parts[0])
-                                        .font(.system(size: 17, weight: .medium))
-                                    Text(parts[1])
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(formatTimeRange(rate.validFrom, rate.validTo))
-                                        .font(.caption)
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text("No upcoming rates available")
-                    .foregroundColor(.secondary)
-            }
-        }
-        .sheet(isPresented: $showingLocalSettings) {
-            HighestRateCardSettingsSheet(localSettings: localSettings)
-                .environment(\.locale, globalSettings.locale)
-        }
-        .rateCardStyle()
-        .environment(\.locale, globalSettings.locale)
-        .id("highest-rate-\(refreshTrigger)")
-        .onChange(of: globalSettings.locale) { oldValue, newValue in
-            refreshTrigger.toggle()
-        }
-    }
 }
-
-// Settings sheet for this card
-private struct HighestRateCardSettingsSheet: View {
-    @ObservedObject var localSettings: HighestRateCardLocalSettingsManager
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var globalSettings: GlobalSettingsManager
-    @State private var refreshTrigger = false
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Card Settings")) {
-                    Stepper("Additional Rates to Show: \(localSettings.settings.additionalRatesCount)",
-                            value: $localSettings.settings.additionalRatesCount,
-                            in: 0...10)
-                }
-            }
-            .navigationTitle("Highest Upcoming Rates")
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Text("Done")
-                    }
-                }
-            }
-        }
-        .environment(\.locale, globalSettings.locale)
-        .id("settings-sheet-\(refreshTrigger)")
-        .onChange(of: globalSettings.locale) { oldValue, newValue in
-            refreshTrigger.toggle()
-        }
-    }
-}
-
-#Preview {
-    let globalTimer = GlobalTimer()
-    let viewModel = RatesViewModel(globalTimer: globalTimer)
-    HighestUpcomingRateCardView(viewModel: viewModel)
-        .environmentObject(GlobalSettingsManager())
-        .preferredColorScheme(.dark)
-} 

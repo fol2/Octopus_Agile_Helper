@@ -10,8 +10,28 @@ struct ThreeHourAverageEntry: Identifiable {
     let average: Double
 }
 
+/// Represents the high-level fetch status:
+/// - `.none`:  no indicator
+/// - `.fetching`: "fetching data" + green dot
+/// - `.done`: after success, show "fetch done" + green dot for ~3s
+/// - `.failed`: show "failed to fetch" + red dot for ~10s (or until we confirm we can't fetch)
+/// - `.pending`: waiting to fetch (blue dot)
+enum FetchStatus {
+    case none
+    case fetching
+    case done
+    case failed
+    case pending
+}
+
 @MainActor
 class RatesViewModel: ObservableObject {
+    /// The current status for a small top-bar indicator.
+    @Published var fetchStatus: FetchStatus = .none
+    
+    /// The earliest time we can attempt another fetch if we fail. Nil means "no cooldown."
+    private var nextFetchEarliestTime: Date? = nil
+
     private let repository = RatesRepository.shared
     private var cancellables = Set<AnyCancellable>()
     private var currentTimer: GlobalTimer?
@@ -35,6 +55,10 @@ class RatesViewModel: ObservableObject {
     private func setupTimer(_ timer: GlobalTimer) {
         currentTimer = timer
         timer.$currentTime
+            // Skip the very first emission when the app/view appears.
+            // Otherwise, handleTimerTick(...) runs immediately and calls updateRates()
+            // even if we already have the data we need.
+            .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] newTime in
                 self?.handleTimerTick(newTime)
@@ -49,13 +73,30 @@ class RatesViewModel: ObservableObject {
             return end > now  // Include any rate that hasn't ended yet
         }
         
-        // Check if we need to fetch new data (at 4 PM)
-        Task {
-            do {
-                try await repository.updateRates()
-            } catch {
-                self.error = error
-                print("DEBUG: Error updating rates: \(error)")
+        // If we have a cooldown in effect, check if it's time to try fetching again
+        if let earliest = nextFetchEarliestTime {
+            if now >= earliest {
+                // Reset cooldown and try an update
+                print("DEBUG: 10-minute cooldown ended, attempting fetch again.")
+                nextFetchEarliestTime = nil
+                Task {
+                    do {
+                        try await repository.updateRates()
+                    } catch {
+                        self.error = error
+                        print("DEBUG: Error updating rates: \(error)")
+                    }
+                }
+            }
+        } else {
+            // Otherwise do normal logic if you still want to check every minute
+            Task {
+                do {
+                    try await repository.updateRates()
+                } catch {
+                    self.error = error
+                    print("DEBUG: Error updating rates: \(error)")
+                }
             }
         }
     }
@@ -173,27 +214,75 @@ class RatesViewModel: ObservableObject {
         isLoading = true
         error = nil
         
-        do {
-            allRates = try await repository.fetchAllRates()
-            upcomingRates = allRates.filter { rate in
-                guard let _ = rate.validFrom, let end = rate.validTo else { return false }
-                return end > Date()  // Include any rate that hasn't ended yet
+        // 1) Check if we already have enough data.
+        if repository.hasDataThroughExpectedEndUKTime() {
+            print("DEBUG: We have expected data on app start. No fetch needed.")
+            do {
+                allRates = try await repository.fetchAllRates()
+                upcomingRates = allRates.filter { rate in
+                    guard let _ = rate.validFrom, let end = rate.validTo else { return false }
+                    return end > Date()
+                }
+                // Just set it to .none so we never show "Fetch done" on app launch
+                fetchStatus = .none
+                isLoading = false
+            } catch {
+                self.error = error
+                print("DEBUG: Error loading existing rates: \(error)")
+                fetchStatus = .failed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    if self.fetchStatus == .failed {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            self.fetchStatus = .pending
+                        }
+                    }
+                }
             }
-            print("DEBUG: Successfully loaded \(upcomingRates.count) rates")
-        } catch {
-            self.error = error
-            print("DEBUG: Error loading rates: \(error)")
+        } else {
+            // 2) We don't have enough data => do the normal fetch
+            fetchStatus = .fetching
+            
+            do {
+                try await repository.updateRates(force: true)  // Actually fetch new data
+                allRates = try await repository.fetchAllRates()
+                upcomingRates = allRates.filter { rate in
+                    guard let _ = rate.validFrom, let end = rate.validTo else { return false }
+                    return end > Date()  // Include any rate that hasn't ended yet
+                }
+                print("DEBUG: Successfully loaded \(upcomingRates.count) rates")
+                
+                // On initial load, just go straight to .none (no "Fetch done" message)
+                fetchStatus = .none
+                
+            } catch {
+                self.error = error
+                print("DEBUG: Error loading rates: \(error)")
+                
+                fetchStatus = .failed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                    if self.fetchStatus == .failed {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            self.fetchStatus = .pending
+                        }
+                    }
+                }
+            }
         }
-        
         isLoading = false
     }
     
     func refreshRates(force: Bool = false) async {
+        // Indicate that we "intend" to fetch (but haven't started).
+        fetchStatus = .pending
+        
         print("DEBUG: Starting to refresh rates (force: \(force))")
         isLoading = true
         error = nil
         
         do {
+            // Actual fetch is starting now
+            fetchStatus = .fetching
+            
             try await repository.updateRates(force: force)
             allRates = try await repository.fetchAllRates()
             upcomingRates = allRates.filter { rate in
@@ -201,9 +290,58 @@ class RatesViewModel: ObservableObject {
                 return end > Date()  // Include any rate that hasn't ended yet
             }
             print("DEBUG: Successfully refreshed rates, now have \(upcomingRates.count) rates")
+            
+            // If we succeed:
+            fetchStatus = .done
+            // Show "fetch done" for 3 seconds, then revert to .none
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                // Only reset if we're *still* in .done
+                if self.fetchStatus == .done {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        self.fetchStatus = .none
+                    }
+                }
+            }
+            
         } catch {
             self.error = error
             print("DEBUG: Error refreshing rates: \(error)")
+            
+            fetchStatus = .failed
+            
+            // NEW: Check if we actually still have enough data
+            let hasExpectedData = repositoryHasExpectedData()
+            
+            // If the error is URLError with code == -999, that often means "cancelled request"
+            if let urlError = error as? URLError, urlError.code == .cancelled {
+                print("DEBUG: This likely means too many rapid fetches (code -999).")
+            }
+            
+            // If we DO have expected data, fade out quickly and revert to .none
+            if hasExpectedData {
+                print("DEBUG: We have enough data in CoreData; ignoring fetch error.")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    if self.fetchStatus == .failed {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            self.fetchStatus = .none
+                        }
+                    }
+                }
+            } else {
+                // We do NOT have the expected data => set a 10-min cooldown
+                // Then we revert to .pending so user sees we plan to fetch again
+                nextFetchEarliestTime = Date().addingTimeInterval(10 * 60)  // 10 mins
+                print("DEBUG: No expected data. Next attempt after \(String(describing: nextFetchEarliestTime))")
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    // Only reset if we're still in .failed
+                    if self.fetchStatus == .failed {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            self.fetchStatus = .pending
+                        }
+                    }
+                }
+            }
         }
         
         isLoading = false
@@ -256,6 +394,56 @@ class RatesViewModel: ObservableObject {
         return Array(results.prefix(maxCount))
     }
     
+    func getLowestAveragesIncludingPastHour(hours: Double, maxCount: Int) -> [ThreeHourAverageEntry] {
+        // 1) Gather all rates from 1 hour before now
+        let now = Date()
+        let start = now.addingTimeInterval(-3600) // 1 hour before
+        let slots = allRates
+            .filter { rate in
+                guard let validFrom = rate.validFrom else { return false }
+                return validFrom >= start
+            }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+        
+        // 2) Calculate how many 30-minute slots we need for the user's chosen hours
+        let slotsNeeded = Int(hours * 2) // 2 slots per hour
+        
+        // 3) We'll iterate over each half-hour slot as a potential "start"
+        var results = [ThreeHourAverageEntry]()
+        let slotCount = slots.count
+        
+        for (index, slot) in slots.enumerated() {
+            let endIndex = index + (slotsNeeded - 1)
+            guard endIndex < slotCount else {
+                // Not enough slots to make a full window
+                break
+            }
+            // gather the slots
+            let windowSlots = slots[index...endIndex]
+            
+            // Compute average
+            let sum = windowSlots.reduce(0.0) { partial, rateEntity in
+                partial + rateEntity.valueIncludingVAT
+            }
+            let avg = sum / Double(slotsNeeded)
+            
+            // The time range is from the validFrom of the first slot
+            // to validTo of the last slot
+            let startDate = slot.validFrom ?? now
+            let lastSlot = windowSlots.last!
+            let endDate = lastSlot.validTo ?? (startDate.addingTimeInterval(1800)) // fallback
+            
+            let entry = ThreeHourAverageEntry(start: startDate,
+                                            end: endDate,
+                                            average: avg)
+            results.append(entry)
+        }
+        
+        // 4) Sort by ascending average and return up to maxCount
+        results.sort { $0.average < $1.average }
+        return Array(results.prefix(maxCount))
+    }
+    
     // MARK: - Formatting Helpers
     
     /// Format the `value` (in pence) as either p/kWh or £/kWh, controlled by `showRatesInPounds`.
@@ -275,4 +463,10 @@ class RatesViewModel: ObservableObject {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
-} 
+    
+    /// Quick helper to see if we have "enough" data in our repository.
+    /// We re-use the hasDataThroughExpectedEndUKTime() from RatesRepository
+    private func repositoryHasExpectedData() -> Bool {
+        return repository.hasDataThroughExpectedEndUKTime()
+    }
+}

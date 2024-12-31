@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Octopus_Agile_Helper}",
+            "name": "Debug Octopus_Agile_Helper",
+            "program": "${workspaceFolder:Octopus_Agile_Helper}/.build/debug/Octopus_Agile_Helper",
+            "preLaunchTask": "swift: Build Debug Octopus_Agile_Helper"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Octopus_Agile_Helper}",
+            "name": "Release Octopus_Agile_Helper",
+            "program": "${workspaceFolder:Octopus_Agile_Helper}/.build/release/Octopus_Agile_Helper",
+            "preLaunchTask": "swift: Build Release Octopus_Agile_Helper"
+        }
+    ]
+}

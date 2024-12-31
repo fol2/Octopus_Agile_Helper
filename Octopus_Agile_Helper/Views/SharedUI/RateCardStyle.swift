@@ -7,11 +7,10 @@ struct RateCardStyle: ViewModifier {
         content
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.secondarySystemBackground))
+            .background(Theme.secondaryBackground)
             .cornerRadius(12)
-            .shadow(radius: 4)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
+            .padding(.bottom, 12)
+            .padding(.horizontal, 8)
     }
 }
 
@@ -22,9 +21,8 @@ struct InfoCardStyle: ViewModifier {
         content
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.secondarySystemBackground))
+            .background(Theme.secondaryBackground)
             .cornerRadius(12)
-            .shadow(radius: 4)
     }
 }
 
