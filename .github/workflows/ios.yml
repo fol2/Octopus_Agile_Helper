@@ -15,17 +15,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: List Available Xcode Versions
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.1'
+      
+      - name: Check Project Structure
         run: |
-          ls -la /Applications/ | grep "Xcode"
-          
-      - name: Select Xcode Version
-        run: |
-          sudo xcode-select -s /Applications/Xcode_15.2.app
-          xcodebuild -version
+          echo "Project file contents:"
+          cat Octopus_Agile_Helper.xcodeproj/project.pbxproj || echo "Cannot read project file"
+          echo "Project directory structure:"
+          ls -la Octopus_Agile_Helper.xcodeproj/
           
       - name: Set Default Scheme
         run: |
+          # First ensure we're in the correct directory
+          cd $GITHUB_WORKSPACE
+          # List all files to verify location
+          ls -la
+          # Try to read project info
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
           default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
           echo $default | cat >default
