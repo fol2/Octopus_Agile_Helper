@@ -21,7 +21,6 @@ let package = Package(
             resources: [
                 .process("Assets.xcassets"),
                 .process("Preview Content"),
-                .process("Info.plist"),
                 .process("Octopus_Agile_Helper.xcdatamodeld"),
                 .process("Octopus_Agile_Helper.entitlements")
             ]
