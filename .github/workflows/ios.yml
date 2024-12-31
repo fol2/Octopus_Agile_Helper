@@ -45,19 +45,23 @@ jobs:
             exit 1
           fi
           
+          echo "Checking file encoding..."
+          file Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          
           echo "Backing up project file..."
           cp Octopus_Agile_Helper.xcodeproj/project.pbxproj Octopus_Agile_Helper.xcodeproj/project.pbxproj.backup
           
           echo "Converting to XML and back to ensure proper format..."
           plutil -convert xml1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
-          plutil -convert binary1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          
+          echo "Showing current object version..."
+          grep "objectVersion" Octopus_Agile_Helper.xcodeproj/project.pbxproj
           
           echo "Fixing object version..."
-          sed -i '' 's/objectVersion = 77;/objectVersion = 56;/g' Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          LC_ALL=C sed -i '' 's/objectVersion = 77/objectVersion = 56/g' Octopus_Agile_Helper.xcodeproj/project.pbxproj
           
-          echo "Removing potential problematic sections..."
-          sed -i '' '/Begin PBXFileSystemSynchronizedBuildFileExceptionSet/,/End PBXFileSystemSynchronizedBuildFileExceptionSet/d' Octopus_Agile_Helper.xcodeproj/project.pbxproj
-          sed -i '' '/Begin PBXFileSystemSynchronizedRootGroup/,/End PBXFileSystemSynchronizedRootGroup/d' Octopus_Agile_Helper.xcodeproj/project.pbxproj
+          echo "Converting back to binary..."
+          plutil -convert binary1 Octopus_Agile_Helper.xcodeproj/project.pbxproj
           
           echo "Verifying project file..."
           plutil -lint Octopus_Agile_Helper.xcodeproj/project.pbxproj
