@@ -1,4 +1,6 @@
 // swift-tools-version: 5.9
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
 import PackageDescription
 
 let package = Package(
@@ -10,11 +12,20 @@ let package = Package(
     products: [
         .library(
             name: "OctopusHelperShared",
+            type: .dynamic,
             targets: ["OctopusHelperShared"]),
     ],
+    dependencies: [],
     targets: [
         .target(
             name: "OctopusHelperShared",
-            dependencies: []),
+            dependencies: [],
+            resources: [
+                .process("Resources")
+            ]
+        ),
+        .testTarget(
+            name: "OctopusHelperSharedTests",
+            dependencies: ["OctopusHelperShared"]),
     ]
 ) 

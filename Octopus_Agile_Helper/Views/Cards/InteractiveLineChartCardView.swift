@@ -652,7 +652,12 @@ extension InteractiveLineChartCardView {
     /// Axis label generator
     private func xAxisLabel(for date: Date) -> some View {
         guard isDateWithinChartBounds(date) else {
-            return Text("").foregroundStyle(.clear)
+            return VStack(spacing: 2) {
+                Text("")
+                    .foregroundStyle(.clear)
+                Text("")
+                    .foregroundStyle(.clear)
+            }
         }
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: date)
@@ -670,8 +675,12 @@ extension InteractiveLineChartCardView {
             }
         } else {
             // Normal hour
-            return Text(text)
-                .foregroundStyle(highlightColor(for: date))
+            return VStack(spacing: 2) {
+                Text(text)
+                    .foregroundStyle(highlightColor(for: date))
+                Text("")
+                    .foregroundStyle(.clear)
+            }
         }
     }
     

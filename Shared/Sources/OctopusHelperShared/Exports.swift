@@ -2,6 +2,8 @@
 
 // Re-export all public types
 @_exported import Foundation
+@_exported import SwiftUI
 
-// No need for typealiases since we've made all types public directly
-// This file serves as documentation of the module's public interface
+#if canImport(UIKit)
+import UIKit
+#endif

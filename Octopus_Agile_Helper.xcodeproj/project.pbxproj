@@ -7,13 +7,24 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BF47C0922D24ABB900BA093D /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BF47C0912D24ABB900BA093D /* OctopusHelperShared */; };
+		BF0C01042D24D05E0055B9D3 /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
-		BFF9574D2D248B6A002EE392 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; };
-		BFF9574F2D248B6A002EE392 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
+		BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
+		BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BFC2A5D02D24C39700E702BD /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; };
+		BFC2A5D12D24C39700E702BD /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BFC2A5D82D24C9DD00E702BD /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */; };
+		BFC2A5D92D24CAFB00E702BD /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		BF0C01052D24D05E0055B9D3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFE3DE542D1E0705003E74A4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BFF957492D248B6A002EE392;
+			remoteInfo = Octopus_HelperWidgetsExtension;
+		};
 		BFE3DE742D1E0707003E74A4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFE3DE542D1E0705003E74A4 /* Project object */;
@@ -28,16 +39,43 @@
 			remoteGlobalIDString = BFE3DE5B2D1E0706003E74A4;
 			remoteInfo = Octopus_Agile_Helper;
 		};
-		BFF9575E2D248B6B002EE392 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = BFE3DE542D1E0705003E74A4 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = BFF957492D248B6A002EE392;
-			remoteInfo = Octopus_HelperWidgetsExtension;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		BF0C00FF2D24CB7C0055B9D3 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF0C01072D24D05E0055B9D3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BF0C01042D24D05E0055B9D3 /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BFC2A5CF2D24C39500E702BD /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */,
+				BFC2A5D92D24CAFB00E702BD /* OctopusHelperShared in Embed Frameworks */,
+				BFC2A5D12D24C39700E702BD /* WidgetKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BFF957612D248B6B002EE392 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -133,9 +171,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BFF9574F2D248B6A002EE392 /* SwiftUI.framework in Frameworks */,
-				BF47C0922D24ABB900BA093D /* OctopusHelperShared in Frameworks */,
-				BFF9574D2D248B6A002EE392 /* WidgetKit.framework in Frameworks */,
+				BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */,
+				BFC2A5D82D24C9DD00E702BD /* OctopusHelperShared in Frameworks */,
+				BFC2A5D02D24C39700E702BD /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -187,11 +225,13 @@
 				BFE3DE592D1E0706003E74A4 /* Frameworks */,
 				BFE3DE5A2D1E0706003E74A4 /* Resources */,
 				BFF957612D248B6B002EE392 /* Embed Foundation Extensions */,
+				BF0C00FF2D24CB7C0055B9D3 /* Embed Frameworks */,
+				BF0C01072D24D05E0055B9D3 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				BFF9575F2D248B6B002EE392 /* PBXTargetDependency */,
+				BF0C01062D24D05E0055B9D3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BFE3DE5E2D1E0706003E74A4 /* Octopus_Agile_Helper */,
@@ -256,18 +296,19 @@
 				BFF957462D248B6A002EE392 /* Sources */,
 				BFF957472D248B6A002EE392 /* Frameworks */,
 				BFF957482D248B6A002EE392 /* Resources */,
+				BFC2A5CF2D24C39500E702BD /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				BF47C0902D24A4B500BA093D /* PBXTargetDependency */,
+				BF0C01012D24D0420055B9D3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BFF957502D248B6A002EE392 /* Octopus_HelperWidgets */,
 			);
 			name = Octopus_HelperWidgetsExtension;
 			packageProductDependencies = (
-				BF47C0912D24ABB900BA093D /* OctopusHelperShared */,
+				BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */,
 			);
 			productName = Octopus_HelperWidgetsExtension;
 			productReference = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */;
@@ -341,7 +382,7 @@
 			mainGroup = BFE3DE532D1E0705003E74A4;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				BF47C08E2D24A4A400BA093D /* XCLocalSwiftPackageReference "Shared" */,
+				BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BFE3DE5D2D1E0706003E74A4 /* Products */;
@@ -420,9 +461,14 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		BF47C0902D24A4B500BA093D /* PBXTargetDependency */ = {
+		BF0C01012D24D0420055B9D3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = BF47C08F2D24A4B500BA093D /* OctopusHelperShared */;
+			productRef = BF0C01002D24D0420055B9D3 /* OctopusHelperShared */;
+		};
+		BF0C01062D24D05E0055B9D3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
+			targetProxy = BF0C01052D24D05E0055B9D3 /* PBXContainerItemProxy */;
 		};
 		BFE3DE752D1E0707003E74A4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -433,11 +479,6 @@
 			isa = PBXTargetDependency;
 			target = BFE3DE5B2D1E0706003E74A4 /* Octopus_Agile_Helper */;
 			targetProxy = BFE3DE7E2D1E0707003E74A4 /* PBXContainerItemProxy */;
-		};
-		BFF9575F2D248B6B002EE392 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
-			targetProxy = BFF9575E2D248B6B002EE392 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -455,6 +496,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_Agile_Helper/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Agile Helper";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -466,7 +508,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.5;
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -488,6 +530,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_Agile_Helper/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Agile Helper";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -499,7 +542,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.5;
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -641,7 +684,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -660,7 +703,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -679,6 +722,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -697,6 +741,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -719,9 +764,9 @@
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Octopus_HelperWidgets;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -750,9 +795,9 @@
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Octopus_HelperWidgets;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -820,21 +865,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		BF47C08E2D24A4A400BA093D /* XCLocalSwiftPackageReference "Shared" */ = {
+		BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Shared;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		BF47C08F2D24A4B500BA093D /* OctopusHelperShared */ = {
+		BF0C01002D24D0420055B9D3 /* OctopusHelperShared */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = BF47C08E2D24A4A400BA093D /* XCLocalSwiftPackageReference "Shared" */;
+			package = BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */;
 			productName = OctopusHelperShared;
 		};
-		BF47C0912D24ABB900BA093D /* OctopusHelperShared */ = {
+		BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = BF47C08E2D24A4A400BA093D /* XCLocalSwiftPackageReference "Shared" */;
 			productName = OctopusHelperShared;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -10,6 +10,7 @@ import SwiftUI
 import AppIntents
 import OctopusHelperShared
 
+@available(iOS 17.0, *)
 struct Provider: AppIntentTimelineProvider {
     let repository = RatesRepository.shared
     
@@ -52,6 +53,7 @@ struct SimpleEntry: TimelineEntry {
     let rates: [RateEntity]
 }
 
+@available(iOS 17.0, *)
 struct CardWidgetView: View {
     let entry: SimpleEntry
     
@@ -59,80 +61,117 @@ struct CardWidgetView: View {
         switch entry.configuration.cardType {
         case .lowestUpcoming:
             LowestRateMiniWidget(rates: entry.rates)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(12)
         case .highestUpcoming:
             HighestRateMiniWidget(rates: entry.rates)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(12)
         case .averageUpcoming:
             AverageRateMiniWidget(rates: entry.rates)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(12)
         case .currentRate:
             CurrentRateMiniWidget(rates: entry.rates)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(12)
         case .interactiveChart:
             Text("Interactive Chart not available in widget")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+                .background(Theme.secondaryBackground)
+                .cornerRadius(12)
         }
     }
 }
 
+@available(iOS 17.0, *)
 struct LowestRateMiniWidget: View {
     let rates: [RateEntity]
     
     var body: some View {
         if let lowest = rates.min(by: { $0.valueIncludingVAT < $1.valueIncludingVAT }) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Lowest Rate")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundColor(Theme.icon)
+                        .font(Theme.subFont())
+                    Text("Lowest Rate")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
                 
                 Text(RateFormatting.formatRate(lowest.valueIncludingVAT))
-                    .font(.title2)
-                    .bold()
+                    .font(Theme.mainFont())
+                    .foregroundColor(RateColor.getColor(for: lowest, allRates: rates))
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                 
                 if let validFrom = lowest.validFrom {
                     Text(RateFormatting.formatTime(validFrom))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
         } else {
             Text("No rates available")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 }
 
+@available(iOS 17.0, *)
 struct HighestRateMiniWidget: View {
     let rates: [RateEntity]
     
     var body: some View {
         if let highest = rates.max(by: { $0.valueIncludingVAT < $1.valueIncludingVAT }) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Highest Rate")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(Theme.icon)
+                        .font(Theme.subFont())
+                    Text("Highest Rate")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
                 
                 Text(RateFormatting.formatRate(highest.valueIncludingVAT))
-                    .font(.title2)
-                    .bold()
+                    .font(Theme.mainFont())
+                    .foregroundColor(RateColor.getColor(for: highest, allRates: rates))
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                 
                 if let validFrom = highest.validFrom {
                     Text(RateFormatting.formatTime(validFrom))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
         } else {
             Text("No rates available")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 }
 
+@available(iOS 17.0, *)
 struct AverageRateMiniWidget: View {
     let rates: [RateEntity]
     
@@ -141,28 +180,36 @@ struct AverageRateMiniWidget: View {
             let average = rates.reduce(0.0) { $0 + $1.valueIncludingVAT } / Double(rates.count)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("Average Rate")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundColor(Theme.icon)
+                        .font(Theme.subFont())
+                    Text("Average Rate")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
                 
                 Text(RateFormatting.formatRate(average))
-                    .font(.title2)
-                    .bold()
+                    .font(Theme.mainFont())
+                    .foregroundColor(Theme.mainTextColor)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                 
                 Text("Next 24 hours")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
         } else {
             Text("No rates available")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 }
 
+@available(iOS 17.0, *)
 struct CurrentRateMiniWidget: View {
     let rates: [RateEntity]
     
@@ -171,31 +218,50 @@ struct CurrentRateMiniWidget: View {
             guard let validFrom = $0.validFrom, let validTo = $0.validTo else { return false }
             return Date() >= validFrom && Date() < validTo
         }) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Current Rate")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(Theme.icon)
+                        .font(Theme.subFont())
+                    Text("Current Rate")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
                 
                 Text(RateFormatting.formatRate(current.valueIncludingVAT))
-                    .font(.title2)
-                    .bold()
+                    .font(Theme.mainFont())
+                    .foregroundColor(RateColor.getColor(for: current, allRates: rates))
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                 
                 if let validTo = current.validTo {
                     Text("Until \(RateFormatting.formatTime(validTo))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
         } else {
-            Text("No current rate available")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(Theme.icon)
+                        .font(Theme.subFont())
+                    Text("Current Rate")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+                
+                Text("No current rate")
+                    .font(Theme.mainFont())
+                    .foregroundColor(Theme.mainTextColor)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 }
 
+@available(iOS 17.0, *)
 struct Octopus_HelperWidgets: Widget {
     let kind: String = "Octopus_HelperWidgets"
 
@@ -206,7 +272,7 @@ struct Octopus_HelperWidgets: Widget {
             provider: Provider()
         ) { entry in
             CardWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(.clear, for: .widget)
         }
         .configurationDisplayName("Octopus Rate Card")
         .description("Display your chosen rate card.")
