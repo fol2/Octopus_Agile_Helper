@@ -18187,6 +18187,7 @@
       }
     },
     "StatusIndicator.Done" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18389,6 +18390,7 @@
       }
     },
     "StatusIndicator.Failed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18591,6 +18593,7 @@
       }
     },
     "StatusIndicator.Fetching" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18793,6 +18796,7 @@
       }
     },
     "StatusIndicator.Pending" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
