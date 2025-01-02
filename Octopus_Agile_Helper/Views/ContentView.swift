@@ -39,17 +39,15 @@ struct ContentView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject private var ratesViewModel: RatesViewModel
     
-    // For forcing re-renders (debug)
-    @State private var refreshTrigger = false
-    @State private var forcedRefresh = false
-    
-    // Timer for content refresh
-    private let refreshTimer = Timer
-        .publish(every: 1, on: .main, in: .common)
-        .autoconnect()
+    @Environment(\.scenePhase) private var scenePhase
     
     // Track if large title is collapsed enough
     @State private var isCollapsed = false
+    
+    // Timer for 16:00 check
+    private let contentTimer = Timer
+        .publish(every: 1, on: .main, in: .common)
+        .autoconnect()
     
     // Dynamic copyright text
     private var copyrightText: String {
@@ -74,21 +72,19 @@ struct ContentView: View {
                                 if config.isPurchased || !definition.isPremium {
                                     definition.makeView(ratesViewModel)
                                         .environment(\.locale, globalSettings.locale)
-                                        .id("\(config.id)-\(refreshTrigger)-\(forcedRefresh)")
                                 } else {
                                     CardLockedView(definition: definition, config: config)
                                         .environment(\.locale, globalSettings.locale)
-                                        .id("\(config.id)-\(refreshTrigger)-\(forcedRefresh)")
                                 }
                             }
                         }
                     }
                 }
                 .padding(.top, 22)  // Add spacing between title and first card
-                // (Optionally keep OffsetTrackingView here, if you want to measure offset.)
+                
+                // Offset tracking for title collapse
                 OffsetTrackingView()
                 .padding(.vertical, 4)  // Reduced from default padding
-                .id("vstack-\(forcedRefresh)")
                 
                 // Copyright notice
                 Text(copyrightText)
@@ -98,7 +94,6 @@ struct ContentView: View {
             }
             .background(Theme.mainBackground)
             .scrollContentBackground(.hidden)
-            
             .coordinateSpace(name: "scrollArea")  // for offset detection
             .navigationTitle(LocalizedStringKey("Octopus Agile"))
             .navigationBarTitleDisplayMode(.large)
@@ -114,7 +109,6 @@ struct ContentView: View {
                 }
             }
             .toolbar {
-                
                 // 1) Trailing => gear + optional status
                 ToolbarItem(placement: .navigationBarTrailing) {
                     // We animate the HStack so the gear doesn't jump
@@ -129,8 +123,7 @@ struct ContentView: View {
                         
                         // The gear always here
                         NavigationLink(destination: SettingsView()
-                            .environment(\.locale, globalSettings.locale)
-                            .id("settings-view-\(refreshTrigger)")) {
+                            .environment(\.locale, globalSettings.locale)) {
                             Image(systemName: "gear")
                                 .foregroundColor(Theme.secondaryTextColor)
                                 .font(Theme.secondaryFont())
@@ -152,29 +145,39 @@ struct ContentView: View {
         // Listen for language changes => force re-render
         .environment(\.locale, globalSettings.locale)
         .onChange(of: globalSettings.locale) { _, _ in
-            refreshTrigger.toggle()
+            // Let individual cards handle their own refresh
+        }
+        // Scene phase changes
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                Task {
+                    await ratesViewModel.loadRates()
+                }
+                CardRefreshManager.shared.notifyAppBecameActive()
+            }
+        }
+        // Timer for daily 16:00 check
+        .onReceive(contentTimer) { _ in
+            let calendar = Calendar.current
+            let now = Date()
+            let hour = calendar.component(.hour, from: now)
+            let minute = calendar.component(.minute, from: now)
+            let second = calendar.component(.second, from: now)
+            
+            // If it's exactly 16:00:00 local, we do a coverage check
+            if hour == 16, minute == 0, second == 0 {
+                Task {
+                    await ratesViewModel.loadRates()
+                }
+            }
         }
         // Attempt to load data
         .task {
             await ratesViewModel.loadRates()
         }
-        // Debug forced refresh for UI
+        // Update timer when view appears
         .onAppear {
             ratesViewModel.updateTimer(globalTimer)
-        }
-        // Content refresh timer
-        .onReceive(refreshTimer) { _ in
-            let calendar = Calendar.current
-            let date = Date()
-            let minute = calendar.component(.minute, from: date)
-            let second = calendar.component(.second, from: date)
-            
-            // Only refresh content at o'clock and half o'clock
-            if second == 0 && (minute == 0 || minute == 30) {
-                Task {
-                    await ratesViewModel.refreshRates()
-                }
-            }
         }
     }
     

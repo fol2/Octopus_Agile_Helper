@@ -272,7 +272,13 @@ class RatesViewModel: ObservableObject {
     }
     
     func refreshRates(force: Bool = false) async {
-        // Indicate that we "intend" to fetch (but haven't started).
+        if !force && repository.hasDataThroughExpectedEndUKTime() {
+            // We have enough data and this isn't a forced refresh
+            // => Don't show any status changes
+            return
+        }
+        
+        // Otherwise continue with normal fetch status progression
         fetchStatus = .pending
         
         print("DEBUG: Starting to refresh rates (force: \(force))")

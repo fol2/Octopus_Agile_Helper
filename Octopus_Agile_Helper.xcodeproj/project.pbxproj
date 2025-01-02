@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BF0C01042D24D05E0055B9D3 /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BF34008E2D26309400CD068B /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BF34008D2D26309400CD068B /* OctopusHelperShared */; };
+		BF34008F2D26309400CD068B /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BF34008D2D26309400CD068B /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
 		BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
 		BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -18,7 +20,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		BF0C01052D24D05E0055B9D3 /* PBXContainerItemProxy */ = {
+		BF3400912D2630AD00CD068B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFE3DE542D1E0705003E74A4 /* Project object */;
 			proxyType = 1;
@@ -48,17 +50,18 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				BF34008F2D26309400CD068B /* OctopusHelperShared in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		BF0C01072D24D05E0055B9D3 /* Embed Foundation Extensions */ = {
+		BF3400932D2630AD00CD068B /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				BF0C01042D24D05E0055B9D3 /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */,
+				BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -150,6 +153,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BF34008E2D26309400CD068B /* OctopusHelperShared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,18 +230,19 @@
 				BFE3DE5A2D1E0706003E74A4 /* Resources */,
 				BFF957612D248B6B002EE392 /* Embed Foundation Extensions */,
 				BF0C00FF2D24CB7C0055B9D3 /* Embed Frameworks */,
-				BF0C01072D24D05E0055B9D3 /* Embed Foundation Extensions */,
+				BF3400932D2630AD00CD068B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				BF0C01062D24D05E0055B9D3 /* PBXTargetDependency */,
+				BF3400922D2630AD00CD068B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BFE3DE5E2D1E0706003E74A4 /* Octopus_Agile_Helper */,
 			);
 			name = Octopus_Agile_Helper;
 			packageProductDependencies = (
+				BF34008D2D26309400CD068B /* OctopusHelperShared */,
 			);
 			productName = Octopus_Agile_Helper;
 			productReference = BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */;
@@ -465,10 +470,10 @@
 			isa = PBXTargetDependency;
 			productRef = BF0C01002D24D0420055B9D3 /* OctopusHelperShared */;
 		};
-		BF0C01062D24D05E0055B9D3 /* PBXTargetDependency */ = {
+		BF3400922D2630AD00CD068B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
-			targetProxy = BF0C01052D24D05E0055B9D3 /* PBXContainerItemProxy */;
+			targetProxy = BF3400912D2630AD00CD068B /* PBXContainerItemProxy */;
 		};
 		BFE3DE752D1E0707003E74A4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -873,6 +878,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		BF0C01002D24D0420055B9D3 /* OctopusHelperShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */;
+			productName = OctopusHelperShared;
+		};
+		BF34008D2D26309400CD068B /* OctopusHelperShared */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */;
 			productName = OctopusHelperShared;

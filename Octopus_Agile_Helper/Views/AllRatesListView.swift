@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Combine
 
 struct AllRatesListView: View {
     @ObservedObject var viewModel: RatesViewModel
@@ -11,6 +12,9 @@ struct AllRatesListView: View {
     @State private var hasInitiallyLoaded = false
     @State private var currentRateID: NSManagedObjectID?
     private let pageSize = 48 // 24 hours worth of 30-minute intervals
+    
+    // Use the shared manager for periodic refresh
+    @ObservedObject private var refreshManager = CardRefreshManager.shared
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -184,6 +188,21 @@ struct AllRatesListView: View {
                             print("DEBUG: Scrolling to current rate")
                         }
                     }
+                }
+            }
+            // Re-render on half-hour
+            .onReceive(refreshManager.$halfHourTick) { tickTime in
+                guard let _ = tickTime else { return }
+                Task {
+                    await viewModel.refreshRates()
+                    loadInitialData() // Reload the view data
+                }
+            }
+            // Also re-render if app becomes active
+            .onReceive(refreshManager.$sceneActiveTick) { _ in
+                Task {
+                    await viewModel.refreshRates()
+                    loadInitialData() // Reload the view data
                 }
             }
         }

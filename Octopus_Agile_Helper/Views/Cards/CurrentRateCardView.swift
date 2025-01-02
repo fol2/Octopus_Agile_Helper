@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Combine
 
 struct CurrentRateCardView: View {
     // MARK: - Dependencies
@@ -9,10 +10,8 @@ struct CurrentRateCardView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @State private var refreshTrigger = false
     
-    // Timer for content refresh
-    private let refreshTimer = Timer
-        .publish(every: 1, on: .main, in: .common)
-        .autoconnect()
+    // Use the shared manager
+    @ObservedObject private var refreshManager = CardRefreshManager.shared
     
     private func getDayRates(for date: Date) -> [RateEntity] {
         let calendar = Calendar.current
@@ -141,21 +140,22 @@ struct CurrentRateCardView: View {
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
+        // Re-render on half-hour
+        .onReceive(refreshManager.$halfHourTick) { tickTime in
+            guard let _ = tickTime else { return }
+            Task {
+                await viewModel.refreshRates()
+            }
+        }
+        // Also re-render if app becomes active
+        .onReceive(refreshManager.$sceneActiveTick) { _ in
+            refreshTrigger.toggle()
+            Task {
+                await viewModel.refreshRates()
+            }
+        }
         .onTapGesture {
             presentAllRatesView()
-        }
-        .onReceive(refreshTimer) { _ in
-            let calendar = Calendar.current
-            let date = Date()
-            let minute = calendar.component(.minute, from: date)
-            let second = calendar.component(.second, from: date)
-            
-            // Only refresh content at o'clock and half o'clock
-            if second == 0 && (minute == 0 || minute == 30) {
-                Task {
-                    await viewModel.refreshRates()
-                }
-            }
         }
     }
     

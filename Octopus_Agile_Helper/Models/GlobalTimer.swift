@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 class GlobalTimer: ObservableObject {
     private var timer: Timer?
@@ -13,10 +14,16 @@ class GlobalTimer: ObservableObject {
         ) { [weak self] _ in
             self?.currentTime = Date()
         }
+        // Fire immediately to ensure current time
+        currentTime = Date()
     }
     
     func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+    
+    func refreshTime() {
+        currentTime = Date()
     }
 } 

@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import Combine
 
 // MARK: - Local settings
 private struct AverageCardLocalSettings: Codable {
@@ -47,14 +48,10 @@ struct AverageUpcomingRateCardView: View {
     
     // Flip state for front/back
     @State private var flipped = false
-    
-    // For re-render triggers
     @State private var refreshTrigger = false
     
-    // Timer for content refresh
-    private let refreshTimer = Timer
-        .publish(every: 1, on: .main, in: .common)
-        .autoconnect()
+    // Use the shared manager
+    @ObservedObject private var refreshManager = CardRefreshManager.shared
     
     var body: some View {
         ZStack {
@@ -79,17 +76,18 @@ struct AverageUpcomingRateCardView: View {
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
-        .onReceive(refreshTimer) { _ in
-            let calendar = Calendar.current
-            let date = Date()
-            let minute = calendar.component(.minute, from: date)
-            let second = calendar.component(.second, from: date)
-            
-            // Only refresh content at o'clock and half o'clock
-            if second == 0 && (minute == 0 || minute == 30) {
-                Task {
-                    await viewModel.refreshRates()
-                }
+        // Re-render on half-hour
+        .onReceive(refreshManager.$halfHourTick) { tickTime in
+            guard let _ = tickTime else { return }
+            Task {
+                await viewModel.refreshRates()
+            }
+        }
+        // Also re-render if app becomes active
+        .onReceive(refreshManager.$sceneActiveTick) { _ in
+            refreshTrigger.toggle()
+            Task {
+                await viewModel.refreshRates()
             }
         }
     }

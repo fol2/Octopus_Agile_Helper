@@ -7,6 +7,7 @@ struct Octopus_Agile_HelperApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var globalSettings = GlobalSettingsManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -15,11 +16,18 @@ struct Octopus_Agile_HelperApp: App {
                 .environmentObject(globalTimer)
                 .environmentObject(globalSettings)
                 .environment(\.locale, globalSettings.locale)
-                .onAppear {
-                    globalTimer.startTimer()
-                }
-                .onDisappear {
-                    globalTimer.stopTimer()
+                .onChange(of: scenePhase) { _, newPhase in
+                    switch newPhase {
+                    case .active:
+                        globalTimer.startTimer()
+                        globalTimer.refreshTime()
+                    case .background:
+                        globalTimer.stopTimer()
+                    case .inactive:
+                        break
+                    @unknown default:
+                        break
+                    }
                 }
         }
     }

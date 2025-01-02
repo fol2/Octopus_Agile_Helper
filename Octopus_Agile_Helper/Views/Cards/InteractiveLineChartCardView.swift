@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import Foundation
+import Combine
 
 // MARK: - Tooltip Width Preference Key
 private struct TooltipWidthKey: PreferenceKey {
@@ -53,24 +54,21 @@ struct InteractiveLineChartCardView: View {
     // Flip state (front/back)
     @State private var isFlipped = false
     
-    // "Now" & timer, set to fire every 60 seconds
+    // "Now" state
     @State private var now = Date()
-    // Timer for "Now" annotation updates
-    private let timer = Timer
-        .publish(every: 1, on: .main, in: .common)
-        .autoconnect()
     
-    // Timer for content refresh
-    private let refreshTimer = Timer
-        .publish(every: 1, on: .main, in: .common)
-        .autoconnect()
+    // For app state detection
+    @Environment(\.scenePhase) var scenePhase
+    
+    // For DRY, we rely on CardRefreshManager
+    @ObservedObject private var refreshManager = CardRefreshManager.shared
     
     // Chart hover states
     @State private var hoveredTime: Date? = nil
     @State private var hoveredPrice: Double? = nil
     @State private var lastSnappedTime: Date? = nil
     
-    // Bar width optimization
+    // Bar width
     @State private var barWidth: Double = 0
     @State private var lastSnappedMinute: Int?
     @State private var lastPrintedWidth: Double?
@@ -80,6 +78,9 @@ struct InteractiveLineChartCardView: View {
     
     // Haptic feedback generator
     private let hapticFeedback = UIImpactFeedbackGenerator(style: .light)
+    
+    // --- NEW: Final x-axis labels after pixel-based collision ---
+    @State private var finalXLabels: [LabelCandidate] = []
     
     var body: some View {
         ZStack {
@@ -97,70 +98,30 @@ struct InteractiveLineChartCardView: View {
                                   axis: (x: 0, y: 1, z: 0),
                                   perspective: 0.8)
         }
-        .onReceive(timer) { _ in
-            let calendar = Calendar.current
-            let second = calendar.component(.second, from: Date())
-            // Only update if we're at second 0
-            if second == 0 {
-                now = Date()
-            }
+        // Instead of local timer, we use CardRefreshManager
+        .onReceive(refreshManager.$minuteTick) { tickTime in
+            guard let t = tickTime else { return }
+            self.now = t
+            handleMinuteTick()
         }
-        .onReceive(refreshTimer) { _ in
-            let calendar = Calendar.current
-            let date = Date()
-            let minute = calendar.component(.minute, from: date)
-            let second = calendar.component(.second, from: date)
-            
-            // Only refresh content at o'clock and half o'clock
-            if second == 0 && (minute == 0 || minute == 30) {
-                Task {
-                    await viewModel.refreshRates()
-                }
+        .onReceive(refreshManager.$halfHourTick) { tickTime in
+            guard let _ = tickTime else { return }
+            recalcBarWidthAndPrintOnce()
+        }
+        .onReceive(refreshManager.$sceneActiveTick) { _ in
+            now = Date()
+            Task {
+                await viewModel.refreshRates()
             }
         }
         .onChange(of: filteredRates) { oldValue, newValue in
-            // If the rates change significantly, recalc bar width right away
             recalcBarWidthAndPrintOnce()
         }
         .onAppear {
-            // Calculate once initially
+            now = Date()
             recalcBarWidthAndPrintOnce()
         }
-        .rateCardStyle() // Custom view modifier
-    }
-    
-    // MARK: Timer & Bar Width
-    private func handleTimerTick() {
-        now = Date()
-        
-        // Check if minute is :00 or :30
-        let minute = Calendar.current.component(.minute, from: now)
-        let second = Calendar.current.component(.second, from: now)
-        
-        // Only if we're exactly at second == 0 and minute is 0 or 30:
-        if second == 0, (minute == 0 || minute == 30) {
-            // Avoid re-triggering if we already did so for the same minute
-            if lastSnappedMinute != minute {
-                lastSnappedMinute = minute
-                recalcBarWidthAndPrintOnce()
-            }
-        }
-    }
-    
-    /// Recalculate bar width once and print the debug only if it actually changed
-    private func recalcBarWidthAndPrintOnce() {
-        let newWidth = computeDynamicBarWidth()
-        guard newWidth != barWidth else { return }
-        
-        barWidth = newWidth
-        
-        // Print debug only if newly changed
-        #if DEBUG
-        if lastPrintedWidth != newWidth {
-            print("Updated bar width: \(newWidth)")
-            lastPrintedWidth = newWidth
-        }
-        #endif
+        .rateCardStyle()
     }
 }
 
@@ -181,7 +142,6 @@ extension InteractiveLineChartCardView {
         }
     }
     
-    /// The header bar on the front side
     private var headerBar: some View {
         HStack {
             if let def = CardRegistry.shared.definition(for: .interactiveChart) {
@@ -190,6 +150,7 @@ extension InteractiveLineChartCardView {
             }
             Text("Interactive Rates")
                 .font(Theme.titleFont())
+                .foregroundColor(Theme.secondaryTextColor)
                 .foregroundStyle(Theme.mainTextColor)
             Spacer()
             Button {
@@ -203,7 +164,6 @@ extension InteractiveLineChartCardView {
         }
     }
     
-    /// The "No Data" view
     private var noDataView: some View {
         Text("No upcoming rates available")
             .font(Theme.secondaryFont())
@@ -215,7 +175,7 @@ extension InteractiveLineChartCardView {
         let (minVal, maxVal) = yRange
         
         return Chart {
-            // 1) Highlight best windows (not expanded).
+            // 1) Highlight best windows
             ForEach(bestTimeRanges, id: \.0) { (start, end) in
                 RectangleMark(
                     xStart: .value("Start", start),
@@ -264,16 +224,18 @@ extension InteractiveLineChartCardView {
         .chartPlotStyle { plotContent in
             plotContent
                 .padding(.horizontal, 0)
-                .padding(.leading, 16)
+                .padding(.leading, 12)
                 .frame(maxWidth: .infinity)
         }
+        // Instead of a simple .chartXAxis { AxisMarks(values: strideXticks) },
+        // we will pass 'finalXLabels' after collision filtering.
         .chartXAxis {
-            AxisMarks(values: strideXticks) { value in
+            AxisMarks(values: finalXLabels.map(\.date)) { value in
                 AxisGridLine()
                 AxisValueLabel(anchor: .top) {
                     if let date = value.as(Date.self) {
-                        xAxisLabel(for: date)
-                            .offset(x: 16, y: 0)
+                        xAxisLabel(for: date, priority: priorityOfDate(date))
+                            .offset(x: 12, y: 0)
                     }
                 }
             }
@@ -288,6 +250,8 @@ extension InteractiveLineChartCardView {
                 }
             }
         }
+        // We already have a chartOverlay for gesture detection;
+        // we'll *also* use it to compute finalXLabels.
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle()
@@ -296,11 +260,7 @@ extension InteractiveLineChartCardView {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { drag in
-                                handleDragChanged(
-                                    drag: drag,
-                                    proxy: proxy,
-                                    geo: geo
-                                )
+                                handleDragChanged(drag: drag, proxy: proxy, geo: geo)
                             }
                             .onEnded { _ in
                                 hoveredTime = nil
@@ -308,7 +268,6 @@ extension InteractiveLineChartCardView {
                             }
                     )
                 
-                // If we have a hovered date/price, show highlight & tooltip
                 if let time = hoveredTime, let price = hoveredPrice {
                     if let xPos = proxy.position(forX: time),
                        let plotArea = proxy.plotFrame {
@@ -316,6 +275,15 @@ extension InteractiveLineChartCardView {
                         drawHoverElements(rect: rect, xPos: xPos, time: time, price: price)
                     }
                 }
+            }
+            .onAppear {
+                computeFinalXAxisLabels(proxy: proxy)
+            }
+            .onChange(of: filteredRates) { oldValue, newValue in
+                computeFinalXAxisLabels(proxy: proxy)
+            }
+            .onChange(of: isFlipped) { oldValue, newValue in
+                computeFinalXAxisLabels(proxy: proxy)
             }
         }
     }
@@ -341,7 +309,6 @@ extension InteractiveLineChartCardView {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     
-    /// The header on the back side
     private var settingsHeaderBar: some View {
         HStack {
             if let def = CardRegistry.shared.definition(for: .interactiveChart) {
@@ -350,7 +317,7 @@ extension InteractiveLineChartCardView {
             }
             Text("Card Settings")
                 .font(Theme.titleFont())
-                .foregroundStyle(Theme.mainTextColor)
+                .foregroundStyle(Theme.secondaryTextColor)
             Spacer()
             Button {
                 withAnimation(.spring()) {
@@ -364,7 +331,6 @@ extension InteractiveLineChartCardView {
         }
     }
     
-    /// Settings UI for customAverageHours
     private var customAverageHoursView: some View {
         HStack(alignment: .top) {
             let hours = localSettings.settings.customAverageHours
@@ -392,7 +358,6 @@ extension InteractiveLineChartCardView {
         }
     }
     
-    /// Settings UI for maxListCount
     private var maxListCountView: some View {
         HStack(alignment: .top) {
             Text("Max List Count: \(localSettings.settings.maxListCount)")
@@ -417,7 +382,6 @@ extension InteractiveLineChartCardView {
 
 // MARK: - Chart Interaction Helpers
 extension InteractiveLineChartCardView {
-    /// Gesture handler for dragging across the chart
     private func handleDragChanged(drag: DragGesture.Value,
                                    proxy: ChartProxy,
                                    geo: GeometryProxy) {
@@ -450,7 +414,6 @@ extension InteractiveLineChartCardView {
         }
     }
     
-    /// Draws the vertical highlight line + tooltip in the overlay
     @ViewBuilder
     private func drawHoverElements(rect: CGRect,
                                    xPos: CGFloat,
@@ -494,8 +457,8 @@ extension InteractiveLineChartCardView {
 
 // MARK: - Data Logic
 extension InteractiveLineChartCardView {
-    /// Only refresh from 1 hr behind now to next 48 hrs
     private var filteredRates: [RateEntity] {
+        // from now-1hr to now+48hrs
         let start = now.addingTimeInterval(-3600)
         let end   = now.addingTimeInterval(48 * 3600)
         
@@ -508,7 +471,6 @@ extension InteractiveLineChartCardView {
             }
     }
     
-    /// Y range: clamp min at 0, add 2 pence padding on both ends
     private var yRange: (Double, Double) {
         let prices = filteredRates.map { $0.valueIncludingVAT }
         guard !prices.isEmpty else { return (0, 10) }
@@ -517,51 +479,16 @@ extension InteractiveLineChartCardView {
         return (minVal, maxVal)
     }
     
-    /// X domain: from earliest rate to 30 mins after the last
     private var xDomain: ClosedRange<Date> {
         guard let earliest = filteredRates.first?.validFrom,
               let latest = filteredRates.last?.validFrom
         else {
-            // Fallback domain of 1 hour
             return now...(now.addingTimeInterval(3600))
         }
         return earliest...(latest.addingTimeInterval(1800))
     }
     
-    /// x-axis ticks for specific times
-    private var strideXticks: [Date] {
-        var ticks = Set<Date>()
-        
-        // Add start/end times of highlighted areas
-        for (start, end) in bestTimeRanges {
-            ticks.insert(start)
-            ticks.insert(end)
-        }
-        
-        // Add midnight & noon for the displayed range
-        let calendar = Calendar.current
-        if let firstDate = filteredRates.first?.validFrom,
-           let lastDate = filteredRates.last?.validFrom {
-            var currentDate = calendar.startOfDay(for: firstDate)
-            while currentDate <= lastDate {
-                // midnight
-                ticks.insert(currentDate)
-                
-                // noon
-                if let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: currentDate) {
-                    ticks.insert(noon)
-                }
-                
-                // next day
-                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? lastDate
-            }
-        }
-        
-        let sortedTicks = Array(ticks).sorted()
-        return sortedTicks
-    }
-    
-    /// Best time windows from the view model
+    /// The "best" time windows from the VM, merged
     private var bestTimeRanges: [(Date, Date)] {
         let windows = viewModel.getLowestAveragesIncludingPastHour(
             hours: localSettings.settings.customAverageHours,
@@ -571,7 +498,6 @@ extension InteractiveLineChartCardView {
         return mergeWindows(raw)
     }
     
-    /// Merges overlapping time windows (but doesn't expand them to bar boundaries)
     private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
         guard !input.isEmpty else { return [] }
         let sorted = input.sorted { $0.0 < $1.0 }
@@ -588,7 +514,6 @@ extension InteractiveLineChartCardView {
         return merged
     }
     
-    /// Finds the current period for a given date
     private func findCurrentRatePeriod(_ date: Date) -> (start: Date, price: Double)? {
         guard let rate = filteredRates.first(where: { r in
             guard let start = r.validFrom, let end = r.validTo else { return false }
@@ -602,7 +527,6 @@ extension InteractiveLineChartCardView {
         return nil
     }
     
-    /// Finds the nearest price to a given date
     private func findNearestPrice(_ date: Date) -> Double? {
         filteredRates.min {
             abs(($0.validFrom ?? .distantPast).timeIntervalSince(date)) <
@@ -610,7 +534,6 @@ extension InteractiveLineChartCardView {
         }?.valueIncludingVAT
     }
     
-    /// Clamp a raw date to the earliest & latest in our filtered data
     private func clampDateToDataRange(_ date: Date) -> Date {
         guard let firstDate = filteredRates.first?.validFrom,
               let lastDate = filteredRates.last?.validFrom
@@ -620,7 +543,6 @@ extension InteractiveLineChartCardView {
         return min(max(date, firstDate), lastDate)
     }
     
-    /// Snap date to 30-minute intervals
     private func snapToHalfHour(_ date: Date) -> Date {
         let calendar = Calendar.current
         let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
@@ -638,80 +560,169 @@ extension InteractiveLineChartCardView {
 
 // MARK: - Visual & Formatting
 extension InteractiveLineChartCardView {
-    /// Dynamically calculate bar width (with gap ratio)
-    private func computeDynamicBarWidth() -> Double {
-        let maxPossibleBars   = 65.0
-        let currentBars       = Double(filteredRates.count)
-        let baseWidthPerBar   = 5.0
-        let barGapRatio       = 0.7  // 70% bar, 30% gap
-        let totalChunk        = (maxPossibleBars / currentBars) * baseWidthPerBar
-        let barWidth          = totalChunk * barGapRatio
-        return barWidth
+    /// Each label candidate holds a date + priority
+    struct LabelCandidate: Identifiable, Hashable {
+        let date: Date
+        let priority: Int
+        var id: String { "\(date.timeIntervalSince1970)_\(priority)" }
     }
     
-    /// Axis label generator
-    private func xAxisLabel(for date: Date) -> some View {
-        guard isDateWithinChartBounds(date) else {
-            return VStack(spacing: 2) {
-                Text("")
-                    .foregroundStyle(.clear)
-                Text("")
-                    .foregroundStyle(.clear)
+    /// Priority rules:
+    ///  1 -> Best-time start
+    ///  2 -> Best-time end
+    ///  3 -> Midnight/noon
+    private func priorityOfDate(_ date: Date) -> Int {
+        // Are we exactly on a best-time start or end?
+        for (start, end) in bestTimeRanges {
+            if abs(date.timeIntervalSince(start)) < 1 {
+                return 1
+            } else if abs(date.timeIntervalSince(end)) < 1 {
+                return 2
             }
         }
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: date)
-        let text = formatAxisTime(date)
+        // Check if it's midnight/noon (within a minute for safety?)
+        let cal = Calendar.current
+        let hour = cal.component(.hour, from: date)
+        let minute = cal.component(.minute, from: date)
+        if (hour == 0 && minute == 0) || (hour == 12 && minute == 0) {
+            return 3
+        }
+        // else might be a normal half-hour label
+        // If you do want every half-hour as candidate, you can do so,
+        // but typically we keep them out unless you want them. For now, default to 3 if we do want them:
+        return 3
+    }
+    
+    /// Builds candidate dates from:
+    ///  best-time start (1),
+    ///  best-time end (2),
+    ///  midnight/noon (3) within xDomain
+    private func buildLabelCandidates() -> [LabelCandidate] {
+        // 1) best-time starts
+        let starts = bestTimeRanges.map { LabelCandidate(date: $0.0, priority: 1) }
+        // 2) best-time ends
+        let ends   = bestTimeRanges.map { LabelCandidate(date: $0.1, priority: 2) }
+        // 3) midnight/noon candidates within domain
+        let midNoons = generateMidnightNoonTicks().map { LabelCandidate(date: $0, priority: 3) }
         
-        if hour == 0 {
-            // Show date under "00"
-            let day = calendar.component(.day, from: date)
-            let month = calendar.component(.month, from: date)
-            return VStack(spacing: 2) {
-                Text(text)
-                    .foregroundStyle(highlightColor(for: date))
+        let all = starts + ends + midNoons
+        let unique = Array(Set(all))
+        let sorted = unique.sorted { $0.date < $1.date }
+        return sorted
+    }
+    
+    /// Generate midnight/noon within domain
+    private func generateMidnightNoonTicks() -> [Date] {
+        let cal = Calendar.current
+        let range = xDomain
+        var result = [Date]()
+        
+        // If domain is trivial, skip
+        guard range.lowerBound < range.upperBound else { return [] }
+        
+        // Move day by day
+        var dayStart = cal.startOfDay(for: range.lowerBound)
+        while dayStart <= range.upperBound {
+            // midnight
+            if dayStart >= range.lowerBound && dayStart <= range.upperBound {
+                result.append(dayStart)
+            }
+            
+            // noon
+            if let noon = cal.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart),
+               noon >= range.lowerBound && noon <= range.upperBound {
+                result.append(noon)
+            }
+            
+            // next day
+            if let nextDay = cal.date(byAdding: .day, value: 1, to: dayStart) {
+                dayStart = nextDay
+            } else {
+                break
+            }
+        }
+        return result
+    }
+    
+    /// The core pixel-based collision logic:
+    /// - Sort all candidates
+    /// - For each candidate, measure xPos
+    /// - If it's too close to the last accepted label, pick by priority
+    private func computeFinalXAxisLabels(proxy: ChartProxy) {
+        guard proxy.plotFrame != nil else { return }
+        
+        let candidates = buildLabelCandidates()
+        var accepted = [LabelCandidate]()
+        
+        let pixelGap: CGFloat = 40
+        
+        for cand in candidates {
+            guard let xPos = proxy.position(forX: cand.date) else { continue }
+            if let last = accepted.last,
+               let lastXPos = proxy.position(forX: last.date) {
+                
+                let dist = abs(xPos - lastXPos)
+                if dist < pixelGap {
+                    // If lower number => higher priority
+                    // so if cand.priority < last.priority => replace
+                    if cand.priority < last.priority {
+                        accepted.removeLast()
+                        accepted.append(cand)
+                    }
+                    // else skip
+                } else {
+                    accepted.append(cand)
+                }
+            } else {
+                accepted.append(cand)
+            }
+        }
+        
+        finalXLabels = accepted
+    }
+    
+    /// A small helper to generate textual label, highlighting if needed
+    private func xAxisLabel(for date: Date, priority: Int) -> some View {
+        VStack(spacing: 2) {
+            // If midnight exactly => show "00" and below day/month
+            // If noon => "12"
+            // If best-time => highlight or normal
+            let cal = Calendar.current
+            let hour = cal.component(.hour, from: date)
+            let minute = cal.component(.minute, from: date)
+            
+            // hour label
+            let hourLabel: String = {
+                if minute == 30 {
+                    return String(format: "%02d½", hour)
+                } else {
+                    return String(format: "%02d", hour)
+                }
+            }()
+            
+            // date label if midnight
+            if hour == 0 && minute == 0 {
+                let day   = cal.component(.day, from: date)
+                let month = cal.component(.month, from: date)
+                Text(hourLabel)
+                    .foregroundStyle(highlightColor(for: priority))
                 Text(String(format: "%02d/%02d", day, month))
                     .foregroundStyle(Theme.secondaryTextColor)
-            }
-        } else {
-            // Normal hour
-            return VStack(spacing: 2) {
-                Text(text)
-                    .foregroundStyle(highlightColor(for: date))
-                Text("")
-                    .foregroundStyle(.clear)
+            } else {
+                Text(hourLabel)
+                    .foregroundStyle(highlightColor(for: priority))
+                // no second line or empty
+                Text("").foregroundStyle(.clear)
             }
         }
     }
     
-    /// Determines if a date is inside our filtered range
-    private func isDateWithinChartBounds(_ date: Date) -> Bool {
-        guard let firstDate = filteredRates.first?.validFrom,
-              let lastDate  = filteredRates.last?.validFrom else {
-            return false
-        }
-        return date >= firstDate && date <= lastDate
-    }
-    
-    /// Highlights times that match best windows’ boundaries
-    private func highlightColor(for date: Date) -> Color {
-        isHighlightedTime(date) ? Theme.mainColor : Theme.secondaryTextColor
-    }
-    
-    private func isHighlightedTime(_ date: Date) -> Bool {
-        let calendar = Calendar.current
-        return bestTimeRanges.contains { range in
-            let (startHour, startMinute) = (calendar.component(.hour, from: range.0),
-                                            calendar.component(.minute, from: range.0))
-            let (endHour, endMinute)     = (calendar.component(.hour, from: range.1),
-                                            calendar.component(.minute, from: range.1))
-            let (dateHour, dateMinute)   = (calendar.component(.hour, from: date),
-                                            calendar.component(.minute, from: date))
-            
-            let matchesStart = (dateHour == startHour && dateMinute == startMinute)
-            let matchesEnd   = (dateHour == endHour && dateMinute == endMinute)
-            
-            return matchesStart || matchesEnd
+    private func highlightColor(for priority: Int) -> Color {
+        switch priority {
+            case 1: return Theme.mainColor  // best-time start
+            case 2: return Theme.mainColor  // best-time end
+            case 3: return Theme.secondaryTextColor
+            default: return Theme.secondaryTextColor
         }
     }
     
@@ -729,19 +740,6 @@ extension InteractiveLineChartCardView {
         }
     }
     
-    private func formatAxisTime(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: date)
-        let minute = calendar.component(.minute, from: date)
-        
-        if minute == 30 {
-            return "\(String(format: "%02d", hour))½"
-        } else {
-            return String(format: "%02d", hour)
-        }
-    }
-    
-    /// Full time with minute
     private func formatFullTime(_ date: Date) -> String {
         let calendar = Calendar.current
         let hour   = calendar.component(.hour, from: date)
@@ -749,7 +747,6 @@ extension InteractiveLineChartCardView {
         return String(format: "%02d:%02d", hour, minute)
     }
     
-    /// Full half-hour range (e.g. 09:00-09:30)
     private func formatFullTimeRange(_ date: Date) -> String {
         let calendar = Calendar.current
         let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
@@ -758,14 +755,48 @@ extension InteractiveLineChartCardView {
         let minute   = comps.minute ?? 0
         let halfHour = minute < 30 ? 0 : 30
         
-        // Start
         let startTime = String(format: "%02d:%02d", hour, halfHour)
         
-        // End
         let endHour   = halfHour == 30 ? (hour + 1) % 24 : hour
         let endMinute = halfHour == 0 ? 30 : 0
         let endTime   = String(format: "%02d:%02d", endHour, endMinute)
         
         return "\(startTime)-\(endTime)"
+    }
+}
+
+// MARK: - Timer & Bar Width
+extension InteractiveLineChartCardView {
+    private func handleMinuteTick() {
+        let cal = Calendar.current
+        let minute = cal.component(.minute, from: now)
+        
+        if (minute == 0 || minute == 30), lastSnappedMinute != minute {
+            lastSnappedMinute = minute
+            recalcBarWidthAndPrintOnce()
+        }
+    }
+    
+    private func recalcBarWidthAndPrintOnce() {
+        let newWidth = computeDynamicBarWidth()
+        guard newWidth != barWidth else { return }
+        
+        barWidth = newWidth
+        
+        #if DEBUG
+        if lastPrintedWidth != newWidth {
+            print("Updated bar width: \(newWidth)")
+            lastPrintedWidth = newWidth
+        }
+        #endif
+    }
+    
+    private func computeDynamicBarWidth() -> Double {
+        let maxPossibleBars   = 64.0 // just a safe upper bound
+        let currentBars       = Double(filteredRates.count)
+        let baseWidthPerBar   = 5.0
+        let barGapRatio       = 0.7  // 70% bar, 30% gap
+        let totalChunk        = (maxPossibleBars / currentBars) * baseWidthPerBar
+        return totalChunk * barGapRatio
     }
 }
