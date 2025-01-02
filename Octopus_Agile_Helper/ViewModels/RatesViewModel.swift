@@ -211,21 +211,19 @@ class RatesViewModel: ObservableObject {
     
     func loadRates() async {
         print("DEBUG: Starting to load rates")
-        isLoading = true
         error = nil
         
         // 1) Check if we already have enough data.
         if repository.hasDataThroughExpectedEndUKTime() {
             print("DEBUG: We have expected data on app start. No fetch needed.")
             do {
+                // Don't set isLoading since we're just reading from CoreData
                 allRates = try await repository.fetchAllRates()
                 upcomingRates = allRates.filter { rate in
                     guard let _ = rate.validFrom, let end = rate.validTo else { return false }
                     return end > Date()
                 }
-                // Just set it to .none so we never show "Fetch done" on app launch
                 fetchStatus = .none
-                isLoading = false
             } catch {
                 self.error = error
                 print("DEBUG: Error loading existing rates: \(error)")
@@ -240,20 +238,19 @@ class RatesViewModel: ObservableObject {
             }
         } else {
             // 2) We don't have enough data => do the normal fetch
+            isLoading = true
             fetchStatus = .fetching
             
             do {
-                try await repository.updateRates(force: true)  // Actually fetch new data
+                try await repository.updateRates(force: true)
                 allRates = try await repository.fetchAllRates()
                 upcomingRates = allRates.filter { rate in
                     guard let _ = rate.validFrom, let end = rate.validTo else { return false }
-                    return end > Date()  // Include any rate that hasn't ended yet
+                    return end > Date()
                 }
                 print("DEBUG: Successfully loaded \(upcomingRates.count) rates")
-                
-                // On initial load, just go straight to .none (no "Fetch done" message)
                 fetchStatus = .none
-                
+                isLoading = false
             } catch {
                 self.error = error
                 print("DEBUG: Error loading rates: \(error)")
@@ -266,9 +263,9 @@ class RatesViewModel: ObservableObject {
                         }
                     }
                 }
+                isLoading = false
             }
         }
-        isLoading = false
     }
     
     func refreshRates(force: Bool = false) async {
