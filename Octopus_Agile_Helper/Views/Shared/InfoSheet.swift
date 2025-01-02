@@ -1,3 +1,4 @@
+import OctopusHelperShared
 import SwiftUI
 
 struct InfoSheet: View {
@@ -5,7 +6,7 @@ struct InfoSheet: View {
     @Environment(\.locale) private var locale
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject var viewModel: InfoSheetViewModel
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -16,7 +17,7 @@ struct InfoSheet: View {
                         .textCase(.none)
                         .padding(.bottom, viewModel.isPremium ? 4 : 8)
                         .padding(.horizontal, 20)
-                    
+
                     if viewModel.isPremium {
                         HStack {
                             Image(systemName: "star.fill")
@@ -30,13 +31,13 @@ struct InfoSheet: View {
                         .padding(.bottom, 8)
                         .padding(.horizontal, 20)
                     }
-                    
+
                     Text(viewModel.message)
                         .font(Theme.secondaryFont())
                         .foregroundColor(Theme.secondaryTextColor)
                         .textCase(.none)
                         .padding(.horizontal, 20)
-                    
+
                     if !viewModel.mediaItems.isEmpty {
                         VStack(alignment: .leading, spacing: 24) {
                             ForEach(viewModel.mediaItems.indices, id: \.self) { index in
@@ -45,7 +46,7 @@ struct InfoSheet: View {
                         }
                         .padding(.vertical, 8)
                     }
-                    
+
                     if let linkURL = viewModel.linkURL, let linkText = viewModel.linkText {
                         Link(destination: linkURL) {
                             HStack {
@@ -84,22 +85,24 @@ struct InfoSheet: View {
 }
 
 #Preview {
-    InfoSheet(viewModel: InfoSheetViewModel(
-        title: "Example Title",
-        message: "This is an example message that explains something important.",
-        mediaItems: [
-            MediaItem(
-                localName: "example-image",
-                caption: "Example caption"
-            ),
-            MediaItem(
-                youtubeID: "dQw4w9WgXcQ",
-                caption: "Example YouTube video"
-            )
-        ],
-        linkURL: URL(string: "https://example.com"),
-        linkText: "Learn more",
-        isPremium: true
-    ))
+    InfoSheet(
+        viewModel: InfoSheetViewModel(
+            title: "Example Title",
+            message: "This is an example message that explains something important.",
+            mediaItems: [
+                MediaItem(
+                    localName: "example-image",
+                    caption: "Example caption"
+                ),
+                MediaItem(
+                    youtubeID: "dQw4w9WgXcQ",
+                    caption: "Example YouTube video"
+                ),
+            ],
+            linkURL: URL(string: "https://example.com"),
+            linkText: "Learn more",
+            isPremium: true
+        )
+    )
     .environmentObject(GlobalSettingsManager())
-} 
+}

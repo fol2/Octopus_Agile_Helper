@@ -5,9 +5,10 @@
 //  Created by James To on 26/12/2024.
 //
 
-import SwiftUI
-import CoreData
 import Combine
+import CoreData
+import OctopusHelperShared
+import SwiftUI
 
 // MARK: - Scroll Offset Key
 
@@ -38,37 +39,39 @@ struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject private var ratesViewModel: RatesViewModel
-    
+
     @Environment(\.scenePhase) private var scenePhase
-    
+
     // Track if large title is collapsed enough
     @State private var isCollapsed = false
-    
+
     // Timer for 16:00 check
-    private let contentTimer = Timer
+    private let contentTimer =
+        Timer
         .publish(every: 1, on: .main, in: .common)
         .autoconnect()
-    
+
     // Dynamic copyright text
     private var copyrightText: String {
         let currentYear = Calendar.current.component(.year, from: Date())
         return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
     }
-    
+
     init() {
         let tempTimer = GlobalTimer()
         _ratesViewModel = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
     }
-    
+
     var body: some View {
         NavigationView {
             ScrollView(.vertical, showsIndicators: true) {
-                
+
                 // The main content (cards)
                 VStack(spacing: 0) {
                     ForEach(sortedCardConfigs()) { config in
                         if config.isEnabled {
-                            if let definition = CardRegistry.shared.definition(for: config.cardType) {
+                            if let definition = CardRegistry.shared.definition(for: config.cardType)
+                            {
                                 if config.isPurchased || !definition.isPremium {
                                     definition.makeView(ratesViewModel)
                                         .environment(\.locale, globalSettings.locale)
@@ -81,11 +84,11 @@ struct ContentView: View {
                     }
                 }
                 .padding(.top, 22)  // Add spacing between title and first card
-                
+
                 // Offset tracking for title collapse
                 OffsetTrackingView()
-                .padding(.vertical, 4)  // Reduced from default padding
-                
+                    .padding(.vertical, 4)  // Reduced from default padding
+
                 // Copyright notice
                 Text(copyrightText)
                     .font(.footnote)
@@ -97,7 +100,7 @@ struct ContentView: View {
             .coordinateSpace(name: "scrollArea")  // for offset detection
             .navigationTitle(LocalizedStringKey("Octopus Agile"))
             .navigationBarTitleDisplayMode(.large)
-            
+
             // Pull-to-refresh
             .refreshable {
                 await ratesViewModel.refreshRates(force: true)
@@ -118,12 +121,15 @@ struct ContentView: View {
                         if ratesViewModel.fetchStatus != .none {
                             StatusIndicatorView(status: ratesViewModel.fetchStatus)
                                 .transition(.opacity)
-                                .animation(.easeInOut(duration: 0.3), value: ratesViewModel.fetchStatus)
+                                .animation(
+                                    .easeInOut(duration: 0.3), value: ratesViewModel.fetchStatus)
                         }
-                        
+
                         // The gear always here
-                        NavigationLink(destination: SettingsView()
-                            .environment(\.locale, globalSettings.locale)) {
+                        NavigationLink(
+                            destination: SettingsView()
+                                .environment(\.locale, globalSettings.locale)
+                        ) {
                             Image(systemName: "gear")
                                 .foregroundColor(Theme.secondaryTextColor)
                                 .font(Theme.secondaryFont())
@@ -131,7 +137,7 @@ struct ContentView: View {
                     }
                     .animation(.easeInOut(duration: 0.3), value: ratesViewModel.fetchStatus)
                 }
-                
+
                 // 2) Principal => inline title, only if isCollapsed == true
                 ToolbarItem(placement: .principal) {
                     if isCollapsed {
@@ -163,7 +169,7 @@ struct ContentView: View {
             let hour = calendar.component(.hour, from: now)
             let minute = calendar.component(.minute, from: now)
             let second = calendar.component(.second, from: now)
-            
+
             // If it's exactly 16:00:00 local, we do a coverage check
             if hour == 16, minute == 0, second == 0 {
                 Task {
@@ -180,7 +186,7 @@ struct ContentView: View {
             ratesViewModel.updateTimer(globalTimer)
         }
     }
-    
+
     /// Sort user's card configs by sortOrder
     private func sortedCardConfigs() -> [CardConfig] {
         globalSettings.settings.cardSettings.sorted { $0.sortOrder < $1.sortOrder }
@@ -207,7 +213,7 @@ private struct InlineCenteredTitle: View {
 struct CardLockedView: View {
     let definition: CardDefinition
     let config: CardConfig
-    
+
     var body: some View {
         VStack(spacing: 8) {
             HStack {
@@ -217,11 +223,11 @@ struct CardLockedView: View {
                     .font(Theme.titleFont())
                     .foregroundColor(Theme.mainTextColor)
             }
-            
+
             Text(LocalizedStringKey(definition.descriptionKey))
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
-            
+
             Button {
                 // Hook into your IAP or purchasing logic
             } label: {
@@ -240,10 +246,10 @@ struct CardLockedView: View {
 /// Shows small coloured dot + text for each fetchStatus
 struct StatusIndicatorView: View {
     let status: FetchStatus
-    
+
     var body: some View {
         let (dotColor, textKey) = statusDetails(status)
-        
+
         HStack(spacing: 4) {
             Circle()
                 .fill(dotColor)
@@ -257,7 +263,7 @@ struct StatusIndicatorView: View {
         .background(Theme.secondaryBackground)
         .cornerRadius(8)
     }
-    
+
     private func statusDetails(_ status: FetchStatus) -> (Color, LocalizedStringKey) {
         switch status {
         case .none:

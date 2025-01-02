@@ -1,15 +1,15 @@
+import CoreData
 import Foundation
 
-public struct RateEntity: Identifiable {
-    public let id: UUID
-    public let validFrom: Date?
-    public let validTo: Date?
-    public let valueIncludingVAT: Double
-    
-    public init(id: UUID = UUID(), validFrom: Date? = nil, validTo: Date? = nil, valueIncludingVAT: Double = 0.0) {
-        self.id = id
-        self.validFrom = validFrom
-        self.validTo = validTo
-        self.valueIncludingVAT = valueIncludingVAT
+@objc(OctopusHelperSharedRateEntity)
+public class RateEntity: NSManagedObject {
+    @NSManaged public var id: String
+    @NSManaged public var validFrom: Date?
+    @NSManaged public var validTo: Date?
+    @NSManaged public var valueExcludingVAT: Double
+    @NSManaged public var valueIncludingVAT: Double
+
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<RateEntity> {
+        return NSFetchRequest<RateEntity>(entityName: "RateEntity")
     }
-} 
+}

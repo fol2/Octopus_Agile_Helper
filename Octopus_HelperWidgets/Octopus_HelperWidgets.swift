@@ -5,38 +5,48 @@
 //  Created by James To on 31/12/2024.
 //
 
-import WidgetKit
-import SwiftUI
 import AppIntents
 import OctopusHelperShared
+import SwiftUI
+import WidgetKit
 
 @available(iOS 17.0, *)
 struct Provider: AppIntentTimelineProvider {
-    let repository = RatesRepository.shared
-    
+    private var repository: RatesRepository {
+        get async {
+            await MainActor.run { RatesRepository.shared }
+        }
+    }
+
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(date: Date(), configuration: ConfigurationAppIntent(), rates: [])
     }
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
+    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async
+        -> SimpleEntry
+    {
         // For previews and snapshots, use empty data
         SimpleEntry(date: Date(), configuration: configuration, rates: [])
     }
-    
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<
+        SimpleEntry
+    > {
         do {
             // Fetch latest rates
-            try await repository.updateRates()
-            let rates = try await repository.fetchAllRates()
-            
+            let repo = await repository
+            try await repo.updateRates()
+            let rates = try await repo.fetchAllRates()
+
             let entry = SimpleEntry(
                 date: Date(),
                 configuration: configuration,
                 rates: rates
             )
-            
+
             // Update every 30 minutes
-            let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
+            let nextUpdate =
+                Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
             return Timeline(entries: [entry], policy: .after(nextUpdate))
         } catch {
             // If we fail to fetch data, try again in 5 minutes
@@ -56,7 +66,7 @@ struct SimpleEntry: TimelineEntry {
 @available(iOS 17.0, *)
 struct CardWidgetView: View {
     let entry: SimpleEntry
-    
+
     var body: some View {
         switch entry.configuration.cardType {
         case .lowestUpcoming:
@@ -98,7 +108,7 @@ struct CardWidgetView: View {
 @available(iOS 17.0, *)
 struct LowestRateMiniWidget: View {
     let rates: [RateEntity]
-    
+
     var body: some View {
         if let lowest = rates.min(by: { $0.valueIncludingVAT < $1.valueIncludingVAT }) {
             VStack(alignment: .leading, spacing: 4) {
@@ -110,13 +120,13 @@ struct LowestRateMiniWidget: View {
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                
+
                 Text(RateFormatting.formatRate(lowest.valueIncludingVAT))
                     .font(Theme.mainFont())
                     .foregroundColor(RateColor.getColor(for: lowest, allRates: rates))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                
+
                 if let validFrom = lowest.validFrom {
                     Text(RateFormatting.formatTime(validFrom))
                         .font(Theme.subFont())
@@ -136,7 +146,7 @@ struct LowestRateMiniWidget: View {
 @available(iOS 17.0, *)
 struct HighestRateMiniWidget: View {
     let rates: [RateEntity]
-    
+
     var body: some View {
         if let highest = rates.max(by: { $0.valueIncludingVAT < $1.valueIncludingVAT }) {
             VStack(alignment: .leading, spacing: 4) {
@@ -148,13 +158,13 @@ struct HighestRateMiniWidget: View {
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                
+
                 Text(RateFormatting.formatRate(highest.valueIncludingVAT))
                     .font(Theme.mainFont())
                     .foregroundColor(RateColor.getColor(for: highest, allRates: rates))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                
+
                 if let validFrom = highest.validFrom {
                     Text(RateFormatting.formatTime(validFrom))
                         .font(Theme.subFont())
@@ -174,11 +184,11 @@ struct HighestRateMiniWidget: View {
 @available(iOS 17.0, *)
 struct AverageRateMiniWidget: View {
     let rates: [RateEntity]
-    
+
     var body: some View {
         if !rates.isEmpty {
             let average = rates.reduce(0.0) { $0 + $1.valueIncludingVAT } / Double(rates.count)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Image(systemName: "chart.bar.fill")
@@ -188,13 +198,13 @@ struct AverageRateMiniWidget: View {
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                
+
                 Text(RateFormatting.formatRate(average))
                     .font(Theme.mainFont())
                     .foregroundColor(Theme.mainTextColor)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                
+
                 Text("Next 24 hours")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
@@ -212,9 +222,9 @@ struct AverageRateMiniWidget: View {
 @available(iOS 17.0, *)
 struct CurrentRateMiniWidget: View {
     let rates: [RateEntity]
-    
+
     var body: some View {
-        if let current = rates.first(where: { 
+        if let current = rates.first(where: {
             guard let validFrom = $0.validFrom, let validTo = $0.validTo else { return false }
             return Date() >= validFrom && Date() < validTo
         }) {
@@ -227,13 +237,13 @@ struct CurrentRateMiniWidget: View {
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                
+
                 Text(RateFormatting.formatRate(current.valueIncludingVAT))
                     .font(Theme.mainFont())
                     .foregroundColor(RateColor.getColor(for: current, allRates: rates))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                
+
                 if let validTo = current.validTo {
                     Text("Until \(RateFormatting.formatTime(validTo))")
                         .font(Theme.subFont())
@@ -251,7 +261,7 @@ struct CurrentRateMiniWidget: View {
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                
+
                 Text("No current rate")
                     .font(Theme.mainFont())
                     .foregroundColor(Theme.mainTextColor)
@@ -283,8 +293,16 @@ struct Octopus_HelperWidgets: Widget {
 #Preview(as: .systemSmall) {
     Octopus_HelperWidgets()
 } timeline: {
-    SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: [])
-    SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: [
-        RateEntity(validFrom: Date(), validTo: Date().addingTimeInterval(1800), valueIncludingVAT: 15.5)
-    ])
+    let context = PersistenceController.preview.container.viewContext
+    let previewRate = RateEntity(context: context)
+    previewRate.id = UUID().uuidString
+    previewRate.validFrom = Date()
+    previewRate.validTo = Date().addingTimeInterval(1800)
+    previewRate.valueIncludingVAT = 15.5
+    previewRate.valueExcludingVAT = 12.5
+
+    return [
+        SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: []),
+        SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: [previewRate]),
+    ]
 }

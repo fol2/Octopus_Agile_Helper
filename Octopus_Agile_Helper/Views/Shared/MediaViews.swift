@@ -1,36 +1,37 @@
-import SwiftUI
 import AVKit
+import OctopusHelperShared
+import SwiftUI
 import WebKit
 
 #if os(iOS)
-struct YouTubeWebView: UIViewRepresentable {
-    let videoID: String
-    
-    func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        webView.scrollView.isScrollEnabled = false
-        webView.backgroundColor = .clear
-        webView.isOpaque = false
-        return webView
+    struct YouTubeWebView: UIViewRepresentable {
+        let videoID: String
+
+        func makeUIView(context: Context) -> WKWebView {
+            let webView = WKWebView()
+            webView.scrollView.isScrollEnabled = false
+            webView.backgroundColor = .clear
+            webView.isOpaque = false
+            return webView
+        }
+
+        func updateUIView(_ webView: WKWebView, context: Context) {
+            loadYouTubeEmbed(into: webView)
+        }
     }
-    
-    func updateUIView(_ webView: WKWebView, context: Context) {
-        loadYouTubeEmbed(into: webView)
-    }
-}
 #else
-struct YouTubeWebView: NSViewRepresentable {
-    let videoID: String
-    
-    func makeNSView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        return webView
+    struct YouTubeWebView: NSViewRepresentable {
+        let videoID: String
+
+        func makeNSView(context: Context) -> WKWebView {
+            let webView = WKWebView()
+            return webView
+        }
+
+        func updateNSView(_ webView: WKWebView, context: Context) {
+            loadYouTubeEmbed(into: webView)
+        }
     }
-    
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        loadYouTubeEmbed(into: webView)
-    }
-}
 #endif
 
 extension YouTubeWebView {
@@ -63,7 +64,7 @@ extension YouTubeWebView {
 
 struct MediaItemView: View {
     let item: MediaItem
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let caption = item.caption {
@@ -73,7 +74,7 @@ struct MediaItemView: View {
                     .textCase(.none)
                     .padding(.horizontal, 20)
             }
-            
+
             if let youtubeID = item.youtubeID {
                 YouTubeWebView(videoID: youtubeID)
                     .frame(maxWidth: .infinity)
@@ -85,7 +86,8 @@ struct MediaItemView: View {
                     )
             } else if let localName = item.localName {
                 if item.isVideo {
-                    if let videoURL = Bundle.main.url(forResource: localName, withExtension: "mp4") {
+                    if let videoURL = Bundle.main.url(forResource: localName, withExtension: "mp4")
+                    {
                         VideoPlayer(player: AVPlayer(url: videoURL))
                             .frame(maxWidth: .infinity)
                             .frame(height: 200)
@@ -134,4 +136,4 @@ struct MediaItemView: View {
             }
         }
     }
-} 
+}

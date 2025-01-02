@@ -6,4 +6,4 @@ public enum CardType: String, Codable, CaseIterable {
     case highestUpcoming
     case averageUpcoming
     case interactiveChart
-} 
+}

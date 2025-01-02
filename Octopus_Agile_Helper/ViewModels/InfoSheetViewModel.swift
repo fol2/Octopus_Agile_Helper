@@ -1,3 +1,4 @@
+import OctopusHelperShared
 import SwiftUI
 
 @MainActor
@@ -8,7 +9,7 @@ final class InfoSheetViewModel: ObservableObject {
     let linkURL: URL?
     let linkText: LocalizedStringKey?
     let isPremium: Bool
-    
+
     init(
         title: LocalizedStringKey,
         message: LocalizedStringKey,
@@ -24,7 +25,7 @@ final class InfoSheetViewModel: ObservableObject {
         self.linkText = linkText
         self.isPremium = isPremium
     }
-    
+
     convenience init(from definition: CardDefinition) {
         self.init(
             title: LocalizedStringKey(definition.displayNameKey),
@@ -35,4 +36,4 @@ final class InfoSheetViewModel: ObservableObject {
             isPremium: definition.isPremium
         )
     }
-} 
+}

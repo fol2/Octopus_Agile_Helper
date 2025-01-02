@@ -2,6 +2,7 @@ import Charts
 import Combine
 import Foundation
 import SwiftUI
+import OctopusHelperShared
 
 // MARK: - Tooltip Width Preference Key
 private struct TooltipWidthKey: PreferenceKey {
@@ -150,10 +151,10 @@ extension InteractiveLineChartCardView {
             if let def = CardRegistry.shared.definition(for: .interactiveChart) {
                 Image(systemName: def.iconName)
                     .foregroundColor(Theme.icon)
+                Text(LocalizedStringKey(def.displayNameKey))
+                    .font(Theme.titleFont())
+                    .foregroundStyle(Theme.secondaryTextColor)
             }
-            Text("Interactive Rates")
-                .font(Theme.titleFont())
-                .foregroundStyle(Theme.mainTextColor)
             Spacer()
             Button {
                 withAnimation(.spring()) {
@@ -326,7 +327,7 @@ extension InteractiveLineChartCardView {
             }
             Text("Card Settings")
                 .font(Theme.titleFont())
-                .foregroundStyle(Theme.mainTextColor)
+                .foregroundStyle(Theme.secondaryTextColor)
             Spacer()
             Button {
                 withAnimation(.spring()) {

@@ -1,6 +1,7 @@
 import Combine
 import CoreData
 import Foundation
+import OctopusHelperShared
 import SwiftUI
 
 struct ThreeHourAverageEntry: Identifiable {
@@ -223,7 +224,8 @@ class RatesViewModel: ObservableObject {
             print("DEBUG: We have expected data on app start. No fetch needed.")
             do {
                 // Don't set isLoading since we're just reading from CoreData
-                allRates = try await repository.fetchAllRates()
+                let fetchedRates = try await repository.fetchAllRates()
+                allRates = fetchedRates
                 upcomingRates = allRates.filter { rate in
                     guard rate.validFrom != nil, let end = rate.validTo else { return false }
                     return end > Date()

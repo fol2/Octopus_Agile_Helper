@@ -7,16 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BF34008E2D26309400CD068B /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BF34008D2D26309400CD068B /* OctopusHelperShared */; };
-		BF34008F2D26309400CD068B /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BF34008D2D26309400CD068B /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BF3400942D26DE9C00CD068B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
 		BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
 		BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BFC2A5D02D24C39700E702BD /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; };
 		BFC2A5D12D24C39700E702BD /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		BFC2A5D82D24C9DD00E702BD /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */; };
-		BFC2A5D92D24CAFB00E702BD /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		BFD3207D2D26F3D100B563D0 /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */; };
+		BFD3207E2D26F3D100B563D0 /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		BFD320802D26F3DD00B563D0 /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */; };
+		BFD320812D26F3DD00B563D0 /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,7 +51,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				BF34008F2D26309400CD068B /* OctopusHelperShared in Embed Frameworks */,
+				BFD320812D26F3DD00B563D0 /* OctopusHelperShared in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -73,7 +74,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */,
-				BFC2A5D92D24CAFB00E702BD /* OctopusHelperShared in Embed Frameworks */,
+				BFD3207E2D26F3D100B563D0 /* OctopusHelperShared in Embed Frameworks */,
 				BFC2A5D12D24C39700E702BD /* WidgetKit.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
@@ -103,6 +104,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BF3400962D26EB4500CD068B /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_HelperWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Assets.xcassets,
+				Octopus_Agile_Helper.xcdatamodeld,
+			);
+			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
+		};
 		BFE3DE852D1E0707003E74A4 /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_Agile_Helper" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -124,6 +133,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				BFE3DE852D1E0707003E74A4 /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_Agile_Helper" target */,
+				BF3400962D26EB4500CD068B /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_HelperWidgetsExtension" target */,
 			);
 			path = Octopus_Agile_Helper;
 			sourceTree = "<group>";
@@ -153,7 +163,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BF34008E2D26309400CD068B /* OctopusHelperShared in Frameworks */,
+				BFD320802D26F3DD00B563D0 /* OctopusHelperShared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -176,7 +186,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */,
-				BFC2A5D82D24C9DD00E702BD /* OctopusHelperShared in Frameworks */,
+				BFD3207D2D26F3D100B563D0 /* OctopusHelperShared in Frameworks */,
 				BFC2A5D02D24C39700E702BD /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -242,7 +252,7 @@
 			);
 			name = Octopus_Agile_Helper;
 			packageProductDependencies = (
-				BF34008D2D26309400CD068B /* OctopusHelperShared */,
+				BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */,
 			);
 			productName = Octopus_Agile_Helper;
 			productReference = BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */;
@@ -306,14 +316,13 @@
 			buildRules = (
 			);
 			dependencies = (
-				BF0C01012D24D0420055B9D3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BFF957502D248B6A002EE392 /* Octopus_HelperWidgets */,
 			);
 			name = Octopus_HelperWidgetsExtension;
 			packageProductDependencies = (
-				BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */,
+				BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */,
 			);
 			productName = Octopus_HelperWidgetsExtension;
 			productReference = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */;
@@ -387,7 +396,7 @@
 			mainGroup = BFE3DE532D1E0705003E74A4;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */,
+				BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BFE3DE5D2D1E0706003E74A4 /* Products */;
@@ -429,6 +438,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BF3400942D26DE9C00CD068B /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -466,10 +476,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		BF0C01012D24D0420055B9D3 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = BF0C01002D24D0420055B9D3 /* OctopusHelperShared */;
-		};
 		BF3400922D2630AD00CD068B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
@@ -870,25 +876,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */ = {
+		BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Shared;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		BF0C01002D24D0420055B9D3 /* OctopusHelperShared */ = {
+		BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */;
+			package = BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */;
 			productName = OctopusHelperShared;
 		};
-		BF34008D2D26309400CD068B /* OctopusHelperShared */ = {
+		BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = BFC2A5D62D24C9DD00E702BD /* XCLocalSwiftPackageReference "Shared" */;
-			productName = OctopusHelperShared;
-		};
-		BFC2A5D72D24C9DD00E702BD /* OctopusHelperShared */ = {
-			isa = XCSwiftPackageProductDependency;
+			package = BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */;
 			productName = OctopusHelperShared;
 		};
 /* End XCSwiftPackageProductDependency section */

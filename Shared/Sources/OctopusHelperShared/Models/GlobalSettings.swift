@@ -2,17 +2,17 @@ import Foundation
 import SwiftUI
 
 // MARK: - Supported App Languages
-enum Language: String, Codable, CaseIterable {
+public enum Language: String, Codable, CaseIterable {
     // Instead of hardcoding languages, we'll compute them dynamically
-    static var allCases: [Language] {
+    public static var allCases: [Language] {
         // Get all available localizations from the app bundle
         let availableLocalizations = Bundle.main.localizations
-            .filter { $0 != "Base" } // Exclude "Base" localization
-        
+            .filter { $0 != "Base" }  // Exclude "Base" localization
+
         // Convert to Language cases, fallback to .english if conversion fails
         return availableLocalizations.compactMap { Language(rawValue: $0) }
     }
-    
+
     // Define cases for type safety, but the actual supported languages
     // will be determined by the available .lproj folders and Localizable.xcstrings
     case english = "en"
@@ -45,8 +45,8 @@ enum Language: String, Codable, CaseIterable {
     case thai = "th"
     case ukrainian = "uk"
     case vietnamese = "vi"
-    
-    var displayName: String {
+
+    public var displayName: String {
         switch self {
         case .traditionalChinese:
             return "繁體中文"
@@ -57,32 +57,31 @@ enum Language: String, Codable, CaseIterable {
             return self.localizedName(in: self.locale)
         }
     }
-    
+
     // Get language name localized in a specific language
-    func localizedName(in locale: Locale) -> String {
-        locale.localizedString(forLanguageCode: self.rawValue) ??
-        locale.localizedString(forIdentifier: self.rawValue) ??
-        self.rawValue
+    public func localizedName(in locale: Locale) -> String {
+        locale.localizedString(forLanguageCode: self.rawValue) ?? locale.localizedString(
+            forIdentifier: self.rawValue) ?? self.rawValue
     }
-    
+
     // Get language name in its own language (autonym)
-    var autonym: String {
+    public var autonym: String {
         self.displayName  // Use our custom display name that handles Chinese variants
     }
-    
+
     // Get both localized name and autonym if they're different
-    var displayNameWithAutonym: String {
+    public var displayNameWithAutonym: String {
         self.autonym  // Just use the native name
     }
-    
-    var locale: Locale {
+
+    public var locale: Locale {
         Locale(identifier: self.rawValue)
     }
-    
-    static func systemPreferred() -> Language {
+
+    public static func systemPreferred() -> Language {
         // Get the user's preferred languages in order
         let preferredLanguages = Locale.preferredLanguages
-        
+
         // Try to find the first preferred language that we support
         for language in preferredLanguages {
             // Convert to base language if needed (e.g., "en-US" -> "en")
@@ -95,42 +94,52 @@ enum Language: String, Codable, CaseIterable {
                 return supported
             }
         }
-        
+
         // Fallback to English if no match found
         return .english
     }
 }
 
-// MARK: - Card Types
-enum CardType: String, Codable, CaseIterable {
-    case currentRate
-    case lowestUpcoming
-    case highestUpcoming
-    case averageUpcoming
-    case interactiveChart
-}
-
 // MARK: - Card Configuration
-struct CardConfig: Identifiable, Codable {
-    let id: UUID
-    let cardType: CardType
-    var isEnabled: Bool
-    var isPurchased: Bool
-    var sortOrder: Int
+public struct CardConfig: Identifiable, Codable {
+    public let id: UUID
+    public let cardType: CardType
+    public var isEnabled: Bool
+    public var isPurchased: Bool
+    public var sortOrder: Int
+
+    public init(id: UUID, cardType: CardType, isEnabled: Bool, isPurchased: Bool, sortOrder: Int) {
+        self.id = id
+        self.cardType = cardType
+        self.isEnabled = isEnabled
+        self.isPurchased = isPurchased
+        self.sortOrder = sortOrder
+    }
 }
 
 // MARK: - Global Settings
-struct GlobalSettings: Codable {
-    var postcode: String
-    var apiKey: String
-    var selectedLanguage: Language
-    var showRatesInPounds: Bool
-    var cardSettings: [CardConfig]
+public struct GlobalSettings: Codable {
+    public var postcode: String
+    public var apiKey: String
+    public var selectedLanguage: Language
+    public var showRatesInPounds: Bool
+    public var cardSettings: [CardConfig]
+
+    public init(
+        postcode: String, apiKey: String, selectedLanguage: Language, showRatesInPounds: Bool,
+        cardSettings: [CardConfig]
+    ) {
+        self.postcode = postcode
+        self.apiKey = apiKey
+        self.selectedLanguage = selectedLanguage
+        self.showRatesInPounds = showRatesInPounds
+        self.cardSettings = cardSettings
+    }
 }
 
-// Provide a default “empty” settings object
+// Provide a default "empty" settings object
 extension GlobalSettings {
-    static let defaultSettings = GlobalSettings(
+    public static let defaultSettings = GlobalSettings(
         postcode: "",
         apiKey: "",
         selectedLanguage: .english,
@@ -140,9 +149,9 @@ extension GlobalSettings {
 }
 
 // MARK: - Manager (ObservableObject)
-class GlobalSettingsManager: ObservableObject {
-    
-    @Published var settings: GlobalSettings {
+public class GlobalSettingsManager: ObservableObject {
+
+    @Published public var settings: GlobalSettings {
         didSet {
             saveSettings()
             if oldValue.selectedLanguage != settings.selectedLanguage {
@@ -150,26 +159,27 @@ class GlobalSettingsManager: ObservableObject {
             }
         }
     }
-    
-    @Published var locale: Locale
+
+    @Published public var locale: Locale
     private let userDefaultsKey = "GlobalSettings"
-    
+
     // -------------------------------------------
     // MARK: - Initialization
     // -------------------------------------------
-    init() {
+    public init() {
         // 1. Attempt to load from UserDefaults
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-           let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data) {
-            
+            let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
+        {
+
             // We have existing settings
             self.settings = decoded
             self.locale = decoded.selectedLanguage.locale
-            
+
         } else {
             // 2. No saved settings => use system preferred language
             let matchedLanguage = Language.systemPreferred()
-            
+
             self.settings = GlobalSettings(
                 postcode: "",
                 apiKey: "",
@@ -179,11 +189,11 @@ class GlobalSettingsManager: ObservableObject {
             )
             self.locale = matchedLanguage.locale
         }
-        
+
         // 3. Merge any missing cards
         mergeMissingCards()
     }
-    
+
     // -------------------------------------------
     // MARK: - Helper: Best Matching Language
     // -------------------------------------------
@@ -191,45 +201,46 @@ class GlobalSettingsManager: ObservableObject {
     private static func findBestSupportedLanguage() -> Language {
         return Language.systemPreferred()
     }
-    
+
     // -------------------------------------------
     // MARK: - Merge Missing Cards Example
     // -------------------------------------------
     private func mergeMissingCards() {
-        // This is just sample logic. If you don’t have a CardRegistry, remove or adapt.
+        // This is just sample logic. If you don't have a CardRegistry, remove or adapt.
         let registry = CardRegistry.shared
         var changed = false
-        
+
         let existingTypes = Set(settings.cardSettings.map { $0.cardType })
-        
+
         for cardType in CardType.allCases {
             if let definition = registry.definition(for: cardType),
-               !existingTypes.contains(cardType) {
-                
+                !existingTypes.contains(cardType)
+            {
+
                 let newConfig = CardConfig(
                     id: UUID(),
-                    cardType: definition.id,             // or cardType if you prefer
+                    cardType: definition.id,  // or cardType if you prefer
                     isEnabled: definition.defaultIsEnabled,
                     isPurchased: definition.defaultIsPurchased,
                     sortOrder: definition.defaultSortOrder
                 )
-                
+
                 settings.cardSettings.append(newConfig)
                 changed = true
             }
         }
-        
+
         settings.cardSettings.sort { $0.sortOrder < $1.sortOrder }
-        
+
         if changed {
             saveSettings()
         }
     }
-    
+
     // -------------------------------------------
     // MARK: - Save Settings
     // -------------------------------------------
-    func saveSettings() {
+    public func saveSettings() {
         if let encoded = try? JSONEncoder().encode(settings) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
         }

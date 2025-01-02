@@ -4,18 +4,18 @@ import Combine
 /// A simple shared manager that lets all "cards" subscribe
 /// to the same .onReceive timers and scene-phase triggers.
 @MainActor
-class CardRefreshManager: ObservableObject {
-    static let shared = CardRefreshManager()
+public class CardRefreshManager: ObservableObject {
+    public static let shared = CardRefreshManager()
 
     // Published events
-    @Published var minuteTick: Date? = nil
-    @Published var halfHourTick: Date? = nil
-    @Published var sceneActiveTick: Bool = false
+    @Published public var minuteTick: Date? = nil
+    @Published public var halfHourTick: Date? = nil
+    @Published public var sceneActiveTick: Bool = false
 
     private var timerCancellable: AnyCancellable?
     @Environment(\.scenePhase) private var scenePhase
 
-    init() {
+    public init() {
         // 1) Start a timer every second
         timerCancellable = Timer
             .publish(every: 1, on: .main, in: .common)
@@ -26,7 +26,7 @@ class CardRefreshManager: ObservableObject {
     }
 
     /// Called by your App or ContentView when the app becomes active
-    func notifyAppBecameActive() {
+    public func notifyAppBecameActive() {
         sceneActiveTick.toggle()
     }
 

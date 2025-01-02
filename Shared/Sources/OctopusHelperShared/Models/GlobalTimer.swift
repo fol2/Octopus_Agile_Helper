@@ -1,13 +1,15 @@
-import Foundation
 import Combine
+import Foundation
 import SwiftUI
 
-class GlobalTimer: ObservableObject {
+public class GlobalTimer: ObservableObject {
     private var timer: Timer?
-    @Published var currentTime: Date = Date()
-    
-    func startTimer() {
-        stopTimer() // ensure no duplicate
+    @Published public var currentTime: Date = Date()
+
+    public init() {}
+
+    public func startTimer() {
+        stopTimer()  // ensure no duplicate
         timer = Timer.scheduledTimer(
             withTimeInterval: 60,
             repeats: true
@@ -17,13 +19,13 @@ class GlobalTimer: ObservableObject {
         // Fire immediately to ensure current time
         currentTime = Date()
     }
-    
-    func stopTimer() {
+
+    public func stopTimer() {
         timer?.invalidate()
         timer = nil
     }
-    
-    func refreshTime() {
+
+    public func refreshTime() {
         currentTime = Date()
     }
-} 
+}

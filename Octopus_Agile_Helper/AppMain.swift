@@ -1,5 +1,6 @@
-import SwiftUI
 import CoreData
+import OctopusHelperShared
+import SwiftUI
 
 @main
 @available(iOS 17.0, *)
@@ -8,6 +9,11 @@ struct Octopus_Agile_HelperApp: App {
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var globalSettings = GlobalSettingsManager()
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        // Register all cards
+        CardRegistry.registerCards()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -31,4 +37,4 @@ struct Octopus_Agile_HelperApp: App {
                 }
         }
     }
-} 
+}

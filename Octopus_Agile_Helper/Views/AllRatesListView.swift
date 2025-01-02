@@ -1,5 +1,6 @@
 import Combine
 import CoreData
+import OctopusHelperShared
 import SwiftUI
 
 struct AllRatesListView: View {
