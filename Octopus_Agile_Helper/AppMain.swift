@@ -1,6 +1,7 @@
 import CoreData
 import OctopusHelperShared
 import SwiftUI
+import WidgetKit
 
 @main
 @available(iOS 17.0, *)
@@ -29,6 +30,8 @@ struct Octopus_Agile_HelperApp: App {
                         globalTimer.refreshTime()
                     case .background:
                         globalTimer.stopTimer()
+                        // Force widget refresh when app goes to background
+                        WidgetCenter.shared.reloadAllTimelines()
                     case .inactive:
                         break
                     @unknown default:

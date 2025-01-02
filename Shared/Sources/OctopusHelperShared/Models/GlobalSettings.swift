@@ -242,7 +242,28 @@ public class GlobalSettingsManager: ObservableObject {
     // -------------------------------------------
     public func saveSettings() {
         if let encoded = try? JSONEncoder().encode(settings) {
+            // Save to standard UserDefaults
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+            
+            // Also save to shared UserDefaults for widget access
+            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
+            sharedDefaults?.set(encoded, forKey: "user_settings")
+            
+            // Also save individual values for easier widget access
+            sharedDefaults?.set(settings.postcode, forKey: "selected_postcode")
+            sharedDefaults?.set(settings.apiKey, forKey: "api_key")
+            sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
+            sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
+            
+            // Notify widget of changes
+            #if !WIDGET
+            if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
+                let selector = NSSelectorFromString("reloadAllTimelines")
+                if widgetCenter.responds(to: selector) {
+                    widgetCenter.perform(selector)
+                }
+            }
+            #endif
         }
     }
 }

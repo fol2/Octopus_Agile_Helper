@@ -4,6 +4,9 @@
     "" : {
       "shouldTranslate" : false
     },
+    "/kWh" : {
+
+    },
     "%@\n%@" : {
       "localizations" : {
         "ar" : {
@@ -1436,6 +1439,9 @@
         }
       }
     },
+    "Agile Current" : {
+
+    },
     "All Rates" : {
       "comment" : "Navigation title for the list of all electricity rates",
       "localizations" : {
@@ -2451,6 +2457,7 @@
     },
     "Average Rate" : {
       "comment" : "Average rate card title",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2653,6 +2660,7 @@
       }
     },
     "Average Upcoming" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3255,6 +3263,7 @@
       }
     },
     "Card Type" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3659,6 +3668,7 @@
       }
     },
     "Choose which rate card to display." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4669,6 +4679,9 @@
         }
       }
     },
+    "Current rate widget configuration." : {
+
+    },
     "Custom Average Hours: %@" : {
       "comment" : "Label for stepper controlling the duration of average calculation",
       "localizations" : {
@@ -5467,7 +5480,7 @@
         }
       }
     },
-    "Display your chosen rate card." : {
+    "Display the current electricity rate." : {
 
     },
     "Displays the ongoing rate for the current half-hour slot." : {
@@ -6467,6 +6480,7 @@
       }
     },
     "Highest Rate" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6669,6 +6683,7 @@
       }
     },
     "Highest Upcoming" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7478,6 +7493,7 @@
       }
     },
     "Interactive Chart" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7680,6 +7696,7 @@
       }
     },
     "Interactive Chart not available in widget" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8890,6 +8907,7 @@
       }
     },
     "Lowest Rate" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9092,6 +9110,7 @@
       }
     },
     "Lowest Upcoming" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10295,6 +10314,7 @@
       }
     },
     "Next 24 hours" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11308,6 +11328,7 @@
       }
     },
     "No rates available" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12712,9 +12733,6 @@
         }
       }
     },
-    "Octopus Rate Card" : {
-
-    },
     "Overview of average rates card" : {
       "localizations" : {
         "ar" : {
@@ -13118,6 +13136,9 @@
           }
         }
       }
+    },
+    "p/kWh" : {
+
     },
     "Peak Rate Warning" : {
       "extractionState" : "stale",

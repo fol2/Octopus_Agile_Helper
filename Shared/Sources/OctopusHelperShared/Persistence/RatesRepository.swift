@@ -63,7 +63,7 @@ public class RatesRepository: ObservableObject {
         self.urlSession = URLSession(configuration: config)
     }
 
-    func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
+    public func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
         // Clean and validate postcode
         let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanedPostcode.isEmpty {

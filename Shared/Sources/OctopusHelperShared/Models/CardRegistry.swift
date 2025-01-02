@@ -92,4 +92,20 @@ public final class CardRegistry {
     public func definition(for type: CardType) -> CardDefinition? {
         definitions[type]
     }
+    
+    /// Register cards for widgets
+    public func registerWidgetCards() {
+        register(
+            CardDefinition(
+                id: .currentRate,
+                displayNameKey: "Current Rate",
+                descriptionKey: "Displays the ongoing rate for the current half-hour slot.",
+                isPremium: false,
+                makeView: { _ in AnyView(EmptyView()) },  // Widget doesn't need the view
+                iconName: "clock.fill",
+                defaultSortOrder: 1,
+                mediaItems: []
+            )
+        )
+    }
 }
