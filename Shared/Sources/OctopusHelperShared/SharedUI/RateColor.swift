@@ -1,8 +1,7 @@
-import OctopusHelperShared
 import SwiftUI
 
-struct RateColor {
-    static func getDayRates(for date: Date, allRates: [RateEntity]) -> [RateEntity] {
+public struct RateColor {
+    public static func getDayRates(for date: Date, allRates: [RateEntity]) -> [RateEntity] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
@@ -13,7 +12,7 @@ struct RateColor {
         }.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
     }
 
-    static func getColor(for rate: RateEntity, allRates: [RateEntity]) -> Color {
+    public static func getColor(for rate: RateEntity, allRates: [RateEntity]) -> Color {
         guard let currentValidFrom = rate.validFrom else {
             return .white
         }
@@ -75,4 +74,4 @@ struct RateColor {
         // Lower half rates stay white
         return .white
     }
-}
+} 

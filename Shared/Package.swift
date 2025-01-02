@@ -20,14 +20,12 @@ let package = Package(
         .target(
             name: "OctopusHelperShared",
             dependencies: [],
-            path: "Sources/OctopusHelperShared",
-            sources: [".", "Persistence", "Services", "Models"],
             resources: [
                 .process("Resources")
             ]
         ),
         .testTarget(
             name: "OctopusHelperSharedTests",
-            dependencies: ["OctopusHelperShared"])
+            dependencies: ["OctopusHelperShared"]),
     ]
 )
