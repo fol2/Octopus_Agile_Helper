@@ -177,8 +177,8 @@ extension InteractiveLineChartCardView {
         let (minVal, maxVal) = yRange
 
         return Chart {
-            // 1) Highlight best windows - using exact times, no snapping
-            ForEach(bestTimeRanges, id: \.0) { (start, end) in
+            // 1) Highlight best windows - using rendering times with epsilon shift
+            ForEach(bestTimeRangesRender, id: \.0) { (start, end) in
                 RectangleMark(
                     xStart: .value("Start", start),
                     xEnd: .value("End", end),
@@ -231,15 +231,19 @@ extension InteractiveLineChartCardView {
                 .padding(.leading, 16)
                 .frame(maxWidth: .infinity)
         }
-        // Instead of a simple .chartXAxis { AxisMarks(values: strideXticks) },
-        // we will pass 'finalXLabels' after collision filtering.
         .chartXAxis {
-            AxisMarks(values: finalXLabels.map(\.date)) { value in
-                AxisGridLine()
+            AxisMarks(values: finalXLabels.map(\.domainDate)) { value in
+                // AxisGridLine()
                 AxisValueLabel(anchor: .top) {
-                    if let date = value.as(Date.self) {
-                        xAxisLabel(for: date, priority: priorityOfDate(date))
-                            .offset(x: 16, y: 0)
+                    if let domainVal = value.as(Date.self) {
+                        // find the matching candidate
+                        if let candidate = finalXLabels.first(where: { $0.domainDate == domainVal })
+                        {
+                            let displayDate = candidate.labelDate
+                            let prio = candidate.priority
+                            xAxisLabel(for: displayDate, priority: prio)
+                                .offset(x: 16, y: 0)
+                        }
                     }
                 }
             }
@@ -500,14 +504,23 @@ extension InteractiveLineChartCardView {
         return earliest...domainEnd
     }
 
-    /// The "best" time windows from the VM, merged
-    private var bestTimeRanges: [(Date, Date)] {
+    /// The "best" time windows from the VM, merged, raw version for labels
+    private var bestTimeRangesRaw: [(Date, Date)] {
         let windows = viewModel.getLowestAveragesIncludingPastHour(
             hours: localSettings.settings.customAverageHours,
             maxCount: localSettings.settings.maxListCount
         )
         let raw = windows.map { ($0.start, $0.end) }
         return mergeWindows(raw)
+    }
+
+    /// The "best" time windows adjusted for rendering (with epsilon shift)
+    private var bestTimeRangesRender: [(Date, Date)] {
+        bestTimeRangesRaw.map { (s, e) -> (Date, Date) in
+            let adjustedStart = isExactlyOnHalfHour(s) ? s.addingTimeInterval(-900) : s
+            let adjustedEnd = isExactlyOnHalfHour(e) ? e.addingTimeInterval(-900) : e
+            return (adjustedStart, adjustedEnd)
+        }
     }
 
     private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
@@ -576,9 +589,18 @@ extension InteractiveLineChartCardView {
 extension InteractiveLineChartCardView {
     /// Each label candidate holds a date + priority
     struct LabelCandidate: Identifiable, Hashable {
-        let date: Date
+        /// The actual domain coordinate used for chart anchoring
+        let domainDate: Date
+
+        /// The date/time you want to SHOW in text
+        let labelDate: Date
+
         let priority: Int
-        var id: String { "\(date.timeIntervalSince1970)_\(priority)" }
+
+        var id: String {
+            // So that each candidate is unique
+            "\(domainDate.timeIntervalSince1970)_\(labelDate.timeIntervalSince1970)_\(priority)"
+        }
     }
 
     /// Priority rules:
@@ -587,7 +609,7 @@ extension InteractiveLineChartCardView {
     ///  3 -> Midnight/noon
     private func priorityOfDate(_ date: Date) -> Int {
         // Are we exactly on a best-time start or end?
-        for (start, end) in bestTimeRanges {
+        for (start, end) in bestTimeRangesRaw {
             if abs(date.timeIntervalSince(start)) < 1 {
                 return 1
             } else if abs(date.timeIntervalSince(end)) < 1 {
@@ -601,9 +623,6 @@ extension InteractiveLineChartCardView {
         if (hour == 0 && minute == 0) || (hour == 12 && minute == 0) {
             return 3
         }
-        // else might be a normal half-hour label
-        // If you do want every half-hour as candidate, you can do so,
-        // but typically we keep them out unless you want them. For now, default to 3 if we do want them:
         return 3
     }
 
@@ -612,16 +631,40 @@ extension InteractiveLineChartCardView {
     ///  best-time end (2),
     ///  midnight/noon (3) within xDomain
     private func buildLabelCandidates() -> [LabelCandidate] {
-        // 1) best-time starts - use exact times
-        let starts = bestTimeRanges.map { LabelCandidate(date: $0.0, priority: 1) }
-        // 2) best-time ends - use exact times
-        let ends = bestTimeRanges.map { LabelCandidate(date: $0.1, priority: 2) }
-        // 3) midnight/noon candidates within domain
-        let midNoons = generateMidnightNoonTicks().map { LabelCandidate(date: $0, priority: 3) }
+        // For "end" windows:
+        let ends = bestTimeRangesRaw.map { (start, end) -> LabelCandidate in
+            if isExactlyOnHalfHour(end) {
+                // domain coordinate => on the hour (end - 30 min)
+                // label text => original half-hour
+                let shifted = end.addingTimeInterval(-1800)
+                return LabelCandidate(
+                    domainDate: shifted,
+                    labelDate: end,
+                    priority: 2
+                )
+            } else {
+                return LabelCandidate(
+                    domainDate: end,
+                    labelDate: end,
+                    priority: 2
+                )
+            }
+        }
+
+        // Similarly for starts:
+        let starts = bestTimeRangesRaw.map { (start, _) -> LabelCandidate in
+            // Usually we keep the same domainDate and labelDate for starts
+            LabelCandidate(domainDate: start, labelDate: start, priority: 1)
+        }
+
+        // midnight/noon:
+        let midNoons = generateMidnightNoonTicks().map {
+            LabelCandidate(domainDate: $0, labelDate: $0, priority: 3)
+        }
 
         let all = starts + ends + midNoons
         let unique = Array(Set(all))
-        let sorted = unique.sorted { $0.date < $1.date }
+        let sorted = unique.sorted { $0.domainDate < $1.domainDate }
         return sorted
     }
 
@@ -669,14 +712,13 @@ extension InteractiveLineChartCardView {
         let candidates = buildLabelCandidates()
         var accepted = [LabelCandidate]()
 
-        let pixelGap: CGFloat = 25
+        let pixelGap: CGFloat = 20
 
         for cand in candidates {
-            guard let xPos = proxy.position(forX: cand.date) else { continue }
+            guard let xPos = proxy.position(forX: cand.domainDate) else { continue }
             if let last = accepted.last,
-                let lastXPos = proxy.position(forX: last.date)
+                let lastXPos = proxy.position(forX: last.domainDate)
             {
-
                 let dist = abs(xPos - lastXPos)
                 if dist < pixelGap {
                     // If lower number => higher priority
@@ -780,6 +822,14 @@ extension InteractiveLineChartCardView {
         let endTime = String(format: "%02d:%02d", endHour, endMinute)
 
         return "\(startTime)-\(endTime)"
+    }
+
+    private func isExactlyOnHalfHour(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let comps = calendar.dateComponents([.minute, .second, .nanosecond], from: date)
+        let minute = comps.minute ?? 0
+        return (minute == 0 || minute == 30) && (comps.second ?? 0) == 0
+            && (comps.nanosecond ?? 0) == 0
     }
 }
 
