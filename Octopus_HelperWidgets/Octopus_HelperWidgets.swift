@@ -64,7 +64,7 @@ class Provider: NSObject, AppIntentTimelineProvider {
         if settings.showRatesInPounds {
             return String(format: "£%.3f", rate / 100.0)
         } else {
-            return String(format: "%.2f", rate)
+            return String(format: "%.2fp", rate)
         }
     }
     
@@ -76,7 +76,7 @@ class Provider: NSObject, AppIntentTimelineProvider {
                 .foregroundColor(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            Text(settings.showRatesInPounds ? "/kWh" : "p/kWh")
+            Text("/kWh")
                 .font(font == Theme.mainFont() ? Theme.secondaryFont() : .caption2)
                 .foregroundColor(Theme.secondaryTextColor)
                 .scaleEffect(font == Theme.mainFont() ? 0.95 : 0.8)
@@ -262,7 +262,7 @@ struct CurrentRateWidget: View {
         if settings.showRatesInPounds {
             return String(format: "£%.3f", rate / 100.0)
         } else {
-            return String(format: "%.2f", rate)
+            return String(format: "%.2fp", rate)
         }
     }
     
@@ -273,7 +273,7 @@ struct CurrentRateWidget: View {
                 .foregroundColor(color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            Text(settings.showRatesInPounds ? "/kWh" : "p/kWh")
+            Text("/kWh")
                 .font(font == Theme.mainFont() ? Theme.secondaryFont() : .caption2)
                 .foregroundColor(Theme.secondaryTextColor)
                 .scaleEffect(font == Theme.mainFont() ? 0.9 : 0.8)
