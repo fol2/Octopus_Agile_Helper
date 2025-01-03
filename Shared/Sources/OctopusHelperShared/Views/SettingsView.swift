@@ -247,7 +247,7 @@ struct SettingsView_Previews: PreviewProvider {
     static let globalSettings = GlobalSettingsManager()
 
     static var previews: some View {
-        NavigationView {
+        NavigationStack {
             SettingsView()
                 .environmentObject(globalSettings)
         }

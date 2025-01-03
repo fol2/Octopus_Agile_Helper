@@ -195,8 +195,25 @@ struct SimpleEntry: TimelineEntry {
 struct CurrentRateWidget: View {
     let rates: [RateEntity]
     let settings: (postcode: String, showRatesInPounds: Bool, language: String)
+    @Environment(\.widgetFamily) var family
     
     var body: some View {
+        switch family {
+        case .systemSmall:
+            systemSmallView
+        case .accessoryCircular:
+            circularView
+        case .accessoryRectangular:
+            rectangularView
+        case .accessoryInline:
+            inlineView
+        default:
+            systemSmallView
+        }
+    }
+    
+    // Original system small widget layout
+    private var systemSmallView: some View {
         ZStack {
             Theme.mainBackground.ignoresSafeArea()
             
@@ -206,9 +223,84 @@ struct CurrentRateWidget: View {
                 noCurrentRateView
             }
         }
-        // Re-render when user changes the pound/locale setting
         .id("\(settings.showRatesInPounds)_\(settings.language)")
         .environment(\.locale, Locale(identifier: settings.language))
+    }
+    
+    // Circular lock screen widget
+    private var circularView: some View {
+        Group {
+            if let currentRate = findCurrentRate(),
+               let minRate = rates.min(by: { $0.valueIncludingVAT < $1.valueIncludingVAT })?.valueIncludingVAT,
+               let maxRate = rates.max(by: { $0.valueIncludingVAT < $1.valueIncludingVAT })?.valueIncludingVAT {
+                Gauge(value: currentRate.valueIncludingVAT, in: minRate...maxRate) {
+                    Image(systemName: "bolt.fill")
+                } currentValueLabel: {
+                    Text(formatRate(currentRate.valueIncludingVAT))
+                        .font(.system(.body, design: .rounded))
+                        .minimumScaleFactor(0.5)
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(RateColor.getColor(for: currentRate, allRates: rates))
+            } else {
+                Gauge(value: 0, in: 0...1) {
+                    Image(systemName: "bolt.fill")
+                } currentValueLabel: {
+                    Text("--")
+                        .font(.system(.body, design: .rounded))
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(.gray)
+            }
+        }
+    }
+    
+    // Rectangular lock screen widget
+    private var rectangularView: some View {
+        HStack {
+            if let currentRate = findCurrentRate() {
+                VStack(alignment: .leading) {
+                    Text("Current Rate")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        Text(formatRate(currentRate.valueIncludingVAT))
+                            .font(.system(.body, design: .rounded))
+                            .foregroundColor(RateColor.getColor(for: currentRate, allRates: rates))
+                        Text("/kWh")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                if let validTo = currentRate.validTo {
+                    Text(formatTime(validTo))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Text("No current rate")
+                    .font(.caption)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+    
+    // Inline lock screen widget
+    private var inlineView: some View {
+        if let currentRate = findCurrentRate() {
+            Label {
+                Text("\(formatRate(currentRate.valueIncludingVAT))/kWh")
+            } icon: {
+                Image(systemName: "bolt.fill")
+            }
+        } else {
+            Label {
+                Text("No current rate")
+            } icon: {
+                Image(systemName: "bolt.fill")
+            }
+        }
     }
 }
 
@@ -367,7 +459,11 @@ struct Octopus_HelperWidgets: Widget {
         }
         .configurationDisplayName("Current Rate")
         .description("Display the current electricity rate.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([
+            .systemSmall,
+            .accessoryCircular,
+            .accessoryInline
+        ])
     }
 }
 

@@ -1,28 +1,210 @@
 import Combine
 import CoreData
-import Darwin
 import Foundation
 import SwiftUI
 
-// Response models for region lookup
-struct SupplyPointsResponse: Codable {
+/// Manages Octopus Agile rate data in Core Data, including fetching and caching.
+@MainActor
+public final class RatesRepository: ObservableObject {
+    // MARK: - Singleton
+    public static let shared = RatesRepository()
+
+    // MARK: - Public Published State
+    @Published public private(set) var currentCachedRates: [RateEntity] = []
+
+    // MARK: - Dependencies
+    private let apiClient = OctopusAPIClient.shared
+    private let context: NSManagedObjectContext
+    @AppStorage("postcode") private var postcode: String = ""
+
+    // MARK: - Networking
+    private let urlSession: URLSession
+    private let maxRetries = 3
+
+    // MARK: - Initializer
+    private init() {
+        context = PersistenceController.shared.container.viewContext
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.waitsForConnectivity = true
+        urlSession = URLSession(configuration: config)
+    }
+
+    // MARK: - Public Methods
+
+    /// Updates the rates in the database, only fetching if needed or if `force` is `true`.
+    /// - Parameter force: Forces a fresh fetch even if we have enough data.
+    /// - Throws: Possible network or data errors.
+    public func updateRates(force: Bool = false) async throws {
+        if force || !hasDataThroughExpectedEndUKTime() {
+            try await performFetch()
+        }
+    }
+
+    /// Checks whether we have coverage through the expected end (in UK time).
+    /// - Returns: `true` if data extends past “tonight at 23:00” (if before 16:00)
+    ///   or “tomorrow at 23:00” (if after 16:00).
+    public func hasDataThroughExpectedEndUKTime() -> Bool {
+        guard let maxValidTo = currentCachedRates.compactMap(\.validTo).max() else { return false }
+        guard let endOfDayUTC = expectedEndOfDayInUTC() else { return false }
+        return maxValidTo >= endOfDayUTC
+    }
+
+    /// Fetches **all** stored rates from Core Data (sorted by `validFrom`) and
+    /// updates `currentCachedRates`.
+    /// - Returns: All fetched `RateEntity`.
+    public func fetchAllRates() async throws -> [RateEntity] {
+        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
+
+        let results = try await self.context.performAsync { try self.context.fetch(request) }
+        currentCachedRates = results
+        return results
+    }
+
+    /// Deletes *all* rates from the database. Useful for debugging or manual resets.
+    public func deleteAllRates() async throws {
+        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = RateEntity.fetchRequest()
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+
+        try await self.context.performAsync {
+            try self.context.execute(deleteRequest)
+            try self.context.save()
+        }
+        currentCachedRates = []
+    }
+
+    /// Attempts to fetch the user’s electricity region from the provided postcode.
+    /// - Parameter postcode: The user’s postcode. Fallback to `'H'` if empty or invalid.
+    /// - Returns: A region ID string like "H" or "L".
+    /// - Throws: Network or decoding errors. Retries on `.cancelled` up to `maxRetries`.
+    public func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
+        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedPostcode.isEmpty else { return "H" }
+
+        let encoded = cleanedPostcode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+        guard let encodedPostcode = encoded,
+              let url = URL(string: "https://api.octopus.energy/v1/industry/grid-supply-points/?postcode=\(encodedPostcode)")
+        else { return "H" }
+
+        do {
+            let (data, response) = try await urlSession.data(for: URLRequest(url: url))
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode)
+            else {
+                // If not successful, fallback to 'H'
+                return "H"
+            }
+
+            let supplyPoints = try JSONDecoder().decode(SupplyPointsResponse.self, from: data)
+            if let first = supplyPoints.results.first {
+                // Strip underscores from group_id => region
+                let region = first.group_id.replacingOccurrences(of: "_", with: "")
+                return region
+            }
+            return "H"
+
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            if retryCount < maxRetries {
+                // Simple exponential-ish backoff
+                try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * (retryCount + 1)))
+                return try await fetchRegionID(for: cleanedPostcode, retryCount: retryCount + 1)
+            }
+            return "H"
+        } catch {
+            return "H"
+        }
+    }
+
+    // MARK: - Private Internal Logic
+
+    /// Actually performs a fetch from the network if needed.
+    ///  1. Determine region from user’s postcode.
+    ///  2. Pull fresh rates from the Octopus API.
+    ///  3. Save them to Core Data.
+    ///  4. Refresh `currentCachedRates`.
+    private func performFetch() async throws {
+        let regionID = try await fetchRegionID(for: postcode) ?? "H"
+        let newRates = try await apiClient.fetchRates(regionID: regionID)
+        try await saveRates(newRates)
+    }
+
+    /// Stores the fetched data into Core Data. Updates `currentCachedRates`.
+    private func saveRates(_ rates: [OctopusRate]) async throws {
+        try await self.context.performAsync {
+            // Use 'self.context' explicitly
+            let existing = try self.context
+                .fetch(RateEntity.fetchRequest()) as? [RateEntity] ?? []
+
+            let existingMap = Dictionary(
+                uniqueKeysWithValues: existing.compactMap { rate -> (Date, RateEntity)? in
+                    guard let from = rate.validFrom else { return nil }
+                    return (from, rate)
+                }
+            )
+
+            for octopusRate in rates {
+                if let match = existingMap[octopusRate.valid_from] {
+                    match.validTo = octopusRate.valid_to
+                    match.valueExcludingVAT = octopusRate.value_exc_vat
+                    match.valueIncludingVAT = octopusRate.value_inc_vat
+                } else {
+                    let newEntity = RateEntity(context: self.context)
+                    newEntity.id = octopusRate.id.uuidString
+                    newEntity.validFrom = octopusRate.valid_from
+                    newEntity.validTo = octopusRate.valid_to
+                    newEntity.valueExcludingVAT = octopusRate.value_exc_vat
+                    newEntity.valueIncludingVAT = octopusRate.value_inc_vat
+                }
+            }
+            try self.context.save()
+        }
+
+        // Refresh the local cache
+        currentCachedRates = try await fetchAllRates()
+    }
+
+    /// Returns the "expected end" time in UTC based on whether it's before or after 16:00 UK time.
+    /// If before 16:00 => we want coverage up to "today at 23:00" (UK).
+    /// If after 16:00 => "tomorrow at 23:00" (UK).
+    private func expectedEndOfDayInUTC() -> Date? {
+        guard let ukTimeZone = TimeZone(identifier: "Europe/London") else { return nil }
+        var ukCalendar = Calendar(identifier: .gregorian)
+        ukCalendar.timeZone = ukTimeZone
+
+        let now = Date()
+        let hour = ukCalendar.component(.hour, from: now)
+        let offsetDay = (hour < 16) ? 0 : 1
+
+        guard let baseDay = ukCalendar.date(byAdding: .day, value: offsetDay, to: now),
+              let endOfDayLocal = ukCalendar.date(bySettingHour: 23, minute: 0, second: 0, of: baseDay)
+        else {
+            return nil
+        }
+
+        return endOfDayLocal.toUTC(from: ukTimeZone)
+    }
+}
+
+// MARK: - SupplyPointsResponse (Region lookup)
+fileprivate struct SupplyPointsResponse: Codable {
     let count: Int
     let results: [SupplyPoint]
 }
 
-struct SupplyPoint: Codable {
+fileprivate struct SupplyPoint: Codable {
     let group_id: String
 }
 
-// Extend NSManagedObjectContext with async support
+// MARK: - NSManagedObjectContext async helper
 extension NSManagedObjectContext {
+    /// Convenience wrapper for async operations on the context’s queue.
     func performAsync<T>(_ block: @escaping () throws -> T) async throws -> T {
         try await withCheckedThrowingContinuation { continuation in
             perform {
                 do {
-                    let result = try block()
-                    continuation.resume(returning: result)
-                } catch let error {
+                    continuation.resume(returning: try block())
+                } catch {
                     continuation.resume(throwing: error)
                 }
             }
@@ -30,272 +212,11 @@ extension NSManagedObjectContext {
     }
 }
 
-@MainActor
 extension Date {
-    /// Convert a Date (interpreted as Europe/London local time) to its equivalent in UTC.
-    /// - Warning: This makes sense only if `self` was constructed with a London-based Calendar/time zone.
+    /// Interprets this `Date` as local to `timeZone` and returns an equivalent UTC `Date`.
     func toUTC(from timeZone: TimeZone) -> Date? {
-        // TimeZone.secondsFromGMT(for:) gives the offset (in seconds) from GMT at this date
         let offset = timeZone.secondsFromGMT(for: self)
-        return Calendar(identifier: .gregorian).date(byAdding: .second, value: -offset, to: self)
-    }
-}
-
-@MainActor
-public class RatesRepository: ObservableObject {
-    public static let shared = RatesRepository()
-    private let apiClient = OctopusAPIClient.shared
-    private let context: NSManagedObjectContext
-    @AppStorage("postcode") private var postcode: String = ""
-    @Published public var currentCachedRates: [RateEntity] = []
-
-    // Dedicated URLSession for region lookups
-    private let urlSession: URLSession
-    private let maxRetries = 3
-
-    private init() {
-        self.context = PersistenceController.shared.container.viewContext
-
-        // Configure a dedicated session for region lookups
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.waitsForConnectivity = true  // Wait for connectivity if offline
-        self.urlSession = URLSession(configuration: config)
-    }
-
-    public func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
-        // Clean and validate postcode
-        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cleanedPostcode.isEmpty {
-            print("DEBUG: No postcode provided, using default region 'H'")
-            return "H"
-        }
-
-        print(
-            "DEBUG: Starting region lookup for postcode: \(cleanedPostcode) (attempt \(retryCount + 1))"
-        )
-
-        // URL encode the postcode
-        guard
-            let encodedPostcode = cleanedPostcode.addingPercentEncoding(
-                withAllowedCharacters: .urlQueryAllowed)
-        else {
-            print("DEBUG: Failed to encode postcode, using default region 'H'")
-            return "H"
-        }
-
-        let urlString =
-            "https://api.octopus.energy/v1/industry/grid-supply-points/?postcode=\(encodedPostcode)"
-        guard let url = URL(string: urlString) else {
-            print(
-                "DEBUG: Failed to create URL with postcode: \(cleanedPostcode), using default region 'H'"
-            )
-            return "H"
-        }
-
-        print("DEBUG: Fetching region from URL: \(url.absoluteString)")
-
-        // Create a URLRequest with a timeout
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 30
-        request.httpMethod = "GET"
-
-        do {
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("DEBUG: Invalid response type, using default region 'H'")
-                return "H"
-            }
-
-            print("DEBUG: Region lookup response status: \(httpResponse.statusCode)")
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                print("DEBUG: Error response: \(httpResponse.statusCode), using default region 'H'")
-                if let errorText = String(data: data, encoding: .utf8) {
-                    print("DEBUG: Error details: \(errorText)")
-                }
-                return "H"
-            }
-
-            let decoder = JSONDecoder()
-            let supplyPoints = try decoder.decode(SupplyPointsResponse.self, from: data)
-
-            if let groupId = supplyPoints.results.first?.group_id {
-                let cleanGroupId = groupId.replacingOccurrences(of: "_", with: "")
-                print("DEBUG: Successfully found region: \(groupId), using: \(cleanGroupId)")
-                return cleanGroupId
-            } else {
-                print("DEBUG: No region found in response, using default region 'H'")
-                return "H"
-            }
-
-        } catch let urlError as URLError where urlError.code == .cancelled {
-            print("DEBUG: Request was cancelled (attempt \(retryCount + 1))")
-
-            // Retry if we haven't exceeded max retries
-            if retryCount < maxRetries {
-                print("DEBUG: Retrying request (attempt \(retryCount + 2))")
-                try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * (retryCount + 1)))  // Exponential backoff
-                return try await fetchRegionID(for: postcode, retryCount: retryCount + 1)
-            } else {
-                print("DEBUG: Max retries exceeded, using default region 'H'")
-                return "H"
-            }
-        } catch {
-            print(
-                "DEBUG: Region lookup failed with error: \(error.localizedDescription), using default region 'H'"
-            )
-            if let urlError = error as? URLError {
-                print("DEBUG: URL Error code: \(urlError.code.rawValue)")
-                print("DEBUG: URL Error description: \(urlError.localizedDescription)")
-            }
-            return "H"
-        }
-    }
-
-    public func updateRates(force: Bool = false) async throws {
-        print("DEBUG: Starting rate update with UK-time logic (force: \(force))")
-
-        if force {
-            try await doActualFetch()
-            return
-        }
-
-        // Check if we have data through the "expected end date" in UK time.
-        // If not, we do an actual fetch.
-        if !hasDataThroughExpectedEndUKTime() {
-            print("DEBUG: We do NOT have data through the expected end date. Fetching now...")
-            try await doActualFetch()
-        } else {
-            print("DEBUG: We have enough data through the expected end date. No fetch needed.")
-        }
-    }
-
-    /// Check if we already have data extending through the "expected end" based on UK time:
-    /// - If now < 16:00 UK => we want data up to "today at 23:00" UK time
-    /// - If now >= 16:00 UK => we want data up to "tomorrow at 23:00" UK time
-    ///
-    /// Compare that final time (in UTC) to the maximum validTo in our currentCachedRates.
-    public func hasDataThroughExpectedEndUKTime() -> Bool {
-        // 1) Get "now" in the UK time zone
-        guard let londonTimeZone = TimeZone(identifier: "Europe/London") else {
-            // Fallback: if we can't get the zone, let's force a fetch
-            return false
-        }
-        var londonCalendar = Calendar(identifier: .gregorian)
-        londonCalendar.timeZone = londonTimeZone
-
-        let now = Date()  // "raw" Date is in UTC reference, but we'll interpret hour using londonCalendar
-        let hour = londonCalendar.component(.hour, from: now)
-
-        // 2) Decide if we want "today" or "tomorrow" at 23:00 UK time
-        let dayOffset = (hour < 16) ? 0 : 1
-
-        // Build a date (in London time) that is "today/tomorrow at 23:00"
-        guard
-            let base = londonCalendar.date(byAdding: .day, value: dayOffset, to: now),
-            let endOfDayLondon = londonCalendar.date(
-                bySettingHour: 23,
-                minute: 0,
-                second: 0,
-                of: base
-            )
-        else {
-            print("DEBUG: Could not compute endOfDayLondon.")
-            return false
-        }
-
-        // 3) Convert endOfDayLondon to UTC, because typically `validTo` is stored as UTC
-        guard let endOfDayUTC = endOfDayLondon.toUTC(from: londonTimeZone) else {
-            print("DEBUG: Could not convert endOfDayLondon to UTC.")
-            return false
-        }
-
-        // 4) Check if our currentCachedRates contain at least one entry with `validTo >= endOfDayUTC`
-        //    i.e., do we have coverage through that time?
-        guard let maxValidTo = currentCachedRates.compactMap({ $0.validTo }).max() else {
-            // If we have no rates at all, obviously we don't meet the requirement
-            return false
-        }
-
-        let hasCoverage = maxValidTo >= endOfDayUTC
-        print(
-            "DEBUG: endOfDayUTC = \(endOfDayUTC), maxValidTo = \(maxValidTo), hasCoverage = \(hasCoverage)"
-        )
-        return hasCoverage
-    }
-
-    private func doActualFetch() async throws {
-        let regionID = try await fetchRegionID(for: postcode) ?? "H"
-        print("DEBUG: Using region ID: \(regionID)")
-        let newRates = try await apiClient.fetchRates(regionID: regionID)
-        try await saveRates(newRates)
-    }
-
-    public func fetchAllRates() async throws -> [RateEntity] {
-        let rates = try await context.performAsync {
-            let fetchRequest = NSFetchRequest<RateEntity>(entityName: "RateEntity")
-            fetchRequest.sortDescriptors = [
-                NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)
-            ]
-            return try self.context.fetch(fetchRequest)
-        }
-        currentCachedRates = rates  // Update the cached rates
-        return rates
-    }
-
-    private func saveRates(_ rates: [OctopusRate]) async throws {
-        try await context.performAsync {
-            print("DEBUG: Starting Core Data save operation")
-            // First, fetch existing rates to avoid duplicates
-            let fetchRequest: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-            let existingRates = try self.context.fetch(fetchRequest)
-            print("DEBUG: Found \(existingRates.count) existing rates in Core Data")
-
-            // Create a dictionary of existing rates by their valid_from date for quick lookup
-            let existingRatesByDate = Dictionary(
-                uniqueKeysWithValues: existingRates.map { ($0.validFrom!, $0) })
-
-            var updatedCount = 0
-            var insertedCount = 0
-
-            // Update or insert rates
-            for rate in rates {
-                if let existingRate = existingRatesByDate[rate.valid_from] {
-                    // Update existing rate
-                    existingRate.validTo = rate.valid_to
-                    existingRate.valueExcludingVAT = rate.value_exc_vat
-                    existingRate.valueIncludingVAT = rate.value_inc_vat
-                    updatedCount += 1
-                } else {
-                    // Create new rate
-                    let newRate = RateEntity(context: self.context)
-                    newRate.id = rate.id.uuidString
-                    newRate.validFrom = rate.valid_from
-                    newRate.validTo = rate.valid_to
-                    newRate.valueExcludingVAT = rate.value_exc_vat
-                    newRate.valueIncludingVAT = rate.value_inc_vat
-                    insertedCount += 1
-                }
-            }
-
-            print("DEBUG: Updated \(updatedCount) rates, inserted \(insertedCount) new rates")
-
-            // Save changes
-            try self.context.save()
-            print("DEBUG: Successfully saved all changes to Core Data")
-        }
-        // After saving, update the cached rates
-        currentCachedRates = try await fetchAllRates()
-    }
-
-    func deleteAllRates() async throws {
-        try await context.performAsync {
-            let fetchRequest: NSFetchRequest<NSFetchRequestResult> = RateEntity.fetchRequest()
-            let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
-            try self.context.execute(deleteRequest)
-            try self.context.save()
-        }
+        return Calendar(identifier: .gregorian)
+            .date(byAdding: .second, value: -offset, to: self)
     }
 }

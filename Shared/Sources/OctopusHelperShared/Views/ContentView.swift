@@ -63,7 +63,7 @@ public struct ContentView: View {
     }
 
     public var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView(.vertical, showsIndicators: true) {
 
                 // The main content (cards)
