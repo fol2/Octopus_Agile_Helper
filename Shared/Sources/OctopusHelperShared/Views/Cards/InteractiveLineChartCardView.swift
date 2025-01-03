@@ -48,7 +48,7 @@ class InteractiveChartSettingsManager: ObservableObject {
 }
 
 // MARK: - Main Chart View
-struct InteractiveLineChartCardView: View {
+public struct InteractiveLineChartCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @StateObject private var localSettings = InteractiveChartSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
@@ -84,7 +84,7 @@ struct InteractiveLineChartCardView: View {
     // --- NEW: Final x-axis labels after pixel-based collision ---
     @State private var finalXLabels: [LabelCandidate] = []
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             // FRONT side
             frontSide

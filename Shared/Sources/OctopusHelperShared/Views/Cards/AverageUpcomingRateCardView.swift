@@ -41,7 +41,7 @@ private class AverageCardLocalSettingsManager: ObservableObject {
 }
 
 // MARK: - Flip Card Approach
-struct AverageUpcomingRateCardView: View {
+public struct AverageUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
 
@@ -55,7 +55,7 @@ struct AverageUpcomingRateCardView: View {
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             // FRONT side
             frontSide

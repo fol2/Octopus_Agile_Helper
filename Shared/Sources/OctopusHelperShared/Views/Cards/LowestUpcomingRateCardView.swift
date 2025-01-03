@@ -36,7 +36,7 @@ private class LowestRateCardLocalSettingsManager: ObservableObject {
 }
 
 // MARK: - Flip Card Approach
-struct LowestUpcomingRateCardView: View {
+public struct LowestUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
 
@@ -51,7 +51,7 @@ struct LowestUpcomingRateCardView: View {
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             // FRONT side
             frontSide

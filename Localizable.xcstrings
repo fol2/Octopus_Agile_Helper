@@ -1,13 +1,11 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-      "shouldTranslate" : false
-    },
     "/kWh" : {
       "shouldTranslate" : false
     },
     "%@\n%@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -211,6 +209,7 @@
       "shouldTranslate" : false
     },
     "%@ - %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -617,18 +616,8 @@
       },
       "shouldTranslate" : false
     },
-    "%@ (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ (%2$@)"
-          }
-        }
-      },
-      "shouldTranslate" : false
-    },
     "%@ (Locked)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -832,6 +821,7 @@
     },
     "%lld Active" : {
       "comment" : "Shows number of currently active cards",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1239,6 +1229,7 @@
     },
     "Additional Rates to Show: %lld" : {
       "comment" : "Label for stepper controlling how many additional rates to display",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1440,11 +1431,9 @@
         }
       }
     },
-    "Agile Current" : {
-
-    },
     "All Rates" : {
       "comment" : "Navigation title for the list of all electricity rates",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1647,6 +1636,7 @@
       }
     },
     "An interactive chart to see rates over time, also shows best time ranges" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1850,6 +1840,7 @@
     },
     "API Configuration" : {
       "comment" : "Header for the API configuration section",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2053,6 +2044,7 @@
     },
     "API Key" : {
       "comment" : "Placeholder for API key input field",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2255,6 +2247,7 @@
       }
     },
     "API Key is optional for most features like viewing Agile rates, price trends, and historical data.\n\nYou only need an API key if you want to access your personal data such as:\n• Your actual consumption data\n• Your billing information\n• Your tariff details\n\nYour API key is stored securely on your device only and is never shared with app developers or third parties." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3068,6 +3061,7 @@
     },
     "Card Settings" : {
       "comment" : "Header for the card's settings section",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3467,6 +3461,7 @@
       }
     },
     "Cards" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4074,6 +4069,7 @@
       }
     },
     "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app. Rate display changes affect how prices are shown (pence vs pounds)." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4479,6 +4475,7 @@
       }
     },
     "Current Rate Card in the Cards view" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4884,6 +4881,7 @@
     },
     "Custom Average Hours: %@" : {
       "comment" : "Label for stepper controlling the duration of average calculation",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5080,6 +5078,7 @@
       }
     },
     "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5282,6 +5281,7 @@
       }
     },
     "Detailed rates list after expanded" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5485,6 +5485,7 @@
     },
     "Display Rates in Pounds (£)" : {
       "comment" : "Toggle for showing rates in pounds instead of pence",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6088,6 +6089,7 @@
     },
     "Done" : {
       "comment" : "Button to dismiss the info sheet\nButton to dismiss the settings sheet",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6285,6 +6287,7 @@
     },
     "Drag to reorder cards" : {
       "comment" : "Instructions for reordering cards",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6481,6 +6484,7 @@
       }
     },
     "End" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6677,6 +6681,7 @@
       }
     },
     "Get your API key (Login required)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7488,6 +7493,7 @@
       }
     },
     "How to find more higher rates" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7690,6 +7696,7 @@
       }
     },
     "How zonal pricing could make bills cheaper" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8501,6 +8508,7 @@
       }
     },
     "Language" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8697,6 +8705,7 @@
       }
     },
     "Learn more" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9916,6 +9925,7 @@
     },
     "Manage Cards" : {
       "comment" : "Button to open card management screen",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10112,6 +10122,7 @@
       }
     },
     "Max" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10315,6 +10326,7 @@
     },
     "Max List Count: %lld" : {
       "comment" : "Label for stepper controlling how many averages to display",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10511,6 +10523,7 @@
       }
     },
     "Min" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12133,6 +12146,7 @@
       }
     },
     "No upcoming data for %@-hour averages" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12538,6 +12552,7 @@
       }
     },
     "Now" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12741,6 +12756,7 @@
     },
     "NOW" : {
       "comment" : "Label indicating the currently active rate",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12937,6 +12953,7 @@
       }
     },
     "Octopus Agile" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13133,6 +13150,7 @@
       }
     },
     "Overview of average rates card" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13335,6 +13353,7 @@
       }
     },
     "Overview of highest rates card" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13535,9 +13554,6 @@
           }
         }
       }
-    },
-    "p/kWh" : {
-      "shouldTranslate" : false
     },
     "Peak Rate Warning" : {
       "extractionState" : "stale",
@@ -13744,6 +13760,7 @@
     },
     "Postcode" : {
       "comment" : "Placeholder for postcode input field",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13941,6 +13958,7 @@
     },
     "Preferences" : {
       "comment" : "Header for the preferences section",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14138,6 +14156,7 @@
     },
     "Premium Feature" : {
       "comment" : "Label indicating a premium feature",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14340,6 +14359,7 @@
       }
     },
     "Price" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15349,6 +15369,7 @@
     },
     "Region Lookup" : {
       "comment" : "Header for the region lookup section",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15951,6 +15972,7 @@
       }
     },
     "Settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16147,6 +16169,7 @@
       }
     },
     "Settings to list more lower rates" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18182,6 +18205,7 @@
       }
     },
     "Simple card view to find lowest rates" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18384,6 +18408,7 @@
       }
     },
     "Start" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19601,6 +19626,7 @@
       }
     },
     "Time" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19798,6 +19824,7 @@
     },
     "Unlock" : {
       "comment" : "Button to unlock a premium card\nButton to unlock a premium feature",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20812,6 +20839,7 @@
       }
     },
     "You can choose length of period to average and how many rates to show" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21014,6 +21042,7 @@
       }
     },
     "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21216,6 +21245,7 @@
       }
     },
     "Your postcode is used to determine your electricity region for accurate rates. The postcode is stored locally on your device only and is never shared with app developers.\n\nIf the postcode is empty or invalid, region 'H' (Southern England) will be used as default." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21418,6 +21448,7 @@
       }
     },
     "Zonal pricing would make energy bills cheaper..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

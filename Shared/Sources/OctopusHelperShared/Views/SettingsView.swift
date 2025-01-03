@@ -122,8 +122,11 @@ struct SettingsView: View {
                         Text(lang.displayNameWithAutonym)
                             .font(Theme.secondaryFont())
                             .textCase(.none)
+                            .foregroundColor(Theme.secondaryTextColor)
                     }
                 }
+                .pickerStyle(.menu)
+                .accentColor(Theme.secondaryTextColor)
                 .font(Theme.secondaryFont())
                 .foregroundColor(Theme.mainTextColor)
                 .customListRow()

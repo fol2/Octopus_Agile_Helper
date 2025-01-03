@@ -12,8 +12,18 @@ struct Octopus_Agile_HelperApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        // Register all cards
-        CardRegistry.registerCards()
+        // Cards are now auto-registered by CardRegistry.shared
+        
+        // Configure navigation bar appearance
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundColor = UIColor(Theme.mainBackground)
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
     }
 
     var body: some Scene {
@@ -23,6 +33,7 @@ struct Octopus_Agile_HelperApp: App {
                 .environmentObject(globalTimer)
                 .environmentObject(globalSettings)
                 .environment(\.locale, globalSettings.locale)
+                .preferredColorScheme(.dark)
                 .onChange(of: scenePhase) { _, newPhase in
                     switch newPhase {
                     case .active:
@@ -40,4 +51,18 @@ struct Octopus_Agile_HelperApp: App {
                 }
         }
     }
+}
+
+#Preview {
+    let persistenceController = PersistenceController.preview
+    let timer = GlobalTimer()
+    let settings = GlobalSettingsManager()
+    
+    return ContentView()
+        .environment(\.managedObjectContext, persistenceController.container.viewContext)
+        .environmentObject(timer)
+        .environmentObject(settings)
+        .environmentObject(RatesViewModel(globalTimer: timer))
+        .environment(\.locale, settings.locale)
+        .preferredColorScheme(.dark)
 }

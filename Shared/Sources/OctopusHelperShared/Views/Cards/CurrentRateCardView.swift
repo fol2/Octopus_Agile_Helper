@@ -3,7 +3,7 @@ import CoreData
 import SwiftUI
 import OctopusHelperShared
 
-struct CurrentRateCardView: View {
+public struct CurrentRateCardView: View {
     // MARK: - Dependencies
     @ObservedObject var viewModel: RatesViewModel
     @Environment(\.colorScheme) var colorScheme
@@ -82,7 +82,7 @@ struct CurrentRateCardView: View {
     }
 
     // MARK: - Body
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header row with left icon + title + "more" icon on right
             HStack {

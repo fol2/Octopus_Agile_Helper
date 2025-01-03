@@ -35,7 +35,7 @@ private struct OffsetTrackingView: View {
 
 // MARK: - ContentView
 
-struct ContentView: View {
+public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject private var ratesViewModel: RatesViewModel
@@ -57,12 +57,12 @@ struct ContentView: View {
         return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
     }
 
-    init() {
+    public init() {
         let tempTimer = GlobalTimer()
         _ratesViewModel = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationView {
             ScrollView(.vertical, showsIndicators: true) {
 
