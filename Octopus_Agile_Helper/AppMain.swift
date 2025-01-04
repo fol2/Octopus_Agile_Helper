@@ -53,16 +53,15 @@ struct Octopus_Agile_HelperApp: App {
     }
 }
 
+@available(iOS 17.0, *)
 #Preview {
-    let persistenceController = PersistenceController.preview
-    let timer = GlobalTimer()
-    let settings = GlobalSettingsManager()
-    
-    return ContentView()
-        .environment(\.managedObjectContext, persistenceController.container.viewContext)
-        .environmentObject(timer)
-        .environmentObject(settings)
-        .environmentObject(RatesViewModel(globalTimer: timer))
-        .environment(\.locale, settings.locale)
-        .preferredColorScheme(.dark)
+    Group {
+        ContentView()
+            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environmentObject(GlobalTimer())
+            .environmentObject(GlobalSettingsManager())
+            .environmentObject(RatesViewModel(globalTimer: GlobalTimer()))
+            .environment(\.locale, .current)
+            .preferredColorScheme(.dark)
+    }
 }

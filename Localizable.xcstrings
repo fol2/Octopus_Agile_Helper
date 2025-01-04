@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "--" : {
+
+    },
     "/kWh" : {
       "shouldTranslate" : false
     },
@@ -818,6 +821,9 @@
           }
         }
       }
+    },
+    "%@/kWh" : {
+
     },
     "%lld Active" : {
       "comment" : "Shows number of currently active cards",
@@ -6484,7 +6490,6 @@
       }
     },
     "End" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12552,7 +12557,6 @@
       }
     },
     "Now" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12756,7 +12760,6 @@
     },
     "NOW" : {
       "comment" : "Label indicating the currently active rate",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14554,6 +14557,9 @@
           }
         }
       }
+    },
+    "Rate" : {
+
     },
     "Rate Comparison" : {
       "extractionState" : "stale",
@@ -18408,7 +18414,6 @@
       }
     },
     "Start" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19626,7 +19631,6 @@
       }
     },
     "Time" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20837,6 +20841,12 @@
           }
         }
       }
+    },
+    "Y1" : {
+
+    },
+    "Y2" : {
+
     },
     "You can choose length of period to average and how many rates to show" : {
       "extractionState" : "stale",

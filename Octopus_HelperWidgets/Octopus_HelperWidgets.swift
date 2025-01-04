@@ -9,6 +9,7 @@ import AppIntents
 import OctopusHelperShared
 import SwiftUI
 import WidgetKit
+import Charts
 
 // MARK: - Timeline Provider
 final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
@@ -192,6 +193,7 @@ struct SimpleEntry: TimelineEntry {
 
 // MARK: - The Widget UI
 /// Displays the current Agile rate, plus highest & lowest upcoming times.
+@available(iOS 17.0, *)
 struct CurrentRateWidget: View {
     let rates: [RateEntity]
     let settings: (postcode: String, showRatesInPounds: Bool, language: String)
@@ -201,10 +203,10 @@ struct CurrentRateWidget: View {
         switch family {
         case .systemSmall:
             systemSmallView
+        case .systemMedium:
+            systemMediumView
         case .accessoryCircular:
             circularView
-        case .accessoryRectangular:
-            rectangularView
         case .accessoryInline:
             inlineView
         default:
@@ -230,18 +232,37 @@ struct CurrentRateWidget: View {
     // Circular lock screen widget
     private var circularView: some View {
         Group {
-            if let currentRate = findCurrentRate(),
-               let minRate = rates.min(by: { $0.valueIncludingVAT < $1.valueIncludingVAT })?.valueIncludingVAT,
-               let maxRate = rates.max(by: { $0.valueIncludingVAT < $1.valueIncludingVAT })?.valueIncludingVAT {
-                Gauge(value: currentRate.valueIncludingVAT, in: minRate...maxRate) {
-                    Image(systemName: "bolt.fill")
-                } currentValueLabel: {
-                    Text(formatRate(currentRate.valueIncludingVAT))
-                        .font(.system(.body, design: .rounded))
-                        .minimumScaleFactor(0.5)
+            if let currentRate = findCurrentRate() {
+                let upcomingRates = getUpcomingRates()
+                if !upcomingRates.isEmpty {
+                    let currentValue = currentRate.valueIncludingVAT
+                    let minRate = min(currentValue, upcomingRates.first?.valueIncludingVAT ?? currentValue)
+                    let maxRate = max(currentValue, upcomingRates.last?.valueIncludingVAT ?? currentValue)
+                    
+                    // Normalize current value to 0-1 range
+                    let normalizedValue = (currentValue - minRate) / (maxRate - minRate)
+                    
+                    Gauge(value: normalizedValue, in: 0...1) {
+                        Image(systemName: "bolt.fill")
+                    } currentValueLabel: {
+                        Text(formatRate(currentValue))
+                            .font(.system(.body, design: .rounded))
+                            .minimumScaleFactor(0.5)
+                    }
+                    .gaugeStyle(.accessoryCircular)
+                    .tint(RateColor.getColor(for: currentRate, allRates: rates))
+                } else {
+                    // Fallback if no upcoming rates
+                    Gauge(value: 0.5, in: 0...1) {
+                        Image(systemName: "bolt.fill")
+                    } currentValueLabel: {
+                        Text(formatRate(currentRate.valueIncludingVAT))
+                            .font(.system(.body, design: .rounded))
+                            .minimumScaleFactor(0.5)
+                    }
+                    .gaugeStyle(.accessoryCircular)
+                    .tint(RateColor.getColor(for: currentRate, allRates: rates))
                 }
-                .gaugeStyle(.accessoryCircular)
-                .tint(RateColor.getColor(for: currentRate, allRates: rates))
             } else {
                 Gauge(value: 0, in: 0...1) {
                     Image(systemName: "bolt.fill")
@@ -302,6 +323,224 @@ struct CurrentRateWidget: View {
             }
         }
     }
+
+    // MARK: - System Medium View
+    /// A medium widget layout:
+    /// - Left side: current rate, highest, lowest (same as systemSmall)
+    /// - Right side: a mini chart with best-time background + "now" vertical line
+    @ViewBuilder
+    private var systemMediumView: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // 1) Background chart spanning full width
+                chartView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 0)
+                    .padding([.leading, .trailing, .bottom], -16)
+                    .ignoresSafeArea()
+                
+                // 2) Left side content (same as systemSmall)
+                HStack {
+                    if let currentRate = findCurrentRate() {
+                        contentForCurrent(rate: currentRate)
+                            .frame(width: geometry.size.width * 0.45)
+                    } else {
+                        noCurrentRateView
+                            .frame(width: geometry.size.width * 0.45)
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .background(Theme.mainBackground)
+        .id("\(settings.showRatesInPounds)_\(settings.language)")
+        .environment(\.locale, Locale(identifier: settings.language))
+    }
+
+    /// The mini chart with best-time background + 'now' line
+    private var chartView: some View {
+        let data = filteredRatesForChart
+        let bestRanges = findBestTimeRanges(data: data)
+        let nowX = Date()
+        let (minVal, maxVal) = chartYRange
+        let barWidth = computeDynamicBarWidth(rateCount: data.count)
+
+        return Chart {
+            // 1) "Now" vertical line (behind bars)
+            RuleMark(x: .value("Now", nowX))
+                .foregroundStyle(Theme.secondaryColor.opacity(0.7))
+                .lineStyle(StrokeStyle(lineWidth: 2))
+                .zIndex(1)
+
+            // 2) best-time background
+            ForEach(bestRanges, id: \.0) { (start, end) in
+                RectangleMark(
+                    xStart: .value("Start", start),
+                    xEnd: .value("End", end),
+                    yStart: .value("Y1", minVal),
+                    yEnd: .value("Y2", maxVal)
+                )
+                .foregroundStyle(Theme.mainColor.opacity(0.2))
+                .zIndex(2)
+            }
+
+            // 3) Bars for rates
+            ForEach(data, id: \.validFrom) { rate in
+                if let t = rate.validFrom {
+                    let opacity = computeOpacity(for: t, in: data)
+                    BarMark(
+                        x: .value("Time", t),
+                        y: .value("Rate", rate.valueIncludingVAT),
+                        width: .fixed(barWidth)
+                    )
+                    .cornerRadius(3)
+                    .foregroundStyle(
+                        rate.valueIncludingVAT < 0 
+                            ? Theme.secondaryColor.opacity(opacity)
+                            : Theme.mainColor.opacity(opacity)
+                    )
+                    .zIndex(3)
+                }
+            }
+
+            // 4) "Now" badge (on top)
+            RuleMark(x: .value("Now", nowX))
+                .opacity(0) // Invisible rule mark just for the annotation
+                .annotation(position: .top) {
+                    Text(LocalizedStringKey("NOW"))
+                        .font(.system(size: 10).weight(.bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Theme.secondaryColor.opacity(0.7))
+                                .frame(width: 32)
+                        )
+                        .offset(y: 45)
+                }
+                .offset(y: -16)
+                .zIndex(4) // Badge always on top
+        }
+        .chartYScale(domain: minVal...maxVal)
+        .chartXAxis {
+            AxisMarks(preset: .extended, values: .stride(by: 7200))
+        }
+        .chartYAxis(.hidden)
+        .chartPlotStyle { plotContent in
+            plotContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.top, 0)
+                .padding([.leading, .trailing, .bottom], -16)
+        }
+        .padding(0)
+    }
+
+    /// Compute opacity for gradient effect (0% for first 20%, then 0% to 100% for remaining)
+    private func computeOpacity(for date: Date, in data: [RateEntity]) -> Double {
+        guard let firstDate = data.first?.validFrom,
+              let lastDate = data.last?.validFrom,
+              lastDate > firstDate else {
+            return 1.0
+        }
+        
+        let totalDuration = lastDate.timeIntervalSince(firstDate)
+        let currentDuration = date.timeIntervalSince(firstDate)
+        let progress = currentDuration / totalDuration
+        
+        // First 20% is completely transparent
+        if progress < 0.3 {
+            return 0.0
+        }
+        
+        // Remaining 80% goes from 0% to 100%
+        return (progress - 0.3) / 0.7 // This maps 0.2->1.0 to 0.0->1.0
+    }
+
+    /// Compute dynamic bar width with gaps
+    private func computeDynamicBarWidth(rateCount: Int) -> Double {
+        let maxPossibleBars = 65.0  // Upper bound, same as InteractiveLineChartCardView
+        let currentBars = Double(rateCount)
+        let baseWidthPerBar = 5.0
+        let barGapRatio = 0.7  // 70% bar, 30% gap
+        let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
+        return totalChunk * barGapRatio
+    }
+
+    /// Filtered rates for chart display (from 00:00 of latest data's previous day)
+    private var filteredRatesForChart: [RateEntity] {
+        let calendar = Calendar.current
+        
+        // Find the latest data's date
+        let sortedRates = rates
+            .filter { $0.validTo != nil }
+            .sorted { ($0.validTo ?? .distantPast) > ($1.validTo ?? .distantPast) }
+        
+        guard let latestDate = sortedRates.first?.validTo else {
+            return []
+        }
+        
+        // Get start of yesterday relative to the latest date
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: latestDate) ?? latestDate
+        let start = calendar.startOfDay(for: yesterday)
+        
+        return rates
+            .filter { $0.validFrom != nil && $0.validTo != nil }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+            .filter {
+                guard let date = $0.validFrom else { return false }
+                return date >= start
+            }
+    }
+
+    /// Y-axis range for chart
+    private var chartYRange: (Double, Double) {
+        let prices = filteredRatesForChart.map { $0.valueIncludingVAT }
+        guard !prices.isEmpty else { return (0, 10) }
+        let minVal = min(0, (prices.min() ?? 0) - 2)
+        let maxVal = (prices.max() ?? 0) + 2
+        return (minVal, maxVal)
+    }
+
+    /// Example subview for each rate row in left column
+    private func rateRow(label: String, icon: String, value: Double, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.caption2).foregroundColor(.secondary)
+            Text(label).font(.caption2).foregroundColor(.secondary)
+            Spacer()
+            Text(formatRate(value))
+                .font(.caption2)
+                .foregroundColor(color)
+        }
+    }
+
+    /// Find best time ranges (lowest average windows) in the next 24 hours
+    private func findBestTimeRanges(data: [RateEntity]) -> [(Date, Date)] {
+        let now = Date()
+        let future = now.addingTimeInterval(24 * 3600)
+        let upcomingRates = data.filter { rate in
+            guard let from = rate.validFrom, let _ = rate.validTo else { return false }
+            return from >= now && from < future
+        }
+        
+        // Simple algorithm: Find 2-hour windows with lowest average
+        var bestRanges: [(Date, Date)] = []
+        let windowSize = 2 * 3600.0 // 2 hours
+        
+        for i in stride(from: 0, to: upcomingRates.count - 3, by: 1) {
+            let windowRates = Array(upcomingRates[i..<min(i + 4, upcomingRates.count)])
+            let avgRate = windowRates.reduce(0.0) { $0 + $1.valueIncludingVAT } / Double(windowRates.count)
+            
+            if avgRate < 20.0, // Threshold for "good" rate
+               let firstRate = windowRates.first,
+               let start = firstRate.validFrom {
+                let end = start.addingTimeInterval(windowSize)
+                bestRanges.append((start, end))
+            }
+        }
+        
+        return bestRanges
+    }
 }
 
 // MARK: - Subviews for CurrentRateWidget
@@ -341,27 +580,35 @@ extension CurrentRateWidget {
     private var upcomingRatesView: some View {
         VStack(alignment: .leading, spacing: 2) {
             if let (lowestRate, startTime) = lowestUpcoming() {
-                HStack(spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Image(systemName: "chevron.down")
                         .font(.caption)
                         .foregroundColor(Theme.icon)
-                    rateView(value: lowestRate.valueIncludingVAT, color: RateColor.getColor(for: lowestRate, allRates: rates), font: Theme.titleFont())
-                    Spacer(minLength: 4)
+                    rateView(
+                        value: lowestRate.valueIncludingVAT,
+                        color: RateColor.getColor(for: lowestRate, allRates: rates),
+                        font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
+                    )
+                    Spacer(minLength: 0)
                     Text(formatTime(startTime))
                         .font(.caption2)
-                        .foregroundColor(Theme.secondaryTextColor)
+                        .foregroundColor(Theme.mainTextColor)
                 }
             }
             if let (highestRate, startTime) = highestUpcoming() {
-                HStack(spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Image(systemName: "chevron.up")
                         .font(.caption)
                         .foregroundColor(Theme.icon)
-                    rateView(value: highestRate.valueIncludingVAT, color: RateColor.getColor(for: highestRate, allRates: rates), font: Theme.titleFont())
-                    Spacer(minLength: 4)
+                    rateView(
+                        value: highestRate.valueIncludingVAT,
+                        color: RateColor.getColor(for: highestRate, allRates: rates),
+                        font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
+                    )
+                    Spacer(minLength: 0)
                     Text(formatTime(startTime))
                         .font(.caption2)
-                        .foregroundColor(Theme.secondaryTextColor)
+                        .foregroundColor(Theme.mainTextColor)
                 }
             }
         }
@@ -388,12 +635,20 @@ extension CurrentRateWidget {
         }
     }
     
+    /// Get upcoming rates including current rate, sorted by value
+    private func getUpcomingRates() -> [RateEntity] {
+        let now = Date()
+        return rates
+            .filter { rate in
+                guard let from = rate.validFrom, let to = rate.validTo else { return false }
+                // Include if it overlaps with now or is in the future
+                return (from <= now && to > now) || from > now
+            }
+            .sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
+    }
+    
     private func lowestUpcoming() -> (RateEntity, Date)? {
-        let upcoming = rates.filter {
-            guard let vFrom = $0.validFrom else { return false }
-            return vFrom > Date()
-        }
-        .sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
+        let upcoming = getUpcomingRates()
         
         if let item = upcoming.first, let from = item.validFrom {
             return (item, from)
@@ -402,14 +657,10 @@ extension CurrentRateWidget {
     }
     
     private func highestUpcoming() -> (RateEntity, Date)? {
-        let upcoming = rates.filter {
-            guard let vFrom = $0.validFrom else { return false }
-            return vFrom > Date()
-        }
-        .sorted { $0.valueIncludingVAT > $1.valueIncludingVAT }
+        let upcoming = getUpcomingRates()
         
-        if let item = upcoming.first, let from = item.validFrom {
-            return (item, from)
+        if let item = upcoming.last, let validFrom = item.validFrom {
+            return (item, validFrom)
         }
         return nil
     }
@@ -422,9 +673,9 @@ extension CurrentRateWidget {
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("/kWh")
-                .font(font == Theme.mainFont() ? Theme.secondaryFont() : .caption2)
+                .font(.caption2)
                 .foregroundColor(Theme.secondaryTextColor)
-                .scaleEffect(font == Theme.mainFont() ? 0.9 : 0.8)
+                .scaleEffect(0.8)
         }
     }
     
@@ -454,13 +705,20 @@ struct Octopus_HelperWidgets: Widget {
             intent: ConfigurationAppIntent.self,
             provider: OctopusWidgetProvider()
         ) { entry in
-            CurrentRateWidget(rates: entry.rates, settings: entry.settings)
-                .containerBackground(Theme.mainBackground, for: .widget)
+            if #available(iOS 17.0, *) {
+                CurrentRateWidget(rates: entry.rates, settings: entry.settings)
+                    .containerBackground(Theme.mainBackground, for: .widget)
+            } else {
+                CurrentRateWidget(rates: entry.rates, settings: entry.settings)
+                    .padding()
+                    .background(Theme.mainBackground)
+            }
         }
         .configurationDisplayName("Current Rate")
         .description("Display the current electricity rate.")
         .supportedFamilies([
             .systemSmall,
+            .systemMedium,
             .accessoryCircular,
             .accessoryInline
         ])
