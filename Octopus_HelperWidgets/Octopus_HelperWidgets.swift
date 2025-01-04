@@ -260,9 +260,23 @@ struct CurrentRateWidget: View {
             // Keep if the range overlaps with our chart's time range
             start <= chartEnd && end >= chartStart
         }.map { start, end in
-            // Clamp the range to our chart's boundaries
-            (max(start, chartStart), min(end, chartEnd))
+            // Clamp the range to our chart's boundaries and add the ±900 offset
+            let adjustedStart = isExactlyOnHalfHour(start) ? start.addingTimeInterval(-900) : start
+            let adjustedEnd = isExactlyOnHalfHour(end) ? end.addingTimeInterval(900) : end
+            return (
+                max(adjustedStart, chartStart),
+                min(adjustedEnd, chartEnd)
+            )
         }
+    }
+    
+    /// Helper to check if a date is exactly on a half hour
+    private func isExactlyOnHalfHour(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let comps = calendar.dateComponents([.minute, .second, .nanosecond], from: date)
+        let minute = comps.minute ?? 0
+        return (minute == 0 || minute == 30) && (comps.second ?? 0) == 0
+            && (comps.nanosecond ?? 0) == 0
     }
     
     // Add helper function for merging windows
@@ -496,81 +510,41 @@ struct CurrentRateWidget: View {
         .environment(\.locale, Locale(identifier: settings.language))
     }
 
+    /// Helper to snap time to nearest half hour
+    private func snapToHalfHour(_ date: Date) -> Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let minute = components.minute ?? 0
+        let snappedMinute = minute >= 30 ? 30 : 0
+        
+        var newComponents = DateComponents()
+        newComponents.year = components.year
+        newComponents.month = components.month
+        newComponents.day = components.day
+        newComponents.hour = components.hour
+        newComponents.minute = snappedMinute
+        newComponents.second = 0
+        
+        return calendar.date(from: newComponents) ?? date
+    }
+
     /// The mini chart with best-time background + 'now' line
     private var chartView: some View {
         let data = filteredRatesForChart
-        let nowX = Date()
+        let now = Date()
+        // Snap nowX to the current period's start time
+        let nowX = if let currentPeriod = findCurrentRatePeriod(now) {
+            currentPeriod.start
+        } else {
+            snapToHalfHour(now)
+        }
         let (minVal, maxVal) = chartYRange
         let barWidth = computeDynamicBarWidth(rateCount: data.count)
 
         return Chart {
-            // 0) Best time ranges (behind everything)
-            ForEach(bestTimeRanges, id: \.0) { start, end in
-                RectangleMark(
-                    xStart: .value("Start", start),
-                    xEnd: .value("End", end),
-                    yStart: .value("Min", minVal - 20),
-                    yEnd: .value("Max", maxVal + 20)
-                )
-                .foregroundStyle(Theme.mainColor.opacity(0.2))
-                .zIndex(0)
-            }
-
-            // 1) "Now" vertical line (behind bars)
-            RuleMark(
-                x: .value("Now", nowX),
-                yStart: .value("Start", minVal - 20),
-                yEnd: .value("End", maxVal + 20)
-            )
-                .foregroundStyle(Theme.secondaryColor.opacity(0.7))
-                .lineStyle(StrokeStyle(lineWidth: 2))
-                .zIndex(1)
-
-            // 2) Zero baseline (for negative values)
-            RuleMark(y: .value("Zero", 0))
-                .foregroundStyle(Theme.secondaryTextColor.opacity(0.3))
-                .lineStyle(StrokeStyle(lineWidth: 1))
-                .zIndex(2)
-
-            // 3) Bars for rates
-            ForEach(data, id: \.validFrom) { rate in
-                if let t = rate.validFrom {
-                    let opacity = computeOpacity(for: t, in: data)
-                    let isNextDay = Calendar.current.isDate(t, inSameDayAs: Date()) == false &&
-                                  t > Date()
-                    BarMark(
-                        x: .value("Time", t),
-                        y: .value("Rate", rate.valueIncludingVAT),
-                        width: .fixed(barWidth)
-                    )
-                    .cornerRadius(3)
-                    .foregroundStyle(
-                        rate.valueIncludingVAT < 0 
-                            ? Theme.secondaryColor.opacity(isNextDay ? opacity : opacity * 1.2)
-                            : Theme.mainColor.opacity(isNextDay ? opacity : opacity * 1.2)
-                    )
-                    .zIndex(3)
-                }
-            }
-
-            // 4) "Now" badge (on top)
-            RuleMark(x: .value("Now", nowX))
-                .opacity(0) // Invisible rule mark just for the annotation
-                .annotation(position: .top) {
-                    Text(LocalizedStringKey("NOW"))
-                        .font(.system(size: 10).weight(.bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Theme.secondaryColor.opacity(0.7))
-                                .frame(width: 32)
-                        )
-                        .offset(y: 45)
-                }
-                .offset(y: -16)
-                .zIndex(4) // Badge always on top
+            chartBackgroundLayers(minVal: minVal, maxVal: maxVal, nowX: nowX)
+            chartBars(data: data, barWidth: barWidth)
+            chartNowBadge(nowX: nowX)
         }
         .chartYScale(domain: minVal...maxVal)
         .chartXAxis {
@@ -587,34 +561,98 @@ struct CurrentRateWidget: View {
         }
         .padding(0)
     }
+    
+    @ChartContentBuilder
+    private func chartBackgroundLayers(minVal: Double, maxVal: Double, nowX: Date) -> some ChartContent {
+        // 0) Best time ranges (behind everything)
+        ForEach(bestTimeRanges, id: \.0) { start, end in
+            RectangleMark(
+                xStart: .value("Start", start),
+                xEnd: .value("End", end),
+                yStart: .value("Min", minVal - 20),
+                yEnd: .value("Max", maxVal + 20)
+            )
+            .foregroundStyle(Theme.mainColor.opacity(0.2))
+        }
 
-    /// Compute opacity for gradient effect (0% for first 20%, then 0% to 100% for remaining)
-    private func computeOpacity(for date: Date, in data: [RateEntity]) -> Double {
-        guard let firstDate = data.first?.validFrom,
-              let lastDate = data.last?.validFrom,
-              lastDate > firstDate else {
-            return 1.0
+        // 1) "Now" vertical line (behind bars)
+        RuleMark(
+            x: .value("Now", nowX),
+            yStart: .value("Start", minVal - 20),
+            yEnd: .value("End", maxVal + 20)
+        )
+        .foregroundStyle(Theme.secondaryColor)
+        .lineStyle(StrokeStyle(lineWidth: 2))
+
+        // 2) Zero baseline (for negative values)
+        RuleMark(y: .value("Zero", 0))
+            .foregroundStyle(Theme.secondaryTextColor.opacity(0.3))
+            .lineStyle(StrokeStyle(lineWidth: 1))
+    }
+    
+    @ChartContentBuilder
+    private func chartBars(data: [RateEntity], barWidth: Double) -> some ChartContent {
+        ForEach(Array(data.enumerated()), id: \.element.validFrom) { index, rate in
+            if let t = rate.validFrom {
+                let baseColor = rate.valueIncludingVAT < 0 ? Theme.secondaryColor : Theme.mainColor
+                let rawProgress = Double(index) / Double(max(1, data.count - 1))
+                let isToday = Calendar.current.isDate(t, inSameDayAs: Date())
+                
+                // Keep first 30% as background color, then gradient over remaining 70%
+                let colorProgress = if rawProgress < 0.3 {
+                    0.0 // First 30% are pure background
+                } else {
+                    // Map 0.3->1.0 range to 0.0->1.0
+                    (rawProgress - 0.3) / 0.7
+                }
+                
+                // Fixed opacity based on whether it's today or not
+                let barOpacity = isToday ? 1.2 : 1.0
+                
+                // Blend between background and base color based on progress
+                let blendedColor = Color.interpolate(
+                    from: Theme.mainBackground,
+                    to: baseColor,
+                    progress: colorProgress
+                )
+                
+                BarMark(
+                    x: .value("Time", t),
+                    y: .value("Rate", rate.valueIncludingVAT),
+                    width: .fixed(barWidth)
+                )
+                .cornerRadius(3)
+                .foregroundStyle(blendedColor.opacity(barOpacity))
+            }
         }
-        
-        let totalDuration = lastDate.timeIntervalSince(firstDate)
-        let currentDuration = date.timeIntervalSince(firstDate)
-        let progress = currentDuration / totalDuration
-        
-        // First 20% is completely transparent
-        if progress < 0.3 {
-            return 0.0
-        }
-        
-        // Remaining 80% goes from 0% to 100%
-        return (progress - 0.3) / 0.7 // This maps 0.2->1.0 to 0.0->1.0
+    }
+    
+    @ChartContentBuilder
+    private func chartNowBadge(nowX: Date) -> some ChartContent {
+        RuleMark(x: .value("Now", nowX))
+            .opacity(0) // Invisible rule mark just for the annotation
+            .annotation(position: .top) {
+                Text(LocalizedStringKey("NOW"))
+                    .font(.system(size: 10).weight(.bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Theme.secondaryColor)
+                            .frame(width: 32)
+                    )
+                    .offset(y: 45)
+            }
+            .offset(y: -16)
     }
 
     /// Compute dynamic bar width with gaps
     private func computeDynamicBarWidth(rateCount: Int) -> Double {
-        let maxPossibleBars = 65.0  // Upper bound, same as InteractiveLineChartCardView
+        let maxPossibleBars = 70.0  // Upper bound, same as InteractiveLineChartCardView
         let currentBars = Double(rateCount)
         let baseWidthPerBar = 5.0
-        let barGapRatio = 0.7  // 70% bar, 30% gap
+        let barGapRatio = 0.8  // 70% bar, 30% gap
         let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
         return totalChunk * barGapRatio
     }
@@ -882,4 +920,31 @@ extension PersistenceController {
         settings: (postcode: "", showRatesInPounds: false, language: "en"),
         chartSettings: InteractiveChartSettings.default
     )
+}
+
+extension Color {
+    static func interpolate(from: Color, to: Color, progress: Double) -> Color {
+        let uiColor1 = UIColor(from)
+        let uiColor2 = UIColor(to)
+        
+        var red1: CGFloat = 0
+        var green1: CGFloat = 0
+        var blue1: CGFloat = 0
+        var alpha1: CGFloat = 0
+        uiColor1.getRed(&red1, green: &green1, blue: &blue1, alpha: &alpha1)
+        
+        var red2: CGFloat = 0
+        var green2: CGFloat = 0
+        var blue2: CGFloat = 0
+        var alpha2: CGFloat = 0
+        uiColor2.getRed(&red2, green: &green2, blue: &blue2, alpha: &alpha2)
+        
+        let clampedProgress = min(1, max(0, progress))
+        
+        let red = red1 + (red2 - red1) * clampedProgress
+        let green = green1 + (green2 - green1) * clampedProgress
+        let blue = blue1 + (blue2 - blue1) * clampedProgress
+        
+        return Color(uiColor: UIColor(red: red, green: green, blue: blue, alpha: 1.0))
+    }
 }
