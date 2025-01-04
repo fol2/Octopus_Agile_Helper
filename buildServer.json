@@ -1,0 +1,19 @@
+{
+	"name": "xcode build server",
+	"version": "0.2",
+	"bspVersion": "2.0",
+	"languages": [
+		"c",
+		"cpp",
+		"objective-c",
+		"objective-cpp",
+		"swift"
+	],
+	"argv": [
+		"/opt/homebrew/bin/xcode-build-server"
+	],
+	"workspace": "/Users/jamesto/Documents/Coding/Octopus_Agile_Helper/Octopus_Agile_Helper.xcodeproj/project.xcworkspace",
+	"build_root": "/Users/jamesto/Library/Developer/Xcode/DerivedData/Octopus_Agile_Helper-bjceeyjuqcspvxczzwkzkxybhglj",
+	"scheme": "Octopus_Agile_Helper",
+	"kind": "xcode"
+}

@@ -7,10 +7,27 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BF3400942D26DE9C00CD068B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
+		BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
+		BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BFC2A5D02D24C39700E702BD /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; };
+		BFC2A5D12D24C39700E702BD /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574C2D248B6A002EE392 /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BFD3207D2D26F3D100B563D0 /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */; };
+		BFD3207E2D26F3D100B563D0 /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		BFD320802D26F3DD00B563D0 /* OctopusHelperShared in Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */; };
+		BFD320812D26F3DD00B563D0 /* OctopusHelperShared in Embed Frameworks */ = {isa = PBXBuildFile; productRef = BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		BF3400912D2630AD00CD068B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFE3DE542D1E0705003E74A4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BFF957492D248B6A002EE392;
+			remoteInfo = Octopus_HelperWidgetsExtension;
+		};
 		BFE3DE742D1E0707003E74A4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = BFE3DE542D1E0705003E74A4 /* Project object */;
@@ -27,20 +44,87 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		BF0C00FF2D24CB7C0055B9D3 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				BFD320812D26F3DD00B563D0 /* OctopusHelperShared in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF3400932D2630AD00CD068B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BFC2A5CF2D24C39500E702BD /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */,
+				BFD3207E2D26F3D100B563D0 /* OctopusHelperShared in Embed Frameworks */,
+				BFC2A5D12D24C39700E702BD /* WidgetKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BFF957612D248B6B002EE392 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/AppClips";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		BF47C08D2D24A0A200BA093D /* Octopus_HelperWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Octopus_HelperWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		BFC264112D1F14E600279D9E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Octopus_Agile_Helper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFE3DE732D1E0707003E74A4 /* Octopus_Agile_HelperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Octopus_Agile_HelperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFE3DE7D2D1E0707003E74A4 /* Octopus_Agile_HelperUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Octopus_Agile_HelperUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Octopus_HelperWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFF9574C2D248B6A002EE392 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		BFF9574E2D248B6A002EE392 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BF3400962D26EB4500CD068B /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_HelperWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Assets.xcassets,
+				Octopus_Agile_Helper.xcdatamodeld,
+			);
+			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
+		};
 		BFE3DE852D1E0707003E74A4 /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_Agile_Helper" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = BFE3DE5B2D1E0706003E74A4 /* Octopus_Agile_Helper */;
+		};
+		BFF957652D248B6B002EE392 /* Exceptions for "Octopus_HelperWidgets" folder in "Octopus_HelperWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -49,6 +133,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				BFE3DE852D1E0707003E74A4 /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_Agile_Helper" target */,
+				BF3400962D26EB4500CD068B /* Exceptions for "Octopus_Agile_Helper" folder in "Octopus_HelperWidgetsExtension" target */,
 			);
 			path = Octopus_Agile_Helper;
 			sourceTree = "<group>";
@@ -63,6 +148,14 @@
 			path = Octopus_Agile_HelperUITests;
 			sourceTree = "<group>";
 		};
+		BFF957502D248B6A002EE392 /* Octopus_HelperWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BFF957652D248B6B002EE392 /* Exceptions for "Octopus_HelperWidgets" folder in "Octopus_HelperWidgetsExtension" target */,
+			);
+			path = Octopus_HelperWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +163,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BFD320802D26F3DD00B563D0 /* OctopusHelperShared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,16 +181,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BFF957472D248B6A002EE392 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */,
+				BFD3207D2D26F3D100B563D0 /* OctopusHelperShared in Frameworks */,
+				BFC2A5D02D24C39700E702BD /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		BFE3DE532D1E0705003E74A4 = {
 			isa = PBXGroup;
 			children = (
+				BF47C08D2D24A0A200BA093D /* Octopus_HelperWidgetsExtension.entitlements */,
 				BFC264112D1F14E600279D9E /* Localizable.xcstrings */,
 				BFE3DE5E2D1E0706003E74A4 /* Octopus_Agile_Helper */,
 				BFE3DE762D1E0707003E74A4 /* Octopus_Agile_HelperTests */,
 				BFE3DE802D1E0707003E74A4 /* Octopus_Agile_HelperUITests */,
+				BFF957502D248B6A002EE392 /* Octopus_HelperWidgets */,
+				BFF9574B2D248B6A002EE392 /* Frameworks */,
 				BFE3DE5D2D1E0706003E74A4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,8 +214,18 @@
 				BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */,
 				BFE3DE732D1E0707003E74A4 /* Octopus_Agile_HelperTests.xctest */,
 				BFE3DE7D2D1E0707003E74A4 /* Octopus_Agile_HelperUITests.xctest */,
+				BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BFF9574B2D248B6A002EE392 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BFF9574C2D248B6A002EE392 /* WidgetKit.framework */,
+				BFF9574E2D248B6A002EE392 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -121,16 +238,21 @@
 				BFE3DE582D1E0706003E74A4 /* Sources */,
 				BFE3DE592D1E0706003E74A4 /* Frameworks */,
 				BFE3DE5A2D1E0706003E74A4 /* Resources */,
+				BFF957612D248B6B002EE392 /* Embed Foundation Extensions */,
+				BF0C00FF2D24CB7C0055B9D3 /* Embed Frameworks */,
+				BF3400932D2630AD00CD068B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BF3400922D2630AD00CD068B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BFE3DE5E2D1E0706003E74A4 /* Octopus_Agile_Helper */,
 			);
 			name = Octopus_Agile_Helper;
 			packageProductDependencies = (
+				BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */,
 			);
 			productName = Octopus_Agile_Helper;
 			productReference = BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */;
@@ -182,6 +304,30 @@
 			productReference = BFE3DE7D2D1E0707003E74A4 /* Octopus_Agile_HelperUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BFF957642D248B6B002EE392 /* Build configuration list for PBXNativeTarget "Octopus_HelperWidgetsExtension" */;
+			buildPhases = (
+				BFF957462D248B6A002EE392 /* Sources */,
+				BFF957472D248B6A002EE392 /* Frameworks */,
+				BFF957482D248B6A002EE392 /* Resources */,
+				BFC2A5CF2D24C39500E702BD /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BFF957502D248B6A002EE392 /* Octopus_HelperWidgets */,
+			);
+			name = Octopus_HelperWidgetsExtension;
+			packageProductDependencies = (
+				BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */,
+			);
+			productName = Octopus_HelperWidgetsExtension;
+			productReference = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,7 +335,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1600;
+				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					BFE3DE5B2D1E0706003E74A4 = {
@@ -203,6 +349,9 @@
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = BFE3DE5B2D1E0706003E74A4;
 					};
+					BFF957492D248B6A002EE392 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 				};
 			};
 			buildConfigurationList = BFE3DE572D1E0705003E74A4 /* Build configuration list for PBXProject "Octopus_Agile_Helper" */;
@@ -215,9 +364,40 @@
 				"zh-Hans",
 				fr,
 				es,
+				de,
+				ja,
+				ko,
+				"pt-PT",
+				sv,
+				uk,
+				ar,
+				ca,
+				da,
+				nl,
+				el,
+				he,
+				ro,
+				nb,
+				sl,
+				it,
+				hu,
+				hi,
+				fi,
+				hr,
+				cs,
+				pl,
+				tr,
+				th,
+				vi,
+				sk,
+				id,
+				ms,
 			);
 			mainGroup = BFE3DE532D1E0705003E74A4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BFE3DE5D2D1E0706003E74A4 /* Products */;
 			projectDirPath = "";
@@ -226,6 +406,7 @@
 				BFE3DE5B2D1E0706003E74A4 /* Octopus_Agile_Helper */,
 				BFE3DE722D1E0707003E74A4 /* Octopus_Agile_HelperTests */,
 				BFE3DE7C2D1E0707003E74A4 /* Octopus_Agile_HelperUITests */,
+				BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -253,6 +434,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BFF957482D248B6A002EE392 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF3400942D26DE9C00CD068B /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -277,9 +466,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BFF957462D248B6A002EE392 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		BF3400922D2630AD00CD068B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BFF957492D248B6A002EE392 /* Octopus_HelperWidgetsExtension */;
+			targetProxy = BF3400912D2630AD00CD068B /* PBXContainerItemProxy */;
+		};
 		BFE3DE752D1E0707003E74A4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = BFE3DE5B2D1E0706003E74A4 /* Octopus_Agile_Helper */;
@@ -306,6 +507,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_Agile_Helper/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Agile Helper";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -317,8 +519,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.5;
-				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-Helper";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -339,6 +541,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_Agile_Helper/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Agile Helper";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -350,8 +553,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.5;
-				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-Helper";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -395,6 +598,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -460,6 +664,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -488,9 +693,9 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 835KUC95M7;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -507,9 +712,9 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 835KUC95M7;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -523,10 +728,12 @@
 		BFE3DE8F2D1E0707003E74A4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 835KUC95M7;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -540,10 +747,12 @@
 		BFE3DE902D1E0707003E74A4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 835KUC95M7;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "eugnel.Octopus-Agile-HelperUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -551,6 +760,68 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Octopus_Agile_Helper;
+			};
+			name = Release;
+		};
+		BFF957622D248B6B002EE392 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = Octopus_HelperWidgetsExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper.widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BFF957632D248B6B002EE392 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = Octopus_HelperWidgetsExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = V45S7U2LZB;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper.widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -593,7 +864,36 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		BFF957642D248B6B002EE392 /* Build configuration list for PBXNativeTarget "Octopus_HelperWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFF957622D248B6B002EE392 /* Debug */,
+				BFF957632D248B6B002EE392 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Shared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BFD3207C2D26F3D100B563D0 /* OctopusHelperShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */;
+			productName = OctopusHelperShared;
+		};
+		BFD3207F2D26F3DD00B563D0 /* OctopusHelperShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFD3207B2D26F3CB00B563D0 /* XCLocalSwiftPackageReference "Shared" */;
+			productName = OctopusHelperShared;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BFE3DE542D1E0705003E74A4 /* Project object */;
 }
