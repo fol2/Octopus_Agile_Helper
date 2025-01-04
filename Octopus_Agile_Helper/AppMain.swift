@@ -55,13 +55,14 @@ struct Octopus_Agile_HelperApp: App {
 
 @available(iOS 17.0, *)
 #Preview {
-    Group {
-        ContentView()
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
-            .environmentObject(GlobalTimer())
-            .environmentObject(GlobalSettingsManager())
-            .environmentObject(RatesViewModel(globalTimer: GlobalTimer()))
-            .environment(\.locale, .current)
-            .preferredColorScheme(.dark)
-    }
+    let globalTimer = GlobalTimer()
+    let globalSettings = GlobalSettingsManager()
+    
+    return ContentView()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environmentObject(globalTimer)
+        .environmentObject(globalSettings)
+        .environmentObject(RatesViewModel(globalTimer: globalTimer))
+        .environment(\.locale, globalSettings.locale)
+        .preferredColorScheme(.dark)
 }
