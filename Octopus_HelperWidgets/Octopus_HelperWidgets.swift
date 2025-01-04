@@ -21,6 +21,9 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     private var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
     }
+    private var persistenceController: PersistenceController {
+        PersistenceController.shared
+    }
     
     // MARK: - Public Entry Points
     override init() {
@@ -28,11 +31,15 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     }
 
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: [], settings: readSettings())
+        let context = persistenceController.container.viewContext
+        let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+        return SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: rates, settings: readSettings())
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(date: .now, configuration: configuration, rates: [], settings: readSettings())
+        let context = persistenceController.container.viewContext
+        let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+        return SimpleEntry(date: .now, configuration: configuration, rates: rates, settings: readSettings())
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
@@ -275,38 +282,7 @@ struct CurrentRateWidget: View {
             }
         }
     }
-    
-    // Rectangular lock screen widget
-    private var rectangularView: some View {
-        HStack {
-            if let currentRate = findCurrentRate() {
-                VStack(alignment: .leading) {
-                    Text("Current Rate")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        Text(formatRate(currentRate.valueIncludingVAT))
-                            .font(.system(.body, design: .rounded))
-                            .foregroundColor(RateColor.getColor(for: currentRate, allRates: rates))
-                        Text("/kWh")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                Spacer()
-                if let validTo = currentRate.validTo {
-                    Text(formatTime(validTo))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                Text("No current rate")
-                    .font(.caption)
-            }
-        }
-        .padding(.horizontal, 4)
-    }
-    
+
     // Inline lock screen widget
     private var inlineView: some View {
         if let currentRate = findCurrentRate() {
@@ -360,7 +336,6 @@ struct CurrentRateWidget: View {
     /// The mini chart with best-time background + 'now' line
     private var chartView: some View {
         let data = filteredRatesForChart
-        let bestRanges = findBestTimeRanges(data: data)
         let nowX = Date()
         let (minVal, maxVal) = chartYRange
         let barWidth = computeDynamicBarWidth(rateCount: data.count)
@@ -371,18 +346,6 @@ struct CurrentRateWidget: View {
                 .foregroundStyle(Theme.secondaryColor.opacity(0.7))
                 .lineStyle(StrokeStyle(lineWidth: 2))
                 .zIndex(1)
-
-            // 2) best-time background
-            ForEach(bestRanges, id: \.0) { (start, end) in
-                RectangleMark(
-                    xStart: .value("Start", start),
-                    xEnd: .value("End", end),
-                    yStart: .value("Y1", minVal),
-                    yEnd: .value("Y2", maxVal)
-                )
-                .foregroundStyle(Theme.mainColor.opacity(0.2))
-                .zIndex(2)
-            }
 
             // 3) Bars for rates
             ForEach(data, id: \.validFrom) { rate in
@@ -512,34 +475,6 @@ struct CurrentRateWidget: View {
                 .font(.caption2)
                 .foregroundColor(color)
         }
-    }
-
-    /// Find best time ranges (lowest average windows) in the next 24 hours
-    private func findBestTimeRanges(data: [RateEntity]) -> [(Date, Date)] {
-        let now = Date()
-        let future = now.addingTimeInterval(24 * 3600)
-        let upcomingRates = data.filter { rate in
-            guard let from = rate.validFrom, let _ = rate.validTo else { return false }
-            return from >= now && from < future
-        }
-        
-        // Simple algorithm: Find 2-hour windows with lowest average
-        var bestRanges: [(Date, Date)] = []
-        let windowSize = 2 * 3600.0 // 2 hours
-        
-        for i in stride(from: 0, to: upcomingRates.count - 3, by: 1) {
-            let windowRates = Array(upcomingRates[i..<min(i + 4, upcomingRates.count)])
-            let avgRate = windowRates.reduce(0.0) { $0 + $1.valueIncludingVAT } / Double(windowRates.count)
-            
-            if avgRate < 20.0, // Threshold for "good" rate
-               let firstRate = windowRates.first,
-               let start = firstRate.validFrom {
-                let end = start.addingTimeInterval(windowSize)
-                bestRanges.append((start, end))
-            }
-        }
-        
-        return bestRanges
     }
 }
 
@@ -725,34 +660,66 @@ struct Octopus_HelperWidgets: Widget {
     }
 }
 
-// MARK: - Preview
+// MARK: - Preview Helpers
+extension PersistenceController {
+    static var widgetPreview: PersistenceController = {
+        PersistenceController.shared
+    }()
+}
+
+// MARK: - Widget Previews
 #Preview(as: .systemSmall) {
     Octopus_HelperWidgets()
 } timeline: {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.shared.container.viewContext
+    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
     
-    // One "no data" entry
-    let emptyEntry = SimpleEntry(
+    SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: [],
-        settings: ("", false, "en")
+        rates: rates,
+        settings: (postcode: "", showRatesInPounds: false, language: "en")
     )
+}
 
-    // One "has data" entry
-    let sampleRate = RateEntity(context: context)
-    sampleRate.id = UUID().uuidString
-    sampleRate.validFrom = Date()
-    sampleRate.validTo = Date().addingTimeInterval(1800)
-    sampleRate.valueExcludingVAT = 15.0
-    sampleRate.valueIncludingVAT = 18.0
-
-    let hasDataEntry = SimpleEntry(
+#Preview(as: .systemMedium) {
+    Octopus_HelperWidgets()
+} timeline: {
+    let context = PersistenceController.shared.container.viewContext
+    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    
+    SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: [sampleRate],
-        settings: ("", false, "en")
+        rates: rates,
+        settings: (postcode: "", showRatesInPounds: false, language: "en")
     )
+}
 
-    return [emptyEntry, hasDataEntry]
+#Preview(as: .accessoryCircular) {
+    Octopus_HelperWidgets()
+} timeline: {
+    let context = PersistenceController.shared.container.viewContext
+    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    
+    SimpleEntry(
+        date: .now,
+        configuration: ConfigurationAppIntent(),
+        rates: rates,
+        settings: (postcode: "", showRatesInPounds: false, language: "en")
+    )
+}
+
+#Preview(as: .accessoryInline) {
+    Octopus_HelperWidgets()
+} timeline: {
+    let context = PersistenceController.shared.container.viewContext
+    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    
+    SimpleEntry(
+        date: .now,
+        configuration: ConfigurationAppIntent(),
+        rates: rates,
+        settings: (postcode: "", showRatesInPounds: false, language: "en")
+    )
 }

@@ -6490,6 +6490,7 @@
       }
     },
     "End" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18414,6 +18415,7 @@
       }
     },
     "Start" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20841,12 +20843,6 @@
           }
         }
       }
-    },
-    "Y1" : {
-
-    },
-    "Y2" : {
-
     },
     "You can choose length of period to average and how many rates to show" : {
       "extractionState" : "stale",
