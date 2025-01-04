@@ -321,10 +321,10 @@ struct CurrentRateWidget: View {
                 HStack {
                     if let currentRate = findCurrentRate() {
                         contentForCurrent(rate: currentRate)
-                            .frame(width: geometry.size.width * 0.45)
+                            .frame(width: geometry.size.width * 0.48)
                     } else {
                         noCurrentRateView
-                            .frame(width: geometry.size.width * 0.45)
+                            .frame(width: geometry.size.width * 0.48)
                     }
                     Spacer()
                 }
@@ -363,6 +363,8 @@ struct CurrentRateWidget: View {
             ForEach(data, id: \.validFrom) { rate in
                 if let t = rate.validFrom {
                     let opacity = computeOpacity(for: t, in: data)
+                    let isNextDay = Calendar.current.isDate(t, inSameDayAs: Date()) == false &&
+                                  t > Date()
                     BarMark(
                         x: .value("Time", t),
                         y: .value("Rate", rate.valueIncludingVAT),
@@ -371,8 +373,8 @@ struct CurrentRateWidget: View {
                     .cornerRadius(3)
                     .foregroundStyle(
                         rate.valueIncludingVAT < 0 
-                            ? Theme.secondaryColor.opacity(opacity)
-                            : Theme.mainColor.opacity(opacity)
+                            ? Theme.secondaryColor.opacity(isNextDay ? opacity : opacity * 1.2)
+                            : Theme.mainColor.opacity(isNextDay ? opacity : opacity * 1.2)
                     )
                     .zIndex(3)
                 }
@@ -534,9 +536,16 @@ extension CurrentRateWidget {
                         font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
                     )
                     Spacer(minLength: 0)
-                    Text(formatTime(startTime))
-                        .font(.caption2)
-                        .foregroundColor(Theme.mainTextColor)
+                    HStack(spacing: 0) {
+                        Text(formatTime(startTime))
+                            .font(.caption2)
+                        if !Calendar.current.isDate(startTime, inSameDayAs: Date()) {
+                            Text("N")
+                                .font(.system(size: 8))
+                                .baselineOffset(2)
+                        }
+                    }
+                    .foregroundColor(Theme.mainTextColor)
                 }
             }
             if let (highestRate, startTime) = highestUpcoming() {
@@ -550,9 +559,16 @@ extension CurrentRateWidget {
                         font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
                     )
                     Spacer(minLength: 0)
-                    Text(formatTime(startTime))
-                        .font(.caption2)
-                        .foregroundColor(Theme.mainTextColor)
+                    HStack(spacing: 0) {
+                        Text(formatTime(startTime))
+                            .font(.caption2)
+                        if !Calendar.current.isDate(startTime, inSameDayAs: Date()) {
+                            Text("N")
+                                .font(.system(size: 8))
+                                .baselineOffset(2)
+                        }
+                    }
+                    .foregroundColor(Theme.mainTextColor)
                 }
             }
         }
