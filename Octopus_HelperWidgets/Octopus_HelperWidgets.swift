@@ -262,7 +262,7 @@ struct CurrentRateWidget: View {
         }.map { start, end in
             // Clamp the range to our chart's boundaries and add the ±900 offset
             let adjustedStart = isExactlyOnHalfHour(start) ? start.addingTimeInterval(-900) : start
-            let adjustedEnd = isExactlyOnHalfHour(end) ? end.addingTimeInterval(900) : end
+            let adjustedEnd = isExactlyOnHalfHour(end) ? end.addingTimeInterval(-900) : end
             return (
                 max(adjustedStart, chartStart),
                 min(adjustedEnd, chartEnd)

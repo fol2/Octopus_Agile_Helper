@@ -29,9 +29,10 @@ public class InteractiveChartSettingsManager: ObservableObject {
     }
 
     private let userDefaultsKey = "MyChartSettings"
+    private let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
 
     public init() {
-        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+        if let data = sharedDefaults?.data(forKey: userDefaultsKey),
             let decoded = try? JSONDecoder().decode(InteractiveChartSettings.self, from: data)
         {
             self.settings = decoded
@@ -42,7 +43,7 @@ public class InteractiveChartSettingsManager: ObservableObject {
 
     private func saveSettings() {
         if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+            sharedDefaults?.set(encoded, forKey: userDefaultsKey)
         }
     }
 }
