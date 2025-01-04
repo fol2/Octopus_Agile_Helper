@@ -85,9 +85,13 @@ public struct CurrentRateCardView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header row with left icon + title + "more" icon on right
-            HStack {
+            HStack(alignment: .center) {
                 if let def = CardRegistry.shared.definition(for: .currentRate) {
-                    Image(systemName: def.iconName)
+                    Image(def.iconName)
+                        .renderingMode(.template)  // Force template rendering mode
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
                         .foregroundColor(Theme.icon)
                     Text(LocalizedStringKey(def.displayNameKey))
                         .font(Theme.titleFont())

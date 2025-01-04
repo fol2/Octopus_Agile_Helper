@@ -97,7 +97,7 @@ public final class CardRegistry {
                 isPremium: false,
                 makeView: { vm in AnyView(CurrentRateCardView(viewModel: vm as! RatesViewModel)) },
                 makeWidgetView: { vm in AnyView(CurrentRateCardView(viewModel: vm as! RatesViewModel)) },
-                iconName: "clock.fill",
+                iconName: ClockModel.iconName(),
                 defaultSortOrder: 1,
                 mediaItems: [
                     MediaItem(

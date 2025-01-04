@@ -675,7 +675,7 @@ extension CurrentRateWidget {
     
     private func contentForCurrent(rate: RateEntity) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            topLabel(title: "Agile Current", icon: "clock.fill")
+            topLabel(title: "Agile Current", icon: "clock")
             
             // Show large current rate
             rateView(value: rate.valueIncludingVAT, color: RateColor.getColor(for: rate, allRates: rates), font: Theme.mainFont())
@@ -695,7 +695,7 @@ extension CurrentRateWidget {
     
     private var noCurrentRateView: some View {
         VStack(alignment: .leading, spacing: 4) {
-            topLabel(title: "Agile Current", icon: "clock.fill")
+            topLabel(title: "Agile Current", icon: "clock")
             Text("No current rate")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
@@ -757,9 +757,19 @@ extension CurrentRateWidget {
     
     private func topLabel(title: String, icon: String) -> some View {
         HStack {
-            Image(systemName: icon)
-                .foregroundColor(Theme.icon)
-                .font(Theme.subFont())
+            if icon == "clock" {
+                // Use our custom clock icon
+                Image(ClockModel.iconName())
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                    .foregroundColor(Theme.icon)
+            } else {
+                Image(systemName: icon)
+                    .foregroundColor(Theme.icon)
+                    .font(Theme.subFont())
+            }
             Text(title)
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
