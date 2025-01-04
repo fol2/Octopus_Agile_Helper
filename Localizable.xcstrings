@@ -10127,7 +10127,6 @@
       }
     },
     "Max" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10528,7 +10527,6 @@
       }
     },
     "Min" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10729,6 +10727,9 @@
           }
         }
       }
+    },
+    "N" : {
+
     },
     "Next 24 hours" : {
       "extractionState" : "stale",

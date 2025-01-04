@@ -25,6 +25,15 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         PersistenceController.shared
     }
     
+    // Add shared settings manager
+    private var chartSettings: InteractiveChartSettings {
+        if let data = sharedDefaults?.data(forKey: "MyChartSettings"),
+           let decoded = try? JSONDecoder().decode(InteractiveChartSettings.self, from: data) {
+            return decoded
+        }
+        return .default
+    }
+    
     // MARK: - Public Entry Points
     override init() {
         super.init()
@@ -33,13 +42,25 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
         let context = persistenceController.container.viewContext
         let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
-        return SimpleEntry(date: .now, configuration: ConfigurationAppIntent(), rates: rates, settings: readSettings())
+        return SimpleEntry(
+            date: .now,
+            configuration: ConfigurationAppIntent(),
+            rates: rates,
+            settings: readSettings(),
+            chartSettings: chartSettings
+        )
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
         let context = persistenceController.container.viewContext
         let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
-        return SimpleEntry(date: .now, configuration: configuration, rates: rates, settings: readSettings())
+        return SimpleEntry(
+            date: .now,
+            configuration: configuration,
+            rates: rates,
+            settings: readSettings(),
+            chartSettings: chartSettings
+        )
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
@@ -125,9 +146,16 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     ) -> [SimpleEntry] {
         let refreshSlots = computeRefreshSlots(from: now)
         let userSettings = readSettings()
+        let chartSettings = self.chartSettings  // Get the shared chart settings
         
         return refreshSlots.map { date in
-            SimpleEntry(date: date, configuration: configuration, rates: rates, settings: userSettings)
+            SimpleEntry(
+                date: date,
+                configuration: configuration,
+                rates: rates,
+                settings: userSettings,
+                chartSettings: chartSettings  // Pass chart settings to entry
+            )
         }
     }
 
@@ -142,13 +170,15 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 date: now,
                 configuration: configuration,
                 rates: [],
-                settings: userSettings
+                settings: userSettings,
+                chartSettings: chartSettings
             ),
             SimpleEntry(
                 date: retryDate,
                 configuration: configuration,
                 rates: [],
-                settings: userSettings
+                settings: userSettings,
+                chartSettings: chartSettings
             )
         ]
         return Timeline(entries: entries, policy: .after(retryDate))
@@ -196,6 +226,7 @@ struct SimpleEntry: TimelineEntry {
     let configuration: ConfigurationAppIntent
     let rates: [RateEntity]
     let settings: (postcode: String, showRatesInPounds: Bool, language: String)
+    let chartSettings: InteractiveChartSettings
 }
 
 // MARK: - The Widget UI
@@ -204,7 +235,137 @@ struct SimpleEntry: TimelineEntry {
 struct CurrentRateWidget: View {
     let rates: [RateEntity]
     let settings: (postcode: String, showRatesInPounds: Bool, language: String)
+    let chartSettings: InteractiveChartSettings
     @Environment(\.widgetFamily) var family
+    
+    // Add computed property for best time ranges
+    private var bestTimeRanges: [(Date, Date)] {
+        let viewModel = RatesViewModel(rates: rates)  // Use widget-specific initializer
+        let windows = viewModel.getLowestAveragesIncludingPastHour(
+            hours: chartSettings.customAverageHours,
+            maxCount: chartSettings.maxListCount
+        )
+        let raw = windows.map { ($0.start, $0.end) }
+        let merged = mergeWindows(raw)
+        
+        // Filter to only show ranges that overlap with our chart's visible range
+        guard let chartStart = filteredRatesForChart.first?.validFrom,
+              let lastRate = filteredRatesForChart.last,
+              let chartEnd = lastRate.validTo ?? lastRate.validFrom
+        else {
+            return []
+        }
+        
+        return merged.filter { start, end in
+            // Keep if the range overlaps with our chart's time range
+            start <= chartEnd && end >= chartStart
+        }.map { start, end in
+            // Clamp the range to our chart's boundaries
+            (max(start, chartStart), min(end, chartEnd))
+        }
+    }
+    
+    // Add helper function for merging windows
+    private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
+        guard !input.isEmpty else { return [] }
+        let sorted = input.sorted { $0.0 < $1.0 }
+        
+        var merged = [sorted[0]]
+        for window in sorted.dropFirst() {
+            let lastIndex = merged.count - 1
+            if window.0 <= merged[lastIndex].1 {
+                merged[lastIndex].1 = max(merged[lastIndex].1, window.1)
+            } else {
+                merged.append(window)
+            }
+        }
+        return merged
+    }
+    
+    // Add missing computed properties and functions
+    private var filteredRatesForChart: [RateEntity] {
+        let now = Date()
+        
+        // Split rates into past and future
+        let validRates = rates.filter { $0.validFrom != nil && $0.validTo != nil }
+        let pastRates = validRates
+            .filter { ($0.validFrom ?? .distantFuture) <= now }
+            .sorted { ($0.validFrom ?? .distantPast) > ($1.validFrom ?? .distantPast) } // Latest first
+            .prefix(42) // Take up to 42 past rates
+        
+        let futureRates = validRates
+            .filter { ($0.validFrom ?? .distantPast) > now }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) } // Earliest first
+            .prefix(33) // Take up to 33 future rates
+        
+        // Combine and sort for display
+        return (Array(pastRates) + Array(futureRates))
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+    }
+
+    /// Y-axis range for chart
+    private var chartYRange: (Double, Double) {
+        let prices = filteredRatesForChart.map { $0.valueIncludingVAT }
+        guard !prices.isEmpty else { return (0, 10) }
+        let minVal = min(0, (prices.min() ?? 0) - 2)
+        let maxVal = (prices.max() ?? 0) + 10
+        return (minVal, maxVal)
+    }
+
+    private var xDomain: ClosedRange<Date> {
+        guard let earliest = filteredRatesForChart.first?.validFrom,
+            let lastRate = filteredRatesForChart.last
+        else {
+            return Date()...(Date().addingTimeInterval(3600))
+        }
+        // Base domain end on the last rate's 'validTo'
+        let domainEnd = lastRate.validTo ?? lastRate.validFrom!.addingTimeInterval(1800)
+        return earliest...domainEnd
+    }
+
+    private func findCurrentRatePeriod(_ date: Date) -> (start: Date, price: Double)? {
+        guard
+            let rate = filteredRatesForChart.first(where: { r in
+                guard let start = r.validFrom, let end = r.validTo else { return false }
+                return date >= start && date < end
+            })
+        else {
+            return nil
+        }
+        if let start = rate.validFrom {
+            return (start, rate.valueIncludingVAT)
+        }
+        return nil
+    }
+
+    /// Get upcoming rates including current rate, sorted by value
+    private func getUpcomingRates() -> [RateEntity] {
+        let now = Date()
+        return filteredRatesForChart
+            .filter { rate in
+                guard let from = rate.validFrom, let to = rate.validTo else { return false }
+                // Include if it overlaps with now or is in the future
+                return (from <= now && to > now) || from > now
+            }
+            .sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
+    }
+
+    private var barWidth: Double {
+        let maxPossibleBars = 65.0  // Upper bound
+        let currentBars = Double(filteredRatesForChart.count)
+        let baseWidthPerBar = 5.0
+        let barGapRatio = 0.7  // 70% bar, 30% gap
+        let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
+        return totalChunk * barGapRatio
+    }
+
+    private func formatPrice(_ pence: Double) -> String {
+        if settings.showRatesInPounds {
+            return String(format: "£%.2f", pence / 100.0)
+        } else {
+            return String(format: "%.0fp", pence)
+        }
+    }
     
     var body: some View {
         switch family {
@@ -343,6 +504,18 @@ struct CurrentRateWidget: View {
         let barWidth = computeDynamicBarWidth(rateCount: data.count)
 
         return Chart {
+            // 0) Best time ranges (behind everything)
+            ForEach(bestTimeRanges, id: \.0) { start, end in
+                RectangleMark(
+                    xStart: .value("Start", start),
+                    xEnd: .value("End", end),
+                    yStart: .value("Min", minVal - 20),
+                    yEnd: .value("Max", maxVal + 20)
+                )
+                .foregroundStyle(Theme.mainColor.opacity(0.2))
+                .zIndex(0)
+            }
+
             // 1) "Now" vertical line (behind bars)
             RuleMark(
                 x: .value("Now", nowX),
@@ -444,36 +617,6 @@ struct CurrentRateWidget: View {
         let barGapRatio = 0.7  // 70% bar, 30% gap
         let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
         return totalChunk * barGapRatio
-    }
-
-    /// Filtered rates for chart display (centered around now, with balanced past and future)
-    private var filteredRatesForChart: [RateEntity] {
-        let now = Date()
-        
-        // Split rates into past and future
-        let validRates = rates.filter { $0.validFrom != nil && $0.validTo != nil }
-        let pastRates = validRates
-            .filter { ($0.validFrom ?? .distantFuture) <= now }
-            .sorted { ($0.validFrom ?? .distantPast) > ($1.validFrom ?? .distantPast) } // Latest first
-            .prefix(42) // Take up to 42 past rates
-        
-        let futureRates = validRates
-            .filter { ($0.validFrom ?? .distantPast) > now }
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) } // Earliest first
-            .prefix(33) // Take up to 33 future rates
-        
-        // Combine and sort for display
-        return (Array(pastRates) + Array(futureRates))
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
-    }
-
-    /// Y-axis range for chart
-    private var chartYRange: (Double, Double) {
-        let prices = filteredRatesForChart.map { $0.valueIncludingVAT }
-        guard !prices.isEmpty else { return (0, 10) }
-        let minVal = min(0, (prices.min() ?? 0) - 2)
-        let maxVal = (prices.max() ?? 0) + 10
-        return (minVal, maxVal)
     }
 
     /// Example subview for each rate row in left column
@@ -595,18 +738,6 @@ extension CurrentRateWidget {
         }
     }
     
-    /// Get upcoming rates including current rate, sorted by value
-    private func getUpcomingRates() -> [RateEntity] {
-        let now = Date()
-        return rates
-            .filter { rate in
-                guard let from = rate.validFrom, let to = rate.validTo else { return false }
-                // Include if it overlaps with now or is in the future
-                return (from <= now && to > now) || from > now
-            }
-            .sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
-    }
-    
     private func lowestUpcoming() -> (RateEntity, Date)? {
         let upcoming = getUpcomingRates()
         
@@ -666,10 +797,10 @@ struct Octopus_HelperWidgets: Widget {
             provider: OctopusWidgetProvider()
         ) { entry in
             if #available(iOS 17.0, *) {
-                CurrentRateWidget(rates: entry.rates, settings: entry.settings)
+                CurrentRateWidget(rates: entry.rates, settings: entry.settings, chartSettings: entry.chartSettings)
                     .containerBackground(Theme.mainBackground, for: .widget)
             } else {
-                CurrentRateWidget(rates: entry.rates, settings: entry.settings)
+                CurrentRateWidget(rates: entry.rates, settings: entry.settings, chartSettings: entry.chartSettings)
                     .padding()
                     .background(Theme.mainBackground)
             }
@@ -703,7 +834,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en")
+        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        chartSettings: InteractiveChartSettings.default
     )
 }
 
@@ -717,7 +849,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en")
+        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        chartSettings: InteractiveChartSettings.default
     )
 }
 
@@ -731,7 +864,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en")
+        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        chartSettings: InteractiveChartSettings.default
     )
 }
 
@@ -745,6 +879,7 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en")
+        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        chartSettings: InteractiveChartSettings.default
     )
 }

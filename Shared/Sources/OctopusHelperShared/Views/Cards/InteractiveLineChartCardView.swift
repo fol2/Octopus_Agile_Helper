@@ -13,24 +13,24 @@ private struct TooltipWidthKey: PreferenceKey {
 }
 
 // MARK: - Simplified Local Settings
-struct InteractiveChartSettings: Codable {
-    var customAverageHours: Double
-    var maxListCount: Int
+public struct InteractiveChartSettings: Codable {
+    public var customAverageHours: Double
+    public var maxListCount: Int
 
-    static let `default` = InteractiveChartSettings(
+    public static let `default` = InteractiveChartSettings(
         customAverageHours: 3.0,
         maxListCount: 10
     )
 }
 
-class InteractiveChartSettingsManager: ObservableObject {
-    @Published var settings: InteractiveChartSettings {
+public class InteractiveChartSettingsManager: ObservableObject {
+    @Published public var settings: InteractiveChartSettings {
         didSet { saveSettings() }
     }
 
     private let userDefaultsKey = "MyChartSettings"
 
-    init() {
+    public init() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
             let decoded = try? JSONDecoder().decode(InteractiveChartSettings.self, from: data)
         {
@@ -40,7 +40,7 @@ class InteractiveChartSettingsManager: ObservableObject {
         }
     }
 
-    func saveSettings() {
+    private func saveSettings() {
         if let encoded = try? JSONEncoder().encode(settings) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
         }
