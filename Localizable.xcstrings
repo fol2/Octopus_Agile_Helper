@@ -6490,7 +6490,6 @@
       }
     },
     "End" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18415,7 +18414,6 @@
       }
     },
     "Start" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -21452,6 +21450,9 @@
           }
         }
       }
+    },
+    "Zero" : {
+
     },
     "Zonal pricing would make energy bills cheaper..." : {
       "extractionState" : "stale",

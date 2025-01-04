@@ -311,8 +311,10 @@ struct CurrentRateWidget: View {
                 // 1) Background chart spanning full width
                 chartView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.top, 0)
-                    .padding([.leading, .trailing, .bottom], -16)
+                    .padding(.top, 8)
+                    .padding(.leading, -16)
+                    .padding(.trailing, 2)
+                    .padding(.bottom, -16)
                     .ignoresSafeArea()
                 
                 // 2) Left side content (same as systemSmall)
@@ -342,10 +344,20 @@ struct CurrentRateWidget: View {
 
         return Chart {
             // 1) "Now" vertical line (behind bars)
-            RuleMark(x: .value("Now", nowX))
+            RuleMark(
+                x: .value("Now", nowX),
+                yStart: .value("Start", minVal - 20),
+                yEnd: .value("End", maxVal + 20)
+            )
                 .foregroundStyle(Theme.secondaryColor.opacity(0.7))
                 .lineStyle(StrokeStyle(lineWidth: 2))
                 .zIndex(1)
+
+            // 2) Zero baseline (for negative values)
+            RuleMark(y: .value("Zero", 0))
+                .foregroundStyle(Theme.secondaryTextColor.opacity(0.3))
+                .lineStyle(StrokeStyle(lineWidth: 1))
+                .zIndex(2)
 
             // 3) Bars for rates
             ForEach(data, id: \.validFrom) { rate in
@@ -393,8 +405,10 @@ struct CurrentRateWidget: View {
         .chartPlotStyle { plotContent in
             plotContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.top, 0)
-                .padding([.leading, .trailing, .bottom], -16)
+                .padding(.top, -16)
+                .padding(.leading, -16)
+                .padding(.trailing, -16)
+                .padding(.bottom, -16)
         }
         .padding(0)
     }
@@ -430,30 +444,25 @@ struct CurrentRateWidget: View {
         return totalChunk * barGapRatio
     }
 
-    /// Filtered rates for chart display (from 00:00 of latest data's previous day)
+    /// Filtered rates for chart display (centered around now, with balanced past and future)
     private var filteredRatesForChart: [RateEntity] {
-        let calendar = Calendar.current
+        let now = Date()
         
-        // Find the latest data's date
-        let sortedRates = rates
-            .filter { $0.validTo != nil }
-            .sorted { ($0.validTo ?? .distantPast) > ($1.validTo ?? .distantPast) }
+        // Split rates into past and future
+        let validRates = rates.filter { $0.validFrom != nil && $0.validTo != nil }
+        let pastRates = validRates
+            .filter { ($0.validFrom ?? .distantFuture) <= now }
+            .sorted { ($0.validFrom ?? .distantPast) > ($1.validFrom ?? .distantPast) } // Latest first
+            .prefix(42) // Take up to 42 past rates
         
-        guard let latestDate = sortedRates.first?.validTo else {
-            return []
-        }
+        let futureRates = validRates
+            .filter { ($0.validFrom ?? .distantPast) > now }
+            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) } // Earliest first
+            .prefix(33) // Take up to 33 future rates
         
-        // Get start of yesterday relative to the latest date
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: latestDate) ?? latestDate
-        let start = calendar.startOfDay(for: yesterday)
-        
-        return rates
-            .filter { $0.validFrom != nil && $0.validTo != nil }
+        // Combine and sort for display
+        return (Array(pastRates) + Array(futureRates))
             .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
-            .filter {
-                guard let date = $0.validFrom else { return false }
-                return date >= start
-            }
     }
 
     /// Y-axis range for chart
@@ -461,7 +470,7 @@ struct CurrentRateWidget: View {
         let prices = filteredRatesForChart.map { $0.valueIncludingVAT }
         guard !prices.isEmpty else { return (0, 10) }
         let minVal = min(0, (prices.min() ?? 0) - 2)
-        let maxVal = (prices.max() ?? 0) + 2
+        let maxVal = (prices.max() ?? 0) + 10
         return (minVal, maxVal)
     }
 
