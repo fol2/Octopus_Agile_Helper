@@ -355,7 +355,7 @@ struct CurrentRateWidget: View {
     /// Get upcoming rates including current rate, sorted by value
     private func getUpcomingRates() -> [RateEntity] {
         let now = Date()
-        return filteredRatesForChart
+        return rates
             .filter { rate in
                 guard let from = rate.validFrom, let to = rate.validTo else { return false }
                 // Include if it overlaps with now or is in the future
@@ -757,9 +757,20 @@ extension CurrentRateWidget {
     
     private func topLabel(title: String, icon: String) -> some View {
         HStack {
-            Image(systemName: icon)
-                .foregroundColor(Theme.icon)
-                .font(Theme.subFont())
+            if icon == "clock" {
+                // Use our custom clock icon with current time
+                let currentTime = Date()
+                Image(ClockModel.iconName(for: currentTime))
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
+                    .foregroundColor(Theme.icon)
+            } else {
+                Image(systemName: icon)
+                    .foregroundColor(Theme.icon)
+                    .font(Theme.subFont())
+            }
             Text(title)
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)

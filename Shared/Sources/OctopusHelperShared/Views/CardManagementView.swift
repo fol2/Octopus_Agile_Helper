@@ -85,6 +85,8 @@ struct CardRowView: View {
     @Binding var cardConfig: CardConfig
     @Environment(\.editMode) private var editMode
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @ObservedObject private var refreshManager = CardRefreshManager.shared
+    @State private var clockIconTrigger = Date()
     let onInfoTap: () -> Void
 
     var body: some View {
@@ -96,10 +98,21 @@ struct CardRowView: View {
 
                 HStack(spacing: 12) {
                     // Leading icon
-                    Image(systemName: definition.iconName)
-                        .foregroundColor(Theme.icon)
-                        .font(Theme.titleFont())
-                        .padding(.leading, 12)
+                    if cardConfig.cardType == .currentRate {
+                        // Use our custom clock icon
+                        Image(ClockModel.iconName(for: clockIconTrigger))
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
+                            .foregroundColor(Theme.icon)
+                            .padding(.leading, 12)
+                    } else {
+                        Image(systemName: definition.iconName)
+                            .foregroundColor(Theme.icon)
+                            .font(Theme.titleFont())
+                            .padding(.leading, 12)
+                    }
 
                     // Card name
                     Text(LocalizedStringKey(definition.displayNameKey))
@@ -143,6 +156,13 @@ struct CardRowView: View {
             .padding(.horizontal, 16)
             .contentShape(Rectangle())
             .sensoryFeedback(.selection, trigger: cardConfig.sortOrder)
+            .onReceive(refreshManager.$halfHourTick) { tickTime in
+                guard tickTime != nil else { return }
+                clockIconTrigger = Date()
+            }
+            .onReceive(refreshManager.$sceneActiveTick) { _ in
+                clockIconTrigger = Date()
+            }
         }
     }
 

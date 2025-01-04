@@ -10,6 +10,7 @@ public struct CurrentRateCardView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var globalTimer: GlobalTimer
     @State private var refreshTrigger = false
+    @State private var clockIconTrigger = Date()  // Add state for clock icon
 
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
@@ -85,9 +86,13 @@ public struct CurrentRateCardView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header row with left icon + title + "more" icon on right
-            HStack {
+            HStack(alignment: .center) {
                 if let def = CardRegistry.shared.definition(for: .currentRate) {
-                    Image(systemName: def.iconName)
+                    Image(ClockModel.iconName(for: clockIconTrigger))
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
                         .foregroundColor(Theme.icon)
                     Text(LocalizedStringKey(def.displayNameKey))
                         .font(Theme.titleFont())
@@ -148,12 +153,14 @@ public struct CurrentRateCardView: View {
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
             Task {
+                clockIconTrigger = Date()  // Update clock icon
                 await viewModel.refreshRates()
             }
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
+            clockIconTrigger = Date()  // Update clock icon
             Task {
                 await viewModel.refreshRates()
             }
