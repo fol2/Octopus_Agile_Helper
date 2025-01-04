@@ -757,19 +757,9 @@ extension CurrentRateWidget {
     
     private func topLabel(title: String, icon: String) -> some View {
         HStack {
-            if icon == "clock" {
-                // Use our custom clock icon
-                Image(ClockModel.iconName())
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 20, height: 20)
-                    .foregroundColor(Theme.icon)
-            } else {
-                Image(systemName: icon)
-                    .foregroundColor(Theme.icon)
-                    .font(Theme.subFont())
-            }
+            Image(systemName: icon)
+                .foregroundColor(Theme.icon)
+                .font(Theme.subFont())
             Text(title)
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
