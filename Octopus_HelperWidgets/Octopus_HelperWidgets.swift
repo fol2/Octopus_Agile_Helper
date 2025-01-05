@@ -92,22 +92,26 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     // MARK: - Private Helpers
 
     /// Attempts to read global settings from shared container. Fallback to minimal keys if needed.
-    private func readSettings() -> (postcode: String, showRatesInPounds: Bool, language: String) {
+    private func readSettings() -> (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?) {
         let defaults = sharedDefaults
         if let data = defaults?.data(forKey: "user_settings"),
            let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
         {
             return (
-                postcode: decoded.postcode,
+                postcode: decoded.regionInput,
                 showRatesInPounds: decoded.showRatesInPounds,
-                language: decoded.selectedLanguage.rawValue
+                language: decoded.selectedLanguage.rawValue,
+                electricityMPAN: decoded.electricityMPAN,
+                meterSerialNumber: decoded.electricityMeterSerialNumber
             )
         }
         // Fallback if "user_settings" is missing
         return (
             postcode: defaults?.string(forKey: "selected_postcode") ?? "",
             showRatesInPounds: defaults?.bool(forKey: "show_rates_in_pounds") ?? false,
-            language: defaults?.string(forKey: "selected_language") ?? "en"
+            language: defaults?.string(forKey: "selected_language") ?? "en",
+            electricityMPAN: defaults?.string(forKey: "electricity_mpan"),
+            meterSerialNumber: defaults?.string(forKey: "meter_serial_number")
         )
     }
 
@@ -131,11 +135,18 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         return entities
     }
 
-    /// Obtain the region ID from user’s postcode, fallback to "H" if none.
+    /// Obtain the region ID from user's input (postcode or region code), fallback to "H" if none.
     private func fetchRegionID() async throws -> String {
-        let s = readSettings().postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !s.isEmpty else { return "H" }
-        return try await (await repository).fetchRegionID(for: s) ?? "H"
+        let input = readSettings().postcode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !input.isEmpty else { return "H" }
+        
+        // If input is a single letter A-P, treat it as a direct region code
+        if input.count == 1 && input >= "A" && input <= "P" {
+            return input
+        }
+        
+        // Otherwise, treat as postcode and look up region
+        return try await (await repository).fetchRegionID(for: input) ?? "H"
     }
 
     /// Build timeline entries from now up to 4 hours ahead in half-hour intervals (+/-2m).
@@ -225,7 +236,7 @@ struct SimpleEntry: TimelineEntry {
     let date: Date
     let configuration: ConfigurationAppIntent
     let rates: [RateEntity]
-    let settings: (postcode: String, showRatesInPounds: Bool, language: String)
+    let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
     let chartSettings: InteractiveChartSettings
 }
 
@@ -234,7 +245,7 @@ struct SimpleEntry: TimelineEntry {
 @available(iOS 17.0, *)
 struct CurrentRateWidget: View {
     let rates: [RateEntity]
-    let settings: (postcode: String, showRatesInPounds: Bool, language: String)
+    let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
     let chartSettings: InteractiveChartSettings
     @Environment(\.widgetFamily) var family
     
@@ -883,7 +894,7 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default
     )
 }
@@ -898,7 +909,7 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default
     )
 }
@@ -913,7 +924,7 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default
     )
 }
@@ -928,7 +939,7 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en"),
+        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default
     )
 }

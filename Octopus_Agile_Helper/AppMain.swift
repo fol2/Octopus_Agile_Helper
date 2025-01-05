@@ -13,6 +13,8 @@ struct Octopus_Agile_HelperApp: App {
 
     init() {
         // Cards are now auto-registered by CardRegistry.shared
+        // Update the registry with our global timer
+        CardRegistry.shared.updateTimer(globalTimer)
         
         // Configure navigation bar appearance
         let appearance = UINavigationBarAppearance()

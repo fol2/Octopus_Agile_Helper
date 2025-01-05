@@ -1,4 +1,3 @@
-import OctopusHelperShared
 import SwiftUI
 
 struct RateCardStyle: ViewModifier {

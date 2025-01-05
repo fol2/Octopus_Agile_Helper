@@ -38,7 +38,12 @@ private struct OffsetTrackingView: View {
 public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
-    @StateObject private var ratesViewModel: RatesViewModel
+
+    // NEW: StateObject for the main RatesViewModel, initialized in onAppear
+    @StateObject private var ratesVM: RatesViewModel
+
+    // Store each card's VM in a dictionary keyed by `CardType`
+    @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -55,11 +60,13 @@ public struct ContentView: View {
     private var copyrightText: String {
         let currentYear = Calendar.current.component(.year, from: Date())
         return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
-    }
+   }
 
     public init() {
+        // Initialize the RatesViewModel with a temporary GlobalTimer
+        // We'll update it with the real one in onAppear
         let tempTimer = GlobalTimer()
-        _ratesViewModel = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
+        _ratesVM = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
     }
 
     public var body: some View {
@@ -73,8 +80,14 @@ public struct ContentView: View {
                             if let definition = CardRegistry.shared.definition(for: config.cardType)
                             {
                                 if config.isPurchased || !definition.isPremium {
-                                    definition.makeView(ratesViewModel)
-                                        .environment(\.locale, globalSettings.locale)
+                                    if config.cardType == .currentRate {
+                                        definition.makeView(ratesVM)
+                                    } else if let vm = cardViewModels[config.cardType] {
+                                        definition.makeView(vm)
+                                    } else {
+                                        Text("No VM found")
+                                            .foregroundColor(.red)
+                                    }
                                 } else {
                                     CardLockedView(definition: definition, config: config)
                                         .environment(\.locale, globalSettings.locale)
@@ -103,7 +116,7 @@ public struct ContentView: View {
 
             // Pull-to-refresh
             .refreshable {
-                await ratesViewModel.refreshRates(force: true)
+                await ratesVM.refreshRates(force: true)
             }
             // Detect offset changes => check if we collapsed large title
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
@@ -118,11 +131,11 @@ public struct ContentView: View {
                     HStack(spacing: 8) {
                         // If the status is .none, skip the indicator entirely
                         // => gear slides smoothly to the left
-                        if ratesViewModel.fetchStatus != .none {
-                            StatusIndicatorView(status: ratesViewModel.fetchStatus)
+                        if ratesVM.fetchStatus != .none {
+                            StatusIndicatorView(status: ratesVM.fetchStatus)
                                 .transition(.opacity)
                                 .animation(
-                                    .easeInOut(duration: 0.3), value: ratesViewModel.fetchStatus)
+                                    .easeInOut(duration: 0.3), value: ratesVM.fetchStatus)
                         }
 
                         // The gear always here
@@ -131,11 +144,11 @@ public struct ContentView: View {
                                 .environment(\.locale, globalSettings.locale)
                         ) {
                             Image(systemName: "gear")
-                                .foregroundColor(Theme.secondaryTextColor)
+                                .foregroundColor(Theme.mainTextColor)
                                 .font(Theme.secondaryFont())
                         }
+                        .animation(.easeInOut(duration: 0.3), value: ratesVM.fetchStatus)
                     }
-                    .animation(.easeInOut(duration: 0.3), value: ratesViewModel.fetchStatus)
                 }
 
                 // 2) Principal => inline title, only if isCollapsed == true
@@ -150,19 +163,16 @@ public struct ContentView: View {
         }
         // Listen for language changes => force re-render
         .environment(\.locale, globalSettings.locale)
-        .onChange(of: globalSettings.locale) { _, _ in
-            // Let individual cards handle their own refresh
-        }
-        // Scene phase changes
+        // .onChange is optional if you want to reload or re-localise
+        //.onChange(of: globalSettings.locale) { _, _ in ... }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
                 Task {
-                    await ratesViewModel.loadRates()
+                    await ratesVM.loadRates()
                 }
                 CardRefreshManager.shared.notifyAppBecameActive()
             }
         }
-        // Timer for daily 16:00 check
         .onReceive(contentTimer) { _ in
             let calendar = Calendar.current
             let now = Date()
@@ -173,17 +183,30 @@ public struct ContentView: View {
             // If it's exactly 16:00:00 local, we do a coverage check
             if hour == 16, minute == 0, second == 0 {
                 Task {
-                    await ratesViewModel.loadRates()
+                    await ratesVM.loadRates()
+                }
+            }
+        }
+        // Called once when the view appears to create all card view models
+        .onAppear {
+            // Update the RatesViewModel with the real GlobalTimer
+            ratesVM.updateTimer(globalTimer)
+            
+            // Keep dictionary for all other card types except .currentRate
+            for cardType in CardType.allCases where cardType != .currentRate {
+                if cardViewModels[cardType] == nil {
+                    let newVM = CardRegistry.shared.createViewModel(for: cardType)
+                    cardViewModels[cardType] = newVM
+                    // Optionally update timer if needed
+                    if let timedRatesVM = newVM as? RatesViewModel {
+                        timedRatesVM.updateTimer(globalTimer)
+                    }
                 }
             }
         }
         // Attempt to load data
         .task {
-            await ratesViewModel.loadRates()
-        }
-        // Update timer when view appears
-        .onAppear {
-            ratesViewModel.updateTimer(globalTimer)
+            await ratesVM.loadRates()
         }
     }
 

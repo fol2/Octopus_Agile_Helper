@@ -3,6 +3,14 @@ import CoreData
 import Foundation
 import SwiftUI
 
+// MARK: - AgileRatesPageResponse (For full historical pagination)
+private struct AgileRatesPageResponse: Codable {
+    let count: Int?
+    let next: String?
+    let previous: String?
+    let results: [OctopusRate]
+}
+
 /// Manages Octopus Agile rate data in Core Data, including fetching and caching.
 @MainActor
 public final class RatesRepository: ObservableObject {
@@ -183,6 +191,93 @@ public final class RatesRepository: ObservableObject {
         }
 
         return endOfDayLocal.toUTC(from: ukTimeZone)
+    }
+
+    /// Helper function that fetches a *single* page of Agile rates with pagination metadata
+    /// - Parameters:
+    ///   - regionID: The region ID to fetch rates for
+    ///   - page: The page number to fetch
+    /// - Returns: A specialized `AgileRatesPageResponse` that includes pagination metadata
+    /// - Throws: Network, decoding, or other errors
+    private func fetchAllRatesPage(regionID: String, page: Int) async throws -> AgileRatesPageResponse {
+        let productCode = "AGILE-24-10-01"  // This matches what's used in OctopusAPIClient
+        let tariffCode = "E-1R-\(productCode)-\(regionID)"
+        let urlString = "https://api.octopus.energy/v1/products/\(productCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/?page=\(page)"
+        guard let url = URL(string: urlString) else {
+            throw OctopusAPIError.invalidURL
+        }
+        
+        do {
+            let (data, response) = try await urlSession.data(for: URLRequest(url: url))
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode)
+            else {
+                throw OctopusAPIError.invalidResponse
+            }
+            
+            // Use the same date formatter as OctopusRate for consistency
+            let decoder = JSONDecoder()
+            let dateFormatter = ISO8601DateFormatter()
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+                guard let date = dateFormatter.date(from: dateString) else {
+                    throw DecodingError.dataCorruptedError(
+                        in: container,
+                        debugDescription: "Invalid date format"
+                    )
+                }
+                return date
+            }
+            
+            return try decoder.decode(AgileRatesPageResponse.self, from: data)
+        } catch let urlError as URLError {
+            throw OctopusAPIError.networkError(urlError)
+        } catch let decodeError as DecodingError {
+            throw OctopusAPIError.decodingError(decodeError)
+        } catch {
+            throw OctopusAPIError.networkError(error)
+        }
+    }
+
+    /// Fetches *all* Agile rates from the Octopus API, ensuring we have both earliest and latest data.
+    /// Uses the paging logic from the server's JSON response: `count`, `next`, `results`.
+    /// - Throws: Network, decoding, or Core Data errors.
+    public func syncAllRates() async throws {
+        // 1) Determine region from user's postcode or fallback
+        let regionID = try await fetchRegionID(for: postcode) ?? "H"
+        
+        // 2) Query local DB to find earliest & latest in Core Data
+        let localRates = try await fetchAllRates()
+        let localEarliest = localRates.compactMap(\.validFrom).min()
+        let localLatest = localRates.compactMap(\.validTo).max()
+        
+        // 3) First page fetch to get pagination info
+        let firstPage = try await fetchAllRatesPage(regionID: regionID, page: 1)
+        guard let totalCount = firstPage.count, totalCount > 0 else {
+            print("No rate records found on server.")
+            return
+        }
+        
+        // Store the first page's data
+        try await saveRates(firstPage.results)
+        
+        // 4) Calculate total pages needed (typically 100 results per page)
+        let pageSize = firstPage.results.count
+        let totalPages = Int(ceil(Double(totalCount) / Double(pageSize)))
+        print("Total rate records = \(totalCount), pageSize = \(pageSize), totalPages = \(totalPages)")
+        
+        // 5) Fetch remaining pages
+        for pg in 2...totalPages {
+            let pageResponse = try await fetchAllRatesPage(regionID: regionID, page: pg)
+            try await saveRates(pageResponse.results)
+        }
+        
+        // 6) Reload from DB to confirm we have everything
+        let final = try await fetchAllRates()
+        let newEarliest = final.compactMap(\.validFrom).min() ?? localEarliest
+        let newLatest = final.compactMap(\.validTo).max() ?? localLatest
+        print("Synced all rates: earliest=\(String(describing: newEarliest)) latest=\(String(describing: newLatest))")
     }
 }
 

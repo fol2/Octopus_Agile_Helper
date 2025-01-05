@@ -31,6 +31,15 @@ public struct MediaItem {
     }
 }
 
+public enum CardType: String, Codable, CaseIterable {
+    case currentRate
+    case lowestUpcoming
+    case highestUpcoming
+    case averageUpcoming
+    case interactiveChart
+    case electricityConsumption
+}
+
 /// Identifies a single card's metadata and how to produce its SwiftUI view
 public final class CardDefinition {
     public let id: CardType
@@ -81,10 +90,16 @@ public final class CardRegistry {
 
     // A dictionary mapping CardType -> CardDefinition
     private var definitions: [CardType: CardDefinition] = [:]
+    private var globalTimer: GlobalTimer
 
     private init() {
+        self.globalTimer = GlobalTimer()  // Default for previews
         // Register all cards automatically on initialization
         registerAllCards()
+    }
+
+    public func updateTimer(_ timer: GlobalTimer) {
+        self.globalTimer = timer
     }
 
     /// Register all standard cards automatically
@@ -93,20 +108,20 @@ public final class CardRegistry {
             CardDefinition(
                 id: .currentRate,
                 displayNameKey: "Current Rate",
-                descriptionKey: "Displays the ongoing rate for the current half-hour slot.",
+                descriptionKey: "Shows the current electricity rate and when it changes.",
                 isPremium: false,
-                makeView: { vm in AnyView(CurrentRateCardView(viewModel: vm as! RatesViewModel)) },
-                makeWidgetView: { vm in AnyView(CurrentRateCardView(viewModel: vm as! RatesViewModel)) },
+                makeView: { [self] vm in makeRatesView(vm, .currentRate) },
+                makeWidgetView: { [self] vm in makeRatesView(vm, .currentRate) },
                 iconName: "clock",
                 defaultSortOrder: 1,
                 mediaItems: [
                     MediaItem(
                         localName: "imgCurrentRateInfo",
-                        caption: LocalizedStringKey("Current Rate Card in the Cards view")
+                        caption: LocalizedStringKey("Simple card view to show current rate")
                     ),
                     MediaItem(
                         localName: "imgCurrentRateInfo2",
-                        caption: LocalizedStringKey("Detailed rates list after expanded")
+                        caption: LocalizedStringKey("Shows when rate changes")
                     ),
                 ]
             )
@@ -118,9 +133,7 @@ public final class CardRegistry {
                 displayNameKey: "Lowest Upcoming Rates",
                 descriptionKey: "Shows upcoming times with the cheapest electricity rates.",
                 isPremium: false,
-                makeView: { vm in
-                    AnyView(LowestUpcomingRateCardView(viewModel: vm as! RatesViewModel))
-                },
+                makeView: { [self] vm in makeRatesView(vm, .lowestUpcoming) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.down",
                 defaultSortOrder: 2,
@@ -143,9 +156,7 @@ public final class CardRegistry {
                 displayNameKey: "Highest Upcoming Rates",
                 descriptionKey: "Warns you of upcoming peak pricing times.",
                 isPremium: false,
-                makeView: { vm in
-                    AnyView(HighestUpcomingRateCardView(viewModel: vm as! RatesViewModel))
-                },
+                makeView: { [self] vm in makeRatesView(vm, .highestUpcoming) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.up",
                 defaultSortOrder: 3,
@@ -166,12 +177,9 @@ public final class CardRegistry {
             CardDefinition(
                 id: .averageUpcoming,
                 displayNameKey: "Average Upcoming Rates",
-                descriptionKey:
-                    "Shows the average cost over selected periods or the next 10 lowest windows.",
+                descriptionKey: "Shows the average cost over selected periods or the next 10 lowest windows.",
                 isPremium: true,
-                makeView: { vm in
-                    AnyView(AverageUpcomingRateCardView(viewModel: vm as! RatesViewModel))
-                },
+                makeView: { [self] vm in makeRatesView(vm, .averageUpcoming) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.fill",
                 defaultSortOrder: 4,
@@ -182,8 +190,7 @@ public final class CardRegistry {
                     ),
                     MediaItem(
                         localName: "imgAvgRateInfo2",
-                        caption: LocalizedStringKey(
-                            "You can choose length of period to average and how many rates to show")
+                        caption: LocalizedStringKey("You can choose length of period to average and how many rates to show")
                     ),
                 ]
             )
@@ -195,26 +202,36 @@ public final class CardRegistry {
                 displayNameKey: "Interactive Rates",
                 descriptionKey: "A dynamic line chart showing rates, best time ranges, and more.",
                 isPremium: true,
-                makeView: { vm in
-                    AnyView(InteractiveLineChartCardView(viewModel: vm as! RatesViewModel))
-                },
+                makeView: { [self] vm in makeRatesView(vm, .interactiveChart) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.xyaxis.line",
                 defaultSortOrder: 5,
                 mediaItems: [
                     MediaItem(
                         localName: "imgChartRateInfo",
-                        caption: LocalizedStringKey(
-                            "An interactive chart to see rates over time, also shows best time ranges"
-                        )
+                        caption: LocalizedStringKey("An interactive chart to see rates over time, also shows best time ranges")
                     ),
                     MediaItem(
                         localName: "imgChartRateInfo2",
-                        caption: LocalizedStringKey(
-                            "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards"
-                        )
+                        caption: LocalizedStringKey("You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards")
                     ),
                 ]
+            )
+        )
+
+        register(
+            CardDefinition(
+                id: .electricityConsumption,
+                displayNameKey: "Electricity Consumption",
+                descriptionKey: "View recent electricity usage from Octopus API.",
+                isPremium: false,
+                makeView: { [self] vm in makeRatesView(vm, .electricityConsumption) },
+                makeWidgetView: { _ in AnyView(EmptyView()) },
+                iconName: "bolt.fill",
+                defaultIsEnabled: true,
+                defaultIsPurchased: true,
+                defaultSortOrder: 6,
+                mediaItems: []
             )
         )
     }
@@ -226,5 +243,48 @@ public final class CardRegistry {
     /// Public accessor to fetch a card definition (if it exists)
     public func definition(for type: CardType) -> CardDefinition? {
         definitions[type]
+    }
+
+    // Helper function for safe view model casting
+    private func makeRatesView(_ vm: Any, _ viewType: CardType) -> AnyView {
+        switch viewType {
+            case .electricityConsumption:
+                if let viewModel = vm as? ConsumptionViewModel {
+                    return AnyView(ElectricityConsumptionCardView(viewModel: viewModel))
+                }
+            default:
+                if let viewModel = vm as? RatesViewModel {
+                    switch viewType {
+                        case .currentRate:
+                            return AnyView(CurrentRateCardView(viewModel: viewModel))
+                        case .lowestUpcoming:
+                            return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
+                        case .highestUpcoming:
+                            return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
+                        case .averageUpcoming:
+                            return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
+                        case .interactiveChart:
+                            return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
+                        case .electricityConsumption:
+                            break
+                    }
+                }
+        }
+        return AnyView(
+            Text("Error: Invalid view model type")
+                .foregroundColor(.red)
+                .font(Theme.secondaryFont())
+        )
+    }
+
+    // MARK: - Public API
+    @MainActor
+    public func createViewModel(for type: CardType) -> Any {
+        switch type {
+            case .electricityConsumption:
+                return ConsumptionViewModel()
+            default:
+                return RatesViewModel(globalTimer: globalTimer)
+        }
     }
 }

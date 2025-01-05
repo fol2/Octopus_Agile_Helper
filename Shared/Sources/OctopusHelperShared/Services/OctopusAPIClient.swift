@@ -92,6 +92,36 @@ public final class OctopusAPIClient {
         return (name, desc)
     }
     
+    /// Fetches consumption data for the user's meter, by page number.
+    /// - Parameters:
+    ///   - mpan: the user's electricity MPAN
+    ///   - serialNumber: the user's meter serial number
+    ///   - apiKey: user's Octopus API key
+    ///   - page: which page to fetch
+    /// - Returns: OctopusConsumptionResponse with `count`, `next`, `results` etc.
+    public func fetchConsumptionData(
+        mpan: String,
+        serialNumber: String,
+        apiKey: String,
+        page: Int = 1
+    ) async throws -> OctopusConsumptionResponse {
+        guard !mpan.isEmpty, !serialNumber.isEmpty, !apiKey.isEmpty else {
+            throw OctopusAPIError.invalidAPIKey
+        }
+
+        let urlString = "\(baseURL)/electricity-meter-points/\(mpan)/meters/\(serialNumber)/consumption/?page=\(page)"
+        guard let url = URL(string: urlString) else {
+            throw OctopusAPIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        let authString = "\(apiKey):"
+        let authData = authString.data(using: .utf8)!.base64EncodedString()
+        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
+
+        return try await fetchDecodable(OctopusConsumptionResponse.self, from: request)
+    }
+    
     // MARK: - Private / Internal
     private let baseURL = "https://api.octopus.energy/v1"
     private let session: URLSession
@@ -128,8 +158,13 @@ extension OctopusAPIClient {
     
     /// Generic method to fetch any `Decodable` from an endpoint.
     private func fetchDecodable<T: Decodable>(_ type: T.Type, from url: URL) async throws -> T {
+        try await fetchDecodable(type, from: URLRequest(url: url))
+    }
+    
+    /// Generic method to fetch any `Decodable` from an endpoint with a custom URLRequest.
+    private func fetchDecodable<T: Decodable>(_ type: T.Type, from request: URLRequest) async throws -> T {
         do {
-            let (data, response) = try await session.data(for: URLRequest(url: url))
+            let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode)
@@ -137,7 +172,12 @@ extension OctopusAPIClient {
                 throw OctopusAPIError.invalidResponse
             }
             
-            return try JSONDecoder().decode(T.self, from: data)
+            let decoder = JSONDecoder()
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+            decoder.dateDecodingStrategy = .formatted(formatter)
+            
+            return try decoder.decode(T.self, from: data)
         } catch let urlError as URLError {
             throw OctopusAPIError.networkError(urlError)
         } catch let decodeError as DecodingError {
@@ -267,4 +307,18 @@ private struct OctopusRegion: Decodable {
 private struct OctopusDirectDebitMonthly: Decodable {
     let code: String
     let links: [OctopusLinkItem]
+}
+
+// MARK: - Consumption Models
+public struct OctopusConsumptionResponse: Codable {
+    public let count: Int
+    public let next: String?
+    public let previous: String?
+    public let results: [ConsumptionRecord]
+}
+
+public struct ConsumptionRecord: Codable {
+    public let consumption: Double
+    public let interval_start: Date
+    public let interval_end: Date
 }
