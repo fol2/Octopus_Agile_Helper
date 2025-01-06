@@ -5,11 +5,47 @@
         <attribute name="interval_end" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="interval_start" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
-    <entity name="RateEntity" representedClassName="OctopusHelperSharedRateEntity" syncable="YES">
+    <entity name="ProductEntity" representedClassName="ProductEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="available_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="available_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="brand" optional="YES" attributeType="String"/>
+        <attribute name="code" optional="YES" attributeType="String"/>
+        <attribute name="desc" optional="YES" attributeType="String"/>
+        <attribute name="direction" optional="YES" attributeType="String"/>
+        <attribute name="display_name" optional="YES" attributeType="String"/>
+        <attribute name="full_name" optional="YES" attributeType="String"/>
+        <attribute name="is_business" optional="YES" attributeType="String"/>
+        <attribute name="is_green" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="is_prepay" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="is_stricted" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="is_tracker" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="is_variable" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="link" optional="YES" attributeType="String"/>
+        <attribute name="term" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+    </entity>
+    <entity name="RateEntity" representedClassName="OctopusHelperSharedRateEntity" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="payment_metnod" optional="YES" attributeType="String"/>
+        <attribute name="product_code" optional="YES" attributeType="String"/>
+        <attribute name="rate_type" optional="YES" attributeType="String"/>
+        <attribute name="region" optional="YES" attributeType="String"/>
+        <attribute name="valid_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="valid_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="validFrom" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="validTo" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="value_excluding_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="value_including_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="valueExcludingVAT" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="valueIncludingVAT" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+    </entity>
+    <entity name="StandingChargeEntity" representedClassName="StandingChargeEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="payment_method" optional="YES" attributeType="String"/>
+        <attribute name="product_code" optional="YES" attributeType="String"/>
+        <attribute name="region" optional="YES" attributeType="String"/>
+        <attribute name="valid_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="valid_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="value_excluding_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="value_including_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
     </entity>
 </model>

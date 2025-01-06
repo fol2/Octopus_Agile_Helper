@@ -7,7 +7,7 @@
 
 import CoreData
 
-public struct PersistenceController {
+public class PersistenceController {
     public static let shared = PersistenceController()
 
     public static let preview: PersistenceController = {
@@ -36,12 +36,43 @@ public struct PersistenceController {
                 description.setOption(
                     true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey
                 )
+                
+                // Add automatic lightweight migration options
+                description.shouldMigrateStoreAutomatically = true
+                description.shouldInferMappingModelAutomatically = true
+                
                 container.persistentStoreDescriptions = [description]
             }
         }
-        container.loadPersistentStores { storeDescription, error in
+        
+        // Handle store loading errors more gracefully
+        container.loadPersistentStores { [weak self] storeDescription, error in
             if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                // For development, we'll delete the store and try again
+                #if DEBUG
+                print("Error loading persistent store: \(error), \(error.userInfo)")
+                print("Attempting to delete and recreate the store...")
+                if let storeURL = storeDescription.url {
+                    try? FileManager.default.removeItem(at: storeURL)
+                    // Try loading again
+                    do {
+                        try self?.container.persistentStoreCoordinator.addPersistentStore(
+                            ofType: NSSQLiteStoreType,
+                            configurationName: nil,
+                            at: storeURL,
+                            options: [
+                                NSMigratePersistentStoresAutomaticallyOption: true,
+                                NSInferMappingModelAutomaticallyOption: true
+                            ]
+                        )
+                    } catch {
+                        fatalError("Failed to recreate store: \(error)")
+                    }
+                }
+                #else
+                // In production, log the error but don't crash
+                print("Unresolved error loading persistent store: \(error), \(error.userInfo)")
+                #endif
             }
         }
         container.viewContext.automaticallyMergesChangesFromParent = true
