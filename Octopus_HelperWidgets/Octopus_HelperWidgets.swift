@@ -498,9 +498,9 @@ struct CurrentRateWidget: View {
                 chartView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 8)
-                    .padding(.leading, -16)
-                    .padding(.trailing, 2)
-                    .padding(.bottom, -16)
+                    .padding(.leading, 0)
+                    .padding(.trailing, 1)
+                    .padding(.bottom, -1)
                     .ignoresSafeArea()
                 
                 // 2) Left side content (same as systemSmall)

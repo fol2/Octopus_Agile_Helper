@@ -5,16 +5,22 @@ import SwiftUI
 
 struct AllRatesListView: View {
     @ObservedObject var viewModel: RatesViewModel
-    @Environment(\.dismiss) var dismiss
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    
+    @Environment(\.dismiss) var dismiss
     @State private var refreshTrigger = UUID()
     @State private var displayedRatesByDate: [(String, [RateEntity])] = []
-    @State private var currentPage = 0
     @State private var hasInitiallyLoaded = false
     @State private var currentRateID: NSManagedObjectID?
+    @State private var shouldScrollToCurrentRate = false
+    @State private var isScrolling = false
+    @State private var hasCompletedInitialScroll = false
     private let pageSize = 48  // 24 hours worth of 30-minute intervals
-
-    // Use the shared manager for periodic refresh
+    
+    // Track loaded days and current day
+    @State private var loadedDays: [Date] = []
+    @State private var currentDay: Date = Date()
+    
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
     private var dateFormatter: DateFormatter {
@@ -28,6 +34,8 @@ struct AllRatesListView: View {
         return formatter
     }
 
+    /// Instead of grouping and sorting the entire `viewModel.allRates`,
+    /// this method groups & sorts whichever slice we've loaded from DB.
     private func groupAndSortRates(_ rates: [RateEntity]) -> [(String, [RateEntity])] {
         print("DEBUG: Grouping and sorting \(rates.count) rates")
         // First, sort all rates by date
@@ -69,75 +77,172 @@ struct AllRatesListView: View {
         return sortedGroups
     }
 
-    private func loadInitialData() {
+    /// Helper that groups + merges newly fetched rates with existing
+    private func addRatesToDisplayed(_ newRates: [RateEntity]) {
+        let newGroups = groupAndSortRates(newRates)
+        // Avoid duplicating date sections
+        for group in newGroups {
+            if let existingIndex = displayedRatesByDate.firstIndex(where: { $0.0 == group.0 }) {
+                // Append any new rates (but typically they'd be the same day, so might skip)
+                let existingRates = displayedRatesByDate[existingIndex].1
+                let combined = Array(Set(existingRates + group.1))
+                let sorted = combined.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+                displayedRatesByDate[existingIndex] = (group.0, sorted)
+            } else {
+                displayedRatesByDate.append(group)
+            }
+        }
+        // Sort sections by date asc
+        displayedRatesByDate.sort {
+            guard let d1 = $0.1.first?.validFrom, let d2 = $1.1.first?.validFrom else { return false }
+            return d1 < d2
+        }
+    }
+
+    /// Load the entire day (UTC-based) and store it. Ignores if already loaded.
+    private func loadDay(_ day: Date) async {
+        let cal = Calendar(identifier: .gregorian)
+        let dayStart = cal.startOfDay(for: day)
+        if loadedDays.contains(where: { cal.isDate($0, inSameDayAs: dayStart) }) {
+            print("DEBUG: Already loaded day \(dayStart)")
+            return
+        }
+        do {
+            print("DEBUG: Fetching day = \(dayStart)")
+            let newRates = try await viewModel.repository.fetchRatesForDay(dayStart)
+            addRatesToDisplayed(newRates)
+            loadedDays.append(dayStart)
+        } catch {
+            print("DEBUG: Error loading day \(dayStart): \(error)")
+        }
+    }
+
+    private func loadInitialData() async {
         guard !hasInitiallyLoaded else {
             print("DEBUG: Skipping initial load - already loaded")
             return
         }
-
-        print("DEBUG: Loading initial data")
-        let sortedGroups = groupAndSortRates(viewModel.allRates)
-
-        // Store the current rate's ID for scrolling
-        currentRateID = viewModel.allRates.first(where: { isRateCurrentlyActive($0) })?.objectID
-
-        // If we have less than one page of data, just load everything
-        if sortedGroups.count <= pageSize {
-            displayedRatesByDate = sortedGroups
-            currentPage = 1
-            hasInitiallyLoaded = true
-            return
-        }
-
-        // Find the group containing the current rate
-        if let currentGroupIndex = sortedGroups.firstIndex(where: { _, rates in
-            rates.contains { isRateCurrentlyActive($0) }
-        }) {
-            print("DEBUG: Found current rate in group \(currentGroupIndex)")
-            // Calculate the page that would contain the current rate
-            let pageOfCurrentRate = currentGroupIndex / pageSize
-
-            // Load the page containing current rate and one page before if possible
-            let startPage = max(0, pageOfCurrentRate - 1)
-            let startIndex = startPage * pageSize
-            let endIndex = min(startIndex + (pageSize * 2), sortedGroups.count)
-
-            displayedRatesByDate = Array(sortedGroups[startIndex..<endIndex])
-            currentPage = endIndex / pageSize
-            print("DEBUG: Loaded pages \(startPage) to \(currentPage)")
-        } else {
-            print("DEBUG: No current rate found, loading from start")
-            // If no current rate found, load first two pages from the beginning
-            let endIndex = min(pageSize * 2, sortedGroups.count)
-            displayedRatesByDate = Array(sortedGroups[0..<endIndex])
-            currentPage = 2
-        }
-
+        
         hasInitiallyLoaded = true
+        print("DEBUG: Loading initial data")
+        currentDay = Date()
+        
+        do {
+            let calendar = Calendar.current
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: currentDay)!
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: currentDay)!
+            
+            // Load all three days concurrently
+            async let yesterdayLoad = loadDayWithError(yesterday)
+            async let todayLoad = loadDayWithError(currentDay)
+            async let tomorrowLoad = loadDayWithError(tomorrow)
+            
+            // Collect results
+            let (yesterdayResult, todayResult, tomorrowResult) = await (yesterdayLoad, todayLoad, tomorrowLoad)
+            
+            // Log results
+            if case .failure(let error) = yesterdayResult { print("DEBUG: Yesterday load failed: \(error)") }
+            if case .failure(let error) = todayResult { print("DEBUG: Today load failed: \(error)") }
+            if case .failure(let error) = tomorrowResult { print("DEBUG: Tomorrow load failed: \(error)") }
+            
+            print("DEBUG: Initial days load complete")
+            
+            // Find and set current rate
+            if let currentRate = displayedRatesByDate
+                .flatMap({ $0.1 })
+                .first(where: { isRateCurrentlyActive($0) }) {
+                print("DEBUG: Found current rate: \(currentRate.objectID)")
+                currentRateID = currentRate.objectID
+                
+                try await Task.sleep(nanoseconds: 100_000_000)
+                await MainActor.run {
+                    shouldScrollToCurrentRate = true
+                }
+            } else {
+                print("DEBUG: No current rate found")
+            }
+        } catch {
+            print("DEBUG: Error in initial load: \(error)")
+        }
     }
 
-    private func loadNextPage() {
-        print("DEBUG: Loading next page \(currentPage)")
-        let sortedGroups = groupAndSortRates(viewModel.allRates)
+    // Add this helper function
+    private func loadDayWithError(_ date: Date) async -> Result<Void, Error> {
+        do {
+            try await loadDay(date)
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
+    }
 
-        let startIndex = currentPage * pageSize
-        let endIndex = min(startIndex + pageSize, sortedGroups.count)
-        guard startIndex < sortedGroups.count else {
-            print("DEBUG: No more pages to load")
+    private func scrollToCurrentRate(proxy: ScrollViewProxy) async {
+        guard let id = currentRateID else {
+            print("DEBUG: No current rate ID to scroll to")
             return
         }
+        
+        guard !isScrolling else {
+            print("DEBUG: Scroll already in progress")
+            return
+        }
+        
+        print("DEBUG: Attempting to scroll to rate: \(id)")
+        
+        // Set scrolling state
+        await MainActor.run {
+            isScrolling = true
+        }
+        
+        // Ensure we're on the main thread for UI updates
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                proxy.scrollTo(id, anchor: .center)
+                print("DEBUG: Executed scroll command")
+            }
+        }
+        
+        // Wait for scroll animation to complete
+        try? await Task.sleep(nanoseconds: 800_000_000) // 0.8 seconds for animation + extra time
+        
+        print("DEBUG: Scroll animation completed")
+        
+        // Reset scroll state and mark initial scroll as complete
+        await MainActor.run {
+            isScrolling = false
+            shouldScrollToCurrentRate = false
+            hasCompletedInitialScroll = true
+            print("DEBUG: Initial scroll marked as complete")
+        }
+    }
 
-        // Check if we already have these items to prevent duplicates
-        let newItems = Array(sortedGroups[startIndex..<endIndex])
-        let newItemDates = Set(newItems.map { $0.0 })
-        let existingDates = Set(displayedRatesByDate.map { $0.0 })
+    private func loadNextDayIfNeeded(_ rate: RateEntity) {
+        if let validTo = rate.validTo,
+           let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: currentDay),
+           !loadedDays.contains(where: { Calendar.current.isDate($0, inSameDayAs: nextDay) })
+        {
+            print("DEBUG: Loading next day on-demand")
+            Task {
+                await loadDay(nextDay)
+            }
+        }
+    }
 
-        if newItemDates.isDisjoint(with: existingDates) {
-            displayedRatesByDate.append(contentsOf: newItems)
-            currentPage += 1
-            print("DEBUG: Loaded page \(currentPage-1) with \(newItems.count) groups")
-        } else {
-            print("DEBUG: Skipping page load - items already exist")
+    private func loadPreviousDayIfNeeded(_ rate: RateEntity) {
+        // Only load previous day if initial scroll to current rate is complete
+        guard hasCompletedInitialScroll else {
+            print("DEBUG: Skipping previous day load - waiting for initial scroll to complete")
+            return
+        }
+        
+        if let validFrom = rate.validFrom,
+           let prevDay = Calendar.current.date(byAdding: .day, value: -1, to: currentDay),
+           !loadedDays.contains(where: { Calendar.current.isDate($0, inSameDayAs: prevDay) })
+        {
+            print("DEBUG: Loading previous day on-demand")
+            Task {
+                await loadDay(prevDay)
+            }
         }
     }
 
@@ -163,11 +268,12 @@ struct AllRatesListView: View {
                                 }
                             )
                             .onAppear {
-                                // If this is one of the last items, load more
-                                if rates.last?.objectID == rate.objectID
-                                    && dateString == displayedRatesByDate.last?.0
-                                {
-                                    loadNextPage()
+                                // 3) Load next/prev days as needed
+                                if rate.objectID == rates.last?.objectID {
+                                    loadNextDayIfNeeded(rate)
+                                }
+                                if rate.objectID == rates.first?.objectID {
+                                    loadPreviousDayIfNeeded(rate)
                                 }
                             }
                         }
@@ -186,15 +292,18 @@ struct AllRatesListView: View {
             .background(Theme.mainBackground)
             .onAppear {
                 print("DEBUG: View appeared")
-                loadInitialData()
-
-                // Scroll to current rate if exists
-                if let currentRateID = currentRateID {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation {
-                            scrollProxy.scrollTo(currentRateID, anchor: .center)
-                            print("DEBUG: Scrolling to current rate")
-                        }
+                // Only start loading if we haven't loaded yet
+                if !hasInitiallyLoaded {
+                    Task {
+                        await loadInitialData()
+                    }
+                }
+            }
+            .onChange(of: shouldScrollToCurrentRate) { _, shouldScroll in
+                if shouldScroll {
+                    print("DEBUG: Scroll trigger activated")
+                    Task {
+                        await scrollToCurrentRate(proxy: scrollProxy)
                     }
                 }
             }
@@ -203,14 +312,14 @@ struct AllRatesListView: View {
                 guard tickTime != nil else { return }
                 Task {
                     await viewModel.refreshRates()
-                    loadInitialData()  // Reload the view data
+                    await loadInitialData()
                 }
             }
             // Also re-render if app becomes active
             .onReceive(refreshManager.$sceneActiveTick) { _ in
                 Task {
                     await viewModel.refreshRates()
-                    loadInitialData()  // Reload the view data
+                    await loadInitialData()
                 }
             }
         }

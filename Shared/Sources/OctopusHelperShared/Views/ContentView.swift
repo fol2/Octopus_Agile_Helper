@@ -33,7 +33,85 @@ private struct OffsetTrackingView: View {
     }
 }
 
+// MARK: - Fetch Status Manager
+final class FetchStatusManager: ObservableObject {
+    @Published private(set) var combinedStatus: CombinedFetchStatus = .none
+    
+    // Track individual statuses
+    private var ratesStatus: FetchStatus = .none
+    private var consumptionStatus: FetchStatus = .none
+    
+    func update(ratesStatus: FetchStatus? = nil, consumptionStatus: FetchStatus? = nil) {
+        if let rStatus = ratesStatus { self.ratesStatus = rStatus }
+        if let cStatus = consumptionStatus { self.consumptionStatus = cStatus }
+        
+        // Compute combined status
+        let newStatus = computeCombinedStatus()
+        
+        // Animate status change if needed
+        withAnimation(.easeInOut(duration: 0.3)) {
+            self.combinedStatus = newStatus
+        }
+    }
+    
+    private func computeCombinedStatus() -> CombinedFetchStatus {
+        var fetchingSources: Set<String> = []
+        var pendingSources: Set<String> = []
+        
+        // Check rates status
+        switch ratesStatus {
+        case .fetching: fetchingSources.insert("Rates")
+        case .pending: pendingSources.insert("Rates")
+        case .failed: return .failed(source: "Rates", error: nil)
+        case .done: return .done(source: "Rates")
+        case .none: break
+        }
+        
+        // Check consumption status
+        switch consumptionStatus {
+        case .fetching: fetchingSources.insert("Consumption")
+        case .pending: pendingSources.insert("Consumption")
+        case .failed: return .failed(source: "Consumption", error: nil)
+        case .done: return .done(source: "Consumption")
+        case .none: break
+        }
+        
+        // Determine combined state
+        if !fetchingSources.isEmpty {
+            return .fetching(sources: fetchingSources)
+        }
+        if !pendingSources.isEmpty {
+            return .pending(sources: pendingSources)
+        }
+        return .none
+    }
+}
+
+// MARK: - Combined Status Indicator View
+struct CombinedStatusIndicatorView: View {
+    let status: CombinedFetchStatus
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(status.color)
+                .frame(width: 8, height: 8)
+            Text(status.displayText)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Theme.secondaryBackground)
+        .cornerRadius(8)
+    }
+}
+
 // MARK: - ContentView
+
+public final class ContentViewModel: ObservableObject {
+    var cancellables = Set<AnyCancellable>()
+}
 
 public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
@@ -41,6 +119,9 @@ public struct ContentView: View {
 
     // NEW: StateObject for the main RatesViewModel, initialized in onAppear
     @StateObject private var ratesVM: RatesViewModel
+    @StateObject private var consumptionVM: ConsumptionViewModel
+    @StateObject private var statusManager = FetchStatusManager()
+    @StateObject private var viewModel = ContentViewModel()
 
     // Store each card's VM in a dictionary keyed by `CardType`
     @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
@@ -67,6 +148,7 @@ public struct ContentView: View {
         // We'll update it with the real one in onAppear
         let tempTimer = GlobalTimer()
         _ratesVM = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
+        _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
     }
 
     public var body: some View {
@@ -116,7 +198,14 @@ public struct ContentView: View {
 
             // Pull-to-refresh
             .refreshable {
-                await ratesVM.refreshRates(force: true)
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask {
+                        await ratesVM.refreshRates(force: true)
+                    }
+                    group.addTask {
+                        await consumptionVM.refreshDataFromAPI(force: true)
+                    }
+                }
             }
             // Detect offset changes => check if we collapsed large title
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
@@ -129,16 +218,10 @@ public struct ContentView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     // We animate the HStack so the gear doesn't jump
                     HStack(spacing: 8) {
-                        // If the status is .none, skip the indicator entirely
-                        // => gear slides smoothly to the left
-                        if ratesVM.fetchStatus != .none {
-                            StatusIndicatorView(status: ratesVM.fetchStatus)
+                        if statusManager.combinedStatus != .none {
+                            CombinedStatusIndicatorView(status: statusManager.combinedStatus)
                                 .transition(.opacity)
-                                .animation(
-                                    .easeInOut(duration: 0.3), value: ratesVM.fetchStatus)
                         }
-
-                        // The gear always here
                         NavigationLink(
                             destination: SettingsView()
                                 .environment(\.locale, globalSettings.locale)
@@ -147,7 +230,6 @@ public struct ContentView: View {
                                 .foregroundColor(Theme.mainTextColor)
                                 .font(Theme.secondaryFont())
                         }
-                        .animation(.easeInOut(duration: 0.3), value: ratesVM.fetchStatus)
                     }
                 }
 
@@ -169,6 +251,12 @@ public struct ContentView: View {
             if newPhase == .active {
                 Task {
                     await ratesVM.loadRates()
+                    await consumptionVM.loadData()
+                    
+                    // If consumption is pending, trigger a refresh
+                    if consumptionVM.fetchStatus == .pending {
+                        await consumptionVM.refreshDataFromAPI(force: false)
+                    }
                 }
                 CardRefreshManager.shared.notifyAppBecameActive()
             }
@@ -180,15 +268,28 @@ public struct ContentView: View {
             let minute = calendar.component(.minute, from: now)
             let second = calendar.component(.second, from: now)
 
-            // If it's exactly 16:00:00 local, we do a coverage check
+            // Check rates at 16:00
             if hour == 16, minute == 0, second == 0 {
                 Task {
                     await ratesVM.loadRates()
                 }
             }
+            
+            // Check consumption at 12:00 (noon)
+            // This is when we start expecting previous day's data
+            if hour == 12, minute == 0, second == 0 {
+                Task {
+                    await consumptionVM.loadData()
+                    // If pending after noon check, trigger refresh
+                    if consumptionVM.fetchStatus == .pending {
+                        await consumptionVM.refreshDataFromAPI(force: false)
+                    }
+                }
+            }
         }
         // Called once when the view appears to create all card view models
         .onAppear {
+            setupStatusObservers()
             // Update the RatesViewModel with the real GlobalTimer
             ratesVM.updateTimer(globalTimer)
             
@@ -207,7 +308,22 @@ public struct ContentView: View {
         // Attempt to load data
         .task {
             await ratesVM.loadRates()
+            await consumptionVM.loadData()
         }
+    }
+
+    private func setupStatusObservers() {
+        ratesVM.$fetchStatus
+            .sink { [weak statusManager] status in
+                statusManager?.update(ratesStatus: status)
+            }
+            .store(in: &viewModel.cancellables)
+            
+        consumptionVM.$fetchStatus
+            .sink { [weak statusManager] status in
+                statusManager?.update(consumptionStatus: status)
+            }
+            .store(in: &viewModel.cancellables)
     }
 
     /// Sort user's card configs by sortOrder
@@ -261,45 +377,6 @@ struct CardLockedView: View {
             .tint(Theme.mainColor)
         }
         .rateCardStyle()
-    }
-}
-
-// MARK: - StatusIndicatorView
-
-/// Shows small coloured dot + text for each fetchStatus
-struct StatusIndicatorView: View {
-    let status: FetchStatus
-
-    var body: some View {
-        let (dotColor, textKey) = statusDetails(status)
-
-        HStack(spacing: 4) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 8, height: 8)
-            Text(textKey)
-                .font(Theme.subFont())
-                .foregroundColor(Theme.secondaryTextColor)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Theme.secondaryBackground)
-        .cornerRadius(8)
-    }
-
-    private func statusDetails(_ status: FetchStatus) -> (Color, LocalizedStringKey) {
-        switch status {
-        case .none:
-            return (.clear, "")
-        case .fetching:
-            return (.green, LocalizedStringKey("StatusIndicator.Fetching"))
-        case .done:
-            return (.green, LocalizedStringKey("StatusIndicator.Done"))
-        case .failed:
-            return (.red, LocalizedStringKey("StatusIndicator.Failed"))
-        case .pending:
-            return (.blue, LocalizedStringKey("StatusIndicator.Pending"))
-        }
     }
 }
 

@@ -40,6 +40,19 @@ public protocol RatesViewModeling: ObservableObject {
     // Also let the widget do minimal lookups:
     func formatRate(_ value: Double, showRatesInPounds: Bool) -> String
     func formatTime(_ date: Date) -> String
+    
+    // MARK: - Pagination Support
+    
+    /// Fetches a single page of rates from the database.
+    /// - Parameters:
+    ///   - offset: The offset to start fetching from
+    ///   - limit: Maximum number of rates to fetch
+    ///   - ascending: If true, fetch oldest first
+    /// - Returns: Array of rates for the requested page
+    func fetchRatesPage(offset: Int, limit: Int, ascending: Bool) async throws -> [RateEntity]
+    
+    /// Returns the total number of rates stored in the database
+    func countAllRates() async throws -> Int
 }
 
 /// Our main ViewModel for rates—used across the app + widget
@@ -53,7 +66,7 @@ public final class RatesViewModel: ObservableObject, RatesViewModeling {
     @Published public private(set) var allRates: [RateEntity] = []
 
     // MARK: - Private
-    private let repository = RatesRepository.shared
+    public let repository = RatesRepository.shared
     private var cancellables = Set<AnyCancellable>()
     private var nextFetchEarliestTime: Date?
     private var currentTimer: GlobalTimer?
@@ -250,6 +263,23 @@ public final class RatesViewModel: ObservableObject, RatesViewModeling {
     public var highestUpcomingRate: RateEntity? {
         let future = upcomingRates.filter { ($0.validFrom ?? .distantPast) > Date() }
         return future.max { $0.valueIncludingVAT < $1.valueIncludingVAT }
+    }
+
+    // MARK: - Pagination Support
+    
+    /// Fetches a single page of rates from the database.
+    /// - Parameters:
+    ///   - offset: The offset to start fetching from
+    ///   - limit: Maximum number of rates to fetch
+    ///   - ascending: If true, fetch oldest first
+    /// - Returns: Array of rates for the requested page
+    public func fetchRatesPage(offset: Int, limit: Int, ascending: Bool = true) async throws -> [RateEntity] {
+        try await repository.fetchRatesPage(offset: offset, limit: limit, ascending: ascending)
+    }
+    
+    /// Returns the total number of rates stored in the database
+    public func countAllRates() async throws -> Int {
+        try await repository.countAllRates()
     }
 
     // MARK: - Additional Helpers (same signatures as old code)

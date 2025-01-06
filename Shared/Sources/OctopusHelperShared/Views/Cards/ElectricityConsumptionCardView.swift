@@ -9,12 +9,14 @@ private struct ElectricityConsumptionCardLocalSettings: Codable {
     var showChart: Bool
     var showDailyAverage: Bool
     var showWeeklyAverage: Bool
+    var isDebugMode: Bool
     
     static let `default` = ElectricityConsumptionCardLocalSettings(
         rowsToShow: 5,
         showChart: true,
         showDailyAverage: true,
-        showWeeklyAverage: true
+        showWeeklyAverage: true,
+        isDebugMode: false
     )
 }
 
@@ -82,7 +84,9 @@ public struct ElectricityConsumptionCardView: View {
         .task {
             // On appear, load existing data
             await viewModel.loadData()
-            await loadDebugRates()
+            if localSettings.settings.isDebugMode {
+                await loadDebugRates()
+            }
         }
     }
 
@@ -120,142 +124,11 @@ public struct ElectricityConsumptionCardView: View {
             }
             
             if viewModel.isLoading {
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                        .padding(.top, 16)
-                    Text("Fetching your electricity usage data...")
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                loadingView
             } else if viewModel.consumptionRecords.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.title)
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Text("No consumption data available")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Text("Tap the button below to fetch your usage data")
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                emptyStateView
             } else {
-                // Summary Section
-                VStack(alignment: .leading, spacing: 16) {
-                    // Latest Reading
-                    if let latestRecord = viewModel.consumptionRecords.sorted(by: { 
-                        ($0.value(forKey: "interval_end") as? Date ?? .distantPast) > ($1.value(forKey: "interval_end") as? Date ?? .distantPast) 
-                    }).first {
-                        let consumption = latestRecord.value(forKey: "consumption") as? Double ?? 0
-                        let end = latestRecord.value(forKey: "interval_end") as? Date ?? Date()
-                        
-                        HStack(alignment: .center, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Latest Reading")
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.secondaryTextColor)
-                                Text("\(String(format: "%.2f", consumption)) kWh")
-                                    .font(.system(size: 24, weight: .medium))
-                                    .foregroundColor(Theme.mainTextColor)
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("as of")
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.secondaryTextColor)
-                                Text(formatTime(end))
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.mainTextColor)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Theme.secondaryBackground)
-                        .cornerRadius(8)
-                    }
-                    
-                    if localSettings.settings.showDailyAverage || localSettings.settings.showWeeklyAverage {
-                        HStack(spacing: 12) {
-                            if localSettings.settings.showDailyAverage {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Daily Average")
-                                        .font(Theme.secondaryFont())
-                                        .foregroundColor(Theme.secondaryTextColor)
-                                    Text("\(calculateDailyAverage()) kWh")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(Theme.mainTextColor)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            
-                            if localSettings.settings.showWeeklyAverage {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Weekly Average")
-                                        .font(Theme.secondaryFont())
-                                        .foregroundColor(Theme.secondaryTextColor)
-                                    Text("\(calculateWeeklyAverage()) kWh")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(Theme.mainTextColor)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Theme.secondaryBackground)
-                        .cornerRadius(8)
-                    }
-                    
-                    // Recent Consumption List
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Recent Usage")
-                            .font(Theme.subFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                        
-                        ForEach(getRecentConsumption(), id: \.interval_end) { record in
-                            HStack {
-                                Text(formatTime(record.interval_start))
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.secondaryTextColor)
-                                Spacer()
-                                Text("\(String(format: "%.2f", record.consumption)) kWh")
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.mainTextColor)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    
-                    Divider()
-                    
-                    // Data Range Info
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Data Range")
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                            Text("\(formatOptionalDate(viewModel.minInterval)) to")
-                                .font(Theme.secondaryFont())
-                            Text("\(formatOptionalDate(viewModel.maxInterval))")
-                                .font(Theme.secondaryFont())
-                        }
-                        
-                        Spacer()
-                        
-                        Text("\(viewModel.consumptionRecords.count) records")
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
-                    }
-                    .padding(.vertical, 4)
-                }
+                consumptionDataView
             }
             
             // Refresh Button
@@ -275,6 +148,261 @@ public struct ElectricityConsumptionCardView: View {
             .tint(Theme.mainColor)
             .disabled(viewModel.isLoading)
 
+            if localSettings.settings.isDebugMode {
+                debugView
+            }
+        }
+        .padding(16)
+    }
+
+    // MARK: - Loading View
+    private var loadingView: some View {
+        VStack(spacing: 8) {
+            ProgressView()
+                .scaleEffect(1.2)
+                .padding(.top, 16)
+            Text("Fetching your electricity usage data...")
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.title)
+                .foregroundColor(Theme.secondaryTextColor)
+            Text("No consumption data available")
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+            Text("Tap the button below to fetch your usage data")
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Consumption Data View
+    private var consumptionDataView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Latest Reading
+            if let latestRecord = viewModel.consumptionRecords.sorted(by: { 
+                ($0.value(forKey: "interval_end") as? Date ?? .distantPast) > ($1.value(forKey: "interval_end") as? Date ?? .distantPast) 
+            }).first {
+                latestReadingView(for: latestRecord)
+            }
+            
+            if localSettings.settings.showDailyAverage || localSettings.settings.showWeeklyAverage {
+                averagesView
+            }
+            
+            // Recent Consumption List
+            recentConsumptionListView
+            
+            Divider()
+            
+            // Data Range Info
+            dataRangeView
+        }
+    }
+
+    // MARK: - Latest Reading View
+    private func latestReadingView(for record: NSManagedObject) -> some View {
+        let consumption = record.value(forKey: "consumption") as? Double ?? 0
+        let end = record.value(forKey: "interval_end") as? Date ?? Date()
+        
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Latest Reading")
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Text("\(String(format: "%.2f", consumption)) kWh")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundColor(Theme.mainTextColor)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("as of")
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Text(formatTime(end))
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.mainTextColor)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Theme.secondaryBackground)
+        .cornerRadius(8)
+    }
+
+    // MARK: - Averages View
+    private var averagesView: some View {
+        HStack(spacing: 12) {
+            if localSettings.settings.showDailyAverage {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Daily Average")
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Text("\(calculateDailyAverage()) kWh")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Theme.mainTextColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            if localSettings.settings.showWeeklyAverage {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Weekly Average")
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Text("\(calculateWeeklyAverage()) kWh")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Theme.mainTextColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Theme.secondaryBackground)
+        .cornerRadius(8)
+    }
+
+    // MARK: - Consumption with Rate
+    private struct ConsumptionWithRate {
+        let interval_start: Date
+        let interval_end: Date
+        let consumption: Double
+        let rate: Double  // Rate in pence/kWh
+        
+        var cost: Double {
+            // Calculate cost in pounds
+            (consumption * rate) / 100.0
+        }
+    }
+
+    private func calculateConsumptionWithRates() -> [ConsumptionWithRate] {
+        let ratesRepo = RatesRepository.shared
+        
+        return viewModel.consumptionRecords.compactMap { record -> ConsumptionWithRate? in
+            guard let start = record.value(forKey: "interval_start") as? Date,
+                  let end = record.value(forKey: "interval_end") as? Date,
+                  let consumption = record.value(forKey: "consumption") as? Double else {
+                return nil
+            }
+            
+            // Find matching rate for this consumption window
+            let matchingRate = ratesRepo.currentCachedRates.first { rate in
+                guard let rateStart = rate.validFrom,
+                      let rateEnd = rate.validTo else {
+                    return false
+                }
+                // Check if the consumption interval overlaps with the rate interval
+                return start >= rateStart && end <= rateEnd
+            }
+            
+            return ConsumptionWithRate(
+                interval_start: start,
+                interval_end: end,
+                consumption: consumption,
+                rate: matchingRate?.valueIncludingVAT ?? 0.0
+            )
+        }
+    }
+
+    // MARK: - Recent Consumption List View
+    private var recentConsumptionListView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Recent Usage")
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+            
+            let consumptionWithRates = calculateConsumptionWithRates()
+            ForEach(getRecentConsumption(), id: \.interval_end) { record in
+                let matchingRate = consumptionWithRates.first { 
+                    $0.interval_start == record.interval_start && 
+                    $0.interval_end == record.interval_end 
+                }
+                
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(formatTime(record.interval_start))
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        if let rate = matchingRate {
+                            Text("\(String(format: "%.1f", rate.rate))p/kWh")
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing) {
+                        Text("\(String(format: "%.2f", record.consumption)) kWh")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.mainTextColor)
+                        if let rate = matchingRate {
+                            Text("£\(String(format: "%.2f", rate.cost))")
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(Theme.mainTextColor.opacity(0.8))
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            
+            // Total Cost Summary
+            if !consumptionWithRates.isEmpty {
+                Divider()
+                    .padding(.vertical, 8)
+                
+                HStack {
+                    Text("Total Cost")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Spacer()
+                    Text("£\(String(format: "%.2f", consumptionWithRates.reduce(0) { $0 + $1.cost }))")
+                        .font(Theme.mainFont())
+                        .foregroundColor(Theme.mainTextColor)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Data Range View
+    private var dataRangeView: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Data Range")
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Text("\(formatOptionalDate(viewModel.minInterval)) to")
+                    .font(Theme.secondaryFont())
+                Text("\(formatOptionalDate(viewModel.maxInterval))")
+                    .font(Theme.secondaryFont())
+            }
+            
+            Spacer()
+            
+            Text("\(viewModel.consumptionRecords.count) records")
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Debug View
+    private var debugView: some View {
+        VStack(alignment: .leading, spacing: 8) {
             // DEBUG: Sync All Rates Button
             Button {
                 Task {
@@ -282,7 +410,6 @@ public struct ElectricityConsumptionCardView: View {
                     lastSyncError = nil
                     do {
                         try await RatesRepository.shared.syncAllRates()
-                        // Refresh our local debug rates after sync
                         await loadDebugRates()
                     } catch {
                         lastSyncError = error
@@ -356,7 +483,6 @@ public struct ElectricityConsumptionCardView: View {
             .background(Theme.secondaryBackground.opacity(0.5))
             .cornerRadius(8)
         }
-        .padding(16)
     }
 
     // MARK: - Back Side (Settings)
@@ -396,8 +522,23 @@ public struct ElectricityConsumptionCardView: View {
                     Stepper("", value: $localSettings.settings.rowsToShow, in: 1...20)
                         .labelsHidden()
                 }
+                
+                Divider()
+                    .padding(.vertical, 8)
+                
+                Toggle("Debug Mode", isOn: $localSettings.settings.isDebugMode)
+                    .tint(Theme.mainColor)
+                    .onChange(of: localSettings.settings.isDebugMode) { newValue in
+                        if newValue {
+                            Task {
+                                await loadDebugRates()
+                            }
+                        }
+                    }
             }
             .padding(.top, 8)
+
+            Spacer()
         }
         .padding(16)
     }

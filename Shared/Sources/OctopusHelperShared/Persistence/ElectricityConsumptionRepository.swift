@@ -43,10 +43,7 @@ public final class ElectricityConsumptionRepository: ObservableObject {
     }
 
     /// Main logic for updating consumption data from the Octopus API.
-    /// 1) Check local min/max date
-    /// 2) Determine how many pages to fetch from the API
-    /// 3) Fetch all missing data
-    /// 4) Insert or skip duplicates
+    /// Optimized to fetch only missing data based on local database state.
     public func updateConsumptionData() async throws {
         let settings = globalSettingsManager.settings
         let mpan = settings.electricityMPAN ?? ""
@@ -55,34 +52,74 @@ public final class ElectricityConsumptionRepository: ObservableObject {
 
         guard !apiKey.isEmpty else { return }
 
-        // 1) Query local DB
+        // 1. Query local DB state
         let localData = try await fetchAllRecords()
         let localMinDate = localData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
         let localMaxDate = localData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
         let localCount = localData.count
 
-        // 2) We fetch the first page => get total count, figure out how many pages
+        // 2. Get initial state from API (newest data)
         let firstPageResponse = try await apiClient.fetchConsumptionData(mpan: mpan, serialNumber: serial, apiKey: apiKey, page: 1)
         let totalRecordsOnServer = firstPageResponse.count
-        if totalRecordsOnServer == 0 {
-            return // no data
+        if totalRecordsOnServer == 0 { return }
+
+        // 3. Process newest data first (page 1 onwards)
+        if localMaxDate == nil || firstPageResponse.results.first?.interval_end.timeIntervalSince(localMaxDate!) ?? 0 > 0 {
+            var currentPage = 1
+            var hasMore = true
+            
+            while hasMore {
+                if currentPage > 1 {
+                    let pageResponse = try await apiClient.fetchConsumptionData(mpan: mpan, serialNumber: serial, apiKey: apiKey, page: currentPage)
+                    
+                    // Stop if we hit existing data
+                    if let oldestInPage = pageResponse.results.last,
+                       let localMax = localMaxDate,
+                       oldestInPage.interval_end <= localMax {
+                        // Only store records newer than our local max
+                        let newRecords = pageResponse.results.filter { $0.interval_end > localMax }
+                        if !newRecords.isEmpty {
+                            try await storeConsumptionRecords(newRecords)
+                        }
+                        hasMore = false
+                        break
+                    }
+                    
+                    try await storeConsumptionRecords(pageResponse.results)
+                    hasMore = pageResponse.next != nil
+                } else {
+                    // Store first page results
+                    try await storeConsumptionRecords(firstPageResponse.results)
+                    hasMore = firstPageResponse.next != nil
+                }
+                currentPage += 1
+            }
         }
 
-        // 2.1) Calculate total pages
-        let totalPages = Int(ceil(Double(totalRecordsOnServer) / Double(recordsPerPage)))
-
-        // 3) Fetch all pages and store data
-        // For a simpler approach: we fetch from page=1 all the way to page=totalPages 
-        // and skip duplicates during insertion
-        for page in 1...totalPages {
-            let pageResponse = try await apiClient.fetchConsumptionData(mpan: mpan, serialNumber: serial, apiKey: apiKey, page: page)
+        // 4. Calculate if we need older data
+        if let localMin = localMinDate {
+            let totalPages = Int(ceil(Double(totalRecordsOnServer) / Double(recordsPerPage)))
+            var currentPage = totalPages
+            var hasMore = true
             
-            // 4) Insert or skip duplicates
-            try await storeConsumptionRecords(pageResponse.results)
-            
-            // If there's no `next`, we can break early
-            if pageResponse.next == nil {
-                break
+            while hasMore && currentPage > 1 {
+                let pageResponse = try await apiClient.fetchConsumptionData(mpan: mpan, serialNumber: serial, apiKey: apiKey, page: currentPage)
+                
+                // Stop if we hit existing data
+                if let newestInPage = pageResponse.results.first,
+                   newestInPage.interval_start <= localMin {
+                    // Only store records older than our local min
+                    let newRecords = pageResponse.results.filter { $0.interval_start < localMin }
+                    if !newRecords.isEmpty {
+                        try await storeConsumptionRecords(newRecords)
+                    }
+                    hasMore = false
+                    break
+                }
+                
+                try await storeConsumptionRecords(pageResponse.results)
+                currentPage -= 1
+                hasMore = pageResponse.previous != nil
             }
         }
     }
@@ -103,6 +140,46 @@ public final class ElectricityConsumptionRepository: ObservableObject {
                 }
             }
         }
+    }
+    
+    /// Checks whether we have consumption data through the expected latest time.
+    /// Before noon: Don't expect today's data (not pending)
+    /// After noon: Should have data through previous midnight (pending if missing)
+    public func hasDataThroughExpectedTime() -> Bool {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
+        request.sortDescriptors = [NSSortDescriptor(key: "interval_end", ascending: false)]
+        request.fetchLimit = 1
+        
+        guard let latestRecord = try? context.fetch(request).first,
+              let maxDate = latestRecord.value(forKey: "interval_end") as? Date else {
+            print("DEBUG: No consumption records found")
+            return false
+        }
+        
+        let calendar = Calendar.current
+        let now = Date()
+        let hour = calendar.component(.hour, from: now)
+        let previousMidnight = calendar.startOfDay(for: now)
+        
+        // Detailed debug logging
+        print("DEBUG: Consumption Data Check")
+        print("Current time: \(now)")
+        print("Current hour: \(hour)")
+        print("Previous midnight: \(previousMidnight)")
+        print("Latest record end: \(maxDate)")
+        print("Time since latest record: \(now.timeIntervalSince(maxDate) / 3600) hours")
+        print("Latest record >= midnight: \(maxDate >= previousMidnight)")
+        
+        return maxDate >= previousMidnight
+    }
+    
+    /// Returns the date through which we expect to have consumption data
+    /// Before noon: Previous midnight
+    /// After noon: Previous midnight (same as before noon, but will trigger pending)
+    private func expectedLatestConsumption() -> Date? {
+        let calendar = Calendar.current
+        let now = Date()
+        return calendar.startOfDay(for: now)
     }
     
     // MARK: - Private Methods
