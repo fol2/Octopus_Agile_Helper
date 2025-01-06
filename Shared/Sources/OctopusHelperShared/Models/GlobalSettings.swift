@@ -252,7 +252,7 @@ public class GlobalSettingsManager: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
             
             // Also save to shared UserDefaults for widget access
-            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
+            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
             sharedDefaults?.set(encoded, forKey: "user_settings")
             
             // Also save individual values for easier widget access

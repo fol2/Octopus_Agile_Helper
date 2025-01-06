@@ -530,6 +530,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -564,6 +568,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -783,8 +791,9 @@
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
+				INFOPLIST_KEY_CFBundleDisplayName = Octomiser;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -814,8 +823,9 @@
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
+				INFOPLIST_KEY_CFBundleDisplayName = Octomiser;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -865,8 +865,8 @@ struct Octopus_HelperWidgets: Widget {
                     .background(Theme.mainBackground)
             }
         }
-        .configurationDisplayName("Current Rate")
-        .description("Display the current electricity rate.")
+        .configurationDisplayName("Octomiser")
+        .description("Display the current Octopus Agile rate.")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,
