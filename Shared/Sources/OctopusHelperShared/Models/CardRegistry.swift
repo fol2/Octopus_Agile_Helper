@@ -227,12 +227,12 @@ public final class CardRegistry: ObservableObject {
                 id: .electricityConsumption,
                 displayNameKey: "Electricity Consumption",
                 descriptionKey: "View recent electricity usage from Octopus API.",
-                isPremium: false,
+                isPremium: true,
                 makeView: { [self] vm in makeRatesView(vm, .electricityConsumption) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "bolt.fill",
-                defaultIsEnabled: true,
-                defaultIsPurchased: true,
+                defaultIsEnabled: false,
+                defaultIsPurchased: false,
                 defaultSortOrder: 6,
                 mediaItems: []
             )
