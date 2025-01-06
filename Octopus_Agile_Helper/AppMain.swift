@@ -10,8 +10,12 @@ struct Octopus_Agile_HelperApp: App {
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var globalSettings = GlobalSettingsManager()
     @Environment(\.scenePhase) private var scenePhase
-
+    @AppStorage("isLoading") private var isLoading = true
+    
     init() {
+        // Reset isLoading to true on app launch
+        UserDefaults.standard.set(true, forKey: "isLoading")
+        
         // Cards are now auto-registered by CardRegistry.shared
         // Update the registry with our global timer
         CardRegistry.shared.updateTimer(globalTimer)
@@ -27,30 +31,58 @@ struct Octopus_Agile_HelperApp: App {
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
     }
+    
+    private func checkInitialLoadingStatus() {
+        // 检查所有需要的数据是否已加载
+        let isTimerReady = globalTimer.currentTime > Date.distantPast
+        let isRegistryReady = CardRegistry.shared.isReady
+        let isSettingsReady = !globalSettings.settings.apiKey.isEmpty
+        
+        if isTimerReady && isRegistryReady && isSettingsReady {
+            withAnimation(.easeOut(duration: 0.5)) {
+                isLoading = false
+            }
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(globalTimer)
-                .environmentObject(globalSettings)
-                .environment(\.locale, globalSettings.locale)
-                .preferredColorScheme(.dark)
-                .onChange(of: scenePhase) { _, newPhase in
-                    switch newPhase {
-                    case .active:
-                        globalTimer.startTimer()
-                        globalTimer.refreshTime()
-                    case .background:
-                        globalTimer.stopTimer()
-                        // Force widget refresh when app goes to background
-                        WidgetCenter.shared.reloadAllTimelines()
-                    case .inactive:
-                        break
-                    @unknown default:
-                        break
+            ZStack {
+                ContentView()
+                    .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                    .environmentObject(globalTimer)
+                    .environmentObject(globalSettings)
+                    .environment(\.locale, globalSettings.locale)
+                    .preferredColorScheme(.dark)
+                    .onChange(of: scenePhase) { _, newPhase in
+                        switch newPhase {
+                        case .active:
+                            globalTimer.startTimer()
+                            globalTimer.refreshTime()
+                            // Check loading status periodically
+                            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                                if !isLoading {
+                                    timer.invalidate()
+                                } else {
+                                    checkInitialLoadingStatus()
+                                }
+                            }
+                        case .background:
+                            globalTimer.stopTimer()
+                            WidgetCenter.shared.reloadAllTimelines()
+                            isLoading = true
+                        case .inactive:
+                            break
+                        @unknown default:
+                            break
+                        }
                     }
+                
+                if isLoading {
+                    SplashScreenView(isLoading: $isLoading)
+                        .transition(AnyTransition.opacity)
                 }
+            }
         }
     }
 }

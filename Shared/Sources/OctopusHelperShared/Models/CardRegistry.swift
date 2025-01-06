@@ -85,21 +85,24 @@ public final class CardDefinition {
 }
 
 /// Central registry for all card definitions and metadata
-public final class CardRegistry {
+public final class CardRegistry: ObservableObject {
     public static let shared = CardRegistry()
 
     // A dictionary mapping CardType -> CardDefinition
     private var definitions: [CardType: CardDefinition] = [:]
-    private var globalTimer: GlobalTimer
-
+    private var timer: GlobalTimer?
+    
+    @Published public private(set) var isReady: Bool = false
+    
     private init() {
-        self.globalTimer = GlobalTimer()  // Default for previews
         // Register all cards automatically on initialization
         registerAllCards()
+        // Set ready state after initialization
+        self.isReady = true
     }
-
+    
     public func updateTimer(_ timer: GlobalTimer) {
-        self.globalTimer = timer
+        self.timer = timer
     }
 
     /// Register all standard cards automatically
@@ -284,7 +287,7 @@ public final class CardRegistry {
             case .electricityConsumption:
                 return ConsumptionViewModel()
             default:
-                return RatesViewModel(globalTimer: globalTimer)
+                return RatesViewModel(globalTimer: timer ?? GlobalTimer())
         }
     }
 }
