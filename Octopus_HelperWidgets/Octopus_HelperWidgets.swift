@@ -19,7 +19,7 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         get async { await MainActor.run { RatesRepository.shared } }
     }
     private var sharedDefaults: UserDefaults? {
-        UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
+        UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
     }
     private var persistenceController: PersistenceController {
         PersistenceController.shared
