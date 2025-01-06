@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22522" systemVersion="24.3.0" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="24D5034f" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="EConsumAgile" representedClassName="EConsumAgile" syncable="YES" codeGenerationType="class">
+        <attribute name="consumption" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="interval_end" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="interval_start" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
     <entity name="RateEntity" representedClassName="OctopusHelperSharedRateEntity" syncable="YES">
         <attribute name="id" optional="YES" attributeType="String"/>
         <attribute name="validFrom" optional="YES" attributeType="Date" usesScalarValueType="NO"/>

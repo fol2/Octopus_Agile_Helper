@@ -1,0 +1,12 @@
+{
+  "title": "Guide",
+  "tldr": "Log in to your Octopus Energy account, locate your API Key, MPAN, and Serial Number within the API access section, and manually copy them into the fields provided. You may need to switch between windows to gather all required information.",
+  "heading": "How to Find Your Details:",
+  "steps": [
+    "Log in to your Octopus Energy account using the link above.",
+    "Once logged in, locate your API Key, MPAN, and Serial Number in the ‘API access’ section.",
+    "Copy these details into the corresponding fields.",
+    "You may need to switch between windows or tabs to collect all the required information.",
+    "We do not automatically extract these details from your Octopus Energy account, as doing so would violate their terms of service."
+  ]
+}

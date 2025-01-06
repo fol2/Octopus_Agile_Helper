@@ -1,0 +1,69 @@
+{
+    "tldr": "We only collect and store the minimal data required to provide energy usage insights. Your API key and meter details remain on your device, and you can remove them at any time. By entering this data, you consent to the terms outlined in this declaration and the Octopus Energy API Terms of Service. This is a short summary—please read the full declaration below.",
+    "title": "GDPR (UK) and Data Usage Declaration",
+    "introduction": "We are committed to protecting your personal data and ensuring compliance with all relevant data protection legislation, including the United Kingdom General Data Protection Regulation (\"UK GDPR\") and the Data Protection Act 2018, collectively referred to as \"the legislation.\" This document outlines how and why we process, store, and share your personal information when you use our application. If you have any questions regarding this declaration or our data-handling practices, please contact our Data Protection Officer at fol2hk@gmail.com.",
+    "sections": [
+      {
+        "heading": "1. Scope and Purpose",
+        "body": [
+          "We only collect the information necessary to authenticate, retrieve, and display your energy usage data, including but not limited to your API key and meter details.",
+          "By entering your details, you confirm that you have read, understood, and agree to the terms of this Declaration, and you consent to the processing of your personal data in the manner described herein.",
+          "The purpose of this processing is strictly limited to providing you with relevant energy consumption insights and functionalities within this application."
+        ]
+      },
+      {
+        "heading": "2. Lawful Basis for Processing",
+        "body": [
+          "We rely on your explicit consent as our lawful basis for collecting and processing your personal data, which you provide when you enter your API key, meter details, and other relevant data into this application.",
+          "In some cases, we may also process your data to comply with any legal obligations or regulatory requirements that apply to us."
+        ]
+      },
+      {
+        "heading": "3.Data Storage and Security",
+        "body": [
+          "Your API key and meter details are stored securely on your device only, safeguarded by your device’s inherent security features such as Face ID, Touch ID, or passcodes.",
+          "We do not transmit your API key and meter details to our servers; they are never stored or shared with our developers, affiliates, or third parties unless required by law.",
+          "Technical and organisational measures are in place to prevent unauthorised access, disclosure, alteration, or destruction of your data."
+        ]
+      },
+      {
+        "heading": "4. Data Sharing and Authorisation",
+        "body": [
+          "By providing your API key and meter details, you authorise Octopus Energy to share your energy consumption data with this application for the purposes specified in Section 1.",
+          "We do not share your data with any third parties beyond what is essential for the application’s core functionality, unless compelled by court order or other legal obligation."
+        ]
+      },
+      {
+        "heading": "5. Data Retention",
+        "body": [
+          "We will retain your API key and meter details on your device for as long as you choose to keep them in the application.",
+          "You can delete your data at any time using the in-app controls. Once removed, the application will no longer be able to retrieve your personal energy data."
+        ]
+      },
+      {
+        "heading": "6. Your Rights",
+        "body": [
+          "Right of Access: You have the right to request copies of the personal data we hold about you.",
+          "Right to Rectification: You have the right to request that any inaccurate information be corrected without undue delay.",
+          "Right to Erasure: You have the right to request the deletion of your personal data at any time, and we will honour such requests in accordance with the legislation.",
+          "Right to Withdraw Consent: You may withdraw your consent at any time. Doing so will affect your ability to use certain features of this application.",
+          "Right to Lodge a Complaint: If you believe we are processing your data unlawfully, you have the right to lodge a complaint with the Information Commissioner’s Office (ICO) or another competent supervisory authority."
+        ]
+      },
+      {
+        "heading": "7. Octopus Energy API Terms of Service",
+        "body": [
+          "By entering your API key and meter details, you confirm that you have read and agree to the Octopus Energy API Terms of Service, which govern the access and usage of Octopus Energy’s platform.",
+          "This Declaration supplements, but does not replace, any separate agreement you may have with Octopus Energy regarding their services."
+        ]
+      },
+      {
+        "heading": "8.Changes to This Declaration",
+        "body": [
+          "We reserve the right to update or modify this Declaration from time to time to reflect changes in our data processing practices or legal obligations.",
+          "Any significant changes will be communicated within the application or by other means. Your continued use of the application after any such update constitutes acceptance of the revised terms."
+        ]
+      }
+    ]
+  }
+  

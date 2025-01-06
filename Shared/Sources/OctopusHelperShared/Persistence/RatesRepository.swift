@@ -3,6 +3,14 @@ import CoreData
 import Foundation
 import SwiftUI
 
+// MARK: - AgileRatesPageResponse (For full historical pagination)
+private struct AgileRatesPageResponse: Codable {
+    let count: Int?
+    let next: String?
+    let previous: String?
+    let results: [OctopusRate]
+}
+
 /// Manages Octopus Agile rate data in Core Data, including fetching and caching.
 @MainActor
 public final class RatesRepository: ObservableObject {
@@ -116,6 +124,74 @@ public final class RatesRepository: ObservableObject {
         }
     }
 
+    /// Fetches a single "page" of RateEntity results from Core Data.
+    /// - Parameters:
+    ///   - offset: The fetch offset (like "start index" in zero-based).
+    ///   - limit: Max records to fetch.
+    ///   - ascending: If false, newest first.
+    /// - Returns: An array of RateEntity, sorted by validFrom ascending or descending.
+    public func fetchRatesPage(offset: Int, limit: Int, ascending: Bool = true) async throws -> [RateEntity] {
+        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+        // Sort by validFrom ascending or descending
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: ascending)]
+        request.fetchOffset = offset
+        request.fetchLimit = limit
+
+        let results = try await self.context.performAsync {
+            try self.context.fetch(request)
+        }
+
+        // For ascending = false => you get newest first. If needed, you can reverse in memory.
+        // For this snippet, let's assume ascending fetch is enough:
+        return results
+    }
+
+    /// Returns total count of RateEntity in DB, to know when we've reached "the end."
+    public func countAllRates() async throws -> Int {
+        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+        return try await self.context.performAsync {
+            try self.context.count(for: request)
+        }
+    }
+
+    public func fetchRatesForDay(_ day: Date) async throws -> [RateEntity] {
+        let calendar = Calendar(identifier: .gregorian)
+        guard let dayStart = calendar.dateInterval(of: .day, for: day)?.start,
+              let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)
+        else { return [] }
+
+        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
+        request.predicate = NSPredicate(
+            format: "(validFrom < %@) AND (validTo > %@)",
+            dayEnd as NSDate,
+            dayStart as NSDate
+        )
+        return try await context.performAsync {
+            try self.context.fetch(request)
+        }
+    }
+
+    public func earliestRateDate() async throws -> Date? {
+        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
+        request.fetchLimit = 1
+        let results = try await context.performAsync {
+            try self.context.fetch(request)
+        }
+        return results.first?.validFrom
+    }
+
+    public func latestRateDate() async throws -> Date? {
+        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: false)]
+        request.fetchLimit = 1
+        let results = try await context.performAsync {
+            try self.context.fetch(request)
+        }
+        return results.first?.validFrom
+    }
+
     // MARK: - Private Internal Logic
 
     /// Actually performs a fetch from the network if needed.
@@ -183,6 +259,138 @@ public final class RatesRepository: ObservableObject {
         }
 
         return endOfDayLocal.toUTC(from: ukTimeZone)
+    }
+
+    /// Helper function that fetches a *single* page of Agile rates with pagination metadata
+    /// - Parameters:
+    ///   - regionID: The region ID to fetch rates for
+    ///   - page: The page number to fetch
+    /// - Returns: A specialized `AgileRatesPageResponse` that includes pagination metadata
+    /// - Throws: Network, decoding, or other errors
+    private func fetchAllRatesPage(regionID: String, page: Int) async throws -> AgileRatesPageResponse {
+        let productCode = "AGILE-24-10-01"  // This matches what's used in OctopusAPIClient
+        let tariffCode = "E-1R-\(productCode)-\(regionID)"
+        let urlString = "https://api.octopus.energy/v1/products/\(productCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/?page=\(page)"
+        guard let url = URL(string: urlString) else {
+            throw OctopusAPIError.invalidURL
+        }
+        
+        do {
+            let (data, response) = try await urlSession.data(for: URLRequest(url: url))
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode)
+            else {
+                throw OctopusAPIError.invalidResponse
+            }
+            
+            // Use the same date formatter as OctopusRate for consistency
+            let decoder = JSONDecoder()
+            let dateFormatter = ISO8601DateFormatter()
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+                guard let date = dateFormatter.date(from: dateString) else {
+                    throw DecodingError.dataCorruptedError(
+                        in: container,
+                        debugDescription: "Invalid date format"
+                    )
+                }
+                return date
+            }
+            
+            return try decoder.decode(AgileRatesPageResponse.self, from: data)
+        } catch let urlError as URLError {
+            throw OctopusAPIError.networkError(urlError)
+        } catch let decodeError as DecodingError {
+            throw OctopusAPIError.decodingError(decodeError)
+        } catch {
+            throw OctopusAPIError.networkError(error)
+        }
+    }
+
+    /// Fetches *all* Agile rates from the Octopus API, ensuring we have both earliest and latest data.
+    /// Uses optimized fetching to only get missing data, following the same pattern as consumption.
+    /// - Throws: Network, decoding, or Core Data errors.
+    public func syncAllRates() async throws {
+        // 1. Determine region from user's postcode or fallback
+        let regionID = try await fetchRegionID(for: postcode) ?? "H"
+        
+        // 2. Query local DB state
+        let localRates = try await fetchAllRates()
+        let localMinDate = localRates.compactMap(\.validFrom).min()
+        let localMaxDate = localRates.compactMap(\.validTo).max()
+        
+        // 3. Get initial state from API (newest data)
+        let firstPageResponse = try await fetchAllRatesPage(regionID: regionID, page: 1)
+        let totalRecordsOnServer = firstPageResponse.count ?? 0
+        if totalRecordsOnServer == 0 { return }
+        
+        // 4. Process newest data first (page 1 onwards)
+        if localMaxDate == nil || firstPageResponse.results.first?.valid_from.timeIntervalSince(localMaxDate!) ?? 0 > 0 {
+            var currentPage = 1
+            var hasMore = true
+            
+            while hasMore {
+                if currentPage > 1 {
+                    let pageResponse = try await fetchAllRatesPage(regionID: regionID, page: currentPage)
+                    
+                    // Stop if we hit existing data
+                    if let oldestInPage = pageResponse.results.last,
+                       let localMax = localMaxDate,
+                       oldestInPage.valid_from <= localMax {
+                        // Only store rates newer than our local max
+                        let newRates = pageResponse.results.filter { $0.valid_from > localMax }
+                        if !newRates.isEmpty {
+                            try await saveRates(newRates)
+                        }
+                        hasMore = false
+                        break
+                    }
+                    
+                    try await saveRates(pageResponse.results)
+                    hasMore = pageResponse.next != nil
+                } else {
+                    // Store first page results
+                    try await saveRates(firstPageResponse.results)
+                    hasMore = firstPageResponse.next != nil
+                }
+                currentPage += 1
+            }
+        }
+        
+        // 5. Calculate if we need older data
+        if let localMin = localMinDate {
+            let pageSize = firstPageResponse.results.count
+            let totalPages = Int(ceil(Double(totalRecordsOnServer) / Double(pageSize)))
+            var currentPage = totalPages
+            var hasMore = true
+            
+            while hasMore && currentPage > 1 {
+                let pageResponse = try await fetchAllRatesPage(regionID: regionID, page: currentPage)
+                
+                // Stop if we hit existing data
+                if let newestInPage = pageResponse.results.first,
+                   newestInPage.valid_from <= localMin {
+                    // Only store rates older than our local min
+                    let oldRates = pageResponse.results.filter { $0.valid_from < localMin }
+                    if !oldRates.isEmpty {
+                        try await saveRates(oldRates)
+                    }
+                    hasMore = false
+                    break
+                }
+                
+                try await saveRates(pageResponse.results)
+                currentPage -= 1
+                hasMore = pageResponse.previous != nil
+            }
+        }
+        
+        // 6. Reload from DB to confirm we have everything
+        let final = try await fetchAllRates()
+        let newEarliest = final.compactMap(\.validFrom).min() ?? localMinDate
+        let newLatest = final.compactMap(\.validTo).max() ?? localMaxDate
+        print("Synced rates: earliest=\(String(describing: newEarliest)) latest=\(String(describing: newLatest))")
     }
 }
 

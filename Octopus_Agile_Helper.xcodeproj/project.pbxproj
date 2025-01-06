@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BF3400942D26DE9C00CD068B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
+		BF9640372D29F93D00A6B723 /* GDPR.json in Resources */ = {isa = PBXBuildFile; fileRef = BF9640352D29F93C00A6B723 /* GDPR.json */; };
+		BF9640382D29F93D00A6B723 /* Guide.json in Resources */ = {isa = PBXBuildFile; fileRef = BF9640362D29F93D00A6B723 /* Guide.json */; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
 		BFC2A5CD2D24C39500E702BD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; };
 		BFC2A5CE2D24C39500E702BD /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BFF9574E2D248B6A002EE392 /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -94,6 +96,8 @@
 
 /* Begin PBXFileReference section */
 		BF47C08D2D24A0A200BA093D /* Octopus_HelperWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Octopus_HelperWidgetsExtension.entitlements; sourceTree = "<group>"; };
+		BF9640352D29F93C00A6B723 /* GDPR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = GDPR.json; path = Shared/Sources/OctopusHelperShared/Resources/GDPR.json; sourceTree = "<group>"; };
+		BF9640362D29F93D00A6B723 /* Guide.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = Guide.json; path = Shared/Sources/OctopusHelperShared/Resources/Guide.json; sourceTree = "<group>"; };
 		BFC264112D1F14E600279D9E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		BFE3DE5C2D1E0706003E74A4 /* Octopus_Agile_Helper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Octopus_Agile_Helper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFE3DE732D1E0707003E74A4 /* Octopus_Agile_HelperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Octopus_Agile_HelperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -197,6 +201,8 @@
 		BFE3DE532D1E0705003E74A4 = {
 			isa = PBXGroup;
 			children = (
+				BF9640352D29F93C00A6B723 /* GDPR.json */,
+				BF9640362D29F93D00A6B723 /* Guide.json */,
 				BF47C08D2D24A0A200BA093D /* Octopus_HelperWidgetsExtension.entitlements */,
 				BFC264112D1F14E600279D9E /* Localizable.xcstrings */,
 				BFE3DE5E2D1E0706003E74A4 /* Octopus_Agile_Helper */,
@@ -416,6 +422,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BF9640372D29F93D00A6B723 /* GDPR.json in Resources */,
+				BF9640382D29F93D00A6B723 /* Guide.json in Resources */,
 				BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -507,7 +515,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_Agile_Helper/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Agile Helper";
+				INFOPLIST_KEY_CFBundleDisplayName = Octomiser;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -522,6 +530,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -541,7 +553,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_Agile_Helper/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Agile Helper";
+				INFOPLIST_KEY_CFBundleDisplayName = Octomiser;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -556,6 +568,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesto.octopus-agile-helper";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -775,8 +791,9 @@
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
+				INFOPLIST_KEY_CFBundleDisplayName = Octomiser;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -806,8 +823,9 @@
 				DEVELOPMENT_TEAM = V45S7U2LZB;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Octopus_HelperWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Octopus Helper Cards";
+				INFOPLIST_KEY_CFBundleDisplayName = Octomiser;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

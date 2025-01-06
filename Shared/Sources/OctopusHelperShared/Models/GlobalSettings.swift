@@ -119,32 +119,38 @@ public struct CardConfig: Identifiable, Codable {
 
 // MARK: - Global Settings
 public struct GlobalSettings: Codable {
-    public var postcode: String
+    public var regionInput: String  // Can be either postcode or region code
     public var apiKey: String
     public var selectedLanguage: Language
     public var showRatesInPounds: Bool
     public var cardSettings: [CardConfig]
+    public var electricityMPAN: String?
+    public var electricityMeterSerialNumber: String?
 
     public init(
-        postcode: String, apiKey: String, selectedLanguage: Language, showRatesInPounds: Bool,
-        cardSettings: [CardConfig]
+        regionInput: String, apiKey: String, selectedLanguage: Language, showRatesInPounds: Bool,
+        cardSettings: [CardConfig], electricityMPAN: String? = nil, electricityMeterSerialNumber: String? = nil
     ) {
-        self.postcode = postcode
+        self.regionInput = regionInput
         self.apiKey = apiKey
         self.selectedLanguage = selectedLanguage
         self.showRatesInPounds = showRatesInPounds
         self.cardSettings = cardSettings
+        self.electricityMPAN = electricityMPAN
+        self.electricityMeterSerialNumber = electricityMeterSerialNumber
     }
 }
 
 // Provide a default "empty" settings object
 extension GlobalSettings {
     public static let defaultSettings = GlobalSettings(
-        postcode: "",
+        regionInput: "",
         apiKey: "",
         selectedLanguage: .english,
         showRatesInPounds: false,
-        cardSettings: []
+        cardSettings: [],
+        electricityMPAN: nil,
+        electricityMeterSerialNumber: nil
     )
 }
 
@@ -181,7 +187,7 @@ public class GlobalSettingsManager: ObservableObject {
             let matchedLanguage = Language.systemPreferred()
 
             self.settings = GlobalSettings(
-                postcode: "",
+                regionInput: "",
                 apiKey: "",
                 selectedLanguage: matchedLanguage,
                 showRatesInPounds: false,
@@ -246,14 +252,16 @@ public class GlobalSettingsManager: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
             
             // Also save to shared UserDefaults for widget access
-            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
+            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
             sharedDefaults?.set(encoded, forKey: "user_settings")
             
             // Also save individual values for easier widget access
-            sharedDefaults?.set(settings.postcode, forKey: "selected_postcode")
+            sharedDefaults?.set(settings.regionInput, forKey: "selected_postcode")
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
             sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
+            sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
+            sharedDefaults?.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
             
             // Notify widget of changes
             #if !WIDGET

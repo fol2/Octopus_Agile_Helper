@@ -29,7 +29,7 @@ public class InteractiveChartSettingsManager: ObservableObject {
     }
 
     private let userDefaultsKey = "MyChartSettings"
-    private let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.OctopusHelper")
+    private let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
 
     public init() {
         if let data = sharedDefaults?.data(forKey: userDefaultsKey),

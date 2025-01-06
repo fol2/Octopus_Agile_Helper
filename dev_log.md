@@ -217,3 +217,33 @@
 - Consistent user experience across languages
 - Foundation for adding more languages
 - Proper handling of locale-specific formatting 
+
+## 2024-12-27: OAuth Integration Branch Creation
+
+### Initial Setup
+- Created new feature branch `OctopusOAuth` for implementing OAuth authentication
+- Planning to replace API key-based authentication with proper OAuth flow
+- Will implement secure token storage and refresh mechanisms
+- Preparing for improved user authentication experience 
+
+## Latest Changes
+
+### Region Input Enhancement
+- Modified region lookup to accept both postcodes and direct region codes
+- Added immediate region feedback in the UI:
+  - Shows "Using Region X" for direct region codes
+  - Shows loading state while looking up postcode
+  - Displays error messages for invalid postcodes
+  - Updates automatically when input changes
+- Updated GlobalSettings to use regionInput instead of postcode
+- Added clear examples and guidance in the UI
+- Updated widget support for the new input format
+- Improved region code validation (A-P)
+
+### API Configuration Enhancement
+- Created a dedicated API Configuration view with detailed instructions
+- Added support for storing electricity MPAN and meter serial number
+- Improved user guidance with step-by-step instructions
+- Added data usage and privacy information
+- Updated GlobalSettings model to include new meter details
+- Updated widget support for new settings 
