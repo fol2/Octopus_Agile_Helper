@@ -36,9 +36,8 @@ struct Octopus_Agile_HelperApp: App {
         // 检查所有需要的数据是否已加载
         let isTimerReady = globalTimer.currentTime > Date.distantPast
         let isRegistryReady = CardRegistry.shared.isReady
-        let isSettingsReady = !globalSettings.settings.apiKey.isEmpty
         
-        if isTimerReady && isRegistryReady && isSettingsReady {
+        if isTimerReady && isRegistryReady {
             withAnimation(.easeOut(duration: 0.5)) {
                 isLoading = false
             }
