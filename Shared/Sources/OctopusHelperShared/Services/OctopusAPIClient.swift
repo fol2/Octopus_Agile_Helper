@@ -239,7 +239,7 @@ extension OctopusAPIClient {
     
     /// Fetches a minimal list of known Octopus products.
     private func fetchAllProducts() async throws -> [OctopusProductItem] {
-        guard let url = URL(string: "\(baseURL)/products/") else {
+        guard let url = URL(string: "\(baseURL)/products/?brand=OCTOPUS_ENERGY") else {
             throw OctopusAPIError.invalidURL
         }
         let listResponse = try await fetchDecodable(OctopusProductListResponse.self, from: url)
