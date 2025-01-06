@@ -121,19 +121,27 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     
     /// Manually triggers an update from the Octopus API
     public func refreshDataFromAPI(force: Bool = false) async {
-        // Only show pending/fetch if:
-        // 1. Force refresh requested, OR
-        // 2. After noon and missing expected data
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: Date())
-        
-        if force || (hour >= 12 && !repository.hasDataThroughExpectedTime()) {
+
+        // 1) If user pulls-to-refresh, skip "pending" and go straight to "fetching"
+        // 2) If it's after noon AND missing data, then use "pending" -> "fetching"
+        if force {
+            fetchStatus = .fetching
+            isLoading = true
+            error = nil
+        } else if hour >= 12 && !repository.hasDataThroughExpectedTime() {
             fetchStatus = .pending
             isLoading = true
             error = nil
-            
+        }
+
+        if fetchStatus == .pending || fetchStatus == .fetching {
             do {
-                fetchStatus = .fetching
+                // If forced, we're already in .fetching
+                if fetchStatus == .pending {
+                    fetchStatus = .fetching
+                }
                 try await repository.updateConsumptionData()
                 let allData = try await repository.fetchAllRecords()
                 consumptionRecords = allData
@@ -154,7 +162,13 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if self.fetchStatus == .failed {
                         withAnimation(.easeInOut(duration: 0.35)) {
-                            self.fetchStatus = .pending
+                            // If we still have data, revert to .none, not .pending
+                            if !self.consumptionRecords.isEmpty {
+                                self.fetchStatus = .none
+                            } else {
+                                // If we truly have no data, revert to .pending
+                                self.fetchStatus = .pending
+                            }
                         }
                     }
                 }

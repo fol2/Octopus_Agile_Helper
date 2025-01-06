@@ -22,6 +22,8 @@ struct AllRatesListView: View {
     @State private var currentDay: Date = Date()
     
     @ObservedObject private var refreshManager = CardRefreshManager.shared
+    @State private var forceReRenderToggle = false
+    @State private var lastSceneActiveTime: Date = Date.distantPast
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -253,7 +255,10 @@ struct AllRatesListView: View {
                     Section {
                         ForEach(rates, id: \.objectID) { rate in
                             RateRowView(
-                                rate: rate, viewModel: viewModel, globalSettings: globalSettings
+                                rate: rate, 
+                                viewModel: viewModel, 
+                                globalSettings: globalSettings,
+                                lastSceneActiveTime: lastSceneActiveTime
                             )
                             .id(rate.objectID)
                             .listRowBackground(
@@ -299,6 +304,17 @@ struct AllRatesListView: View {
                     }
                 }
             }
+            // Force re-render whenever half-hour ticks => "NOW" badge updates
+            .onReceive(refreshManager.$halfHourTick) { tickTime in
+                guard tickTime != nil else { return }
+                forceReRenderToggle.toggle()
+            }
+            // Also force re-render whenever app becomes active
+            .onReceive(refreshManager.$sceneActiveTick) { _ in
+                print("DEBUG: Scene became active, updating lastSceneActiveTime")
+                lastSceneActiveTime = Date()
+                forceReRenderToggle.toggle()
+            }
             .onChange(of: shouldScrollToCurrentRate) { _, shouldScroll in
                 if shouldScroll {
                     print("DEBUG: Scroll trigger activated")
@@ -326,7 +342,7 @@ struct AllRatesListView: View {
         .navigationTitle(LocalizedStringKey("All Rates"))
         .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, globalSettings.locale)
-        .id("all-rates-\(refreshTrigger)")
+        .id("all-rates-\(refreshTrigger)-\(forceReRenderToggle ? 1 : 0)")
         .onChange(of: globalSettings.locale) { oldValue, newValue in
             print("DEBUG: Locale changed from \(oldValue.identifier) to \(newValue.identifier)")
             refreshTrigger = UUID()  // Just refresh the view instead of reloading data
@@ -345,6 +361,7 @@ private struct RateRowView: View {
     let rate: RateEntity
     let viewModel: RatesViewModel
     let globalSettings: GlobalSettingsManager
+    let lastSceneActiveTime: Date  // New property
 
     private func getDayRates(for date: Date) -> [RateEntity] {
         let calendar = Calendar.current
@@ -508,6 +525,9 @@ private struct RateRowView: View {
         }
         .padding(.vertical, 4)
         .lineLimit(1)
+        .onChange(of: lastSceneActiveTime) { _, _ in
+            print("DEBUG: lastSceneActiveTime changed => re-checking NOW badge")
+        }
     }
 
     private func isRateCurrentlyActive(_ rate: RateEntity) -> Bool {
