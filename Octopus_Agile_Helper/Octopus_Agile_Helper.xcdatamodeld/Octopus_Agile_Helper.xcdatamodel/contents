@@ -25,7 +25,7 @@
     </entity>
     <entity name="RateEntity" representedClassName="OctopusHelperSharedRateEntity" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="String"/>
-        <attribute name="payment_metnod" optional="YES" attributeType="String"/>
+        <attribute name="payment_method" optional="YES" attributeType="String"/>
         <attribute name="product_code" optional="YES" attributeType="String"/>
         <attribute name="rate_type" optional="YES" attributeType="String"/>
         <attribute name="region" optional="YES" attributeType="String"/>
