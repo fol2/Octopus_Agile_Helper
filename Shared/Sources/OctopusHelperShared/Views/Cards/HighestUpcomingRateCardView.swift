@@ -75,14 +75,14 @@ public struct HighestUpcomingRateCardView: View {
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
     }
@@ -111,9 +111,10 @@ public struct HighestUpcomingRateCardView: View {
                 }
             }
 
-            if viewModel.isLoading {
+            if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
-            } else if let highestRate = viewModel.highestUpcomingRate {
+            } else if let highestObj = viewModel.highestUpcomingRate(productCode: viewModel.currentAgileCode),
+                      let highestRate = highestObj as? RateEntity {
                 VStack(alignment: .leading, spacing: 8) {
                     let parts = viewModel.formatRate(
                         highestRate.valueIncludingVAT,
@@ -125,7 +126,11 @@ public struct HighestUpcomingRateCardView: View {
                         Text(parts[0])
                             .font(Theme.mainFont())
                             .foregroundColor(
-                                RateColor.getColor(for: highestRate, allRates: viewModel.allRates))
+                                RateColor.getColor(
+                                    for: highestRate,
+                                    allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                )
+                            )
 
                         if parts.count > 1 {
                             Text(parts[1])
@@ -144,8 +149,11 @@ public struct HighestUpcomingRateCardView: View {
                     }
 
                     if localSettings.settings.additionalRatesCount > 0 {
-                        let upcomingRates = viewModel.upcomingRates
-                            .filter { ($0.validFrom ?? .distantPast) > Date() }
+                        let upcomingRates = viewModel.allRates(for: viewModel.currentAgileCode)
+                            .filter { rate in
+                                guard let start = rate.validFrom else { return false }
+                                return start > Date()
+                            }
                             .sorted { $0.valueIncludingVAT > $1.valueIncludingVAT }
 
                         if upcomingRates.count > 1 {
@@ -168,7 +176,10 @@ public struct HighestUpcomingRateCardView: View {
                                         .font(Theme.mainFont2())
                                         .foregroundColor(
                                             RateColor.getColor(
-                                                for: rate, allRates: viewModel.allRates))
+                                                for: rate,
+                                                allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                            )
+                                        )
 
                                     if rateParts.count > 1 {
                                         Text(rateParts[1])

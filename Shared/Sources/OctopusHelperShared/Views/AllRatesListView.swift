@@ -36,11 +36,12 @@ struct AllRatesListView: View {
         return formatter
     }
 
-    /// Instead of grouping and sorting the entire `viewModel.allRates`,
+    /// Instead of grouping and sorting the entire `viewModel.allRates(for: viewModel.currentAgileCode)`,
     /// this method groups & sorts whichever slice we've loaded from DB.
     private func groupAndSortRates(_ rates: [RateEntity]) -> [(String, [RateEntity])] {
         print("DEBUG: Grouping and sorting \(rates.count) rates")
-        // First, sort all rates by date
+        // These rates might come from viewModel.allRates(for: viewModel.currentAgileCode)
+        // but we pass the sliced/fetched rates directly as param.
         let sortedRates = rates.sorted { rate1, rate2 in
             guard let date1 = rate1.validFrom, let date2 = rate2.validFrom else {
                 return false
@@ -111,7 +112,7 @@ struct AllRatesListView: View {
         }
         do {
             print("DEBUG: Fetching day = \(dayStart)")
-            let newRates = try await viewModel.repository.fetchRatesForDay(dayStart)
+            let newRates = try await viewModel.fetchRatesForDay(dayStart)
             addRatesToDisplayed(newRates)
             loadedDays.append(dayStart)
         } catch {
@@ -327,14 +328,14 @@ struct AllRatesListView: View {
             .onReceive(refreshManager.$halfHourTick) { tickTime in
                 guard tickTime != nil else { return }
                 Task {
-                    await viewModel.refreshRates()
+                    await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
                     await loadInitialData()
                 }
             }
             // Also re-render if app becomes active
             .onReceive(refreshManager.$sceneActiveTick) { _ in
                 Task {
-                    await viewModel.refreshRates()
+                    await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
                     await loadInitialData()
                 }
             }
@@ -367,8 +368,9 @@ private struct RateRowView: View {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-
-        return viewModel.allRates.filter { rate in
+        // Use the product-specific call:
+        let allRates = viewModel.allRates(for: viewModel.currentAgileCode)
+        return allRates.filter { rate in
             guard let validFrom = rate.validFrom else { return false }
             return validFrom >= startOfDay && validFrom < endOfDay
         }.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
@@ -400,7 +402,7 @@ private struct RateRowView: View {
         let startOfDay = calendar.startOfDay(for: date)
         let startOfPreviousDay = calendar.date(byAdding: .day, value: -1, to: startOfDay)!
 
-        let previousDayRates = viewModel.allRates.filter { rate in
+        let previousDayRates = viewModel.allRates(for: viewModel.currentAgileCode).filter { rate in
             guard let validFrom = rate.validFrom else { return false }
             return validFrom >= startOfPreviousDay && validFrom < startOfDay
         }.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
@@ -453,7 +455,8 @@ private struct RateRowView: View {
     }
 
     private func getRateColor() -> Color {
-        return RateColor.getColor(for: rate, allRates: viewModel.allRates)
+        let allRates = viewModel.allRates(for: viewModel.currentAgileCode)
+        return RateColor.getColor(for: rate, allRates: allRates)
     }
 
     private enum TrendType {

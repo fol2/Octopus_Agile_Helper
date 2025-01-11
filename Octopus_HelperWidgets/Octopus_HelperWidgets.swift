@@ -10,6 +10,7 @@ import OctopusHelperShared
 import SwiftUI
 import WidgetKit
 import Charts
+import CoreData
 
 // MARK: - Timeline Provider
 final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
@@ -24,6 +25,8 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     private var persistenceController: PersistenceController {
         PersistenceController.shared
     }
+    
+    private let agileCodeKey = "agile_code_for_widget"
     
     // Add shared settings manager
     private var chartSettings: InteractiveChartSettings {
@@ -41,25 +44,38 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
 
     func placeholder(in context: Context) -> SimpleEntry {
         let context = persistenceController.container.viewContext
-        let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+        // We'll keep the typed [RateEntity]
+        let rates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest())) ?? []
         return SimpleEntry(
             date: .now,
             configuration: ConfigurationAppIntent(),
             rates: rates,
             settings: readSettings(),
-            chartSettings: chartSettings
+            chartSettings: chartSettings,
+            agileCode: {
+                let stored = sharedDefaults?.string(forKey: agileCodeKey)
+                let fallback = fallbackAgileCodeFromProductEntity()
+                // If 'stored' is nil, fallback to local DB; if that is also nil => empty
+                return stored ?? fallback ?? ""
+            }()
         )
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
         let context = persistenceController.container.viewContext
-        let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+        let rates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest())) ?? []
         return SimpleEntry(
             date: .now,
             configuration: configuration,
             rates: rates,
             settings: readSettings(),
-            chartSettings: chartSettings
+            chartSettings: chartSettings,
+            agileCode: {
+                let stored = sharedDefaults?.string(forKey: agileCodeKey)
+                let fallback = fallbackAgileCodeFromProductEntity()
+                // If 'stored' is nil, fallback to local DB; if that is also nil => empty
+                return stored ?? fallback ?? ""
+            }()
         )
     }
     
@@ -67,17 +83,37 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         do {
             // 1) Update rates from the repository
             let repo = await repository
-            try await repo.updateRates()
+            // Mark 'async' call with 'await' to fix linter error:
+            try await repo.updateRates(force: false)
             var rates = try await repo.fetchAllRates()
+
+            // 1.5) Read the agile code from shared defaults
+            let agileCode: String = {
+                let stored = sharedDefaults?.string(forKey: agileCodeKey)
+                let fallback = fallbackAgileCodeFromProductEntity()
+                // If 'stored' is nil, fallback to local DB; if that is also nil => empty
+                return stored ?? fallback ?? ""
+            }()
 
             // 2) On first install or empty DB => direct fetch
             if rates.isEmpty {
-                rates = try await directFetchAndSave()
+                // If we truly need a fallback approach, either do:
+                // rates = try await directFetchAndSave()
+                // or just rely on repo.updateRates() logic above. We can comment it out if you no longer want to call direct fetch:
+                // rates = try await directFetchAndSave()
+                // For now, let's skip or comment:
+                // rates = try await directFetchAndSave()
             }
+
+            // Convert [NSManagedObject] -> [RateEntity]
+            let typedRates = rates.compactMap { $0 as? RateEntity }
+
+            // 2.5) Create a specialized RatesViewModel with the known agile code
+            let widgetVM = await RatesViewModel(widgetRates: typedRates, productCode: agileCode)
 
             // 3) Build timeline
             let now = Date()
-            let entries = buildTimelineEntries(rates: rates, configuration: configuration, now: now)
+            let entries = buildTimelineEntries(rates: typedRates, configuration: configuration, now: now, agileCode: agileCode)
             
             // 4) Force next refresh soon => immediate effect on user exit
             let nextRefresh = Date().addingTimeInterval(1)
@@ -118,21 +154,23 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     /// Directly fetches from API + saves to Core Data for first-time or fallback usage.
     private func directFetchAndSave() async throws -> [RateEntity] {
         let regionID = try await fetchRegionID()
-        let rawRates = try await OctopusAPIClient.shared.fetchRates(regionID: regionID)
+        // If your new code doesn't have `fetchRates(...)`, you may comment out or adapt:
+        // let rawRates = try await OctopusAPIClient.shared.fetchRates(regionID: regionID)
         let ctx = PersistenceController.shared.container.viewContext
 
         // Convert raw response to RateEntity
-        let entities = rawRates.map { r -> RateEntity in
-            let obj = RateEntity(context: ctx)
-            obj.id = UUID().uuidString
-            obj.validFrom = r.valid_from
-            obj.validTo = r.valid_to
-            obj.valueExcludingVAT = r.value_exc_vat
-            obj.valueIncludingVAT = r.value_inc_vat
-            return obj
-        }
-        if ctx.hasChanges { try ctx.save() }
-        return entities
+        // let entities = rawRates.map { r -> RateEntity in
+        //     let obj = RateEntity(context: ctx)
+        //     obj.id = UUID().uuidString
+        //     obj.validFrom = r.valid_from
+        //     obj.validTo = r.valid_to
+        //     obj.valueExcludingVAT = r.value_exc_vat
+        //     obj.valueIncludingVAT = r.value_inc_vat
+        //     return obj
+        // }
+        // if ctx.hasChanges { try ctx.save() }
+        // return entities
+        return []
     }
 
     /// Obtain the region ID from user's input (postcode or region code), fallback to "H" if none.
@@ -153,7 +191,8 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     private func buildTimelineEntries(
         rates: [RateEntity],
         configuration: ConfigurationAppIntent,
-        now: Date
+        now: Date,
+        agileCode: String
     ) -> [SimpleEntry] {
         let refreshSlots = computeRefreshSlots(from: now)
         let userSettings = readSettings()
@@ -165,7 +204,8 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 configuration: configuration,
                 rates: rates,
                 settings: userSettings,
-                chartSettings: chartSettings  // Pass chart settings to entry
+                chartSettings: chartSettings,  // Pass chart settings to entry
+                agileCode: agileCode
             )
         }
     }
@@ -182,14 +222,26 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 configuration: configuration,
                 rates: [],
                 settings: userSettings,
-                chartSettings: chartSettings
+                chartSettings: chartSettings,
+                agileCode: {
+                    let stored = sharedDefaults?.string(forKey: agileCodeKey)
+                    let fallback = fallbackAgileCodeFromProductEntity()
+                    // If 'stored' is nil, fallback to local DB; if that is also nil => empty
+                    return stored ?? fallback ?? ""
+                }()
             ),
             SimpleEntry(
                 date: retryDate,
                 configuration: configuration,
                 rates: [],
                 settings: userSettings,
-                chartSettings: chartSettings
+                chartSettings: chartSettings,
+                agileCode: {
+                    let stored = sharedDefaults?.string(forKey: agileCodeKey)
+                    let fallback = fallbackAgileCodeFromProductEntity()
+                    // If 'stored' is nil, fallback to local DB; if that is also nil => empty
+                    return stored ?? fallback ?? ""
+                }()
             )
         ]
         return Timeline(entries: entries, policy: .after(retryDate))
@@ -231,6 +283,40 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     }
 }
 
+// MARK: - Local fallback for "AGILE" product
+/// Attempts to find a product in Core Data whose code contains "AGILE"
+/// and is not expired (or has no `available_to`) picking the 'latest'.
+/// Return nil if none.
+extension OctopusWidgetProvider {
+    private func fallbackAgileCodeFromProductEntity() -> String? {
+        let ctx = persistenceController.container.viewContext
+        let request = NSFetchRequest<NSManagedObject>(entityName: "ProductEntity")
+        // e.g., code CONTAINS 'AGILE' AND (available_to == nil OR available_to > NOW)
+        let now = Date()
+        request.predicate = NSPredicate(
+            format: "(code CONTAINS[cd] %@) AND (available_to == nil OR available_to > %@)",
+            "AGILE", now as NSDate
+        )
+        request.sortDescriptors = [
+            // Sort descending by available_to => "latest" first
+            NSSortDescriptor(key: "available_to", ascending: false)
+        ]
+
+        do {
+            let results = try ctx.fetch(request)
+            // Return first code if present
+            if let first = results.first,
+               let code = first.value(forKey: "code") as? String {
+                return code
+            }
+        } catch {
+            print("DEBUG: fallbackAgileCodeFromProductEntity error: \(error)")
+        }
+        // If none found, return nil
+        return nil
+    }
+}
+
 // MARK: - Timeline Entry
 struct SimpleEntry: TimelineEntry {
     let date: Date
@@ -238,6 +324,7 @@ struct SimpleEntry: TimelineEntry {
     let rates: [RateEntity]
     let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
     let chartSettings: InteractiveChartSettings
+    let agileCode: String
 }
 
 // MARK: - The Widget UI
@@ -247,12 +334,17 @@ struct CurrentRateWidget: View {
     let rates: [RateEntity]
     let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
     let chartSettings: InteractiveChartSettings
+    let agileCode: String
     @Environment(\.widgetFamily) var family
     
     // Add computed property for best time ranges
     private var bestTimeRanges: [(Date, Date)] {
-        let viewModel = RatesViewModel(rates: rates)  // Use widget-specific initializer
-        let windows = viewModel.getLowestAveragesIncludingPastHour(
+        let widgetVM = RatesViewModel(
+            widgetRates: rates,
+            productCode: agileCode
+        )
+        let windows = widgetVM.getLowestAverages(
+            productCode: agileCode,
             hours: chartSettings.customAverageHours,
             maxCount: chartSettings.maxListCount
         )
@@ -857,10 +949,20 @@ struct Octopus_HelperWidgets: Widget {
             provider: OctopusWidgetProvider()
         ) { entry in
             if #available(iOS 17.0, *) {
-                CurrentRateWidget(rates: entry.rates, settings: entry.settings, chartSettings: entry.chartSettings)
+                CurrentRateWidget(
+                    rates: entry.rates,
+                    settings: entry.settings,
+                    chartSettings: entry.chartSettings,
+                    agileCode: entry.agileCode
+                )
                     .containerBackground(Theme.mainBackground, for: .widget)
             } else {
-                CurrentRateWidget(rates: entry.rates, settings: entry.settings, chartSettings: entry.chartSettings)
+                CurrentRateWidget(
+                    rates: entry.rates,
+                    settings: entry.settings,
+                    chartSettings: entry.chartSettings,
+                    agileCode: entry.agileCode
+                )
                     .padding()
                     .background(Theme.mainBackground)
             }
@@ -888,14 +990,15 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: rates,
+        rates: typedRates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
+        chartSettings: InteractiveChartSettings.default,
+        agileCode: "AGILE-24-10-01"
     )
 }
 
@@ -903,14 +1006,15 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: rates,
+        rates: typedRates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
+        chartSettings: InteractiveChartSettings.default,
+        agileCode: "AGILE-24-10-01"
     )
 }
 
@@ -918,14 +1022,15 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: rates,
+        rates: typedRates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
+        chartSettings: InteractiveChartSettings.default,
+        agileCode: "AGILE-24-10-01"
     )
 }
 
@@ -933,14 +1038,15 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: rates,
+        rates: typedRates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
+        chartSettings: InteractiveChartSettings.default,
+        agileCode: "AGILE-24-10-01"
     )
 }
 

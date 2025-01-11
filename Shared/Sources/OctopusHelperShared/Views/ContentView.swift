@@ -116,10 +116,8 @@ public final class ContentViewModel: ObservableObject {
 public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
-
-    // NEW: StateObject for the main RatesViewModel, initialized in onAppear
-    @StateObject private var ratesVM: RatesViewModel
-    @StateObject private var consumptionVM: ConsumptionViewModel
+    @EnvironmentObject var ratesVM: RatesViewModel
+    @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var statusManager = FetchStatusManager()
     @StateObject private var viewModel = ContentViewModel()
 
@@ -143,13 +141,7 @@ public struct ContentView: View {
         return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
    }
 
-    public init() {
-        // Initialize the RatesViewModel with a temporary GlobalTimer
-        // We'll update it with the real one in onAppear
-        let tempTimer = GlobalTimer()
-        _ratesVM = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
-        _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
-    }
+    public init() {}
 
     public var body: some View {
         NavigationStack {
@@ -199,12 +191,8 @@ public struct ContentView: View {
             // Pull-to-refresh
             .refreshable {
                 await withTaskGroup(of: Void.self) { group in
-                    group.addTask {
-                        await ratesVM.refreshRates(force: true)
-                    }
-                    group.addTask {
-                        await consumptionVM.refreshDataFromAPI(force: true)
-                    }
+                    group.addTask { await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true) }
+                    group.addTask { await consumptionVM.refreshDataFromAPI(force: true) }
                 }
             }
             // Detect offset changes => check if we collapsed large title
@@ -250,10 +238,9 @@ public struct ContentView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
                 Task {
-                    await ratesVM.loadRates()
+                    await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
                     await consumptionVM.loadData()
-                    
-                    // If consumption is pending, trigger a refresh
+
                     if consumptionVM.fetchStatus == .pending {
                         await consumptionVM.refreshDataFromAPI(force: false)
                     }
@@ -271,7 +258,7 @@ public struct ContentView: View {
             // Check rates at 16:00
             if hour == 16, minute == 0, second == 0 {
                 Task {
-                    await ratesVM.loadRates()
+                    await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
                 }
             }
             
@@ -290,24 +277,16 @@ public struct ContentView: View {
         // Called once when the view appears to create all card view models
         .onAppear {
             setupStatusObservers()
-            // Update the RatesViewModel with the real GlobalTimer
-            ratesVM.updateTimer(globalTimer)
-            
-            // Keep dictionary for all other card types except .currentRate
             for cardType in CardType.allCases where cardType != .currentRate {
                 if cardViewModels[cardType] == nil {
                     let newVM = CardRegistry.shared.createViewModel(for: cardType)
                     cardViewModels[cardType] = newVM
-                    // Optionally update timer if needed
-                    if let timedRatesVM = newVM as? RatesViewModel {
-                        timedRatesVM.updateTimer(globalTimer)
-                    }
                 }
             }
         }
         // Attempt to load data
         .task {
-            await ratesVM.loadRates()
+            await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
             await consumptionVM.loadData()
         }
     }
@@ -315,7 +294,7 @@ public struct ContentView: View {
     private func setupStatusObservers() {
         ratesVM.$fetchStatus
             .sink { [weak statusManager] status in
-                statusManager?.update(ratesStatus: status)
+                statusManager?.update(ratesStatus: convertToLocalFetchStatus(status))
             }
             .store(in: &viewModel.cancellables)
             
@@ -324,6 +303,18 @@ public struct ContentView: View {
                 statusManager?.update(consumptionStatus: status)
             }
             .store(in: &viewModel.cancellables)
+    }
+
+    // Provide a helper to convert ProductFetchStatus -> local FetchStatus
+    private func convertToLocalFetchStatus(_ pfs: ProductFetchStatus) -> FetchStatus {
+        // minimal logic
+        switch pfs {
+        case .none: return .none
+        case .fetching: return .fetching
+        case .done: return .done
+        case .pending: return .pending
+        case .failed(_): return .failed
+        }
     }
 
     /// Sort user's card configs by sortOrder
@@ -381,7 +372,12 @@ struct CardLockedView: View {
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(GlobalTimer())
-        .environmentObject(GlobalSettingsManager())
+    let globalTimer = GlobalTimer()
+    let globalSettings = GlobalSettingsManager()
+    let ratesVM = RatesViewModel(globalTimer: globalTimer)
+
+    return ContentView()
+        .environmentObject(globalTimer)
+        .environmentObject(globalSettings)
+        .environmentObject(ratesVM)
 }

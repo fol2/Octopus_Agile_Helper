@@ -127,9 +127,23 @@ public struct GlobalSettings: Codable {
     public var electricityMPAN: String?
     public var electricityMeterSerialNumber: String?
 
+    // New Fields for Account-based logic
+    /// If user chooses the "Account Number" approach:
+    public var accountNumber: String?
+
+    /// Optionally store the entire account JSON (raw) for reference or debugging
+    public var accountData: Data?
+
     public init(
-        regionInput: String, apiKey: String, selectedLanguage: Language, showRatesInPounds: Bool,
-        cardSettings: [CardConfig], electricityMPAN: String? = nil, electricityMeterSerialNumber: String? = nil
+        regionInput: String,
+        apiKey: String,
+        selectedLanguage: Language,
+        showRatesInPounds: Bool,
+        cardSettings: [CardConfig],
+        electricityMPAN: String? = nil,
+        electricityMeterSerialNumber: String? = nil,
+        accountNumber: String? = nil,
+        accountData: Data? = nil
     ) {
         self.regionInput = regionInput
         self.apiKey = apiKey
@@ -138,6 +152,8 @@ public struct GlobalSettings: Codable {
         self.cardSettings = cardSettings
         self.electricityMPAN = electricityMPAN
         self.electricityMeterSerialNumber = electricityMeterSerialNumber
+        self.accountNumber = accountNumber
+        self.accountData = accountData
     }
 }
 
@@ -150,7 +166,9 @@ extension GlobalSettings {
         showRatesInPounds: false,
         cardSettings: [],
         electricityMPAN: nil,
-        electricityMeterSerialNumber: nil
+        electricityMeterSerialNumber: nil,
+        accountNumber: nil,
+        accountData: nil
     )
 }
 
@@ -191,7 +209,11 @@ public class GlobalSettingsManager: ObservableObject {
                 apiKey: "",
                 selectedLanguage: matchedLanguage,
                 showRatesInPounds: false,
-                cardSettings: []
+                cardSettings: [],
+                electricityMPAN: nil,
+                electricityMeterSerialNumber: nil,
+                accountNumber: nil,
+                accountData: nil
             )
             self.locale = matchedLanguage.locale
         }
@@ -262,6 +284,8 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
             sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
             sharedDefaults?.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
+            sharedDefaults?.set(settings.accountNumber, forKey: "account_number")
+            sharedDefaults?.set(settings.accountData, forKey: "account_data")
             
             // Notify widget of changes
             #if !WIDGET

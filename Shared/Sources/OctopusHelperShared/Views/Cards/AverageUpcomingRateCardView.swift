@@ -83,15 +83,14 @@ public struct AverageUpcomingRateCardView: View {
         // Re-render on half-hour
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
-            Task {
-                await viewModel.refreshRates()
-            }
+            // Pass the Agile code:
+            Task { await viewModel.refreshRates(productCode: viewModel.currentAgileCode) }
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
     }
@@ -122,10 +121,12 @@ public struct AverageUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading {
+            if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
             } else {
+                // aggregator usage => unchanged, but we do not call `$viewModel`
                 let averages = viewModel.getLowestAverages(
+                    productCode: viewModel.currentAgileCode,
                     hours: localSettings.settings.customAverageHours,
                     maxCount: localSettings.settings.maxListCount
                 )
@@ -246,41 +247,48 @@ public struct AverageUpcomingRateCardView: View {
 
     // MARK: - Color Helper
     private func getRateColorForAverage(_ average: Double, _ start: Date, _ end: Date) -> Color {
-        // Get all rates sorted by time
-        let sortedRates = viewModel.allRates
-            .filter { $0.validFrom != nil }
+        // Retrieve all typed rates from the VM:
+        let sortedRates = viewModel.allRates(for: viewModel.currentAgileCode)
             .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
 
         // Find the rate that starts closest to our average's start time
         let nearestRate =
-            sortedRates
-            .min { rate1, rate2 in
-                let diff1 = abs((rate1.validFrom ?? .distantFuture).timeIntervalSince(start))
-                let diff2 = abs((rate2.validFrom ?? .distantFuture).timeIntervalSince(start))
+            sortedRates.min { rate1, rate2 in
+                let diff1 = abs((rate1.validFrom ?? .distantFuture)
+                                 .timeIntervalSince(start))
+                let diff2 = abs((rate2.validFrom ?? .distantFuture)
+                                 .timeIntervalSince(start))
                 return diff1 < diff2
             }
 
-        // Find rates that overlap with our average period
-        let overlappingRates = sortedRates.filter { rate in
-            guard let rateStart = rate.validFrom, let rateEnd = rate.validTo else { return false }
-            return (rateStart < end && rateEnd > start)
-        }
+        // First try to find overlapping rates
+        if let rate = nearestRate,
+            let rateStart = rate.validFrom,
+            let rateEnd = rate.validTo
+        {
+            let overlappingRates = sortedRates.filter { rate in
+                guard let s = rate.validFrom,
+                    let e = rate.validTo
+                else { return false }
+                return (s <= end && e >= start)
+            }
 
-        // If we have overlapping rates, use the one closest in value to our average
-        if !overlappingRates.isEmpty {
-            let closestRate =
-                overlappingRates
-                .min { rate1, rate2 in
-                    abs(rate1.valueIncludingVAT - average) < abs(rate2.valueIncludingVAT - average)
+            if !overlappingRates.isEmpty {
+                let closestRate =
+                    overlappingRates.min { r1, r2 in
+                        let diff1 = abs(r1.valueIncludingVAT - average)
+                        let diff2 = abs(r2.valueIncludingVAT - average)
+                        return diff1 < diff2
+                    }
+                if let rate = closestRate {
+                    return RateColor.getColor(for: rate, allRates: sortedRates)
                 }
-            if let rate = closestRate {
-                return RateColor.getColor(for: rate, allRates: viewModel.allRates)
             }
         }
 
         // Fallback to nearest rate by time if no overlapping rates
         if let rate = nearestRate {
-            return RateColor.getColor(for: rate, allRates: viewModel.allRates)
+            return RateColor.getColor(for: rate, allRates: sortedRates)
         }
 
         return .white

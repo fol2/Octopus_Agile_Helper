@@ -15,12 +15,13 @@ public struct CurrentRateCardView: View {
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
-    private func getDayRates(for date: Date) -> [RateEntity] {
+    private func getDayRates(for date: Date, productCode: String) -> [RateEntity] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
-        return viewModel.allRates.filter { rate in
+        let allRates = viewModel.allRates(for: productCode)
+        return allRates.filter { rate in
             guard let validFrom = rate.validFrom else { return false }
             return validFrom >= startOfDay && validFrom < endOfDay
         }.sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
@@ -32,7 +33,7 @@ public struct CurrentRateCardView: View {
         }
 
         // Get all rates for the day
-        let dayRates = getDayRates(for: currentValidFrom)
+        let dayRates = getDayRates(for: currentValidFrom, productCode: viewModel.currentAgileCode)
 
         // Handle negative rates
         if rate.valueIncludingVAT < 0 {
@@ -104,7 +105,7 @@ public struct CurrentRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading {
+            if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
             } else if let currentRate = getCurrentRate() {
                 // The current rate block
@@ -120,7 +121,11 @@ public struct CurrentRateCardView: View {
                         Text(parts[0])
                             .font(Theme.mainFont())
                             .foregroundColor(
-                                RateColor.getColor(for: currentRate, allRates: viewModel.allRates))
+                                RateColor.getColor(
+                                    for: currentRate,
+                                    allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                )
+                            )
 
                         // E.g., "/kWh"
                         Text(parts.count > 1 ? parts[1] : "")
@@ -154,7 +159,7 @@ public struct CurrentRateCardView: View {
             guard tickTime != nil else { return }
             Task {
                 clockIconTrigger = Date()  // Update clock icon
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
         // Also re-render if app becomes active
@@ -162,7 +167,7 @@ public struct CurrentRateCardView: View {
             refreshTrigger.toggle()
             clockIconTrigger = Date()  // Update clock icon
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
         .onTapGesture {
@@ -213,7 +218,7 @@ public struct CurrentRateCardView: View {
     /// Fetches the current active rate if any (validFrom <= now < validTo).
     private func getCurrentRate() -> RateEntity? {
         let now = Date()
-        return viewModel.upcomingRates.first { rate in
+        return viewModel.allRates(for: viewModel.currentAgileCode).first { rate in
             guard let start = rate.validFrom, let end = rate.validTo else { return false }
             return start <= now && end > now
         }

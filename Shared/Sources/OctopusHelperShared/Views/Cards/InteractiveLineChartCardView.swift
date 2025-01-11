@@ -106,7 +106,7 @@ public struct InteractiveLineChartCardView: View {
         // Instead of local timer, we use CardRefreshManager
         .onReceive(refreshManager.$minuteTick) { tickTime in
             guard let t = tickTime else { return }
-            self.now = t
+            now = t
             handleMinuteTick()
         }
         .onReceive(refreshManager.$halfHourTick) { tickTime in
@@ -114,16 +114,17 @@ public struct InteractiveLineChartCardView: View {
             recalcBarWidthAndPrintOnce()
         }
         .onReceive(refreshManager.$sceneActiveTick) { _ in
-            now = Date()
+            now = Date()  // update "now"
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
         .onChange(of: filteredRates, initial: true) { oldValue, newValue in
             recalcBarWidthAndPrintOnce()
         }
         .onAppear {
-            now = Date()
+            // Update "now" & recalc when card first appears
+            now = Date()  
             recalcBarWidthAndPrintOnce()
         }
         .rateCardStyle()
@@ -135,7 +136,7 @@ extension InteractiveLineChartCardView {
     private var frontSide: some View {
         VStack(alignment: .leading, spacing: 12) {
             headerBar
-            if viewModel.isLoading {
+            if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
             } else if filteredRates.isEmpty {
                 noDataView
@@ -478,7 +479,10 @@ extension InteractiveLineChartCardView {
         let start = now.addingTimeInterval(-3600)
         let end = now.addingTimeInterval(48 * 3600)
 
-        return viewModel.allRates
+        // Use product-specific call:
+        let allAgileRates = viewModel.allRates(for: viewModel.currentAgileCode)
+
+        return allAgileRates
             .filter { $0.validFrom != nil && $0.validTo != nil }
             .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
             .filter {
@@ -508,7 +512,8 @@ extension InteractiveLineChartCardView {
 
     /// The "best" time windows from the VM, merged, raw version for labels
     private var bestTimeRangesRaw: [(Date, Date)] {
-        let windows = viewModel.getLowestAveragesIncludingPastHour(
+        let windows = viewModel.getLowestAverages(
+            productCode: viewModel.currentAgileCode,
             hours: localSettings.settings.customAverageHours,
             maxCount: localSettings.settings.maxListCount
         )

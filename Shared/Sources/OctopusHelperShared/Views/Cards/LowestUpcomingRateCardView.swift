@@ -81,14 +81,14 @@ public struct LowestUpcomingRateCardView: View {
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
             Task {
-                await viewModel.refreshRates()
+                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
             }
         }
     }
@@ -120,22 +120,28 @@ public struct LowestUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading {
+            if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
-            } else if let lowestRate = viewModel.lowestUpcomingRate {
+            } else if let lowestObj = viewModel.lowestUpcomingRate(productCode: viewModel.currentAgileCode),
+                      let lowestRate = lowestObj as? RateEntity {
 
                 VStack(alignment: .leading, spacing: 8) {
                     // Main lowest rate
                     HStack(alignment: .firstTextBaseline) {
-                        let parts = viewModel.formatRate(
+                        let valueStr = viewModel.formatRate(
                             lowestRate.valueIncludingVAT,
                             showRatesInPounds: globalSettings.settings.showRatesInPounds
-                        ).split(separator: " ")
+                        )
+                        let parts = valueStr.split(separator: " ")
 
                         Text(parts[0])
                             .font(Theme.mainFont())
                             .foregroundColor(
-                                RateColor.getColor(for: lowestRate, allRates: viewModel.allRates))
+                                RateColor.getColor(
+                                    for: lowestRate,
+                                    allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                )
+                            )
 
                         if parts.count > 1 {
                             Text(parts[1])
@@ -144,24 +150,29 @@ public struct LowestUpcomingRateCardView: View {
                         }
 
                         Spacer()
-                        Text(
-                            formatTimeRange(
-                                lowestRate.validFrom, lowestRate.validTo,
-                                locale: globalSettings.locale)
-                        )
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.secondaryTextColor)
+                        if let fromDate = lowestRate.validFrom,
+                           let toDate = lowestRate.validTo {
+                            Text(
+                                formatTimeRange(
+                                    fromDate, toDate,
+                                    locale: globalSettings.locale
+                                )
+                            )
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        }
                     }
 
                     // Additional lowest rates if configured
                     if localSettings.settings.additionalRatesCount > 0 {
-                        let upcomingRates = Array(viewModel.upcomingRates)
+                        // We'll filter allRates(for:) for upcoming
+                        let upcomingRates = viewModel.allRates(for: viewModel.currentAgileCode)
                             .filter { rate in
                                 guard let validFrom = rate.validFrom else { return false }
                                 return validFrom > Date()
                             }
-                            .sorted { rate1, rate2 in
-                                rate1.valueIncludingVAT < rate2.valueIncludingVAT
+                            .sorted { r1, r2 in
+                                r1.valueIncludingVAT < r2.valueIncludingVAT
                             }
 
                         if upcomingRates.count > 1 {
@@ -169,19 +180,24 @@ public struct LowestUpcomingRateCardView: View {
                             ForEach(
                                 upcomingRates.prefix(
                                     localSettings.settings.additionalRatesCount + 1
-                                ).dropFirst(), id: \.validFrom
+                                ).dropFirst(),
+                                id: \.validFrom
                             ) { rate in
-                                let subParts = viewModel.formatRate(
-                                    rate.valueIncludingVAT,
-                                    showRatesInPounds: globalSettings.settings.showRatesInPounds
-                                ).split(separator: " ")
-
                                 HStack(alignment: .firstTextBaseline) {
+                                    let valStr = viewModel.formatRate(
+                                        rate.valueIncludingVAT,
+                                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                    )
+                                    let subParts = valStr.split(separator: " ")
+
                                     Text(subParts[0])
                                         .font(Theme.mainFont2())
                                         .foregroundColor(
                                             RateColor.getColor(
-                                                for: rate, allRates: viewModel.allRates))
+                                                for: rate,
+                                                allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                            )
+                                        )
 
                                     if subParts.count > 1 {
                                         Text(subParts[1])
@@ -189,19 +205,19 @@ public struct LowestUpcomingRateCardView: View {
                                             .foregroundColor(Theme.secondaryTextColor)
                                     }
                                     Spacer()
-                                    Text(
-                                        formatTimeRange(
-                                            rate.validFrom, rate.validTo,
-                                            locale: globalSettings.locale)
-                                    )
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.secondaryTextColor)
+                                    if let fromD = rate.validFrom,
+                                       let toD = rate.validTo {
+                                        Text(
+                                            formatTimeRange(fromD, toD, locale: globalSettings.locale)
+                                        )
+                                        .font(Theme.subFont())
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-
             } else {
                 Text("No upcoming rates available")
                     .foregroundColor(Theme.secondaryTextColor)

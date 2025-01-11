@@ -571,15 +571,13 @@ struct SettingsView: View {
     @State private var lookupRegionManually = false
     @State private var lookupError: String?
 
+    // new states for account approach
+    @State private var accountNumberInput: String = ""
+    @State private var isFetchingAccount = false
+    @State private var fetchError: String?
+
     var body: some View {
         Form {
-            if let cached = OctopusAPIClient.shared.getCachedAgileMetadata() {
-                Text(cached.fullName)
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-                    .listRowBackground(Theme.mainBackground)
-            }
-            
             Section(
                 header: HStack {
                     Text("Cards")
@@ -623,7 +621,7 @@ struct SettingsView: View {
             
             Section(
                 header: HStack {
-                    Text("Region Lookup")
+                    Text(LocalizedStringKey("Region Lookup"))
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                         .textCase(.none)
@@ -694,6 +692,51 @@ struct SettingsView: View {
                 } else {
                     RegionLookupView(postcode: input, triggerLookup: $lookupRegionManually, lookupError: $lookupError)
                 }
+            }
+
+            // Account Number Fetch section
+            Section(
+                header: Text("Account Number Fetch")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)) {
+                // Account Number Fetch section above is unchanged
+                // except we removed the if-let block referencing an unknown method
+                TextField("Enter Account Number", text: $accountNumberInput)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                
+                if isFetchingAccount {
+                    ProgressView("Fetching Account Data...")
+                } else {
+                    Button("Confirm") {
+                        Task {
+                            await confirmAccountNumber()
+                        }
+                    }
+                    .disabled(accountNumberInput.isEmpty || globalSettings.settings.apiKey.isEmpty)
+                }
+                if let fetchError = fetchError {
+                    Text(fetchError).foregroundColor(.red)
+                }
+            }
+
+            Section(
+                header: HStack {
+                    Text(LocalizedStringKey("Electricity Meter Details"))
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    InfoButton(
+                        message: LocalizedStringKey(
+                            "Enter your electricity meter details to access personal consumption data..."
+                        ),
+                        title: LocalizedStringKey("Electricity Meter Details"),
+                        mediaItems: []
+                    )
+                }
+            ) { 
+                // Removed the placeholder block to prevent compile-time errors 
             }
 
             Section(
@@ -774,6 +817,25 @@ struct SettingsView: View {
         .background(Theme.mainBackground)
         .environment(\.locale, globalSettings.locale)
         .navigationTitle(LocalizedStringKey("Settings"))
+    }
+    
+    private func confirmAccountNumber() async {
+        isFetchingAccount = true
+        fetchError = nil
+        do {
+            try await AccountRepository.shared.fetchAndStoreAccount(
+                accountNumber: accountNumberInput,
+                apiKey: globalSettings.settings.apiKey
+            )
+            // on success, the repository has updated globalSettings with MPAN + Serial.
+            // so we might read them here if we want to show a success message:
+            if let mpan = globalSettings.settings.electricityMPAN {
+                print("Auto-filled MPAN: \(mpan)")
+            }
+        } catch {
+            fetchError = error.localizedDescription
+        }
+        isFetchingAccount = false
     }
 }
 

@@ -115,6 +115,46 @@ public struct ConsumptionRecord: Codable {
     public let interval_end: Date
 }
 
+// MARK: - Account Models
+/// Account-level response structures (sketch)
+public struct OctopusAccountResponse: Codable {
+    public let number: String
+    public let properties: [OctopusProperty]
+}
+
+public struct OctopusProperty: Codable {
+    public let id: Int
+    public let electricity_meter_points: [OctopusElectricityMP]?
+    public let gas_meter_points: [OctopusGasMP]?
+    // plus fields like address_line_1, moved_in_at, etc.
+}
+
+public struct OctopusElectricityMP: Codable {
+    public let mpan: String
+    public let meters: [OctopusElecMeter]?
+    public let agreements: [OctopusAgreement]?
+}
+
+public struct OctopusElecMeter: Codable {
+    public let serial_number: String
+}
+
+public struct OctopusAgreement: Codable {
+    public let tariff_code: String
+    public let valid_from: String?
+    public let valid_to: String?
+}
+
+public struct OctopusGasMP: Codable {
+    public let mprn: String
+    public let meters: [OctopusGasMeter]?
+    public let agreements: [OctopusAgreement]?
+}
+
+public struct OctopusGasMeter: Codable {
+    public let serial_number: String
+}
+
 // MARK: - Client
 public final class OctopusAPIClient {
     // MARK: Singleton
@@ -217,6 +257,24 @@ extension OctopusAPIClient {
         // { count, next, previous, results[...] } with "value_exc_vat", etc.
         // So we can reuse the same approach as fetchTariffRates.
         return try await fetchTariffRates(url: url)
+    }
+
+    /// Fetch the user's account data by account number.
+    public func fetchAccountData(accountNumber: String, apiKey: String) async throws -> OctopusAccountResponse {
+        guard !accountNumber.isEmpty, !apiKey.isEmpty else {
+            throw OctopusAPIError.invalidAPIKey
+        }
+        let urlString = "\(baseURL)/accounts/\(accountNumber)/"
+        guard let url = URL(string: urlString) else {
+            throw OctopusAPIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        let authString = "\(apiKey):"
+        let authData = authString.data(using: .utf8)!.base64EncodedString()
+        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
+
+        return try await fetchDecodable(OctopusAccountResponse.self, from: request)
     }
 }
 

@@ -9,6 +9,9 @@ struct Octopus_Agile_HelperApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var globalSettings = GlobalSettingsManager()
+    @StateObject private var ratesVM = RatesViewModel(
+        globalTimer: GlobalTimer() // replaced later in onAppear
+    )
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("isLoading") private var isLoading = true
     
@@ -44,6 +47,17 @@ struct Octopus_Agile_HelperApp: App {
         }
     }
 
+    private func syncProductsIfNeeded() async {
+        do {
+            // If you want only certain brand, pass it here; e.g., syncAllProducts(brand: "OCTOPUS_ENERGY").
+            // Otherwise, just call syncAllProducts() with no params:
+            let _ = try await ProductsRepository.shared.syncAllProducts()
+            print("DEBUG: Products sync completed.")
+        } catch {
+            print("DEBUG: Error syncing products: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -51,11 +65,13 @@ struct Octopus_Agile_HelperApp: App {
                     .environment(\.managedObjectContext, persistenceController.container.viewContext)
                     .environmentObject(globalTimer)
                     .environmentObject(globalSettings)
+                    .environmentObject(ratesVM)
                     .environment(\.locale, globalSettings.locale)
                     .preferredColorScheme(.dark)
                     .onChange(of: scenePhase) { _, newPhase in
                         switch newPhase {
                         case .active:
+                            ratesVM.updateTimer(globalTimer)
                             globalTimer.startTimer()
                             globalTimer.refreshTime()
                             // Check loading status periodically
@@ -74,6 +90,17 @@ struct Octopus_Agile_HelperApp: App {
                             break
                         @unknown default:
                             break
+                        }
+                    }
+                    .onAppear {
+                        Task {
+                            // 1) Ensure local Products are synced from API
+                            await syncProductsIfNeeded()
+
+                            // 2) Let RatesViewModel detect user's agile product or fallback
+                            await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                            // Then load rates
+                            await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
                         }
                     }
                 
