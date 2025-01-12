@@ -55,37 +55,46 @@ public struct OctopusSingleProductDetail: Decodable {
     public let full_name: String
     public let display_name: String
     public let description: String
-
-    // These dictionaries map region strings (e.g. "_H") to some structured object.
-    // We decode them if we need them to discover links for day/night/standard-unit-rates, etc.
+    
+    public let tariffs_active_at: Date?
+    
     public let single_register_electricity_tariffs: [String: OctopusRegionData]?
     public let dual_register_electricity_tariffs: [String: OctopusRegionData]?
     public let single_register_gas_tariffs: [String: OctopusRegionData]?
     public let dual_register_gas_tariffs: [String: OctopusRegionData]?
-
+    
     public let brand: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case code
+        case full_name
+        case display_name
+        case description
+        case tariffs_active_at
+        case single_register_electricity_tariffs
+        case dual_register_electricity_tariffs
+        case single_register_gas_tariffs
+        case dual_register_gas_tariffs
+        case brand
+    }
 }
 
 /// Nested object containing direct info about the tariff in that region.
 public struct OctopusRegionData: Decodable {
-    // Depending on the product, you might see "varying", "direct_debit_monthly", etc.
-    // We'll parse them generically or skip if we only want the links array.
-    // Example:
-    //  {
-    //    "varying": { "code": "E-1R-VAR-22-11-01-A", ... },
-    //    "links": [
-    //      { "href": ".../standard-unit-rates/", "rel": "standard_unit_rates" },
-    //      { "href": ".../standing-charges/", "rel": "standing_charges" }
-    //    ]
-    //  }
-    public let varying: OctopusTariffDefinition?
-    public let direct_debit_monthly: OctopusTariffDefinition? // If needed
+    public let direct_debit_monthly: OctopusTariffDefinition?
 }
 
 /// The "varying" or "direct_debit_monthly" object
 public struct OctopusTariffDefinition: Decodable {
     public let code: String
     public let links: [OctopusLinkItem]?
+    public let online_discount_exc_vat: Double?
+    public let online_discount_inc_vat: Double?
+    public let dual_fuel_discount_exc_vat: Double?
+    public let dual_fuel_discount_inc_vat: Double?
+    public let exit_fees_exc_vat: Double?
+    public let exit_fees_inc_vat: Double?
+    public let exit_fees_type: String?
 }
 
 /// Tariff Rate item returned by e.g. `GET .../standard-unit-rates/?page=1`.

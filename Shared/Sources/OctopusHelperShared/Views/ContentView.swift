@@ -138,7 +138,7 @@ public struct ContentView: View {
     // Dynamic copyright text
     private var copyrightText: String {
         let currentYear = Calendar.current.component(.year, from: Date())
-        return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
+        return currentYear > 2024 ? " Eugnel 2024-\(currentYear)" : " Eugnel 2024"
    }
 
     public init() {}
@@ -235,10 +235,12 @@ public struct ContentView: View {
         .environment(\.locale, globalSettings.locale)
         // .onChange is optional if you want to reload or re-localise
         //.onChange(of: globalSettings.locale) { _, _ in ... }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active {
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
                 Task {
-                    await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
+                    if !ratesVM.currentAgileCode.isEmpty {
+                        await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+                    }
                     await consumptionVM.loadData()
 
                     if consumptionVM.fetchStatus == .pending {
@@ -258,7 +260,9 @@ public struct ContentView: View {
             // Check rates at 16:00
             if hour == 16, minute == 0, second == 0 {
                 Task {
-                    await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
+                    if !ratesVM.currentAgileCode.isEmpty {
+                        await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true)
+                    }
                 }
             }
             
@@ -286,7 +290,9 @@ public struct ContentView: View {
         }
         // Attempt to load data
         .task {
-            await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
+            if !ratesVM.currentAgileCode.isEmpty {
+                await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+            }
             await consumptionVM.loadData()
         }
     }

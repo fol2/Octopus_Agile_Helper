@@ -124,11 +124,9 @@ public struct AverageUpcomingRateCardView: View {
             if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
             } else {
-                // aggregator usage => unchanged, but we do not call `$viewModel`
                 let averages = viewModel.getLowestAverages(
                     productCode: viewModel.currentAgileCode,
-                    hours: localSettings.settings.customAverageHours,
-                    maxCount: localSettings.settings.maxListCount
+                    hours: Int(localSettings.settings.customAverageHours)
                 )
 
                 if averages.isEmpty {
@@ -138,28 +136,37 @@ public struct AverageUpcomingRateCardView: View {
                     .foregroundColor(Theme.secondaryTextColor)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(averages) { entry in
-                            HStack {
+                        ForEach(averages.prefix(localSettings.settings.maxListCount), id: \.startTime) { entry in
+                            HStack(alignment: .firstTextBaseline) {
                                 let parts = viewModel.formatRate(
                                     entry.average,
                                     showRatesInPounds: globalSettings.settings.showRatesInPounds
-                                ).split(separator: " ")
+                                )
+                                .split(separator: " ")
 
                                 Text(parts[0])
                                     .font(Theme.mainFont2())
                                     .foregroundColor(
-                                        getRateColorForAverage(
-                                            entry.average, entry.start, entry.end))
+                                        getAverageColor(
+                                            for: entry.average,
+                                            allAverages: averages.map { $0.average }
+                                        )
+                                    )
 
                                 if parts.count > 1 {
                                     Text(parts[1])
                                         .font(Theme.subFont())
                                         .foregroundColor(Theme.secondaryTextColor)
                                 }
+
                                 Spacer()
+
                                 Text(
                                     formatTimeRange(
-                                        entry.start, entry.end, locale: globalSettings.locale)
+                                        entry.startTime,
+                                        Calendar.current.date(byAdding: .hour, value: 1, to: entry.startTime) ?? .distantFuture,
+                                        locale: globalSettings.locale
+                                    )
                                 )
                                 .font(Theme.subFont())
                                 .foregroundColor(Theme.secondaryTextColor)
@@ -246,51 +253,44 @@ public struct AverageUpcomingRateCardView: View {
     // MARK: - Helpers
 
     // MARK: - Color Helper
-    private func getRateColorForAverage(_ average: Double, _ start: Date, _ end: Date) -> Color {
-        // Retrieve all typed rates from the VM:
-        let sortedRates = viewModel.allRates(for: viewModel.currentAgileCode)
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
-
-        // Find the rate that starts closest to our average's start time
-        let nearestRate =
-            sortedRates.min { rate1, rate2 in
-                let diff1 = abs((rate1.validFrom ?? .distantFuture)
-                                 .timeIntervalSince(start))
-                let diff2 = abs((rate2.validFrom ?? .distantFuture)
-                                 .timeIntervalSince(start))
-                return diff1 < diff2
+    private func getAverageColor(for average: Double, allAverages: [Double]) -> Color {
+        guard !allAverages.isEmpty else { return .white }
+        
+        // Handle negative averages
+        if average < 0 {
+            let negativeAverages = allAverages.filter { $0 < 0 }
+            if let mostNegative = negativeAverages.min() {
+                let rawPercentage = abs(average / mostNegative)
+                let percentage = 0.5 + (rawPercentage * 0.5)  // This ensures we keep at least 50% of the color
+                // Base green color (RGB: 0.2, 0.8, 0.4)
+                return Color(
+                    red: 1.0 - (0.8 * percentage),  // Interpolate from 1.0 to 0.2
+                    green: 1.0 - (0.2 * percentage),  // Interpolate from 1.0 to 0.8
+                    blue: 1.0 - (0.6 * percentage)  // Interpolate from 1.0 to 0.4
+                )
             }
-
-        // First try to find overlapping rates
-        if let rate = nearestRate,
-            let rateStart = rate.validFrom,
-            let rateEnd = rate.validTo
-        {
-            let overlappingRates = sortedRates.filter { rate in
-                guard let s = rate.validFrom,
-                    let e = rate.validTo
-                else { return false }
-                return (s <= end && e >= start)
-            }
-
-            if !overlappingRates.isEmpty {
-                let closestRate =
-                    overlappingRates.min { r1, r2 in
-                        let diff1 = abs(r1.valueIncludingVAT - average)
-                        let diff2 = abs(r2.valueIncludingVAT - average)
-                        return diff1 < diff2
-                    }
-                if let rate = closestRate {
-                    return RateColor.getColor(for: rate, allRates: sortedRates)
-                }
-            }
+            return Color(red: 0.2, green: 0.8, blue: 0.4)
         }
-
-        // Fallback to nearest rate by time if no overlapping rates
-        if let rate = nearestRate {
-            return RateColor.getColor(for: rate, allRates: sortedRates)
+        
+        // Find the statistics
+        let sortedAverages = allAverages.sorted()
+        let medianAverage = sortedAverages[sortedAverages.count / 2]
+        let maxAverage = sortedAverages.last ?? 0
+        
+        // Only color averages above the median
+        if average >= medianAverage {
+            // Calculate how "high" the average is compared to the range between median and max
+            let percentage = (average - medianAverage) / (maxAverage - medianAverage)
+            
+            // Interpolate between yellow and red based on percentage
+            return Color(
+                red: 1.0,  // Full red
+                green: 1.0 - (0.8 * percentage),  // Fade from full yellow to slight yellow
+                blue: 0.0   // No blue
+            )
         }
-
+        
+        // Return white for averages below median
         return .white
     }
 }

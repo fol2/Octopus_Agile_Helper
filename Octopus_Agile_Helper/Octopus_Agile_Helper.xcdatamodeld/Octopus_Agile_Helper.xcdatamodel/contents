@@ -5,6 +5,23 @@
         <attribute name="interval_end" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="interval_start" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <entity name="ProductDetailEntity" representedClassName="ProductDetailEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="code" optional="YES" attributeType="String"/>
+        <attribute name="dual_fuel_discount_exc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="dual_fuel_discount_inc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="exit_fees_exc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="exit_fees_inc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="exit_fees_type" optional="YES" attributeType="String"/>
+        <attribute name="link_rate" optional="YES" attributeType="String"/>
+        <attribute name="link_standing_charge" optional="YES" attributeType="String"/>
+        <attribute name="online_discount_exc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="online_discount_inc_vat" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="payment" optional="YES" attributeType="String"/>
+        <attribute name="region" optional="YES" attributeType="String"/>
+        <attribute name="tariff_code" optional="YES" attributeType="String"/>
+        <attribute name="tariff_type" optional="YES" attributeType="String"/>
+        <attribute name="tariffs_active_at" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
     <entity name="ProductEntity" representedClassName="ProductEntity" syncable="YES" codeGenerationType="class">
         <attribute name="available_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="available_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -29,14 +46,11 @@
         <attribute name="product_code" optional="YES" attributeType="String"/>
         <attribute name="rate_type" optional="YES" attributeType="String"/>
         <attribute name="region" optional="YES" attributeType="String"/>
+        <attribute name="tariff_code" optional="YES" attributeType="String"/>
         <attribute name="valid_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="valid_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="validFrom" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="validTo" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="value_excluding_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="value_including_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
-        <attribute name="valueExcludingVAT" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
-        <attribute name="valueIncludingVAT" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
     </entity>
     <entity name="StandingChargeEntity" representedClassName="StandingChargeEntity" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="String"/>

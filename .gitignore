@@ -5,7 +5,6 @@
 ## User settings
 xcuserdata/
 Documentation/
-dev_log.*
 test.json
 
 ## Obj-C/Swift specific

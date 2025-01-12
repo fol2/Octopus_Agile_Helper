@@ -21,7 +21,7 @@ import CoreData
 import Foundation
 import SwiftUI
 
-public enum ProductFetchStatus: Equatable {
+public enum ProductFetchStatus: Equatable, CustomStringConvertible {
     case none
     case fetching
     case done
@@ -38,15 +38,30 @@ public enum ProductFetchStatus: Equatable {
         default: return false
         }
     }
+
+    public var description: String {
+        switch self {
+        case .none:
+            return "Not Started"
+        case .fetching:
+            return "Fetching..."
+        case .done:
+            return "Complete"
+        case .pending:
+            return "Pending"
+        case .failed(let error):
+            return "Error: \(error.localizedDescription)"
+        }
+    }
 }
 
 /// Data container for each product's local state
-fileprivate struct ProductRatesState {
-    var allRates: [NSManagedObject] = []
-    var upcomingRates: [NSManagedObject] = []
-    var fetchStatus: ProductFetchStatus = .none
-    var nextFetchEarliestTime: Date? = nil
-    var isLoading: Bool = false
+public struct ProductRatesState {
+    public var allRates: [NSManagedObject] = []
+    public var upcomingRates: [NSManagedObject] = []
+    public var fetchStatus: ProductFetchStatus = .none
+    public var nextFetchEarliestTime: Date? = nil
+    public var isLoading: Bool = false
 }
 
 /// Our multi-product RatesViewModel
@@ -54,19 +69,15 @@ fileprivate struct ProductRatesState {
 public final class RatesViewModel: ObservableObject {
     // MARK: - Dependencies
     private let repository = RatesRepository.shared
+    private let productDetailRepository = ProductDetailRepository.shared
     private let productsRepository = ProductsRepository.shared
     private var cancellables = Set<AnyCancellable>()
     private var currentTimer: GlobalTimer?
-
-    // NEW: Store a single "current agile code" for convenience
-    @Published public private(set) var currentAgileCode: String = ""
-
-    // NEW: Publish a single fetchStatus to observe in ContentView
+    
+    // MARK: - Published State
+    @Published public var currentAgileCode: String = ""
     @Published public var fetchStatus: ProductFetchStatus = .none
-
-    /// A dictionary mapping productCode => ProductRatesState
-    @Published fileprivate var productStates: [String: ProductRatesState] = [:]
-    // This way, no public property references a private struct => no more linter error
+    @Published public var productStates: [String: ProductRatesState] = [:]
 
     // If you want a single array that merges all products, you can compute it on the fly
     public var allRatesMerged: [NSManagedObject] {
@@ -96,23 +107,101 @@ public final class RatesViewModel: ObservableObject {
     }
 
     /// Returns the typed [RateEntity] array for a specific product code.
-    public func allRates(for productCode: String) -> [RateEntity] {
+    public func allRates(for productCode: String) -> [NSManagedObject] {
         let raw = productStates[productCode]?.allRates ?? []
-        return raw.compactMap { $0 as? RateEntity }
+        return raw
     }
 
     /// Example aggregator for "lowest averages" (similar to your old code).
-    /// Adjust the return type to match your aggregator's structure (e.g. [AveragedRateWindow]).
-    public func getLowestAverages(
-        productCode: String,
-        hours: Double,
-        maxCount: Int
-    ) -> [AveragedRateWindow] {
-        // Stub aggregator example returning empty to avoid errors
-        // For demonstration, we return an empty array or a dummy array:
-
-        return []
+    public func lowestAverageRates(productCode: String, count: Int = 10) -> Double? {
+        guard let state = productStates[productCode] else { return nil }
+        let now = Date()
+        let future = state.upcomingRates.filter {
+            guard let validFrom = $0.value(forKey: "valid_from") as? Date else { return false }
+            return validFrom > now
+        }
+        let sorted = future.sorted {
+            let lv = $0.value(forKey: "value_including_vat") as? Double ?? 999999
+            let rv = $1.value(forKey: "value_including_vat") as? Double ?? 999999
+            return lv < rv
+        }
+        let topN = Array(sorted.prefix(count))
+        if topN.isEmpty { return nil }
+        let sum = topN.reduce(0.0) { partial, obj in
+            partial + (obj.value(forKey: "value_including_vat") as? Double ?? 0.0)
+        }
+        return sum / Double(topN.count)
     }
+
+    /// Get lowest average rates for a specific product
+    public func getLowestAverages(productCode: String, hours: Int) -> [(startTime: Date, average: Double)] {
+        guard let state = productStates[productCode] else { return [] }
+        let now = Date()
+        
+        // Group rates by their start hour
+        var hourlyGroups: [Date: [NSManagedObject]] = [:]
+        state.upcomingRates.forEach { rate in
+            guard let validFrom = rate.value(forKey: "valid_from") as? Date,
+                  validFrom > now else { return }
+            
+            // Round down to the hour
+            let calendar = Calendar.current
+            let hourStart = calendar.date(
+                bySetting: .minute,
+                value: 0,
+                of: calendar.date(
+                    bySetting: .second,
+                    value: 0,
+                    of: validFrom
+                ) ?? validFrom
+            ) ?? validFrom
+            
+            var group = hourlyGroups[hourStart] ?? []
+            group.append(rate)
+            hourlyGroups[hourStart] = group
+        }
+        
+        // Calculate averages for each complete hour
+        var averages: [(startTime: Date, average: Double)] = []
+        for (startTime, rates) in hourlyGroups {
+            guard rates.count == 2 else { continue } // Skip incomplete hours
+            
+            let sum = rates.reduce(0.0) { sum, rate in
+                sum + (rate.value(forKey: "value_including_vat") as? Double ?? 0)
+            }
+            let average = sum / Double(rates.count)
+            averages.append((startTime: startTime, average: average))
+        }
+        
+        // Sort by average rate and take the requested number of hours
+        return averages
+            .sorted { $0.average < $1.average }
+            .prefix(hours)
+            .sorted { $0.startTime < $1.startTime }
+    }
+
+    // MARK: - Rate Queries
+    
+    /// Get the lowest upcoming rate for a specific product
+    public func lowestUpcomingRate(productCode: String) -> NSManagedObject? {
+        guard let state = productStates[productCode] else { return nil }
+        return state.upcomingRates.min { a, b in
+            let aValue = (a as? RateEntity)?.valueIncludingVAT ?? Double.infinity
+            let bValue = (b as? RateEntity)?.valueIncludingVAT ?? Double.infinity
+            return aValue < bValue
+        }
+    }
+
+    /// Get the highest upcoming rate for a specific product
+    public func highestUpcomingRate(productCode: String) -> NSManagedObject? {
+        guard let state = productStates[productCode] else { return nil }
+        return state.upcomingRates.max { a, b in
+            let aValue = (a as? RateEntity)?.valueIncludingVAT ?? Double.infinity
+            let bValue = (b as? RateEntity)?.valueIncludingVAT ?? Double.infinity
+            return aValue < bValue
+        }
+    }
+
     // ------------------------------------------------------
 
     // MARK: - Init
@@ -161,219 +250,151 @@ public final class RatesViewModel: ObservableObject {
                     // Attempt to fetch again
                     state.nextFetchEarliestTime = nil
                     Task {
-                        do {
-                            try await self.repository.updateRates(force: false) // or pass product code if needed
-                            // Re-fetch from DB
-                            let freshRates = try await self.repository.fetchAllRates()
-                            state.allRates = freshRates
-                            state.upcomingRates = self.filterUpcoming(rates: freshRates, now: now)
-                            state.fetchStatus = .done
-                        } catch {
-                            state.fetchStatus = .failed(error)
-                            // set cooldown again if desired
-                            state.nextFetchEarliestTime = Date().addingTimeInterval(10 * 60)
-                        }
-                        // update productStates
-                        self.productStates[code] = state
+                        await self.refreshRatesForProduct(productCode: code, now: now)
                     }
                 }
             } else {
                 // Normal logic: fetch every minute if needed
                 Task {
-                    do {
-                        try await self.repository.updateRates(force: false)
-                        let freshRates = try await self.repository.fetchAllRates()
-                        state.allRates = freshRates
-                        state.upcomingRates = self.filterUpcoming(rates: freshRates, now: now)
-                        state.fetchStatus = .done
-                    } catch {
-                        state.fetchStatus = .failed(error)
-                        // 10-min cooldown
-                        state.nextFetchEarliestTime = Date().addingTimeInterval(10 * 60)
-                    }
-                    self.productStates[code] = state
+                    await self.refreshRatesForProduct(productCode: code, now: now)
                 }
             }
             productStates[code] = state
+        }
+    }
+
+    /// Refresh rates for a given product code
+    private func refreshRatesForProduct(productCode: String, now: Date) async {
+        var state = productStates[productCode] ?? ProductRatesState()
+        
+        // Check if we need to fetch
+        if let nextFetchTime = state.nextFetchEarliestTime {
+            if now < nextFetchTime {
+                print("⏳ Too soon to fetch rates for \(productCode), next fetch at \(nextFetchTime)")
+                return
+            }
+        }
+
+        // Check if already fetching
+        if state.isLoading {
+            print("⏳ Already fetching rates for \(productCode)")
+            return
+        }
+
+        state.isLoading = true
+        productStates[productCode] = state
+
+        // First get product detail to get the link and tariff code
+        do {
+            let details = try await productDetailRepository.loadLocalProductDetail(code: productCode)
+            guard let detail = details.first,
+                  let tCode = detail.value(forKey: "tariff_code") as? String,
+                  let link = detail.value(forKey: "link_rate") as? String else {
+                state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
+                state.isLoading = false
+                productStates[productCode] = state
+                return
+            }
+
+            // Now fetch rates
+            try await repository.fetchAndStoreRates(tariffCode: tCode, url: link)
+            let freshRates = try await repository.fetchAllRates()
+            state.allRates = freshRates
+            state.upcomingRates = filterUpcoming(rates: freshRates, now: now)
+            state.fetchStatus = .done
+            state.isLoading = false
+            state.nextFetchEarliestTime = now.addingTimeInterval(60 * 60) // 1 hour
+            productStates[productCode] = state
+        } catch {
+            state.fetchStatus = .failed(error)
+            state.isLoading = false
+            state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 minutes on error
+            productStates[productCode] = state
         }
     }
 
     // MARK: - Public Methods
 
     /// Initialize local state for multiple products. Usually called at launch.
-    /// For each product code, we attempt to see if coverage is complete. If not, we do a fetch.
-    public func loadRates(for productCodes: [String]) async {
-        // Mark overall status => .fetching if any needed fetch
-        fetchStatus = .fetching
-
-        // Ensure we have an entry in productStates for each code
-        for code in productCodes {
-            if productStates[code] == nil {
-                productStates[code] = ProductRatesState()
-            }
-        }
-
-        // For each product, attempt to load from DB or do a fetch
-        for code in productCodes {
-            var state = productStates[code] ?? ProductRatesState()
-            do {
-                if repository.hasDataThroughExpectedEndUKTime() {
-                    // If coverage complete, just fetch from DB
-                    let results = try await repository.fetchAllRates()
-                    state.allRates = results
-                    state.upcomingRates = filterUpcoming(rates: results, now: Date())
-                    state.fetchStatus = .none
-                    fetchStatus = .done
-                } else {
-                    // No coverage => do a fetch
-                    state.fetchStatus = .fetching
-                    state.isLoading = true
-                    try await repository.updateRates(force: false)
-                    let results = try await repository.fetchAllRates()
-                    state.allRates = results
-                    state.upcomingRates = filterUpcoming(rates: results, now: Date())
-                    state.fetchStatus = .none
-                    state.isLoading = false
-                    fetchStatus = .done
-                }
-            } catch {
-                state.fetchStatus = .failed(error)
-                state.isLoading = false
-                fetchStatus = .failed(error)
-            }
-            productStates[code] = state
+    public func initializeProducts(_ codes: [String]) async {
+        for code in codes {
+            // Always force fetch on initial load to ensure we have data
+            print("🔄 Fetching rates for \(code)")
+            await refreshRatesForProduct(productCode: code, now: Date())
         }
     }
 
-    /// Refresh coverage for a single product code
+    /// Public method to refresh rates for a single product
     public func refreshRates(productCode: String, force: Bool = false) async {
-        guard var state = productStates[productCode] else {
-            // If we have no record, create one
-            productStates[productCode] = ProductRatesState()
+        var state = productStates[productCode] ?? ProductRatesState()
+        if !force {
+            // Check cooldown
+            if let nextFetch = state.nextFetchEarliestTime {
+                if Date() < nextFetch {
+                    print("⏳ Too soon to fetch rates for \(productCode)")
+                    return
+                }
+            }
+        }
+        
+        if state.isLoading {
+            print("⏳ Already fetching rates for \(productCode)")
             return
         }
-
-        // If we have coverage and not forcing, do nothing
-        if !force && repository.hasDataThroughExpectedEndUKTime() {
-            return
-        }
-        state.fetchStatus = .pending
-        state.isLoading = true
-        productStates[productCode] = state
-
+        
         do {
             state.fetchStatus = .fetching
-            try await repository.updateRates(force: force)
-            let results = try await repository.fetchAllRates()
-            state.allRates = results
-            state.upcomingRates = filterUpcoming(rates: results, now: Date())
-            state.fetchStatus = .done
+            productStates[productCode] = state
+            
+            await refreshRatesForProduct(productCode: productCode, now: Date())
+        } catch {
+            print("❌ Error refreshing rates: \(error)")
+            state.fetchStatus = .failed(error)
+            state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 5) // 5 min cooldown on error
+            productStates[productCode] = state
+        }
+    }
 
-            // Show "done" for 3 seconds, revert to .none
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                if self.productStates[productCode]?.fetchStatus == .done {
-                    // fade out
-                    var s = self.productStates[productCode]!
-                    s.fetchStatus = .none
-                    self.productStates[productCode] = s
+    // ------------------------------------------------------
+    // MARK: - Public fetchRatesForDay method
+    // ------------------------------------------------------
+    public func fetchRatesForDay(_ day: Date) async throws -> [NSManagedObject] {
+        let objects = try await repository.fetchAllRates()
+        // Filter for the specific day
+        let calendar = Calendar.current
+        return objects.filter { obj in
+            guard let validFrom = obj.value(forKey: "valid_from") as? Date else { return false }
+            return calendar.isDate(validFrom, inSameDayAs: day)
+        }
+    }
+
+    // MARK: - Product Sync
+    
+    /// Sync all products and their details
+    public func syncProducts() async {
+        do {
+            // First sync all products
+            let products = try await productsRepository.syncAllProducts()
+            
+            // Then for each product, fetch its details
+            for product in products {
+                if let code = product.value(forKey: "code") as? String {
+                    _ = try await productDetailRepository.fetchAndStoreProductDetail(productCode: code)
                 }
+            }
+            
+            // Finally, refresh rates for selected tariffs
+            for code in productStates.keys {
+                await refreshRatesForProduct(productCode: code, now: Date())
             }
         } catch {
-            state.fetchStatus = .failed(error)
-            // If partial data is available, fade out quickly
-            let hasCoverage = repository.hasDataThroughExpectedEndUKTime()
-            if hasCoverage {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    if self.productStates[productCode]?.fetchStatus == .failed(error) {
-                        var s = self.productStates[productCode]!
-                        s.fetchStatus = .none
-                        self.productStates[productCode] = s
-                    }
-                }
-            } else {
-                // no coverage => 10-min cooldown
-                state.nextFetchEarliestTime = Date().addingTimeInterval(10 * 60)
-            }
-        }
-        state.isLoading = false
-        productStates[productCode] = state
-    }
-
-    // MARK: - Aggregators
-
-    /// Lowest upcoming rate for a single product
-    public func lowestUpcomingRate(productCode: String) -> NSManagedObject? {
-        guard let state = productStates[productCode] else { return nil }
-        let now = Date()
-        let futureRates = state.upcomingRates.filter { obj in
-            guard let validFrom = obj.value(forKey: "valid_from") as? Date else { return false }
-            return validFrom > now
-        }
-        return futureRates.min { lhs, rhs in
-            let lv = lhs.value(forKey: "value_including_vat") as? Double ?? 999999
-            let rv = rhs.value(forKey: "value_including_vat") as? Double ?? 999999
-            return lv < rv
+            print("❌ Error syncing products: \(error)")
         }
     }
 
-    /// Highest upcoming rate for a single product
-    public func highestUpcomingRate(productCode: String) -> NSManagedObject? {
-        guard let state = productStates[productCode] else { return nil }
-        let now = Date()
-        let futureRates = state.upcomingRates.filter { obj in
-            guard let validFrom = obj.value(forKey: "valid_from") as? Date else { return false }
-            return validFrom > now
-        }
-        return futureRates.max { lhs, rhs in
-            let lv = lhs.value(forKey: "value_including_vat") as? Double ?? 0
-            let rv = rhs.value(forKey: "value_including_vat") as? Double ?? 0
-            return lv < rv
-        }
-    }
-
-    /// Example aggregator for "lowest 10 average" 
-    /// (similar to your old code, but here we do it per product)
-    public func lowestTenAverageRate(productCode: String) -> Double? {
-        guard let state = productStates[productCode] else { return nil }
-        let now = Date()
-        let future = state.upcomingRates.filter {
-            guard let validFrom = $0.value(forKey: "valid_from") as? Date else { return false }
-            return validFrom > now
-        }
-        let sorted = future.sorted {
-            let lv = $0.value(forKey: "value_including_vat") as? Double ?? 999999
-            let rv = $1.value(forKey: "value_including_vat") as? Double ?? 999999
-            return lv < rv
-        }
-        let topTen = Array(sorted.prefix(10))
-        guard !topTen.isEmpty else { return nil }
-        let sum = topTen.reduce(0.0) { partial, obj in
-            partial + (obj.value(forKey: "value_including_vat") as? Double ?? 0.0)
-        }
-        return sum / Double(topTen.count)
-    }
-
-    // MARK: - Pagination
-
-    /// If you want to do DB paging per product, you can call repository with product param
-    public func fetchRatesPage(
-        productCode: String,
-        offset: Int,
-        limit: Int,
-        ascending: Bool = true
-    ) async throws -> [NSManagedObject] {
-        // If your repository supports product-based paging, pass productCode
-        // For now, we just do the existing paging, ignoring productCode:
-        return try await repository.fetchRatesPage(offset: offset, limit: limit, ascending: ascending)
-    }
-
-    public func countAllRates(productCode: String) async throws -> Int {
-        // Same note as above
-        return try await repository.countAllRates()
-    }
-
-    // MARK: - Helpers for formatting, same signatures
-
+    // MARK: - Formatting
+    
+    /// Format a rate value for display
     public func formatRate(_ value: Double, showRatesInPounds: Bool = false) -> String {
         if showRatesInPounds {
             let poundsValue = value / 100.0
@@ -383,21 +404,12 @@ public final class RatesViewModel: ObservableObject {
         }
     }
 
-    public func formatTime(_ date: Date) -> String {
+    /// Format a date to show only the time component
+    public func formatTime(_ date: Date, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
+        formatter.locale = locale
         return formatter.string(from: date)
-    }
-
-    // ------------------------------------------------------
-    // MARK: - Public fetchRatesForDay method
-    // ------------------------------------------------------
-    public func fetchRatesForDay(_ day: Date) async throws -> [RateEntity] {
-        let objects = try await repository.fetchRatesForDay(day)
-        // Convert the NSManagedObject array into a [RateEntity]
-        let typed = objects.compactMap { $0 as? RateEntity }
-        // If any item is not RateEntity, it's dropped to avoid runtime errors
-        return typed
     }
 
     // MARK: - Private
@@ -411,22 +423,50 @@ public final class RatesViewModel: ObservableObject {
         }
     }
 
+    /// Try to find an Agile code from local product details
+    /// Filters:
+    /// 1. brand = OCTOPUS_ENERGY
+    /// 2. tariff_type = single_register_electricity_tariffs
+    /// 3. direction = IMPORT
+    public func fallbackAgileCodeFromProductEntity() async -> String? {
+        do {
+            let products = try await productDetailRepository.fetchLocalProducts()
+            
+            // Filter for Agile products
+            let agileProducts = products.filter { obj in
+                guard let tariffType = obj.value(forKey: "tariff_type") as? String,
+                      let tariffCode = obj.value(forKey: "tariff_code") as? String else {
+                    return false
+                }
+                return tariffType == "single_register_electricity_tariffs" &&
+                       tariffCode.contains("AGILE")
+            }
+            
+            // Return first found code
+            return agileProducts.first?.value(forKey: "code") as? String
+        } catch {
+            print("❌ Error fetching local products: \(error)")
+            return nil
+        }
+    }
+
     // NEW: Called at app startup or whenever account might have changed
     // Checks user's accountData for an active agile agreement code, else fallback
     public func setAgileProductFromAccountOrFallback(globalSettings: GlobalSettingsManager) async {
         let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
         
-        // Attempt to find an 'AGILE' product from local DB
+        // 1) Attempt dynamic fallback from local DB
         let fallbackCode = await fallbackAgileCodeFromProductEntity()
-        
-        // If we have no account data => rely solely on fallback from local ProductEntity
+
+        // If we have no account data => rely solely on fallback from ProductEntity
         guard let accountData = globalSettings.settings.accountData,
               !accountData.isEmpty
         else {
-            // If ProductEntity also had nothing, do nothing or keep the existing code:
+            // If account lacks an 'AGILE' tariff => fallback only if DB has an AGILE product
             if let code = fallbackCode {
                 self.currentAgileCode = code
-                sharedDefaults?.set(code, forKey: "agile_code_for_widget")
+            } else {
+                return
             }
             return
         }
@@ -458,35 +498,6 @@ public final class RatesViewModel: ObservableObject {
                 sharedDefaults?.set(code, forKey: "agile_code_for_widget")
             }
         }
-    }
-
-    private func fallbackAgileCodeFromProductEntity() async -> String? {
-        // 从本地数据库中查找包含 "AGILE" 的最新 ProductEntity
-        do {
-            let products = try await Task {
-                try await productsRepository.fetchLocalProducts()
-            }.value
-            
-            // 过滤出包含 "AGILE" 的产品，并按照创建时间降序排序
-            let agileProducts = products.filter { product in
-                guard let code = product.value(forKey: "code") as? String else { return false }
-                return code.contains("AGILE")
-            }.sorted { lhs, rhs in
-                guard let lhsDate = lhs.value(forKey: "available_from") as? Date,
-                      let rhsDate = rhs.value(forKey: "available_from") as? Date
-                else { return false }
-                return lhsDate > rhsDate
-            }
-            
-            // 返回最新的 AGILE 产品代码
-            if let latestProduct = agileProducts.first,
-               let code = latestProduct.value(forKey: "code") as? String {
-                return code
-            }
-        } catch {
-            print("Error fetching products from DB: \(error)")
-        }
-        return nil
     }
 
     // Example logic to find an active agile code from the user's agreements

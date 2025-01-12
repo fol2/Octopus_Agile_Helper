@@ -25,6 +25,9 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     private var persistenceController: PersistenceController {
         PersistenceController.shared
     }
+    private var productDetailRepository: ProductDetailRepository {
+        ProductDetailRepository.shared
+    }
     
     private let agileCodeKey = "agile_code_for_widget"
     
@@ -83,17 +86,23 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         do {
             // 1) Update rates from the repository
             let repo = await repository
-            // Mark 'async' call with 'await' to fix linter error:
-            try await repo.updateRates(force: false)
-            var rates = try await repo.fetchAllRates()
-
+            
             // 1.5) Read the agile code from shared defaults
             let agileCode: String = {
                 let stored = sharedDefaults?.string(forKey: agileCodeKey)
                 let fallback = fallbackAgileCodeFromProductEntity()
-                // If 'stored' is nil, fallback to local DB; if that is also nil => empty
-                return stored ?? fallback ?? ""
+                return stored ?? fallback ?? "AGILE-FLEX-22-11-25"
             }()
+            
+            // Get product detail to get link and tariff code
+            let details = try await productDetailRepository.loadLocalProductDetail(code: agileCode)
+            if let detail = details.first,
+               let tCode = detail.value(forKey: "tariff_code") as? String,
+               let link = detail.value(forKey: "link_rate") as? String {
+                try await repo.fetchAndStoreRates(tariffCode: tCode, url: link)
+            }
+            
+            let rates = try await repo.fetchAllRates()
 
             // 2) On first install or empty DB => direct fetch
             if rates.isEmpty {
@@ -109,7 +118,7 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             let typedRates = rates.compactMap { $0 as? RateEntity }
 
             // 2.5) Create a specialized RatesViewModel with the known agile code
-            let widgetVM = await RatesViewModel(widgetRates: typedRates, productCode: agileCode)
+            _ = await RatesViewModel(widgetRates: typedRates, productCode: agileCode)
 
             // 3) Build timeline
             let now = Date()
@@ -153,10 +162,10 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
 
     /// Directly fetches from API + saves to Core Data for first-time or fallback usage.
     private func directFetchAndSave() async throws -> [RateEntity] {
-        let regionID = try await fetchRegionID()
+        _ = try await fetchRegionID()
         // If your new code doesn't have `fetchRates(...)`, you may comment out or adapt:
         // let rawRates = try await OctopusAPIClient.shared.fetchRates(regionID: regionID)
-        let ctx = PersistenceController.shared.container.viewContext
+        // let ctx = PersistenceController.shared.container.viewContext
 
         // Convert raw response to RateEntity
         // let entities = rawRates.map { r -> RateEntity in
@@ -343,33 +352,28 @@ struct CurrentRateWidget: View {
             widgetRates: rates,
             productCode: agileCode
         )
-        let windows = widgetVM.getLowestAverages(
+        let avgRates = widgetVM.getLowestAverages(
             productCode: agileCode,
-            hours: chartSettings.customAverageHours,
-            maxCount: chartSettings.maxListCount
+            hours: Int(chartSettings.customAverageHours)
         )
+        let windows = avgRates.map { rate in 
+            AveragedRateWindow(
+                average: rate.average,
+                start: rate.startTime,
+                end: Calendar.current.date(byAdding: .hour, value: 1, to: rate.startTime) ?? .distantFuture
+            )
+        }
         let raw = windows.map { ($0.start, $0.end) }
         let merged = mergeWindows(raw)
         
         // Filter to only show ranges that overlap with our chart's visible range
         guard let chartStart = filteredRatesForChart.first?.validFrom,
-              let lastRate = filteredRatesForChart.last,
-              let chartEnd = lastRate.validTo ?? lastRate.validFrom
-        else {
+            let chartEnd = filteredRatesForChart.last?.validTo else {
             return []
         }
         
-        return merged.filter { start, end in
-            // Keep if the range overlaps with our chart's time range
-            start <= chartEnd && end >= chartStart
-        }.map { start, end in
-            // Clamp the range to our chart's boundaries and add the ±900 offset
-            let adjustedStart = isExactlyOnHalfHour(start) ? start.addingTimeInterval(-900) : start
-            let adjustedEnd = isExactlyOnHalfHour(end) ? end.addingTimeInterval(-900) : end
-            return (
-                max(adjustedStart, chartStart),
-                min(adjustedEnd, chartEnd)
-            )
+        return merged.filter { window in
+            window.0 <= chartEnd && window.1 >= chartStart
         }
     }
     
@@ -386,17 +390,21 @@ struct CurrentRateWidget: View {
     private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
         guard !input.isEmpty else { return [] }
         let sorted = input.sorted { $0.0 < $1.0 }
+        var result = [(Date, Date)]()
+        var current = sorted[0]
         
-        var merged = [sorted[0]]
         for window in sorted.dropFirst() {
-            let lastIndex = merged.count - 1
-            if window.0 <= merged[lastIndex].1 {
-                merged[lastIndex].1 = max(merged[lastIndex].1, window.1)
+            if window.0 <= current.1 {
+                // Overlapping or adjacent windows - merge them
+                current.1 = max(current.1, window.1)
             } else {
-                merged.append(window)
+                // Gap between windows - add the current one and start a new one
+                result.append(current)
+                current = window
             }
         }
-        return merged
+        result.append(current)
+        return result
     }
     
     // Add missing computed properties and functions
@@ -580,7 +588,7 @@ struct CurrentRateWidget: View {
 
     // MARK: - System Medium View
     /// A medium widget layout:
-    /// - Left side: current rate, highest, lowest (same as systemSmall)
+    /// - Left side: current rate, highest & lowest (same as systemSmall)
     /// - Right side: a mini chart with best-time background + "now" vertical line
     @ViewBuilder
     private var systemMediumView: some View {
@@ -990,12 +998,13 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
+    let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+    let rates = (try? context.fetch(request)) ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: typedRates,
+        rates: rates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default,
         agileCode: "AGILE-24-10-01"
@@ -1006,12 +1015,13 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
+    let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+    let rates = (try? context.fetch(request)) ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: typedRates,
+        rates: rates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default,
         agileCode: "AGILE-24-10-01"
@@ -1022,12 +1032,13 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
+    let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+    let rates = (try? context.fetch(request)) ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: typedRates,
+        rates: rates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default,
         agileCode: "AGILE-24-10-01"
@@ -1038,12 +1049,13 @@ extension PersistenceController {
     Octopus_HelperWidgets()
 } timeline: {
     let context = PersistenceController.shared.container.viewContext
-    let typedRates: [RateEntity] = (try? context.fetch(RateEntity.fetchRequest()))?.compactMap { $0 as? RateEntity } ?? []
+    let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
+    let rates = (try? context.fetch(request)) ?? []
     
     SimpleEntry(
         date: .now,
         configuration: ConfigurationAppIntent(),
-        rates: typedRates,
+        rates: rates,
         settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
         chartSettings: InteractiveChartSettings.default,
         agileCode: "AGILE-24-10-01"
@@ -1074,5 +1086,22 @@ extension Color {
         let blue = blue1 + (blue2 - blue1) * clampedProgress
         
         return Color(uiColor: UIColor(red: red, green: green, blue: blue, alpha: 1.0))
+    }
+}
+
+struct AveragedRateWindow {
+    let average: Double
+    let start: Date
+    let end: Date
+}
+
+struct CurrentRateWidget_Previews: PreviewProvider {
+    static var previews: some View {
+        CurrentRateWidget(
+            rates: [],
+            settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
+            chartSettings: InteractiveChartSettings.default,
+            agileCode: "AGILE-24-10-01"
+        )
     }
 }

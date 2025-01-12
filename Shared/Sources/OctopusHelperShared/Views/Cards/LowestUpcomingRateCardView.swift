@@ -122,14 +122,13 @@ public struct LowestUpcomingRateCardView: View {
             // Content
             if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
-            } else if let lowestObj = viewModel.lowestUpcomingRate(productCode: viewModel.currentAgileCode),
-                      let lowestRate = lowestObj as? RateEntity {
-
+            } else if let lowestRate = viewModel.lowestUpcomingRate(productCode: viewModel.currentAgileCode),
+                      let value = lowestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
                     // Main lowest rate
                     HStack(alignment: .firstTextBaseline) {
                         let valueStr = viewModel.formatRate(
-                            lowestRate.valueIncludingVAT,
+                            value,
                             showRatesInPounds: globalSettings.settings.showRatesInPounds
                         )
                         let parts = valueStr.split(separator: " ")
@@ -150,8 +149,8 @@ public struct LowestUpcomingRateCardView: View {
                         }
 
                         Spacer()
-                        if let fromDate = lowestRate.validFrom,
-                           let toDate = lowestRate.validTo {
+                        if let fromDate = lowestRate.value(forKey: "valid_from") as? Date,
+                           let toDate = lowestRate.value(forKey: "valid_to") as? Date {
                             Text(
                                 formatTimeRange(
                                     fromDate, toDate,
@@ -168,11 +167,11 @@ public struct LowestUpcomingRateCardView: View {
                         // We'll filter allRates(for:) for upcoming
                         let upcomingRates = viewModel.allRates(for: viewModel.currentAgileCode)
                             .filter { rate in
-                                guard let validFrom = rate.validFrom else { return false }
+                                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
                                 return validFrom > Date()
                             }
                             .sorted { r1, r2 in
-                                r1.valueIncludingVAT < r2.valueIncludingVAT
+                                (r1.value(forKey: "value_including_vat") as? Double ?? 0) < (r2.value(forKey: "value_including_vat") as? Double ?? 0)
                             }
 
                         if upcomingRates.count > 1 {
@@ -181,11 +180,11 @@ public struct LowestUpcomingRateCardView: View {
                                 upcomingRates.prefix(
                                     localSettings.settings.additionalRatesCount + 1
                                 ).dropFirst(),
-                                id: \.validFrom
+                                id: \.self
                             ) { rate in
                                 HStack(alignment: .firstTextBaseline) {
                                     let valStr = viewModel.formatRate(
-                                        rate.valueIncludingVAT,
+                                        rate.value(forKey: "value_including_vat") as? Double ?? 0,
                                         showRatesInPounds: globalSettings.settings.showRatesInPounds
                                     )
                                     let subParts = valStr.split(separator: " ")
@@ -205,8 +204,8 @@ public struct LowestUpcomingRateCardView: View {
                                             .foregroundColor(Theme.secondaryTextColor)
                                     }
                                     Spacer()
-                                    if let fromD = rate.validFrom,
-                                       let toD = rate.validTo {
+                                    if let fromD = rate.value(forKey: "valid_from") as? Date,
+                                       let toD = rate.value(forKey: "valid_to") as? Date {
                                         Text(
                                             formatTimeRange(fromD, toD, locale: globalSettings.locale)
                                         )

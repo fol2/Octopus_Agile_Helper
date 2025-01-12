@@ -45,11 +45,14 @@ public final class ProductsRepository: ObservableObject {
     /// - Returns: Array of newly updated/inserted `ProductEntity` as NSManagedObject.
     @discardableResult
     public func syncAllProducts(brand: String? = nil) async throws -> [NSManagedObject] {
+        print("🔄 开始同步产品数据...")
         // 1) Fetch from the API
         let apiItems = try await apiClient.fetchAllProducts(brand: brand)
+        print("✅ API返回数据数量: \(apiItems.count)")
 
         // 2) Upsert them into Core Data
         let finalEntities = try await upsertProducts(apiItems)
+        print("✅ 成功保存到Core Data，最终实体数量: \(finalEntities.count)")
         return finalEntities
     }
 
@@ -82,10 +85,12 @@ public final class ProductsRepository: ObservableObject {
     /// - Parameter items: Array of decoded product items from the API.
     /// - Returns: An array of NSManagedObject representing the final (updated/inserted) product rows.
     private func upsertProducts(_ items: [OctopusProductItem]) async throws -> [NSManagedObject] {
-        try await context.perform {
+        print("📝 开始更新/插入产品数据...")
+        return try await context.perform {
             // 1) Fetch all existing ProductEntity rows at once
             let request = NSFetchRequest<NSManagedObject>(entityName: "ProductEntity")
             let existingProducts = try self.context.fetch(request)
+            print("📊 现有产品数量: \(existingProducts.count)")
 
             // 2) Build a map: productCode -> NSManagedObject for quick lookups
             var existingMap = [String: NSManagedObject]()
@@ -94,12 +99,16 @@ public final class ProductsRepository: ObservableObject {
                     existingMap[code] = product
                 }
             }
+            print("🗺 现有产品映射表大小: \(existingMap.count)")
 
             // 3) Insert or Update each incoming item
+            var updatedCount = 0
+            var insertedCount = 0
             for item in items {
                 if let existingObject = existingMap[item.code] {
                     // Update existing record
                     self.update(productEntity: existingObject, from: item)
+                    updatedCount += 1
                 } else {
                     // Create a new record
                     let newProduct = NSEntityDescription.insertNewObject(
@@ -108,11 +117,21 @@ public final class ProductsRepository: ObservableObject {
                     )
                     self.update(productEntity: newProduct, from: item)
                     existingMap[item.code] = newProduct
+                    insertedCount += 1
                 }
             }
+            print("📈 更新记录: \(updatedCount), 新增记录: \(insertedCount)")
 
             // 4) Save changes once at the end
             try self.context.save()
+            print("💾 成功保存到Core Data")
+            
+            // 发送合并通知以确保其他上下文能看到更改
+            NotificationCenter.default.post(
+                name: NSManagedObjectContext.didSaveObjectsNotification,
+                object: self.context,
+                userInfo: nil
+            )
 
             // 5) Return all final objects
             return Array(existingMap.values)
@@ -122,19 +141,24 @@ public final class ProductsRepository: ObservableObject {
     /// Copies fields from the API model (`OctopusProductItem`) into a `ProductEntity` row.
     /// Update this logic if you add/remove columns from your ProductEntity.
     private func update(productEntity: NSManagedObject, from item: OctopusProductItem) {
-        productEntity.setValue(item.code, forKey: "code")
-        productEntity.setValue(item.direction, forKey: "direction")
-        productEntity.setValue(item.full_name, forKey: "full_name")
+        productEntity.setValue(item.code,         forKey: "code")
+        productEntity.setValue(item.direction,    forKey: "direction")
+        productEntity.setValue(item.full_name,    forKey: "full_name")
         productEntity.setValue(item.display_name, forKey: "display_name")
-        productEntity.setValue(item.description, forKey: "desc")
-        productEntity.setValue(item.is_variable, forKey: "is_variable")
-        productEntity.setValue(item.is_green, forKey: "is_green")
-        productEntity.setValue(item.is_tracker, forKey: "is_tracker")
-        productEntity.setValue(item.is_prepay, forKey: "is_prepay")
-        productEntity.setValue(item.is_business, forKey: "is_business")
-        productEntity.setValue(item.is_restricted, forKey: "is_restricted")
-        productEntity.setValue(item.term, forKey: "term")
-        productEntity.setValue(item.brand, forKey: "brand")
+        productEntity.setValue(item.description,  forKey: "desc")
+        productEntity.setValue(item.is_variable,  forKey: "is_variable")
+        productEntity.setValue(item.is_green,     forKey: "is_green")
+        productEntity.setValue(item.is_tracker,   forKey: "is_tracker")
+        productEntity.setValue(item.is_prepay,    forKey: "is_prepay")
+        
+        // Convert Boolean to String as per Core Data model requirement
+        productEntity.setValue(item.is_business ? "true" : "false", forKey: "is_business")
+        
+        // Use correct attribute name "is_stricted" from Core Data model
+        productEntity.setValue(item.is_restricted, forKey: "is_stricted")
+
+        productEntity.setValue(item.term,         forKey: "term")
+        productEntity.setValue(item.brand,        forKey: "brand")
         productEntity.setValue(item.available_from, forKey: "available_from")
         productEntity.setValue(item.available_to, forKey: "available_to")
 

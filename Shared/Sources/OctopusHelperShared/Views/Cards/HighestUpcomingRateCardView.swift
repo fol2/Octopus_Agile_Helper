@@ -6,7 +6,8 @@ import SwiftUI
 // MARK: - Local Settings
 private struct HighestRateCardLocalSettings: Codable {
     var additionalRatesCount: Int
-    static let `default` = HighestRateCardLocalSettings(additionalRatesCount: 2)
+    var showAdditionalRates: Bool
+    static let `default` = HighestRateCardLocalSettings(additionalRatesCount: 2, showAdditionalRates: true)
 }
 
 private class HighestRateCardLocalSettingsManager: ObservableObject {
@@ -113,11 +114,11 @@ public struct HighestUpcomingRateCardView: View {
 
             if viewModel.isLoading(for: viewModel.currentAgileCode) {
                 ProgressView()
-            } else if let highestObj = viewModel.highestUpcomingRate(productCode: viewModel.currentAgileCode),
-                      let highestRate = highestObj as? RateEntity {
+            } else if let highestRate = viewModel.highestUpcomingRate(productCode: viewModel.currentAgileCode),
+                      let value = highestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
                     let parts = viewModel.formatRate(
-                        highestRate.valueIncludingVAT,
+                        value,
                         showRatesInPounds: globalSettings.settings.showRatesInPounds
                     )
                     .split(separator: " ")
@@ -139,40 +140,46 @@ public struct HighestUpcomingRateCardView: View {
                         }
 
                         Spacer()
-                        Text(
-                            formatTimeRange(
-                                highestRate.validFrom, highestRate.validTo,
-                                locale: globalSettings.locale)
-                        )
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.secondaryTextColor)
+
+                        if let fromDate = highestRate.value(forKey: "valid_from") as? Date,
+                           let toDate = highestRate.value(forKey: "valid_to") as? Date {
+                            Text(
+                                formatTimeRange(
+                                    fromDate, toDate,
+                                    locale: globalSettings.locale
+                                )
+                            )
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        }
                     }
 
-                    if localSettings.settings.additionalRatesCount > 0 {
+                    if localSettings.settings.showAdditionalRates {
+                        // We'll filter allRates(for:) for upcoming
                         let upcomingRates = viewModel.allRates(for: viewModel.currentAgileCode)
                             .filter { rate in
-                                guard let start = rate.validFrom else { return false }
-                                return start > Date()
+                                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+                                return validFrom > Date()
                             }
-                            .sorted { $0.valueIncludingVAT > $1.valueIncludingVAT }
+                            .sorted { r1, r2 in
+                                (r1.value(forKey: "value_including_vat") as? Double ?? 0) > (r2.value(forKey: "value_including_vat") as? Double ?? 0)
+                            }
 
                         if upcomingRates.count > 1 {
-                            Divider()
-
                             ForEach(
                                 upcomingRates.prefix(
                                     localSettings.settings.additionalRatesCount + 1
                                 ).dropFirst(),
-                                id: \.validFrom
+                                id: \.self
                             ) { rate in
-                                let rateParts = viewModel.formatRate(
-                                    rate.valueIncludingVAT,
-                                    showRatesInPounds: globalSettings.settings.showRatesInPounds
-                                )
-                                .split(separator: " ")
-
                                 HStack(alignment: .firstTextBaseline) {
-                                    Text(rateParts[0])
+                                    let valStr = viewModel.formatRate(
+                                        rate.value(forKey: "value_including_vat") as? Double ?? 0,
+                                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                    )
+                                    let subParts = valStr.split(separator: " ")
+
+                                    Text(subParts[0])
                                         .font(Theme.mainFont2())
                                         .foregroundColor(
                                             RateColor.getColor(
@@ -181,25 +188,26 @@ public struct HighestUpcomingRateCardView: View {
                                             )
                                         )
 
-                                    if rateParts.count > 1 {
-                                        Text(rateParts[1])
+                                    if subParts.count > 1 {
+                                        Text(subParts[1])
                                             .font(Theme.subFont())
                                             .foregroundColor(Theme.secondaryTextColor)
                                     }
                                     Spacer()
-                                    Text(
-                                        formatTimeRange(
-                                            rate.validFrom, rate.validTo,
-                                            locale: globalSettings.locale)
-                                    )
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.secondaryTextColor)
+
+                                    if let fromD = rate.value(forKey: "valid_from") as? Date,
+                                       let toD = rate.value(forKey: "valid_to") as? Date {
+                                        Text(
+                                            formatTimeRange(fromD, toD, locale: globalSettings.locale)
+                                        )
+                                        .font(Theme.subFont())
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-
             } else {
                 Text("No upcoming rates available")
                     .foregroundColor(Theme.secondaryTextColor)
@@ -245,6 +253,14 @@ public struct HighestUpcomingRateCardView: View {
                     .padding(.horizontal, 6)
                     .background(Theme.secondaryBackground)
                     .cornerRadius(8)
+            }
+            .padding(.top, 8)
+
+            // The row for "Show Additional Rates"
+            HStack(alignment: .center) {
+                Toggle("Show Additional Rates", isOn: $localSettings.settings.showAdditionalRates)
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
             }
             .padding(.top, 8)
         }

@@ -99,8 +99,11 @@ struct Octopus_Agile_HelperApp: App {
 
                             // 2) Let RatesViewModel detect user's agile product or fallback
                             await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
-                            // Then load rates
-                            await ratesVM.loadRates(for: [ratesVM.currentAgileCode])
+                            
+                            // 3) Initialize rates for the current agile code
+                            if !ratesVM.currentAgileCode.isEmpty {
+                                await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+                            }
                         }
                     }
                 
