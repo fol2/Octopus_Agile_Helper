@@ -296,20 +296,55 @@ extension OctopusAPIClient {
 
     /// Overload for fetchDecodable with a custom URLRequest (auth headers, etc.).
     private func fetchDecodable<T: Decodable>(_ type: T.Type, from request: URLRequest) async throws -> T {
+        let decoder = JSONDecoder()
+        
+        // Custom date decoding strategy that handles both ISO8601 and null values
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            if container.decodeNil() {
+                return Date.distantPast // Return a default date for null values
+            }
+            
+            let dateStr = try container.decode(String.self)
+            
+            // Try formatters in order of most to least precise
+            let formatters = [
+                { () -> ISO8601DateFormatter in
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                    return formatter
+                }(),
+                { () -> ISO8601DateFormatter in
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withInternetDateTime]
+                    return formatter
+                }()
+            ]
+            
+            for formatter in formatters {
+                if let date = formatter.date(from: dateStr) {
+                    return date
+                }
+            }
+            
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Could not parse date string: \(dateStr)"
+            )
+        }
+        
         do {
             let (data, response) = try await session.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode)
+                  httpResponse.statusCode == 200
             else {
                 throw OctopusAPIError.invalidResponse
             }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601  // works for most Octopus date formats
             return try decoder.decode(T.self, from: data)
         } catch let urlError as URLError {
             throw OctopusAPIError.networkError(urlError)
-        } catch let decodeError as DecodingError {
-            throw OctopusAPIError.decodingError(decodeError)
+        } catch let decodingError as DecodingError {
+            throw OctopusAPIError.decodingError(decodingError)
         } catch {
             throw OctopusAPIError.networkError(error)
         }

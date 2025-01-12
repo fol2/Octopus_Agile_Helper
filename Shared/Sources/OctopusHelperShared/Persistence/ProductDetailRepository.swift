@@ -15,7 +15,9 @@ public final class ProductDetailRepository: ObservableObject {
     /// Fetch detail from API, parse, store into ProductDetailEntity
     @discardableResult
     public func fetchAndStoreProductDetail(productCode: String) async throws -> [NSManagedObject] {
+        print("🔄 开始获取产品详情，产品代码: \(productCode)...")
         let detailData = try await apiClient.fetchSingleProductDetail(productCode)
+        print("✅ API返回产品详情数据成功")
         return try await upsertProductDetail(json: detailData, code: productCode)
     }
 
@@ -24,6 +26,14 @@ public final class ProductDetailRepository: ObservableObject {
         try await context.perform {
             let req = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
             req.predicate = NSPredicate(format: "code == %@", code)
+            return try self.context.fetch(req)
+        }
+    }
+    
+    public func loadLocalProductDetailByTariffCode(tariffCode: String) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let req = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
+            req.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
             return try self.context.fetch(req)
         }
     }
@@ -38,15 +48,40 @@ public final class ProductDetailRepository: ObservableObject {
         }
     }
 
+    /// Fetch all tariff codes for a given product code
+    public func fetchTariffCodes(for productCode: String) async throws -> [String] {
+        print("🔍 Fetching tariff codes for product: \(productCode)")
+        return try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
+            request.predicate = NSPredicate(format: "code == %@", productCode)
+            let details = try self.context.fetch(request)
+            print("📦 Found \(details.count) product details")
+            
+            // Debug: Print all details
+            for detail in details {
+                if let tariffCode = detail.value(forKey: "tariff_code") as? String,
+                   let code = detail.value(forKey: "code") as? String {
+                    print("Found detail - code: \(code), tariff_code: \(tariffCode)")
+                }
+            }
+            
+            let codes = details.compactMap { $0.value(forKey: "tariff_code") as? String }
+            print("🏷 Extracted tariff codes: \(codes)")
+            return codes
+        }
+    }
+
     /// Parse nested JSON (single_register_electricity_tariffs, etc.)
     /// Flatten for each region, payment, etc.
     @discardableResult
     private func upsertProductDetail(json: OctopusSingleProductDetail, code: String) async throws -> [NSManagedObject] {
-        // For brevity, only a sketch:
+        print("📝 开始更新/插入产品详情数据...")
         var newDetails: [NSManagedObject] = []
+        var totalTariffs = 0
 
         // example for single_register_electricity_tariffs
         if let singleElec = json.single_register_electricity_tariffs {
+            print("⚡️ 处理单一电表电费...")
             let rows = try await processTariffType(
                 tariffType: "single_register_electricity_tariffs",
                 dictionary: singleElec,
@@ -54,12 +89,16 @@ public final class ProductDetailRepository: ObservableObject {
                 activeAt: json.tariffs_active_at
             )
             newDetails.append(contentsOf: rows)
+            totalTariffs += rows.count
+            print("📊 单一电表电费数量: \(rows.count)")
         }
         // similarly for dual_register_electricity_tariffs, single_register_gas_tariffs, etc.
 
         // Save once at the end
         try await context.perform {
             try self.context.save()
+            print("💾 成功保存到Core Data")
+            print("✅ 最终保存的费率详情数量: \(totalTariffs)")
         }
         return newDetails
     }

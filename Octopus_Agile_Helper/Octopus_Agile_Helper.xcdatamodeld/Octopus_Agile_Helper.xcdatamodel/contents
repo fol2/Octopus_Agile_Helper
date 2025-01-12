@@ -42,10 +42,6 @@
     </entity>
     <entity name="RateEntity" representedClassName="OctopusHelperSharedRateEntity" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="String"/>
-        <attribute name="payment_method" optional="YES" attributeType="String"/>
-        <attribute name="product_code" optional="YES" attributeType="String"/>
-        <attribute name="rate_type" optional="YES" attributeType="String"/>
-        <attribute name="region" optional="YES" attributeType="String"/>
         <attribute name="tariff_code" optional="YES" attributeType="String"/>
         <attribute name="valid_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="valid_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -54,9 +50,7 @@
     </entity>
     <entity name="StandingChargeEntity" representedClassName="StandingChargeEntity" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="String"/>
-        <attribute name="payment_method" optional="YES" attributeType="String"/>
-        <attribute name="product_code" optional="YES" attributeType="String"/>
-        <attribute name="region" optional="YES" attributeType="String"/>
+        <attribute name="tariff_code" optional="YES" attributeType="String"/>
         <attribute name="valid_from" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="valid_to" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="value_excluding_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>

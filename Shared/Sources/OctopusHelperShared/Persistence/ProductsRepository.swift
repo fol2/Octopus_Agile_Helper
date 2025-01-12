@@ -159,8 +159,10 @@ public final class ProductsRepository: ObservableObject {
 
         productEntity.setValue(item.term,         forKey: "term")
         productEntity.setValue(item.brand,        forKey: "brand")
-        productEntity.setValue(item.available_from, forKey: "available_from")
-        productEntity.setValue(item.available_to, forKey: "available_to")
+        
+        // Handle optional dates with nil coalescing
+        productEntity.setValue(item.available_from ?? Date.distantPast, forKey: "available_from")
+        productEntity.setValue(item.available_to ?? Date.distantFuture, forKey: "available_to")
 
         // Store the "self" link if present
         if let selfLink = item.links.first(where: { $0.rel == "self" })?.href {

@@ -204,6 +204,45 @@ public final class RatesViewModel: ObservableObject {
 
     // ------------------------------------------------------
 
+    // MARK: - New Rate Fetching Logic
+    public func fetchRatesForDefaultProduct() async {
+        do {
+            // Step 1: Get the product code using fallback logic
+            guard let productCode = await fallbackAgileCodeFromProductEntity() else {
+                print("❌ No Agile product found")
+                return
+            }
+            
+            // Step 2: Fetch product detail and store it
+            let details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: productCode)
+            
+            // Step 3: Find the rate link from the product detail
+            guard let detail = details.first,
+                  let rateLink = detail.value(forKey: "link_rate") as? String,
+                  let tariffCode = detail.value(forKey: "tariff_code") as? String else {
+                print("❌ No rate link found in product detail")
+                return
+            }
+            
+            // Step 4: If no region in tariff code, append "-H"
+            let finalTariffCode = tariffCode.contains("-[A-Z]$") ? tariffCode : "\(tariffCode)-H"
+            
+            // Step 5: Fetch and store rates
+            try await repository.fetchAndStoreRates(tariffCode: finalTariffCode, url: rateLink)
+            
+            // Step 6: Update current agile code
+            self.currentAgileCode = productCode
+            
+            // Step 7: Save to shared defaults for widget
+            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
+            sharedDefaults?.set(productCode, forKey: "agile_code_for_widget")
+            
+        } catch {
+            print("❌ Error fetching rates: \(error)")
+            self.fetchStatus = .failed(error)
+        }
+    }
+
     // MARK: - Init
     public init(globalTimer: GlobalTimer) {
         setupTimer(globalTimer)
@@ -326,6 +365,8 @@ public final class RatesViewModel: ObservableObject {
 
     /// Public method to refresh rates for a single product
     public func refreshRates(productCode: String, force: Bool = false) async {
+        print("🔄 开始刷新费率数据 (自动) - 产品代码: \(productCode)")
+        print("强制刷新: \(force ? "是" : "否")")
         var state = productStates[productCode] ?? ProductRatesState()
         if !force {
             // Check cooldown
@@ -355,6 +396,49 @@ public final class RatesViewModel: ObservableObject {
         }
     }
 
+    /// Fetch rates for a specific tariff code
+    public func fetchRates(tariffCode: String) async {
+        print("🔄 开始获取费率，tariffCode: \(tariffCode)")
+        
+        do {
+            let details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: tariffCode)
+            guard let detail = details.first,
+                  let tCode = detail.value(forKey: "tariff_code") as? String,
+                  let link = detail.value(forKey: "link_rate") as? String else {
+                print("❌ No product detail found for tariff code \(tariffCode)")
+                var state = productStates[tariffCode] ?? ProductRatesState()
+                state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
+                productStates[tariffCode] = state
+                return
+            }
+            
+            print("📦 Found product detail - tariff: \(tCode), link: \(link)")
+            var state = productStates[tariffCode] ?? ProductRatesState()
+            state.fetchStatus = .fetching
+            productStates[tariffCode] = state
+            
+            // Now fetch rates
+            try await repository.fetchAndStoreRates(tariffCode: tCode, url: link)
+            let freshRates = try await repository.fetchAllRates()
+            
+            state.allRates = freshRates.filter { rate in
+                (rate.value(forKey: "tariff_code") as? String) == tariffCode
+            }
+            state.upcomingRates = filterUpcoming(rates: state.allRates, now: Date())
+            state.fetchStatus = .done
+            state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 60) // 1 hour cooldown
+            productStates[tariffCode] = state
+            
+            print("✅ Successfully fetched rates for \(tariffCode)")
+        } catch {
+            print("❌ Error fetching rates: \(error.localizedDescription)")
+            var state = productStates[tariffCode] ?? ProductRatesState()
+            state.fetchStatus = .failed(error)
+            state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 5) // 5 min cooldown on error
+            productStates[tariffCode] = state
+        }
+    }
+
     // ------------------------------------------------------
     // MARK: - Public fetchRatesForDay method
     // ------------------------------------------------------
@@ -370,28 +454,16 @@ public final class RatesViewModel: ObservableObject {
 
     // MARK: - Product Sync
     
-    /// Sync all products and their details
+    /// Sync only basic product information
     public func syncProducts() async {
         do {
-            // First sync all products
-            let products = try await productsRepository.syncAllProducts()
-            
-            // Then for each product, fetch its details
-            for product in products {
-                if let code = product.value(forKey: "code") as? String {
-                    _ = try await productDetailRepository.fetchAndStoreProductDetail(productCode: code)
-                }
-            }
-            
-            // Finally, refresh rates for selected tariffs
-            for code in productStates.keys {
-                await refreshRatesForProduct(productCode: code, now: Date())
-            }
+            // Only sync basic product information
+            _ = try await productsRepository.syncAllProducts()
         } catch {
             print("❌ Error syncing products: \(error)")
         }
     }
-
+    
     // MARK: - Formatting
     
     /// Format a rate value for display

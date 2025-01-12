@@ -4,52 +4,144 @@ import CoreData
 
 struct ProductDetailView: View {
     let product: NSManagedObject
-    @Binding var isPresented: Bool
+    @State private var productDetails: [NSManagedObject] = []
     
     var body: some View {
         List {
-            Section("基本信息") {
-                DetailRow(title: "名称", value: product.value(forKey: "display_name") as? String ?? "")
-                DetailRow(title: "完整名称", value: product.value(forKey: "full_name") as? String ?? "")
-                DetailRow(title: "代码", value: product.value(forKey: "code") as? String ?? "")
-                DetailRow(title: "品牌", value: product.value(forKey: "brand") as? String ?? "")
-                DetailRow(title: "描述", value: product.value(forKey: "desc") as? String ?? "")
-            }
-            
-            Section("产品特性") {
-                DetailRow(title: "方向", value: product.value(forKey: "direction") as? String ?? "")
-                DetailRow(title: "是否可变", value: (product.value(forKey: "is_variable") as? Bool ?? false) ? "是" : "否")
-                DetailRow(title: "是否环保", value: (product.value(forKey: "is_green") as? Bool ?? false) ? "是" : "否")
-                DetailRow(title: "是否追踪", value: (product.value(forKey: "is_tracker") as? Bool ?? false) ? "是" : "否")
-                DetailRow(title: "是否预付", value: (product.value(forKey: "is_prepay") as? Bool ?? false) ? "是" : "否")
-                DetailRow(title: "是否商用", value: (product.value(forKey: "is_business") as? String ?? "") == "true" ? "是" : "否")
-            }
-            
-            Section("有效期") {
-                if let availableFrom = product.value(forKey: "available_from") as? Date {
-                    DetailRow(title: "开始时间", value: availableFrom.formatted())
+            if let productEntity = product as? ProductEntity {
+                Section("基本信息") {
+                    DetailRow(title: "名称", value: productEntity.display_name ?? "")
+                    DetailRow(title: "完整名称", value: productEntity.full_name ?? "")
+                    DetailRow(title: "代码", value: productEntity.code ?? "")
+                    DetailRow(title: "品牌", value: productEntity.brand ?? "")
+                    DetailRow(title: "描述", value: productEntity.desc ?? "")
                 }
-                if let availableTo = product.value(forKey: "available_to") as? Date {
-                    DetailRow(title: "结束时间", value: availableTo.formatted())
+                
+                Section("产品特性") {
+                    DetailRow(title: "方向", value: productEntity.direction ?? "")
+                    DetailRow(title: "是否可变", value: productEntity.is_variable ? "是" : "否")
+                    DetailRow(title: "是否环保", value: productEntity.is_green ? "是" : "否")
+                    DetailRow(title: "是否追踪", value: productEntity.is_tracker ? "是" : "否")
+                    DetailRow(title: "是否预付", value: productEntity.is_prepay ? "是" : "否")
+                    DetailRow(title: "是否商用", value: productEntity.is_business == "true" ? "是" : "否")
+                }
+                
+                Section("有效期") {
+                    if let availableFrom = productEntity.available_from,
+                       availableFrom != Date.distantPast {
+                        DetailRow(title: "开始时间", value: availableFrom.formatted())
+                    } else {
+                        DetailRow(title: "开始时间", value: "无限制")
+                    }
+                    
+                    if let availableTo = productEntity.available_to,
+                       availableTo != Date.distantFuture {
+                        DetailRow(title: "结束时间", value: availableTo.formatted())
+                    } else {
+                        DetailRow(title: "结束时间", value: "无限制")
+                    }
+                }
+            }
+            
+            Section("费率详情") {
+                if productDetails.isEmpty {
+                    Text("无费率详情")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(productDetails, id: \.self) { detail in
+                        if let detailEntity = detail as? ProductDetailEntity {
+                            NavigationLink {
+                                TariffDetailView(detail: detailEntity)
+                            } label: {
+                                VStack(alignment: .leading) {
+                                    Text("\(detailEntity.region ?? "") - \(detailEntity.payment ?? "")")
+                                        .font(.headline)
+                                    Text(detailEntity.tariff_code ?? "")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
         .navigationTitle("产品详情")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("关闭") {
-                    print("👆 点击关闭按钮")
-                    isPresented = false
+        .onAppear {
+            loadProductDetails()
+        }
+    }
+    
+    private func loadProductDetails() {
+        Task {
+            if let productEntity = product as? ProductEntity,
+               let code = productEntity.code {
+                do {
+                    let details = try await ProductDetailRepository.shared.loadLocalProductDetail(code: code)
+                    await MainActor.run {
+                        self.productDetails = details
+                    }
+                } catch {
+                    print("Error loading product details: \(error)")
                 }
             }
         }
-        .onAppear {
-            print("🎯 ProductDetailView appeared for: \(product.value(forKey: "display_name") as? String ?? "Unknown")")
+    }
+}
+
+struct TariffDetailView: View {
+    let detail: ProductDetailEntity
+    
+    var body: some View {
+        List {
+            Section("基本信息") {
+                DetailRow(title: "费率代码", value: detail.tariff_code ?? "")
+                DetailRow(title: "费率类型", value: detail.tariff_type ?? "")
+                DetailRow(title: "地区", value: detail.region ?? "")
+                DetailRow(title: "支付方式", value: detail.payment ?? "")
+                
+                if let activeAt = detail.tariffs_active_at {
+                    DetailRow(title: "生效时间", value: activeAt.formatted())
+                }
+            }
+            
+            Section("折扣信息") {
+                if detail.online_discount_inc_vat > 0 {
+                    DetailRow(title: "在线折扣(含税)", value: String(format: "£%.2f", detail.online_discount_inc_vat))
+                    DetailRow(title: "在线折扣(不含税)", value: String(format: "£%.2f", detail.online_discount_exc_vat))
+                }
+                
+                if detail.dual_fuel_discount_inc_vat > 0 {
+                    DetailRow(title: "双燃料折扣(含税)", value: String(format: "£%.2f", detail.dual_fuel_discount_inc_vat))
+                    DetailRow(title: "双燃料折扣(不含税)", value: String(format: "£%.2f", detail.dual_fuel_discount_exc_vat))
+                }
+            }
+            
+            Section("退出费用") {
+                if detail.exit_fees_inc_vat > 0 {
+                    DetailRow(title: "退出费用(含税)", value: String(format: "£%.2f", detail.exit_fees_inc_vat))
+                    DetailRow(title: "退出费用(不含税)", value: String(format: "£%.2f", detail.exit_fees_exc_vat))
+                    DetailRow(title: "退出费用类型", value: detail.exit_fees_type ?? "")
+                } else {
+                    Text("无退出费用")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            Section("API链接") {
+                if let standingLink = detail.link_standing_charge,
+                   !standingLink.isEmpty {
+                    DetailRow(title: "固定费率链接", value: standingLink)
+                }
+                if let rateLink = detail.link_rate,
+                   !rateLink.isEmpty {
+                    DetailRow(title: "单位费率链接", value: rateLink)
+                }
+            }
         }
-        .onDisappear {
-            print("🎯 ProductDetailView disappeared for: \(product.value(forKey: "display_name") as? String ?? "Unknown")")
-        }
+        .navigationTitle("费率详情")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
