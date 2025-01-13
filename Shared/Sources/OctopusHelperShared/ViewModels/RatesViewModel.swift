@@ -543,7 +543,7 @@ public final class RatesViewModel: ObservableObject {
     /// 3. direction = IMPORT
     public func fallbackAgileCodeFromProductEntity() async -> String? {
         do {
-            let products = try await productDetailRepository.fetchLocalProducts()
+            let products = try await productDetailRepository.fetchAllLocalProductDetails()
             
             // Filter for Agile products
             let agileProducts = products.filter { obj in

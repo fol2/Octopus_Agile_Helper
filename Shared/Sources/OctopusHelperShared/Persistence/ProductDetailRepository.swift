@@ -39,7 +39,8 @@ public final class ProductDetailRepository: ObservableObject {
     }
 
     /// Fetch all local product details
-    public func fetchLocalProducts() async throws -> [NSManagedObject] {
+    /// (Renamed for clarity; same functionality)
+    public func fetchAllLocalProductDetails() async throws -> [NSManagedObject] {
         try await context.perform {
             let req = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
             // Sort by code to ensure consistent order
@@ -71,10 +72,13 @@ public final class ProductDetailRepository: ObservableObject {
         }
     }
 
-    /// Parse nested JSON (single_register_electricity_tariffs, etc.)
-    /// Flatten for each region, payment, etc.
+    /// Upserts a product detail JSON response into Core Data
+    /// - Parameters:
+    ///   - json: The decoded JSON response from the API
+    ///   - code: Product code (e.g. "AGILE-FLEX-22-11-25")
+    /// - Returns: Array of upserted NSManagedObject (ProductDetailEntity)
     @discardableResult
-    private func upsertProductDetail(json: OctopusSingleProductDetail, code: String) async throws -> [NSManagedObject] {
+    public func upsertProductDetail(json: OctopusSingleProductDetail, code: String) async throws -> [NSManagedObject] {
         print("📝 开始更新/插入产品详情数据...")
         var newDetails: [NSManagedObject] = []
         var totalTariffs = 0

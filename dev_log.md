@@ -81,6 +81,26 @@
 - **Type Safety Improvements**: Carefully cast values from `Double` to `Int` (and vice versa) only where necessary.  
 - **Accessibility & Localisation**: Confirmed UI updates instantly on language change; improved date/time localising for zh-Hant.  
 
+### 9. Product Management Enhancements (13 January 2025)
+- **Product Code Handling**: Added robust support for handling product codes and tariff codes:
+  - New `ensureProductExists()` method to fetch and store product details
+  - Added `ensureProductsForTariffCodes()` for batch processing
+  - Smart tariff code parsing (e.g. "E-1R-AGILE-24-04-03-H" → "AGILE-24-04-03")
+- **API Client Improvements**:
+  - Enhanced `OctopusSingleProductDetail` to include all product attributes
+  - Direct mapping between API response and product entities
+  - Removed synthetic attribute generation in favor of actual API data
+- **Default Product Support**: Added automatic handling of default "SILVER-24-12-31" product
+  - Using complete product attributes from API response
+  - Maintains consistency with API-returned product data structure
+- **Repository Improvements**: 
+  - Renamed `fetchLocalProducts()` to `fetchAllLocalProductDetails()` for clarity
+  - Updated all references to use new method name in `RatesViewModel` and tests
+  - Added case-sensitive product code lookup functionality
+  - Enhanced error logging and status messages in both English and Chinese
+  - Made `upsertProductDetail` public to support cross-repository product management
+  - Added comprehensive documentation for public methods
+
 ---
 
 ### Summary of Benefits

@@ -52,30 +52,51 @@ public struct OctopusLinkItem: Decodable {
 /// Full product detail returned by `GET /products/<code>/`.
 public struct OctopusSingleProductDetail: Decodable {
     public let code: String
+    public let direction: String?
     public let full_name: String
     public let display_name: String
     public let description: String
+    public let is_variable: Bool?
+    public let is_green: Bool?
+    public let is_tracker: Bool?
+    public let is_prepay: Bool?
+    public let is_business: Bool?
+    public let is_restricted: Bool?
+    public let term: Int?
+    public let available_from: Date?
+    public let available_to: Date?
+    public let brand: String?
     
     public let tariffs_active_at: Date?
+    public let links: [OctopusLinkItem]?
     
     public let single_register_electricity_tariffs: [String: OctopusRegionData]?
     public let dual_register_electricity_tariffs: [String: OctopusRegionData]?
     public let single_register_gas_tariffs: [String: OctopusRegionData]?
     public let dual_register_gas_tariffs: [String: OctopusRegionData]?
     
-    public let brand: String?
-    
     enum CodingKeys: String, CodingKey {
         case code
+        case direction
         case full_name
         case display_name
         case description
+        case is_variable
+        case is_green
+        case is_tracker
+        case is_prepay
+        case is_business
+        case is_restricted
+        case term
+        case available_from
+        case available_to
+        case brand
         case tariffs_active_at
+        case links
         case single_register_electricity_tariffs
         case dual_register_electricity_tariffs
         case single_register_gas_tariffs
         case dual_register_gas_tariffs
-        case brand
     }
 }
 
@@ -235,6 +256,12 @@ extension OctopusAPIClient {
 
 // MARK: - Public API (Products & Tariffs)
 extension OctopusAPIClient {
+    /// Returns the full URL for a product
+    /// e.g. "https://api.octopus.energy/v1/products/SILVER-24-12-31/"
+    public func getProductURL(_ productCode: String) -> String {
+        return "\(baseURL)/products/\(productCode)/"
+    }
+
     /// Fetches the full list of products from Octopus.
     /// If you omit `brand`, it returns everything;
     /// if you pass brand="OCTOPUS_ENERGY", you get that brand only.

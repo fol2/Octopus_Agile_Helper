@@ -53,6 +53,16 @@ public final class ProductsRepository: ObservableObject {
         // 2) Upsert them into Core Data
         let finalEntities = try await upsertProducts(apiItems)
         print("✅ 成功保存到Core Data，最终实体数量: \(finalEntities.count)")
+
+        // 3) After main sync, ensure we have default product if not in the list
+        let defaultProductCode = "SILVER-24-12-31"
+        let isSilverInAPI = apiItems.contains { $0.code == defaultProductCode }
+        if !isSilverInAPI {
+            print("ℹ️ Product \(defaultProductCode) not in official list, adding manually...")
+            // We won't push it into `apiItems`, we'll handle it via ensureProductExists:
+            _ = try await ensureProductExists(productCode: defaultProductCode)
+        }
+
         return finalEntities
     }
 
@@ -75,6 +85,83 @@ public final class ProductsRepository: ObservableObject {
             request.sortDescriptors = [NSSortDescriptor(key: "code", ascending: true)]
             return try self.context.fetch(request)
         }
+    }
+
+    /// Ensures a specific product code exists in Core Data. If not found locally,
+    /// it fetches from the API (GET /products/<code>/) and upserts the data.
+    /// 
+    /// This method is specifically designed to create a ProductEntity from a ProductDetail
+    /// response when we don't have access to the full product list. It synthesizes the
+    /// necessary ProductEntity fields from the detail response, which is useful for:
+    /// - Adding default products (e.g., SILVER-24-12-31)
+    /// - Ensuring specific products exist when referenced by tariff codes
+    /// - Single-product scenarios where fetching the full product list would be inefficient
+    ///
+    /// - Parameter productCode: e.g. "SILVER-24-12-31"
+    /// - Returns: Final array of ProductEntity as NSManagedObject
+    @discardableResult
+    public func ensureProductExists(productCode: String) async throws -> [NSManagedObject] {
+        // 1) Check if it already exists
+        let existing = try await fetchLocalProductsByCode(productCode)
+        if !existing.isEmpty {
+            print("✅ Product \(productCode) already in local DB, skipping fetch.")
+            return existing
+        }
+
+        // 2) Fetch from API
+        print("🌐 Fetching product details for code: \(productCode)")
+        let detail = try await apiClient.fetchSingleProductDetail(productCode)
+        print("🔄 Upserting product + product detail for code: \(productCode)")
+
+        // 3) Upsert into ProductEntity (like syncAllProducts but for one code)
+        let upserted = try await upsertProducts([
+            OctopusProductItem(
+                code: detail.code,
+                direction: detail.direction ?? (detail.single_register_electricity_tariffs == nil
+                    && detail.single_register_gas_tariffs == nil ? "UNKNOWN" : "IMPORT"),
+                full_name: detail.full_name,
+                display_name: detail.display_name,
+                description: detail.description,
+                is_variable: detail.is_variable ?? true,
+                is_green: detail.is_green ?? false,
+                is_tracker: detail.is_tracker ?? detail.code.contains("AGILE"),
+                is_prepay: detail.is_prepay ?? false,
+                is_business: detail.is_business ?? false,
+                is_restricted: detail.is_restricted ?? false,
+                term: detail.term,
+                available_from: detail.available_from,
+                available_to: detail.available_to,
+                links: detail.links ?? [
+                    OctopusLinkItem(
+                        href: apiClient.getProductURL(detail.code),
+                        method: "GET",
+                        rel: "self"
+                    )
+                ],
+                brand: detail.brand
+            )
+        ])
+        
+        // 4) Upsert the tariff details
+        _ = try await ProductDetailRepository.shared.upsertProductDetail(json: detail, code: productCode)
+        return upserted
+    }
+
+    /// Ensures multiple tariff codes exist as product codes in Core Data. 
+    /// E.g. from an account's "E-1R-AGILE-24-04-03-H", we derive "AGILE-24-04-03".
+    /// We skip duplicates if they're already stored.
+    /// - Parameter tariffCodes: e.g. ["E-1R-AGILE-24-04-03-H", "E-1R-SILVER-24-12-31-A"]
+    /// - Returns: All newly added or existing product rows
+    @discardableResult
+    public func ensureProductsForTariffCodes(_ tariffCodes: [String]) async throws -> [NSManagedObject] {
+        var allUpserted: [NSManagedObject] = []
+        for code in tariffCodes {
+            if let shortCode = productCodeFromTariff(code) {
+                let upserted = try await ensureProductExists(productCode: shortCode)
+                allUpserted.append(contentsOf: upserted)
+            }
+        }
+        return allUpserted
     }
 
     // MARK: - Private Methods
@@ -169,6 +256,31 @@ public final class ProductsRepository: ObservableObject {
             productEntity.setValue(selfLink, forKey: "link")
         } else {
             productEntity.setValue("", forKey: "link")
+        }
+    }
+
+    /// Extracts a short code from a tariff code, e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03".
+    /// If it doesn't contain "AGILE" or a known pattern, you can adjust your logic as needed.
+    private func productCodeFromTariff(_ tariffCode: String) -> String? {
+        // e.g. "E-1R-AGILE-24-04-03-H"
+        let parts = tariffCode.components(separatedBy: "-")
+        guard parts.count >= 6 else { return nil }
+        return parts[2...5].joined(separator: "-") // e.g. "AGILE-24-04-03"
+    }
+
+    /// Fetch local product rows by the exact product code (case-sensitive match).
+    /// - Parameter code: e.g. "SILVER-24-12-31"
+    /// - Returns: Array of matching ProductEntity
+    private func fetchLocalProductsByCode(_ code: String) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "ProductEntity")
+            request.fetchLimit = 1
+            request.predicate = NSPredicate(format: "code == %@", code)
+            let found = try self.context.fetch(request)
+            if !found.isEmpty {
+                print("🔍 Found product in local DB: \(code)")
+            }
+            return found
         }
     }
 }

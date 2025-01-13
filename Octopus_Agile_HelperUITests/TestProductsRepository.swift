@@ -68,7 +68,7 @@ final class TestProductsRepository: XCTestCase {
         XCTAssertEqual(finalEntities[0].code, "FAKE-1")
 
         // 4) Optionally fetch them back
-        let stored = try await repository.fetchLocalProducts()
+        let stored = try await repository.fetchAllLocalProductDetails()
         XCTAssertEqual(stored.count, 1)
         XCTAssertEqual(stored[0].full_name, "Fake Product 1")
     }
