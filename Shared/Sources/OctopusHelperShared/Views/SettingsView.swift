@@ -206,7 +206,10 @@ struct APIConfigurationView: View {
     @State private var showDeleteAPIKeyWarning = false
     @State private var showDeleteMPANWarning = false
     @State private var showDeleteSerialWarning = false
-    
+    @State private var accountNumberInput: String = ""
+    @State private var isFetchingAccount = false
+    @State private var fetchError: String?
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -244,129 +247,184 @@ struct APIConfigurationView: View {
                         Theme.secondaryBackground
                             .padding(.horizontal, 20)
                     )
-                }
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(LocalizedStringKey("Electricity Meter Details"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
                     
-                    VStack(spacing: 0) {
-                        HStack {
-                            TextField(
-                                LocalizedStringKey("Electricity MPAN"),
-                                text: Binding(
-                                    get: { globalSettings.settings.electricityMPAN ?? "" },
-                                    set: { globalSettings.settings.electricityMPAN = $0.isEmpty ? nil : $0 }
-                                ),
-                                prompt: Text(LocalizedStringKey("Enter electricity MPAN (13 digits)"))
-                                    .foregroundColor(Theme.secondaryTextColor)
-                            )
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 16)
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.mainTextColor)
-                            .keyboardType(.numberPad)
-                            
-                            if !(globalSettings.settings.electricityMPAN ?? "").isEmpty {
-                                Button(action: {
-                                    showDeleteMPANWarning = true
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.red)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical)
-                        .background(
-                            Theme.secondaryBackground
-                                .padding(.horizontal, 20)
-                        )
-                        
-                        Divider()
-                            .background(Theme.mainBackground)
+                    // Account Number Fetch Section
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LocalizedStringKey("Account Number"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
                             .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
                         
-                        HStack {
-                            TextField(
-                                LocalizedStringKey("Electricity Meter Serial Number"),
-                                text: Binding(
-                                    get: { globalSettings.settings.electricityMeterSerialNumber ?? "" },
-                                    set: { globalSettings.settings.electricityMeterSerialNumber = $0.isEmpty ? nil : $0 }
-                                ),
-                                prompt: Text(LocalizedStringKey("Enter electricity meter serial number"))
-                                    .foregroundColor(Theme.secondaryTextColor)
-                            )
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 16)
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.mainTextColor)
-                            
-                            if !(globalSettings.settings.electricityMeterSerialNumber ?? "").isEmpty {
-                                Button(action: {
-                                    showDeleteSerialWarning = true
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.red)
+                        VStack(spacing: 0) {
+                            HStack {
+                                TextField(
+                                    LocalizedStringKey("Account Number"),
+                                    text: $accountNumberInput,
+                                    prompt: Text(LocalizedStringKey("A-XXXXX"))
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                )
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 16)
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(Theme.mainTextColor)
+                                .disabled(isFetchingAccount)
+                                
+                                if isFetchingAccount {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                } else {
+                                    Button(action: {
+                                        Task {
+                                            await confirmAccountNumber()
+                                        }
+                                    }) {
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .foregroundColor(Theme.mainColor)
+                                    }
+                                    .disabled(accountNumberInput.isEmpty || globalSettings.settings.apiKey.isEmpty)
                                 }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical)
-                        .background(
-                            Theme.secondaryBackground
-                                .padding(.horizontal, 20)
-                        )
-                        
-                        Link(destination: URL(string: "https://octopus.energy/dashboard/new/accounts/personal-details/api-access")!) {
-                            HStack(spacing: 4) {
-                                Text(LocalizedStringKey("Get API Key, MPAN and Serial Number (Login Required)"))
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.mainColor)
-                                    .textCase(.none)
-                                    .multilineTextAlignment(.leading)
-                                
-                                Spacer()
-                                
-                                Image(systemName: "arrow.up.right")
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.mainColor)
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical)
+                            .background(
+                                Theme.secondaryBackground
+                                    .padding(.horizontal, 20)
+                            )
+                            
+                            if let error = fetchError {
+                                Text(LocalizedStringKey(error))
+                                    .font(Theme.subFont())
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 8)
+                            }
                         }
-                        .background(Theme.mainBackground)
-                        .padding(.horizontal, 20)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LocalizedStringKey("Electricity Meter Details"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                        
+                        VStack(spacing: 0) {
+                            HStack {
+                                TextField(
+                                    LocalizedStringKey("Electricity MPAN"),
+                                    text: Binding(
+                                        get: { globalSettings.settings.electricityMPAN ?? "" },
+                                        set: { globalSettings.settings.electricityMPAN = $0.isEmpty ? nil : $0 }
+                                    ),
+                                    prompt: Text(LocalizedStringKey("Enter electricity MPAN (13 digits)"))
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                )
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 16)
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(Theme.mainTextColor)
+                                .keyboardType(.numberPad)
+                                
+                                if !(globalSettings.settings.electricityMPAN ?? "").isEmpty {
+                                    Button(action: {
+                                        showDeleteMPANWarning = true
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.red)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical)
+                            .background(
+                                Theme.secondaryBackground
+                                    .padding(.horizontal, 20)
+                            )
+                            
+                            Divider()
+                                .background(Theme.mainBackground)
+                                .padding(.horizontal, 20)
+                            
+                            HStack {
+                                TextField(
+                                    LocalizedStringKey("Electricity Meter Serial Number"),
+                                    text: Binding(
+                                        get: { globalSettings.settings.electricityMeterSerialNumber ?? "" },
+                                        set: { globalSettings.settings.electricityMeterSerialNumber = $0.isEmpty ? nil : $0 }
+                                    ),
+                                    prompt: Text(LocalizedStringKey("Enter electricity meter serial number"))
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                )
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 16)
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(Theme.mainTextColor)
+                                
+                                if !(globalSettings.settings.electricityMeterSerialNumber ?? "").isEmpty {
+                                    Button(action: {
+                                        showDeleteSerialWarning = true
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.red)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical)
+                            .background(
+                                Theme.secondaryBackground
+                                    .padding(.horizontal, 20)
+                            )
+                            
+                            Link(destination: URL(string: "https://octopus.energy/dashboard/new/accounts/personal-details/api-access")!) {
+                                HStack(spacing: 4) {
+                                    Text(LocalizedStringKey("Get API Key, MPAN and Serial Number (Login Required)"))
+                                        .font(Theme.secondaryFont())
+                                        .foregroundColor(Theme.mainColor)
+                                        .textCase(.none)
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "arrow.up.right")
+                                        .font(Theme.subFont())
+                                        .foregroundColor(Theme.mainColor)
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical)
+                            }
+                            .background(Theme.mainBackground)
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LocalizedStringKey("Guide"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                        
+                        GuideView()
+                            .padding()
+                            .background(Theme.secondaryBackground)
+                    }
+                    .padding(.bottom, 20)
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LocalizedStringKey("GDPR (UK) and Data Usage Declaration"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                        
+                        GDPRDeclarationView()
+                            .padding()
+                            .background(Theme.secondaryBackground)
                     }
                 }
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(LocalizedStringKey("Guide"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    
-                    GuideView()
-                        .padding()
-                        .background(Theme.secondaryBackground)
-                }
-                .padding(.bottom, 20)
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(LocalizedStringKey("GDPR (UK) and Data Usage Declaration"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    
-                    GDPRDeclarationView()
-                        .padding()
-                        .background(Theme.secondaryBackground)
-                }
+                .padding(.vertical)
             }
             .padding(.vertical)
         }
@@ -396,6 +454,25 @@ struct APIConfigurationView: View {
         } message: {
             Text(LocalizedStringKey("Are you sure you want to delete your meter serial number? This will prevent access to your meter-specific data."))
         }
+    }
+    
+    private func confirmAccountNumber() async {
+        isFetchingAccount = true
+        fetchError = nil
+        do {
+            try await AccountRepository.shared.fetchAndStoreAccount(
+                accountNumber: accountNumberInput,
+                apiKey: globalSettings.settings.apiKey
+            )
+            // on success, the repository has updated globalSettings with MPAN + Serial.
+            // so we might read them here if we want to show a success message:
+            if let mpan = globalSettings.settings.electricityMPAN {
+                print("Auto-filled MPAN: \(mpan)")
+            }
+        } catch {
+            fetchError = error.localizedDescription
+        }
+        isFetchingAccount = false
     }
 }
 
@@ -566,17 +643,14 @@ extension View {
     }
 }
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var lookupRegionManually = false
     @State private var lookupError: String?
 
-    // new states for account approach
-    @State private var accountNumberInput: String = ""
-    @State private var isFetchingAccount = false
-    @State private var fetchError: String?
+    public init() {}
 
-    var body: some View {
+    public var body: some View {
         Form {
             Section(
                 header: HStack {
@@ -694,34 +768,6 @@ struct SettingsView: View {
                 }
             }
 
-            // Account Number Fetch section
-            Section(
-                header: Text("Account Number Fetch")
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)) {
-                // Account Number Fetch section above is unchanged
-                // except we removed the if-let block referencing an unknown method
-                TextField("Enter Account Number", text: $accountNumberInput)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    .font(Theme.secondaryFont())
-                    .foregroundColor(Theme.mainTextColor)
-                
-                if isFetchingAccount {
-                    ProgressView("Fetching Account Data...")
-                } else {
-                    Button("Confirm") {
-                        Task {
-                            await confirmAccountNumber()
-                        }
-                    }
-                    .disabled(accountNumberInput.isEmpty || globalSettings.settings.apiKey.isEmpty)
-                }
-                if let fetchError = fetchError {
-                    Text(fetchError).foregroundColor(.red)
-                }
-            }
-
             Section(
                 header: HStack {
                     Text(LocalizedStringKey("Electricity Meter Details"))
@@ -817,25 +863,6 @@ struct SettingsView: View {
         .background(Theme.mainBackground)
         .environment(\.locale, globalSettings.locale)
         .navigationTitle(LocalizedStringKey("Settings"))
-    }
-    
-    private func confirmAccountNumber() async {
-        isFetchingAccount = true
-        fetchError = nil
-        do {
-            try await AccountRepository.shared.fetchAndStoreAccount(
-                accountNumber: accountNumberInput,
-                apiKey: globalSettings.settings.apiKey
-            )
-            // on success, the repository has updated globalSettings with MPAN + Serial.
-            // so we might read them here if we want to show a success message:
-            if let mpan = globalSettings.settings.electricityMPAN {
-                print("Auto-filled MPAN: \(mpan)")
-            }
-        } catch {
-            fetchError = error.localizedDescription
-        }
-        isFetchingAccount = false
     }
 }
 

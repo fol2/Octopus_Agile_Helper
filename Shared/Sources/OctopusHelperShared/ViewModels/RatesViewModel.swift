@@ -190,8 +190,8 @@ public final class RatesViewModel: ObservableObject {
     public func lowestUpcomingRate(productCode: String) -> NSManagedObject? {
         guard let state = productStates[productCode] else { return nil }
         return state.upcomingRates.min { a, b in
-            let aValue = (a as? RateEntity)?.valueIncludingVAT ?? Double.infinity
-            let bValue = (b as? RateEntity)?.valueIncludingVAT ?? Double.infinity
+            let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
             return aValue < bValue
         }
     }
@@ -200,8 +200,8 @@ public final class RatesViewModel: ObservableObject {
     public func highestUpcomingRate(productCode: String) -> NSManagedObject? {
         guard let state = productStates[productCode] else { return nil }
         return state.upcomingRates.max { a, b in
-            let aValue = (a as? RateEntity)?.valueIncludingVAT ?? Double.infinity
-            let bValue = (b as? RateEntity)?.valueIncludingVAT ?? Double.infinity
+            let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
             return aValue < bValue
         }
     }

@@ -45,9 +45,11 @@ struct TestView: View {
     @StateObject private var ratesViewModel: RatesViewModel
     @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var productsFetcher: ProductsFetcher
+    @EnvironmentObject private var globalSettings: GlobalSettingsManager
     private let repository = RatesRepository.shared
     
     @State private var showingDBViewer = false
+    @State private var showingSettings = false  // Add this line for settings sheet
     @State private var selectedTariffCode: String?
     @State private var availableTariffCodes: [String] = []
     @State private var navigationPath = NavigationPath()
@@ -131,11 +133,14 @@ struct TestView: View {
                 Section("Fetch Data") {
                     VStack(alignment: .leading, spacing: 10) {
                         // 1. Status
-                        if let state = ratesViewModel.productStates[selectedTariffCode ?? ""] {
-                            Text("Status: \(state.fetchStatus.description)")
-                        } else {
-                            Text("Status: Not Started")
-                        }
+                        let statusText: String = {
+                            if let state = ratesViewModel.productStates[selectedTariffCode ?? ""] {
+                                return "Status: \(state.fetchStatus.description)"
+                            } else {
+                                return "Status: Not Started"
+                            }
+                        }()
+                        Text(statusText)
                         
                         // 2. Fetch Products with navigation
                         HStack(spacing: 8) {
@@ -347,7 +352,69 @@ struct TestView: View {
                 Section(LocalizedStringKey("Calculations")) {
                     // We add calculation later
                 }
+                
+                // MARK: Settings Section
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Region Info
+                        HStack {
+                            Label("Region", systemImage: "mappin.circle.fill")
+                                .foregroundStyle(Theme.mainTextColor)
+                            Spacer()
+                            Text(globalSettings.settings.regionInput.isEmpty ? "H (Default)" : globalSettings.settings.regionInput.uppercased())
+                                .foregroundStyle(Theme.secondaryTextColor)
+                        }
+                        
+                        // API Status
+                        HStack {
+                            Label("API Status", systemImage: "key.fill")
+                                .foregroundStyle(Theme.mainTextColor)
+                            Spacer()
+                            if !globalSettings.settings.apiKey.isEmpty {
+                                Label("Configured", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                Text("Not Configured")
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        
+                        // Active Cards
+                        HStack {
+                            Label("Active Cards", systemImage: "square.stack.fill")
+                                .foregroundStyle(Theme.mainTextColor)
+                            Spacer()
+                            Text("\(globalSettings.settings.cardSettings.filter { $0.isEnabled }.count)")
+                                .foregroundStyle(Theme.secondaryTextColor)
+                        }
+                        
+                        // Display Preference
+                        HStack {
+                            Label("Rate Display", systemImage: "creditcard.fill")
+                                .foregroundStyle(Theme.mainTextColor)
+                            Spacer()
+                            Text(globalSettings.settings.showRatesInPounds ? "Pounds (£)" : "Pence (p)")
+                                .foregroundStyle(Theme.secondaryTextColor)
+                        }
+                        
+                        // Language
+                        HStack {
+                            Label("Language", systemImage: "globe")
+                                .foregroundStyle(Theme.mainTextColor)
+                            Spacer()
+                            Text(globalSettings.settings.selectedLanguage.displayNameWithAutonym)
+                                .foregroundStyle(Theme.secondaryTextColor)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("Settings Overview")
+                        .font(Theme.subFont())
+                        .foregroundStyle(Theme.secondaryTextColor)
+                        .textCase(.none)
+                }
             }
+            .listStyle(.insetGrouped)
             .onChange(of: selectedTariffCode) { oldValue, newValue in
                 if newValue == nil {
                     standingCharges = []
@@ -387,6 +454,20 @@ struct TestView: View {
             }
             .sheet(isPresented: $showingDBViewer) {
                 DBViewerView(context: viewContext)
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
+            .navigationTitle("Test View")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gear")
+                            .foregroundColor(Theme.mainTextColor)
+                            .font(Theme.secondaryFont())
+                    }
+                }
             }
         }
         .onDisappear {
@@ -588,6 +669,7 @@ struct TestView_Previews: PreviewProvider {
     static var previews: some View {
         TestView(ratesViewModel: RatesViewModel(globalTimer: GlobalTimer()))
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environmentObject(GlobalSettingsManager())
     }
 }
 
