@@ -83,7 +83,7 @@ public final class ProductDetailRepository: ObservableObject {
         var newDetails: [NSManagedObject] = []
         var totalTariffs = 0
 
-        // example for single_register_electricity_tariffs
+        // Process single register electricity tariffs
         if let singleElec = json.single_register_electricity_tariffs {
             print("⚡️ 处理单一电表电费...")
             let rows = try await processTariffType(
@@ -96,7 +96,48 @@ public final class ProductDetailRepository: ObservableObject {
             totalTariffs += rows.count
             print("📊 单一电表电费数量: \(rows.count)")
         }
-        // similarly for dual_register_electricity_tariffs, single_register_gas_tariffs, etc.
+        
+        // Process dual register electricity tariffs
+        if let dualElec = json.dual_register_electricity_tariffs {
+            print("⚡️ 处理双电表电费...")
+            let rows = try await processTariffType(
+                tariffType: "dual_register_electricity_tariffs",
+                dictionary: dualElec,
+                code: code,
+                activeAt: json.tariffs_active_at
+            )
+            newDetails.append(contentsOf: rows)
+            totalTariffs += rows.count
+            print("📊 双电表电费数量: \(rows.count)")
+        }
+        
+        // Process single register gas tariffs
+        if let singleGas = json.single_register_gas_tariffs {
+            print("🔥 处理单一燃气费...")
+            let rows = try await processTariffType(
+                tariffType: "single_register_gas_tariffs",
+                dictionary: singleGas,
+                code: code,
+                activeAt: json.tariffs_active_at
+            )
+            newDetails.append(contentsOf: rows)
+            totalTariffs += rows.count
+            print("📊 单一燃气费数量: \(rows.count)")
+        }
+        
+        // Process dual register gas tariffs
+        if let dualGas = json.dual_register_gas_tariffs {
+            print("🔥 处理双燃气费...")
+            let rows = try await processTariffType(
+                tariffType: "dual_register_gas_tariffs",
+                dictionary: dualGas,
+                code: code,
+                activeAt: json.tariffs_active_at
+            )
+            newDetails.append(contentsOf: rows)
+            totalTariffs += rows.count
+            print("📊 双燃气费数量: \(rows.count)")
+        }
 
         // Save once at the end
         try await context.perform {
