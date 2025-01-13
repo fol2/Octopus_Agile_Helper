@@ -48,35 +48,102 @@ public final class RatesRepository: ObservableObject {
 
     // MARK: - Public API
 
-    /// New approach: we accept a known link + known tariffCode
+    /// New approach: we accept a known link + known tariffCode, with pagination support
     public func fetchAndStoreRates(tariffCode: String, url: String) async throws {
-        let rates = try await apiClient.fetchTariffRates(url: url)
+        let rates = try await apiClient.fetchAllRatesPaginated(baseURL: url)
         try await upsertRates(rates, tariffCode: tariffCode)
         _ = try await fetchAllRates() // refresh local cache
+    }
+    
+    /// Fetch and store standing charges
+    public func fetchAndStoreStandingCharges(tariffCode: String, url: String) async throws {
+        let charges = try await apiClient.fetchStandingCharges(url: url)
+        try await upsertStandingCharges(charges, tariffCode: tariffCode)
+    }
+    
+    /// Store standing charges in CoreData
+    private func upsertStandingCharges(_ charges: [OctopusStandingCharge], tariffCode: String) async throws {
+        try await context.perform {
+            print("🔄 Upserting \(charges.count) standing charges for tariff \(tariffCode)")
+            
+            // Fetch only existing charges for this tariff code
+            let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            let existingCharges = try self.context.fetch(request)
+            print("📦 Found \(existingCharges.count) existing standing charges for tariff \(tariffCode)")
+            
+            // Create composite key map using both date and tariff code
+            var mapByKey = [String: NSManagedObject]()
+            for c in existingCharges {
+                if let fromDate = c.value(forKey: "valid_from") as? Date,
+                   let code = c.value(forKey: "tariff_code") as? String {
+                    let key = "\(code)_\(fromDate.timeIntervalSince1970)"
+                    mapByKey[key] = c
+                }
+            }
+            
+            for charge in charges {
+                let validFrom = charge.valid_from
+                let key = "\(tariffCode)_\(validFrom.timeIntervalSince1970)"
+                
+                if let found = mapByKey[key] {
+                    // update
+                    print("🔄 Updating standing charge for \(validFrom)")
+                    if let validTo = charge.valid_to {
+                        found.setValue(validTo, forKey: "valid_to")
+                    } else {
+                        found.setValue(nil, forKey: "valid_to")
+                    }
+                    found.setValue(charge.value_excluding_vat, forKey: "value_excluding_vat")
+                    found.setValue(charge.value_including_vat, forKey: "value_including_vat")
+                } else {
+                    // insert
+                    print("➕ Inserting new standing charge for \(validFrom)")
+                    let newCharge = NSEntityDescription.insertNewObject(forEntityName: "StandingChargeEntity", into: self.context)
+                    newCharge.setValue(UUID().uuidString, forKey: "id")
+                    newCharge.setValue(charge.valid_from, forKey: "valid_from")
+                    if let validTo = charge.valid_to {
+                        newCharge.setValue(validTo, forKey: "valid_to")
+                    }
+                    newCharge.setValue(charge.value_excluding_vat, forKey: "value_excluding_vat")
+                    newCharge.setValue(charge.value_including_vat, forKey: "value_including_vat")
+                    newCharge.setValue(tariffCode, forKey: "tariff_code")
+                }
+            }
+            
+            try self.context.save()
+        }
     }
 
     /// Now we identify by `tariff_code`:
     private func upsertRates(_ rates: [OctopusTariffRate], tariffCode: String) async throws {
         try await context.perform {
+            // Fetch only existing rates for this tariff code
             let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
             let existingRates = try self.context.fetch(request)
-            var mapByFromDate = [Date: NSManagedObject]()
+            
+            // Create composite key map using both date and tariff code
+            var mapByKey = [String: NSManagedObject]()
             for r in existingRates {
-                if let fromDate = r.value(forKey: "valid_from") as? Date {
-                    mapByFromDate[fromDate] = r
+                if let fromDate = r.value(forKey: "valid_from") as? Date,
+                   let code = r.value(forKey: "tariff_code") as? String {
+                    let key = "\(code)_\(fromDate.timeIntervalSince1970)"
+                    mapByKey[key] = r
                 }
             }
 
             for apiRate in rates {
                 let validFrom = apiRate.valid_from
-                if let found = mapByFromDate[validFrom] {
-                    // update
+                let key = "\(tariffCode)_\(validFrom.timeIntervalSince1970)"
+                
+                if let found = mapByKey[key] {
+                    // update existing rate
                     found.setValue(apiRate.valid_to, forKey: "valid_to")
                     found.setValue(apiRate.value_exc_vat, forKey: "value_excluding_vat")
                     found.setValue(apiRate.value_inc_vat, forKey: "value_including_vat")
-                    found.setValue(tariffCode, forKey: "tariff_code")
                 } else {
-                    // insert
+                    // insert new rate
                     let newRate = NSEntityDescription.insertNewObject(forEntityName: "RateEntity", into: self.context)
                     newRate.setValue(UUID().uuidString, forKey: "id")
                     newRate.setValue(apiRate.valid_from, forKey: "valid_from")
@@ -98,6 +165,15 @@ public final class RatesRepository: ObservableObject {
             let list = try self.context.fetch(req)
             self.currentCachedRates = list
             return list
+        }
+    }
+
+    /// Fetch all standing charges from CoreData
+    public func fetchAllStandingCharges() async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            return try self.context.fetch(request)
         }
     }
 

@@ -45,12 +45,15 @@ struct TestView: View {
     @StateObject private var ratesViewModel: RatesViewModel
     @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var productsFetcher: ProductsFetcher
+    private let repository = RatesRepository.shared
+    
     @State private var showingDBViewer = false
     @State private var selectedTariffCode: String?
     @State private var availableTariffCodes: [String] = []
     @State private var navigationPath = NavigationPath()
     @State private var showingProductsList = false
-
+    @State private var standingCharges: [NSManagedObject] = []
+    
     // Entity declarations for Core Data
     private static let rateEntity = NSEntityDescription.entity(
         forEntityName: "RateEntity",
@@ -66,19 +69,14 @@ struct TestView: View {
     )!
 
     // Use @State to hold fetched NSManagedObject arrays
-    @State private var standingCharges: [NSManagedObject] = []
-    @FetchRequest private var consumption: FetchedResults<NSManagedObject>
+    @State private var consumption: [NSManagedObject] = []
 
     init(ratesViewModel: RatesViewModel) {
         self._ratesViewModel = StateObject(wrappedValue: ratesViewModel)
         self._consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
-        self._productsFetcher = StateObject(wrappedValue: ProductsFetcher(context: PersistenceController.shared.container.viewContext))
-        
-        let consumptionRequest = FetchRequest<NSManagedObject>(
-            entity: TestView.consumptionEntity,
-            sortDescriptors: [NSSortDescriptor(key: "interval_start", ascending: true)]
+        self._productsFetcher = StateObject(
+            wrappedValue: ProductsFetcher(context: PersistenceController.shared.container.viewContext)
         )
-        _consumption = consumptionRequest
     }
     
     var products: [ProductEntity] {
@@ -87,30 +85,49 @@ struct TestView: View {
     
     @State private var selectedProductCode: String?
     
-    // MARK: - Rates Computed Properties
+    // MARK: - Rates Computed Property (No async side effects here!)
     private var combinedRates: [NSManagedObject] {
-        // Now we use `tariff_code` to filter. 
-        if selectedTariffCode != nil {
-            return ratesViewModel.allRatesMerged.filter { rate in
-                rate.value(forKey: "tariff_code") as? String == selectedTariffCode
-            }
-        } else {
-            return ratesViewModel.allRatesMerged
+        guard let tariffCode = selectedTariffCode else {
+            return []
         }
+        return ratesViewModel.allRates(for: tariffCode)
     }
-
+    
     private var availableRateProducts: Set<String> {
-        // we now rely on `tariff_code` instead of `product_code`
-        let all = ratesViewModel.allRatesMerged.compactMap {
+        let all = combinedRates.compactMap {
             $0.value(forKey: "tariff_code") as? String
         }
         return Set(all)
     }
     
+    // MARK: - Load Rates from CoreData
+    private func loadRatesFromCoreData() {
+        guard let tariffCode = selectedTariffCode else { return }
+        
+        Task {
+            do {
+                let freshRates = try await repository.fetchAllRates()
+                let filtered = freshRates.filter { rate in
+                    (rate.value(forKey: "tariff_code") as? String) == tariffCode
+                }
+                if !filtered.isEmpty {
+                    await MainActor.run {
+                        var state = ratesViewModel.productStates[tariffCode] ?? ProductRatesState()
+                        state.allRates = filtered
+                        state.upcomingRates = ratesViewModel.filterUpcoming(rates: filtered, now: Date())
+                        ratesViewModel.productStates[tariffCode] = state
+                    }
+                }
+            } catch {
+                print("❌ Error loading rates: \(error)")
+            }
+        }
+    }
+    
     var body: some View {
         NavigationStack(path: $navigationPath) {
             List {
-                // Fetch Data Section
+                // MARK: Fetch Data Section
                 Section("Fetch Data") {
                     VStack(alignment: .leading, spacing: 10) {
                         // 1. Status
@@ -151,9 +168,11 @@ struct TestView: View {
                                     Task {
                                         do {
                                             print("🔍 Loading local product details for: \(code)")
-                                            let localDetails = try await ProductDetailRepository.shared.loadLocalProductDetail(code: code)
+                                            let localDetails = try await ProductDetailRepository.shared
+                                                .loadLocalProductDetail(code: code)
                                             if !localDetails.isEmpty {
-                                                let codes = try await ProductDetailRepository.shared.fetchTariffCodes(for: code)
+                                                let codes = try await ProductDetailRepository.shared
+                                                    .fetchTariffCodes(for: code)
                                                 print("📦 Found local tariff codes: \(codes)")
                                                 await MainActor.run {
                                                     self.availableTariffCodes = codes
@@ -194,8 +213,10 @@ struct TestView: View {
                                 do {
                                     print("🌐 Fetching product details from API for: \(code)")
                                     let startTime = Date()
-                                    _ = try await ProductDetailRepository.shared.fetchAndStoreProductDetail(productCode: code)
-                                    let codes = try await ProductDetailRepository.shared.fetchTariffCodes(for: code)
+                                    _ = try await ProductDetailRepository.shared
+                                        .fetchAndStoreProductDetail(productCode: code)
+                                    let codes = try await ProductDetailRepository.shared
+                                        .fetchTariffCodes(for: code)
                                     print("📊 Fetched tariff codes: \(codes)")
                                     await MainActor.run {
                                         self.availableTariffCodes = codes
@@ -273,46 +294,77 @@ struct TestView: View {
                     .padding(.vertical, 8)
                 }
                 
-                // Charts Section
+                // MARK: Standing Charges Section
                 Section(header: Text("Standing Charges")) {
-                    Text("Standing Charges (\(standingCharges.count))")
-                    standingChargesChart()
-                }
-
-                Section {
-                    Text("Rates (\(combinedRates.count))")
-
-                    // Debug info
-                    VStack(alignment: .leading) {
-                        Text("Available Rates: \(combinedRates.count)")
-                            .font(.caption)
+                    if standingCharges.isEmpty {
+                        Text("No standing charges available")
                             .foregroundColor(.secondary)
-                        Text("Distinct Products: \(availableRateProducts.count)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .onAppear {
+                                Task {
+                                    // If there's no data but we have a tariff code, attempt loading
+                                    if selectedTariffCode != nil {
+                                        await refreshRatesAndCharges()
+                                    }
+                                }
+                            }
+                    } else {
+                        Text("Standing Charges (\(standingCharges.count))")
+                            .font(.headline)
+                        standingChargesView()
                     }
-
-                    ratesChart()
                 }
-                .onChange(of: selectedProductCode) { _, _ in
-                    // Reload with updated standingCharges predicate
-                    refreshRatesAndCharges()
+
+                // MARK: Rates Section
+                Section {
+                    if combinedRates.isEmpty {
+                        Text("No rates available")
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Rates (\(combinedRates.count))")
+                        
+                        // Debug info
+                        VStack(alignment: .leading) {
+                            Text("Available Rates: \(combinedRates.count)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("Distinct Products: \(availableRateProducts.count)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        ratesChart()
+                    }
                 }
                 
-                // Consumption Section
+                // MARK: Consumption Section
                 Section(header: Text("Consumption")) {
                     Text("Consumption")
-                        .onAppear {
-                        }
+                    // If needed, show consumption chart or details here
                     // consumptionChart()
                 }
                 
-                // Calculations Section
+                // MARK: Calculations Section
                 Section(LocalizedStringKey("Calculations")) {
-                    VStack {
-                        Text(LocalizedStringKey("Total Cost: £\(String(format: "%.2f", calculateTotalCost()))"))
-                        Text(LocalizedStringKey("Average Cost per kWh: \(String(format: "%.2f", averageCostPerKWh()))p"))
-                        Text(LocalizedStringKey("Total Consumption: \(String(format: "%.2f", totalConsumption())) kWh"))
+                    // We add calculation later
+                }
+            }
+            .onChange(of: selectedTariffCode) { oldValue, newValue in
+                if newValue == nil {
+                    standingCharges = []
+                    return
+                }
+                loadRatesFromCoreData()
+                Task {
+                    await refreshRatesAndCharges()
+                }
+            }
+            .onAppear {
+                globalTimer.startTimer()
+                Task {
+                    await consumptionVM.loadData()
+                    if selectedTariffCode != nil {
+                        loadRatesFromCoreData()
+                        await refreshRatesAndCharges()
                     }
                 }
             }
@@ -337,15 +389,32 @@ struct TestView: View {
                 DBViewerView(context: viewContext)
             }
         }
-        .onAppear {
-            globalTimer.startTimer()
-            Task {
-                await consumptionVM.loadData()
-                // Removed automatic rates fetching
-            }
-        }
         .onDisappear {
             globalTimer.stopTimer()
+        }
+    }
+    
+    // MARK: - Refresh Methods
+    @MainActor
+    private func refreshRatesAndCharges() async {
+        guard let tariffCode = selectedTariffCode else {
+            standingCharges = []
+            return
+        }
+        
+        // Get standing charges from ViewModel
+        standingCharges = ratesViewModel.standingCharges(tariffCode: tariffCode)
+        
+        // If we have no standing charges, load from the repository
+        if standingCharges.isEmpty {
+            do {
+                let freshStandingCharges = try await repository.fetchAllStandingCharges()
+                standingCharges = freshStandingCharges.filter { charge in
+                    (charge.value(forKey: "tariff_code") as? String) == tariffCode
+                }
+            } catch {
+                print("❌ Error loading standing charges: \(error)")
+            }
         }
     }
     
@@ -354,12 +423,18 @@ struct TestView: View {
         var totalCost = 0.0
         // Calculate consumption cost
         for cons in consumption {
-            if let start = cons.value(forKey: "interval_start") as? Date,
-               let consumption = cons.value(forKey: "consumption") as? Double,
-               let rate = combinedRates.first(where: { ($0.value(forKey: "valid_from") as? Date ?? Date()) == start }),
-               let rateValue = rate.value(forKey: "value_including_vat") as? Double {
-                totalCost += consumption * rateValue / 100.0 // Convert pence to pounds
+            guard
+                let start = cons.value(forKey: "interval_start") as? Date,
+                let consumptionValue = cons.value(forKey: "consumption") as? Double,
+                let rate = combinedRates.first(where: { 
+                    ($0.value(forKey: "valid_from") as? Date ?? Date()) == start
+                }),
+                let rateValue = rate.value(forKey: "value_including_vat") as? Double
+            else {
+                continue
             }
+            
+            totalCost += consumptionValue * (rateValue / 100.0) // pence to pounds
         }
         
         // Add standing charges
@@ -370,7 +445,7 @@ struct TestView: View {
         })
         
         let dailyCharge = currentStandingCharge()
-        totalCost += Double(uniqueDays.count) * dailyCharge / 100.0 // Convert pence to pounds
+        totalCost += Double(uniqueDays.count) * (dailyCharge / 100.0)
         
         return totalCost
     }
@@ -378,18 +453,15 @@ struct TestView: View {
     private func averageCostPerKWh() -> Double {
         let total = calculateTotalCost()
         let totalConsumptionValue = totalConsumption()
-        guard totalConsumptionValue > 0 else {
-            return 0
-        }
-        let average = (total * 100.0) / totalConsumptionValue
-        return average
+        guard totalConsumptionValue > 0 else { return 0 }
+        // convert total from pounds to pence for "per kWh"
+        return (total * 100.0) / totalConsumptionValue
     }
     
     private func totalConsumption() -> Double {
-        let total = consumption.reduce(0.0) { sum, cons in
+        consumption.reduce(0.0) { sum, cons in
             sum + (cons.value(forKey: "consumption") as? Double ?? 0.0)
         }
-        return total
     }
     
     private func currentStandingCharge() -> Double {
@@ -397,53 +469,6 @@ struct TestView: View {
         return latest.value(forKey: "value_including_vat") as? Double ?? 0.0
     }
     
-    private func averageRate() -> Double {
-        guard !combinedRates.isEmpty else { return 0 }
-        let sum = combinedRates.reduce(0.0) { total, rate in
-            total + (rate.value(forKey: "value_including_vat") as? Double ?? 0.0)
-        }
-        return sum / Double(combinedRates.count)
-    }
-    
-    private func highestRate() -> Double {
-        combinedRates.max(by: { 
-            ($0.value(forKey: "value_including_vat") as? Double ?? 0.0) < 
-            ($1.value(forKey: "value_including_vat") as? Double ?? 0.0)
-        })?.value(forKey: "value_including_vat") as? Double ?? 0
-    }
-    
-    private func lowestRate() -> Double {
-        combinedRates.min(by: { 
-            ($0.value(forKey: "value_including_vat") as? Double ?? 0.0) < 
-            ($1.value(forKey: "value_including_vat") as? Double ?? 0.0)
-        })?.value(forKey: "value_including_vat") as? Double ?? 0
-    }
-    
-    // MARK: - Helper Methods
-    private func refreshRatesAndCharges() {
-        do {
-            let requestCharges = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
-            requestCharges.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-            requestCharges.predicate = standingChargesPredicate()
-
-            self.standingCharges = try viewContext.fetch(requestCharges)
-        } catch {
-            print("Error fetching StandingCharges: \(error)")
-            self.standingCharges = []
-        }
-    }
-    
-    private func standingChargesPredicate() -> NSPredicate {
-        guard let code = selectedTariffCode,
-              !code.isEmpty
-        else {
-            // If there's no selected product, default to an empty predicate or agile fallback
-            return NSPredicate(format: "tariff_code == %@", ratesViewModel.currentAgileCode)
-        }
-        // If your StandingChargeEntity now stores `tariff_code` or something else, adapt as needed:
-        return NSPredicate(format: "tariff_code == %@", code)
-    }
-
     // MARK: - Chart Data Structure
     private struct ChartDataPoint: Identifiable, Hashable {
         let id = UUID()
@@ -459,24 +484,54 @@ struct TestView: View {
         }
     }
     
-    private func standingChargesChart() -> some View {
-        let chartData = standingCharges.map { charge in
-            ChartDataPoint(
-                date: charge.value(forKey: "valid_from") as? Date ?? Date(),
-                value: charge.value(forKey: "value_including_vat") as? Double ?? 0.0
-            )
+    // MARK: - Chart Helpers
+    private func formatDate(_ date: Date?) -> String {
+        guard let date = date else { return "Ongoing" }  
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+    
+    private func standingChargesView() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(standingCharges, id: \.self) { charge in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Value (inc. VAT):")
+                            .foregroundColor(.secondary)
+                        Text(String(format: "%.2fp", charge.value(forKey: "value_including_vat") as? Double ?? 0.0))
+                            .bold()
+                    }
+                    
+                    HStack {
+                        Text("Value (exc. VAT):")
+                            .foregroundColor(.secondary)
+                        Text(String(format: "%.2fp", charge.value(forKey: "value_excluding_vat") as? Double ?? 0.0))
+                    }
+                    
+                    HStack {
+                        Text("Valid from:")
+                            .foregroundColor(.secondary)
+                        Text(formatDate(charge.value(forKey: "valid_from") as? Date))
+                    }
+                    
+                    HStack {
+                        Text("Valid to:")
+                            .foregroundColor(.secondary)
+                        Text(formatDate(charge.value(forKey: "valid_to") as? Date))
+                    }
+                }
+                .padding(.vertical, 4)
+                
+                if charge != standingCharges.last {
+                    Divider()
+                }
+            }
         }
-        return Chart(chartData) { point in
-            LineMark(
-                x: .value("Time", point.date),
-                y: .value("Charge", point.value)
-            )
-        }
-        .foregroundStyle(.green)
-        .frame(height: 200)
+        .padding(.horizontal, 4)
     }
 
-    // MARK: - Chart Helpers
     private func ratesChart() -> some View {
         let chartData = combinedRates.prefix(48).map { rate in
             ChartDataPoint(
@@ -484,33 +539,18 @@ struct TestView: View {
                 value: rate.value(forKey: "value_including_vat") as? Double ?? 0.0
             )
         }
+        
         return Chart(chartData) { point in
-            LineMark(x: .value("Time", point.date),
-                     y: .value("Rate", point.value))
+            LineMark(
+                x: .value("Time", point.date),
+                y: .value("Rate", point.value)
+            )
         }
         .foregroundStyle(.blue)
         .frame(height: 200)
         .chartXAxis {
             AxisMarks(values: .stride(by: .hour, count: 6))
         }
-    }
-}
-
-struct IdentifiableProduct: Identifiable, Equatable, Hashable {
-    let id: String
-    let product: NSManagedObject
-    
-    init(product: NSManagedObject) {
-        self.product = product
-        self.id = product.value(forKey: "code") as? String ?? UUID().uuidString
-    }
-    
-    static func == (lhs: IdentifiableProduct, rhs: IdentifiableProduct) -> Bool {
-        lhs.id == rhs.id
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
     }
 }
 

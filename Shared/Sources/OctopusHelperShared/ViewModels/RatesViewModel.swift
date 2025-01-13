@@ -59,9 +59,13 @@ public enum ProductFetchStatus: Equatable, CustomStringConvertible {
 public struct ProductRatesState {
     public var allRates: [NSManagedObject] = []
     public var upcomingRates: [NSManagedObject] = []
+    public var standingCharges: [NSManagedObject] = []
+    public var currentStandingCharge: NSManagedObject? = nil
     public var fetchStatus: ProductFetchStatus = .none
     public var nextFetchEarliestTime: Date? = nil
     public var isLoading: Bool = false
+    
+    public init() {}
 }
 
 /// Our multi-product RatesViewModel
@@ -404,7 +408,8 @@ public final class RatesViewModel: ObservableObject {
             let details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: tariffCode)
             guard let detail = details.first,
                   let tCode = detail.value(forKey: "tariff_code") as? String,
-                  let link = detail.value(forKey: "link_rate") as? String else {
+                  let rateLink = detail.value(forKey: "link_rate") as? String,
+                  let standingChargeLink = detail.value(forKey: "link_standing_charge") as? String else {
                 print("❌ No product detail found for tariff code \(tariffCode)")
                 var state = productStates[tariffCode] ?? ProductRatesState()
                 state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
@@ -412,24 +417,51 @@ public final class RatesViewModel: ObservableObject {
                 return
             }
             
-            print("📦 Found product detail - tariff: \(tCode), link: \(link)")
+            print("📦 Found product detail - tariff: \(tCode)")
+            print("📊 Rate link: \(rateLink)")
+            print("💰 Standing charge link: \(standingChargeLink)")
+            
             var state = productStates[tariffCode] ?? ProductRatesState()
             state.fetchStatus = .fetching
             productStates[tariffCode] = state
             
-            // Now fetch rates
-            try await repository.fetchAndStoreRates(tariffCode: tCode, url: link)
+            // Fetch both rates and standing charges
+            async let ratesTask = repository.fetchAndStoreRates(tariffCode: tCode, url: rateLink)
+            async let standingChargesTask = repository.fetchAndStoreStandingCharges(tariffCode: tCode, url: standingChargeLink)
+            
+            // Wait for both to complete
+            try await (ratesTask, standingChargesTask)
+            
+            // Get fresh rates and standing charges
             let freshRates = try await repository.fetchAllRates()
+            let freshStandingCharges = try await repository.fetchAllStandingCharges()
             
             state.allRates = freshRates.filter { rate in
                 (rate.value(forKey: "tariff_code") as? String) == tariffCode
             }
             state.upcomingRates = filterUpcoming(rates: state.allRates, now: Date())
+            
+            // Filter and sort standing charges
+            let filteredCharges = freshStandingCharges.filter { charge in
+                (charge.value(forKey: "tariff_code") as? String) == tariffCode
+            }
+            state.standingCharges = filteredCharges
+            
+            // Find current standing charge (valid now)
+            let now = Date()
+            state.currentStandingCharge = filteredCharges.first { charge in
+                guard let validFrom = charge.value(forKey: "valid_from") as? Date,
+                      let validTo = charge.value(forKey: "valid_to") as? Date else {
+                    return false
+                }
+                return validFrom <= now && validTo >= now
+            }
+            
             state.fetchStatus = .done
             state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 60) // 1 hour cooldown
             productStates[tariffCode] = state
             
-            print("✅ Successfully fetched rates for \(tariffCode)")
+            print("✅ Successfully fetched rates and standing charges for \(tariffCode)")
         } catch {
             print("❌ Error fetching rates: \(error.localizedDescription)")
             var state = productStates[tariffCode] ?? ProductRatesState()
@@ -437,6 +469,16 @@ public final class RatesViewModel: ObservableObject {
             state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 5) // 5 min cooldown on error
             productStates[tariffCode] = state
         }
+    }
+    
+    /// Get current standing charge for a tariff code
+    public func currentStandingCharge(tariffCode: String) -> NSManagedObject? {
+        return productStates[tariffCode]?.currentStandingCharge
+    }
+    
+    /// Get all standing charges for a tariff code
+    public func standingCharges(tariffCode: String) -> [NSManagedObject] {
+        return productStates[tariffCode]?.standingCharges ?? []
     }
 
     // ------------------------------------------------------
@@ -486,12 +528,11 @@ public final class RatesViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func filterUpcoming(rates: [NSManagedObject], now: Date) -> [NSManagedObject] {
-        rates.filter {
-            guard let validFrom = $0.value(forKey: "valid_from") as? Date,
-                  let validTo = $0.value(forKey: "valid_to") as? Date
-            else { return false }
-            return validTo > now
+    /// Filter rates to only include upcoming ones
+    public func filterUpcoming(rates: [NSManagedObject], now: Date) -> [NSManagedObject] {
+        rates.filter { rate in
+            guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+            return validFrom > now
         }
     }
 

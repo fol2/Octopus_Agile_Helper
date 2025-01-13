@@ -2,6 +2,7 @@ import Foundation
 
 public struct OctopusRatesResponse: Codable {
     public let results: [OctopusRate]
+    public let next: String?
 }
 
 public struct OctopusRate: Codable, Identifiable {

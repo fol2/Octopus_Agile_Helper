@@ -103,8 +103,31 @@ public struct OctopusTariffRate: Decodable {
     public let value_exc_vat: Double
     public let value_inc_vat: Double
     public let valid_from: Date
-    public let valid_to: Date?
+    public let valid_to: Date
     public let payment_method: String?
+}
+
+/// Standing Charge item returned by e.g. `GET .../standing-charges/`.
+public struct OctopusStandingCharge: Decodable {
+    public let value_excluding_vat: Double
+    public let value_including_vat: Double
+    public let valid_from: Date
+    public let valid_to: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case value_excluding_vat = "value_exc_vat"
+        case value_including_vat = "value_inc_vat"
+        case valid_from
+        case valid_to
+    }
+}
+
+/// Response wrapper for paginated results.
+public struct OctopusPagedResponse<T: Decodable>: Decodable {
+    public let count: Int
+    public let next: String?
+    public let previous: String?
+    public let results: [T]
 }
 
 // For "standing-charges/", the JSON schema is nearly identical: "value_exc_vat", "value_inc_vat", "valid_from", "valid_to", "payment_method".
@@ -238,34 +261,33 @@ extension OctopusAPIClient {
         return try await fetchDecodable(OctopusSingleProductDetail.self, from: url)
     }
 
-    /// Fetch all rates (standard, day, night, Agile intervals) from a given endpoint,
-    /// typically the "href" for "standard_unit_rates", "day_unit_rates", or "night_unit_rates".
-    /// - Parameter url: A fully qualified URL string from the product detail links
-    /// - Returns: An array of `OctopusTariffRate` (possibly spanning multiple pages).
+    /// Fetches tariff rates from a specific URL.
     public func fetchTariffRates(url: String) async throws -> [OctopusTariffRate] {
-        // We need to handle pagination if the JSON includes "count", "next", "previous".
-        // We'll do a loop until "next" == nil.
-        var allResults: [OctopusTariffRate] = []
-        var nextURLString: String? = url
-
-        while let nextURL = nextURLString {
-            guard let realURL = URL(string: nextURL) else {
-                throw OctopusAPIError.invalidURL
-            }
-            let pageResponse = try await fetchDecodable(OctopusTariffRatesPageResponse.self, from: realURL)
-            allResults.append(contentsOf: pageResponse.results)
-            nextURLString = pageResponse.next
+        guard let url = URL(string: url) else {
+            throw OctopusAPIError.invalidURL
         }
-        return allResults
+        
+        let response: OctopusPagedResponse<OctopusTariffRate> = try await fetchDecodable(OctopusPagedResponse<OctopusTariffRate>.self, from: url)
+        return response.results
     }
-
-    /// A convenience to fetch standing charges from its link
-    /// (in practice, the same shape as Tariff Rates).
-    public func fetchStandingCharges(url: String) async throws -> [OctopusTariffRate] {
-        // The "standing-charges" endpoint returns the same structure:
-        // { count, next, previous, results[...] } with "value_exc_vat", etc.
-        // So we can reuse the same approach as fetchTariffRates.
-        return try await fetchTariffRates(url: url)
+    
+    /// Fetches standing charges from a specific URL.
+    public func fetchStandingCharges(url: String) async throws -> [OctopusStandingCharge] {
+        guard let url = URL(string: url) else {
+            throw OctopusAPIError.invalidURL
+        }
+        
+        do {
+            let response: OctopusPagedResponse<OctopusStandingCharge> = try await fetchDecodable(OctopusPagedResponse<OctopusStandingCharge>.self, from: url)
+            print("📊 Standing Charges Response: count=\(response.results.count)")
+            if let first = response.results.first {
+                print("First charge: \(first.value_excluding_vat)p exc VAT, \(first.value_including_vat)p inc VAT, from \(first.valid_from) to \(first.valid_to ?? Date.distantPast)")
+            }
+            return response.results
+        } catch {
+            print("❌ Standing Charges Error: \(error)")
+            throw error
+        }
     }
 
     /// Fetch the user's account data by account number.
@@ -284,6 +306,30 @@ extension OctopusAPIClient {
         request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
 
         return try await fetchDecodable(OctopusAccountResponse.self, from: request)
+    }
+    
+    /// Fetches all rates from a given URL, handling pagination if needed
+    public func fetchAllRatesPaginated(baseURL: String) async throws -> [OctopusTariffRate] {
+        print("🔄 Starting paginated rate fetch from \(baseURL)")
+        var allRates: [OctopusTariffRate] = []
+        var nextURL: String? = baseURL
+        
+        while let url = nextURL {
+            print("📥 Fetching rates page: \(url)")
+            guard let urlObj = URL(string: url) else {
+                print("❌ Invalid URL: \(url)")
+                throw OctopusAPIError.invalidURL
+            }
+            
+            let response = try await fetchDecodable(OctopusRatesResponse.self, from: urlObj)
+            allRates.append(contentsOf: response.results)
+            nextURL = response.next
+            
+            print("📊 Current total rates: \(allRates.count)")
+        }
+        
+        print("✅ Fetch complete, total rates: \(allRates.count)")
+        return allRates
     }
 }
 
@@ -363,6 +409,14 @@ extension OctopusAPIClient {
 
     /// The "GET /...-unit-rates/" or "...standing-charges/" pagination wrapper
     private struct OctopusTariffRatesPageResponse: Decodable {
+        let count: Int?
+        let next: String?
+        let previous: String?
+        let results: [OctopusTariffRate]
+    }
+    
+    /// The "GET /...-unit-rates/" or "...standing-charges/" pagination wrapper
+    private struct OctopusRatesResponse: Decodable {
         let count: Int?
         let next: String?
         let previous: String?
