@@ -855,26 +855,16 @@ struct APIConfigurationView: View {
                         Button(action: {
                             showDeleteAPIKeyWarning = true
                         }) {
-                            Label {
-                                Text(LocalizedStringKey("Remove Account Access"))
-                                    .foregroundColor(.red.opacity(0.8))
-                            } icon: {
-                                Image(systemName: "lock.slash.fill")
-                                    .foregroundColor(.red.opacity(0.8))
-                            }
-                            .font(Theme.secondaryFont())
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.red.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.red.opacity(0.2), lineWidth: 1)
-                                    )
-                            )
-                            .contentShape(Rectangle())
+                            Text(LocalizedStringKey("Remove Account Access"))
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color("IconColor"))
+                                )
+                                .contentShape(Rectangle())
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
