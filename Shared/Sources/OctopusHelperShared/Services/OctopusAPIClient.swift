@@ -337,24 +337,107 @@ extension OctopusAPIClient {
         return try await fetchDecodable(OctopusAccountResponse.self, from: request)
     }
     
-    /// Fetches all rates from a given URL, handling pagination if needed
-    public func fetchAllRatesPaginated(baseURL: String) async throws -> [OctopusTariffRate] {
-        print("🔄 Starting paginated rate fetch from \(baseURL)")
-        var allRates: [OctopusTariffRate] = []
-        var nextURL: String? = baseURL
+    /// Information about rate pages for AGILE products
+    private struct RatesPageInfo {
+        let totalCount: Int
+        let recordsPerPage: Int = 100  // Octopus API standard
+        let hoursPerPage: Int = 50     // Each page contains 50 hours (100 half-hour records)
+        let firstRecordDate: Date      // From first result's valid_from
         
-        while let url = nextURL {
-            print("📥 Fetching rates page: \(url)")
-            guard let urlObj = URL(string: url) else {
-                print("❌ Invalid URL: \(url)")
-                throw OctopusAPIError.invalidURL
+        var totalPages: Int {
+            Int(ceil(Double(totalCount) / Double(recordsPerPage)))
+        }
+        
+        /// Calculate which pages we need to fetch based on what's in CoreData
+        func determinePagesToFetch(existingRates: [OctopusTariffRate]) -> [Int] {
+            var pagesToFetch: [Int] = []
+            
+            // Create a set of dates we already have
+            let existingDates = Set(existingRates.map { $0.valid_from })
+            
+            // For each page, check if we have all its dates
+            for pageNum in 1...totalPages {
+                let pageStartDate = Calendar.current.date(
+                    byAdding: .hour,
+                    value: -((pageNum - 1) * hoursPerPage),
+                    to: firstRecordDate
+                )!
+                
+                let pageEndDate = Calendar.current.date(
+                    byAdding: .hour,
+                    value: -(pageNum * hoursPerPage),
+                    to: firstRecordDate
+                )!
+                
+                // Generate expected dates for this page (every 30 minutes)
+                var currentDate = pageStartDate
+                var hasAllDates = true
+                
+                while currentDate > pageEndDate {
+                    if !existingDates.contains(currentDate) {
+                        hasAllDates = false
+                        break
+                    }
+                    currentDate = Calendar.current.date(byAdding: .minute, value: -30, to: currentDate)!
+                }
+                
+                if !hasAllDates {
+                    pagesToFetch.append(pageNum)
+                }
             }
             
-            let response = try await fetchDecodable(OctopusRatesResponse.self, from: urlObj)
-            allRates.append(contentsOf: response.results)
-            nextURL = response.next
+            return pagesToFetch
+        }
+    }
+
+    /// Fetches all rates from a given URL, handling pagination if needed
+    public func fetchAllRatesPaginated(baseURL: String, isAgile: Bool = false) async throws -> [OctopusTariffRate] {
+        print("🔄 Starting paginated rate fetch from \(baseURL)")
+        
+        // Fetch first page to get metadata
+        guard let url = URL(string: baseURL) else {
+            print("❌ Invalid URL: \(baseURL)")
+            throw OctopusAPIError.invalidURL
+        }
+        
+        let firstPageResponse = try await fetchDecodable(OctopusRatesResponse.self, from: url)
+        var allRates = firstPageResponse.results
+        
+        if isAgile {
+            // AGILE optimization: Only fetch pages we need
+            guard let firstRate = firstPageResponse.results.first,
+                  let totalCount = firstPageResponse.count else {
+                return allRates
+            }
             
-            print("📊 Current total rates: \(allRates.count)")
+            let pageInfo = RatesPageInfo(
+                totalCount: totalCount,
+                firstRecordDate: firstRate.valid_from
+            )
+            
+            let pagesToFetch = pageInfo.determinePagesToFetch(existingRates: allRates)
+            print("📊 Need to fetch \(pagesToFetch.count) pages out of \(pageInfo.totalPages) total pages")
+            
+            for pageNum in pagesToFetch where pageNum > 1 {  // Skip page 1 as we already have it
+                let pageUrl = "\(baseURL)&page=\(pageNum)"
+                guard let url = URL(string: pageUrl) else { continue }
+                
+                print("📥 Fetching AGILE rates page \(pageNum)")
+                let response = try await fetchDecodable(OctopusRatesResponse.self, from: url)
+                allRates.append(contentsOf: response.results)
+            }
+        } else {
+            // Non-AGILE: Simple fetch all pages
+            var nextURL = firstPageResponse.next
+            
+            while let next = nextURL {
+                guard let url = URL(string: next) else { break }
+                
+                print("📥 Fetching rates page: \(next)")
+                let response = try await fetchDecodable(OctopusRatesResponse.self, from: url)
+                allRates.append(contentsOf: response.results)
+                nextURL = response.next
+            }
         }
         
         print("✅ Fetch complete, total rates: \(allRates.count)")

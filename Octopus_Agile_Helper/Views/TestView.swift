@@ -128,13 +128,32 @@ struct TestView: View {
                 )
 
                 // 4. Consumption
-                ConsumptionSection()
+                ConsumptionSection(consumptionVM: consumptionVM)
 
                 // 5. Calculations (placeholder)
                 CalculationsSection()
 
                 // 6. Settings Overview
                 SettingsOverviewSection()
+
+                // 7. Fetch AGILE Rate
+                Button(action: {
+                    Task {
+                        await ratesViewModel.fetchRatesForDefaultProduct()
+                    }
+                }) {
+                    Label(
+                        String(localized: "Fetch AGILE Rate"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.bordered)
+
+                // 8. View Database
+                Button(action: {
+                    showingDBViewer = true
+                }) {
+                    Label(String(localized: "View Database"), systemImage: "server.rack")
+                }
+                .buttonStyle(.bordered)
             }
             .listStyle(.insetGrouped)
             .onChange(of: selectedTariffCode) { _, newTariff in
@@ -148,13 +167,24 @@ struct TestView: View {
                 }
             }
             .onAppear {
+                print("Debug - TestView appeared")
                 globalTimer.startTimer()
                 Task {
+                    print("Debug - Starting initialization")
+                    // Only set AGILE plan, don't sync products
+                    print("Debug - Setting AGILE plan")
+                    await ratesViewModel.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                    print("Debug - AGILE plan set to: \(ratesViewModel.currentAgileCode)")
+                    
+                    // Then load consumption data and rates if needed
+                    print("Debug - Loading consumption data")
                     await consumptionVM.loadData()
                     if selectedTariffCode != nil {
+                        print("Debug - Loading rates for tariff: \(selectedTariffCode ?? "")")
                         loadRatesFromCoreData()
                         await refreshRatesAndCharges()
                     }
+                    print("Debug - Initialization complete")
                 }
             }
             .navigationDestination(for: String.self) { route in
@@ -183,6 +213,7 @@ struct TestView: View {
                 }
             }
         }
+        .environmentObject(ratesViewModel)
         .onDisappear {
             globalTimer.stopTimer()
         }
@@ -356,16 +387,14 @@ struct DataFetchSection: View {
             }
             .buttonStyle(.bordered)
 
-            // 8. Fetch All Data
+            // 8. Fetch AGILE Rate
             Button(action: {
                 Task {
-                    await ratesViewModel.syncProducts()
                     await ratesViewModel.fetchRatesForDefaultProduct()
-                    await consumptionVM.refreshDataFromAPI(force: true)
                 }
             }) {
                 Label(
-                    String(localized: "Fetch All Data"), systemImage: "arrow.triangle.2.circlepath")
+                    String(localized: "Fetch AGILE Rate"), systemImage: "arrow.triangle.2.circlepath")
             }
             .buttonStyle(.bordered)
 
@@ -497,18 +526,78 @@ struct RatesSection: View {
 // MARK: - ConsumptionSection
 struct ConsumptionSection: View {
     @EnvironmentObject private var globalSettings: GlobalSettingsManager
+    @ObservedObject var consumptionVM: ConsumptionViewModel
 
     var body: some View {
         Section(header: Text("Consumption")) {
             if globalSettings.settings.electricityMPAN != nil
                 && globalSettings.settings.electricityMeterSerialNumber != nil
             {
-                Text("Consumption data available")
-                    .foregroundColor(.primary)
+                // Status
+                HStack {
+                    Text("Status:")
+                    Text(statusText)
+                        .foregroundColor(statusColor)
+                }
+                
+                // Data Range
+                if let minDate = consumptionVM.minInterval,
+                   let maxDate = consumptionVM.maxInterval {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Data Range:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("\(minDate.formatted()) to")
+                            .font(.caption)
+                        Text(maxDate.formatted())
+                            .font(.caption)
+                    }
+                }
+                
+                // Record Count
+                Text("Records: \(consumptionVM.consumptionRecords.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                // Latest Consumption
+                if let latest = consumptionVM.consumptionRecords.first {
+                    if let consumption = latest.value(forKey: "consumption") as? Double,
+                       let interval = latest.value(forKey: "interval_end") as? Date {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Latest Reading:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(consumption, specifier: "%.2f") kWh at")
+                                .font(.caption)
+                            Text(interval.formatted())
+                                .font(.caption)
+                        }
+                    }
+                }
             } else {
                 Text("Configure MPAN and Meter Serial to view consumption")
                     .foregroundColor(.secondary)
             }
+        }
+    }
+    
+    private var statusText: String {
+        switch consumptionVM.fetchStatus {
+        case .none: return "Idle"
+        case .fetching: return "Fetching..."
+        case .done: return "Complete"
+        case .failed: return "Failed"
+        case .pending: return "Pending"
+        }
+    }
+    
+    private var statusColor: Color {
+        switch consumptionVM.fetchStatus {
+        case .none: return .primary
+        case .fetching: return .blue
+        case .done: return .green
+        case .failed: return .red
+        case .pending: return .orange
         }
     }
 }
@@ -533,16 +622,36 @@ struct CalculationsSection: View {
 // MARK: - SettingsOverviewSection
 struct SettingsOverviewSection: View {
     @EnvironmentObject private var globalSettings: GlobalSettingsManager
+    @EnvironmentObject private var ratesViewModel: RatesViewModel
+    @State private var lastAgileCode: String = ""
 
     private var regionText: String {
         let input = globalSettings.settings.regionInput.trimmingCharacters(
             in: .whitespacesAndNewlines
         ).uppercased()
-        return input
+        return input.isEmpty ? "Not Set" : input
     }
 
     private var activeCardsCount: Int {
         globalSettings.settings.cardSettings.filter { $0.isEnabled }.count
+    }
+
+    private var agileStatusText: String {
+        print("Debug - currentAgileCode: \(ratesViewModel.currentAgileCode)")
+        print("Debug - accountData exists: \(globalSettings.settings.accountData != nil)")
+        print("Debug - lastAgileCode: \(lastAgileCode)")
+        
+        if ratesViewModel.currentAgileCode.isEmpty {
+            return "Not Set"
+        }
+        
+        // Check if we have account data
+        if let accountData = globalSettings.settings.accountData,
+           !accountData.isEmpty {
+            return "\(ratesViewModel.currentAgileCode) (Account Based)"
+        } else {
+            return "\(ratesViewModel.currentAgileCode) (Default)"
+        }
     }
 
     var body: some View {
@@ -564,44 +673,60 @@ struct SettingsOverviewSection: View {
                         .foregroundStyle(Theme.secondaryTextColor)
                     Text("Language")
                         .foregroundStyle(Theme.secondaryTextColor)
+                    Text("AGILE Plan")
+                        .foregroundStyle(Theme.secondaryTextColor)
                 }
 
                 // Right side values
                 VStack(alignment: .trailing, spacing: 12) {
                     Text(regionText)
-                        .foregroundStyle(Theme.secondaryTextColor)
+                        .foregroundStyle(.primary)
 
                     Text(!globalSettings.settings.apiKey.isEmpty ? "Configured" : "Not Configured")
                         .foregroundStyle(
-                            !globalSettings.settings.apiKey.isEmpty ? Theme.mainTextColor : .red)
+                            !globalSettings.settings.apiKey.isEmpty ? .primary : Color.red)
 
                     Text(
-                        globalSettings.settings.electricityMPAN != nil
-                            ? "Configured" : "Not Configured"
+                        globalSettings.settings.electricityMPAN != nil ? 
+                        (globalSettings.settings.electricityMPAN ?? "Not Set") : "Not Configured"
                     )
                     .foregroundStyle(
-                        globalSettings.settings.electricityMPAN != nil ? Theme.mainTextColor : .red)
+                        globalSettings.settings.electricityMPAN != nil ? .primary : Color.red)
 
                     Text(
-                        globalSettings.settings.electricityMeterSerialNumber != nil
-                            ? "Configured" : "Not Configured"
+                        globalSettings.settings.electricityMeterSerialNumber != nil ? 
+                        (globalSettings.settings.electricityMeterSerialNumber ?? "Not Set") : "Not Configured"
                     )
                     .foregroundStyle(
-                        globalSettings.settings.electricityMeterSerialNumber != nil
-                            ? Theme.mainTextColor : .red)
+                        globalSettings.settings.electricityMeterSerialNumber != nil ? .primary : Color.red)
 
                     Text("\(activeCardsCount)")
-                        .foregroundStyle(Theme.secondaryTextColor)
+                        .foregroundStyle(.primary)
 
                     Text(globalSettings.settings.showRatesInPounds ? "Pounds (£)" : "Pence (p)")
-                        .foregroundStyle(Theme.secondaryTextColor)
+                        .foregroundStyle(.primary)
 
                     Text(globalSettings.settings.selectedLanguage.displayNameWithAutonym)
-                        .foregroundStyle(Theme.secondaryTextColor)
+                        .foregroundStyle(.primary)
+                        
+                    Text(agileStatusText)
+                        .foregroundStyle(.primary)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.vertical, 8)
+            .onChange(of: ratesViewModel.currentAgileCode) { _, newCode in
+                print("Debug - AGILE code changed to: \(newCode)")
+                lastAgileCode = newCode
+            }
+            .onAppear {
+                print("Debug - SettingsOverviewSection appeared")
+                print("Debug - API Key exists: \(!globalSettings.settings.apiKey.isEmpty)")
+                print("Debug - MPAN exists: \(globalSettings.settings.electricityMPAN != nil)")
+                print("Debug - Meter Serial exists: \(globalSettings.settings.electricityMeterSerialNumber != nil)")
+                print("Debug - Current AGILE Code: \(ratesViewModel.currentAgileCode)")
+                lastAgileCode = ratesViewModel.currentAgileCode
+            }
         } header: {
             Text("Settings Overview")
                 .font(Theme.subFont())
@@ -950,10 +1075,15 @@ struct RecordView: View {
 // MARK: - Previews
 struct TestView_Previews: PreviewProvider {
     static var previews: some View {
-        TestView(ratesViewModel: RatesViewModel(globalTimer: GlobalTimer()))
+        let globalTimer = GlobalTimer()
+        let globalSettings = GlobalSettingsManager()
+        let ratesViewModel = RatesViewModel(globalTimer: globalTimer)
+        
+        TestView(ratesViewModel: ratesViewModel)
             .environment(
                 \.managedObjectContext, PersistenceController.preview.container.viewContext
             )
-            .environmentObject(GlobalSettingsManager())
+            .environmentObject(globalSettings)
+            .environmentObject(ratesViewModel)  // Also inject at preview level
     }
 }

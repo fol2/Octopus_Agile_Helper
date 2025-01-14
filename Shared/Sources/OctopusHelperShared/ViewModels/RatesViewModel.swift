@@ -217,8 +217,14 @@ public final class RatesViewModel: ObservableObject {
                 return
             }
             
-            // Step 2: Fetch product detail and store it
-            let details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: productCode)
+            // Step 2: Try to load product detail from local storage first
+            var details = try await productDetailRepository.loadLocalProductDetail(code: productCode)
+            
+            // If no local data, then fetch from API
+            if details.isEmpty {
+                print("🔄 No local product details found, fetching from API...")
+                details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: productCode)
+            }
             
             // Step 3: Find the rate link from the product detail
             guard let detail = details.first,
@@ -555,8 +561,17 @@ public final class RatesViewModel: ObservableObject {
                        tariffCode.contains("AGILE")
             }
             
-            // Return first found code
-            return agileProducts.first?.value(forKey: "code") as? String
+            // Sort by valid_from date (most recent first)
+            let sortedProducts = agileProducts.sorted { obj1, obj2 in
+                guard let date1 = obj1.value(forKey: "tariffs_active_at") as? Date,
+                      let date2 = obj2.value(forKey: "tariffs_active_at") as? Date else {
+                    return false
+                }
+                return date1 > date2
+            }
+            
+            // Return first (most recent) code
+            return sortedProducts.first?.value(forKey: "code") as? String
         } catch {
             print("❌ Error fetching local products: \(error)")
             return nil
@@ -613,7 +628,7 @@ public final class RatesViewModel: ObservableObject {
         }
     }
 
-    // Example logic to find an active agile code from the user's agreements
+    // Find an active agile code from the user's agreements
     private func findAgileShortCode(in account: OctopusAccountResponse) -> String? {
         // We only examine the first property + first electricity agreement for brevity
         guard let firstProp = account.properties.first,
@@ -621,19 +636,57 @@ public final class RatesViewModel: ObservableObject {
               let agreements = elecMP.agreements
         else { return nil }
 
-        // e.g. "E-1R-AGILE-24-04-03-H" => short code "AGILE-24-04-03"
-        // We check valid_from, valid_to if needed, but this is minimal
         let now = Date()
-        for ag in agreements {
-            // parse "E-1R-AGILE-24-04-03-H"
-            if ag.tariff_code.contains("AGILE") {
-                // Optional: check if now is within valid_from..valid_to if you want strict
-                if let shortCode = extractShortCode(ag.tariff_code) {
-                    return shortCode
+        
+        // First try to find an active AGILE agreement
+        for agreement in agreements {
+            if agreement.tariff_code.contains("AGILE") {
+                // Check if agreement is currently active
+                let isActive = isAgreementActive(agreement: agreement, now: now)
+                if isActive {
+                    if let shortCode = extractShortCode(agreement.tariff_code) {
+                        return shortCode
+                    }
                 }
             }
         }
+        
+        // If no active AGILE agreement found, check if there's any active non-AGILE agreement
+        for agreement in agreements {
+            let isActive = isAgreementActive(agreement: agreement, now: now)
+            if isActive {
+                // If there's an active non-AGILE agreement, we should return nil
+                // to trigger the fallback to default AGILE
+                return nil
+            }
+        }
+        
+        // If no active agreements at all, return nil to trigger fallback
         return nil
+    }
+    
+    // Helper to check if an agreement is active
+    private func isAgreementActive(agreement: OctopusAgreement, now: Date) -> Bool {
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        // Check valid_from
+        if let validFromStr = agreement.valid_from,
+           let validFrom = dateFormatter.date(from: validFromStr) {
+            if validFrom > now {
+                return false
+            }
+        }
+        
+        // Check valid_to
+        if let validToStr = agreement.valid_to,
+           let validTo = dateFormatter.date(from: validToStr) {
+            if validTo < now {
+                return false
+            }
+        }
+        
+        return true
     }
 
     private func extractShortCode(_ fullTariffCode: String) -> String? {
