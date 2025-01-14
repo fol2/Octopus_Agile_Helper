@@ -179,7 +179,9 @@ public struct OctopusProperty: Codable {
     public let id: Int
     public let electricity_meter_points: [OctopusElectricityMP]?
     public let gas_meter_points: [OctopusGasMP]?
-    // plus fields like address_line_1, moved_in_at, etc.
+    public let address_line_1: String?
+    public let moved_in_at: String?
+    public let postcode: String?
 }
 
 public struct OctopusElectricityMP: Codable {
