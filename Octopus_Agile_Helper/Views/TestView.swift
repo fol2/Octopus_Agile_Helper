@@ -1,28 +1,30 @@
-import SwiftUI
-import CoreData
 import Charts
-import OctopusHelperShared
 import Combine
+import CoreData
+import OctopusHelperShared
+import SwiftUI
 
 // MARK: - Products Fetcher
 class ProductsFetcher: NSObject, ObservableObject, NSFetchedResultsControllerDelegate {
     @Published private(set) var products: [ProductEntity] = []
     private let controller: NSFetchedResultsController<ProductEntity>
-    
+
     init(context: NSManagedObjectContext) {
         let request = NSFetchRequest<ProductEntity>(entityName: "ProductEntity")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \ProductEntity.display_name, ascending: true)]
-        
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \ProductEntity.display_name, ascending: true)
+        ]
+
         controller = NSFetchedResultsController(
             fetchRequest: request,
             managedObjectContext: context,
             sectionNameKeyPath: nil,
             cacheName: nil
         )
-        
+
         super.init()
         controller.delegate = self
-        
+
         // Initial fetch with localized error handling
         do {
             try controller.performFetch()
@@ -31,9 +33,10 @@ class ProductsFetcher: NSObject, ObservableObject, NSFetchedResultsControllerDel
             products = []
         }
     }
-    
+
     // MARK: - NSFetchedResultsControllerDelegate
-    func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+    func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>)
+    {
         products = controller.fetchedObjects as? [ProductEntity] ?? []
     }
 }
@@ -42,58 +45,59 @@ class ProductsFetcher: NSObject, ObservableObject, NSFetchedResultsControllerDel
 struct TestView: View {
     // CoreData context
     private let viewContext = PersistenceController.shared.container.viewContext
-    
+
     // Global states and models
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var ratesViewModel: RatesViewModel
     @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var productsFetcher: ProductsFetcher
     @EnvironmentObject private var globalSettings: GlobalSettingsManager
-    
+
     // Repositories & paths
     private let repository = RatesRepository.shared
     @State private var navigationPath = NavigationPath()
-    
+
     // Sheets & modals
     @State private var showingDBViewer = false
     @State private var showingSettings = false
-    
+
     // Product & Tariff Selections
     @State private var selectedProductCode: String?
     @State private var availableTariffCodes: [String] = []
     @State private var selectedTariffCode: String?
-    
+
     // Loaded data
     @State private var standingCharges: [NSManagedObject] = []
-    
+
     // MARK: - Computed
     var products: [ProductEntity] {
         productsFetcher.products
     }
-    
+
     private var combinedRates: [NSManagedObject] {
         guard let tariffCode = selectedTariffCode else {
             return []
         }
         return ratesViewModel.allRates(for: tariffCode)
     }
-    
+
     private var availableRateProducts: Set<String> {
         let all = combinedRates.compactMap {
             $0.value(forKey: "tariff_code") as? String
         }
         return Set(all)
     }
-    
+
     // MARK: - Initializer
     init(ratesViewModel: RatesViewModel) {
         self._ratesViewModel = StateObject(wrappedValue: ratesViewModel)
         self._consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
         self._productsFetcher = StateObject(
-            wrappedValue: ProductsFetcher(context: PersistenceController.shared.container.viewContext)
+            wrappedValue: ProductsFetcher(
+                context: PersistenceController.shared.container.viewContext)
         )
     }
-    
+
     // MARK: - Body
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -104,10 +108,11 @@ struct TestView: View {
                     selectedProductCode: $selectedProductCode,
                     availableTariffCodes: $availableTariffCodes,
                     selectedTariffCode: $selectedTariffCode,
+                    showingDBViewer: $showingDBViewer,
                     ratesViewModel: ratesViewModel,
                     consumptionVM: consumptionVM
                 )
-                
+
                 // 2. Standing Charges
                 StandingChargesSection(
                     standingCharges: $standingCharges,
@@ -115,19 +120,19 @@ struct TestView: View {
                         Task { await refreshRatesAndCharges() }
                     }
                 )
-                
+
                 // 3. Rates
                 RatesSection(
                     combinedRates: combinedRates,
                     availableRateProducts: availableRateProducts
                 )
-                
+
                 // 4. Consumption
                 ConsumptionSection()
-                
+
                 // 5. Calculations (placeholder)
                 CalculationsSection()
-                
+
                 // 6. Settings Overview
                 SettingsOverviewSection()
             }
@@ -189,7 +194,7 @@ extension TestView {
     /// Loads rates from CoreData for the selected tariff
     private func loadRatesFromCoreData() {
         guard let tariffCode = selectedTariffCode else { return }
-        
+
         Task {
             do {
                 let freshRates = try await repository.fetchAllRates()
@@ -200,7 +205,8 @@ extension TestView {
                     await MainActor.run {
                         var state = ratesViewModel.productStates[tariffCode] ?? ProductRatesState()
                         state.allRates = filtered
-                        state.upcomingRates = ratesViewModel.filterUpcoming(rates: filtered, now: Date())
+                        state.upcomingRates = ratesViewModel.filterUpcoming(
+                            rates: filtered, now: Date())
                         ratesViewModel.productStates[tariffCode] = state
                     }
                 }
@@ -209,7 +215,7 @@ extension TestView {
             }
         }
     }
-    
+
     /// Refresh rates and standing charges from local or remote
     @MainActor
     private func refreshRatesAndCharges() async {
@@ -217,10 +223,10 @@ extension TestView {
             standingCharges = []
             return
         }
-        
+
         // Load from ViewModel
         standingCharges = ratesViewModel.standingCharges(tariffCode: tariffCode)
-        
+
         // If empty, load from repository
         if standingCharges.isEmpty {
             do {
@@ -238,29 +244,31 @@ extension TestView {
 // MARK: - DataFetchSection
 struct DataFetchSection: View {
     let products: [ProductEntity]
-    
+
     @Binding var selectedProductCode: String?
     @Binding var availableTariffCodes: [String]
     @Binding var selectedTariffCode: String?
-    
+    @Binding var showingDBViewer: Bool
+
     @ObservedObject var ratesViewModel: RatesViewModel
     @ObservedObject var consumptionVM: ConsumptionViewModel
-    
+
     @State private var navigationToProductsList: String?
-    
+
     var body: some View {
         Section("Fetch Data") {
             // 1. Status
             let statusText: String = {
                 if let code = selectedTariffCode,
-                   let state = ratesViewModel.productStates[code] {
+                    let state = ratesViewModel.productStates[code]
+                {
                     return "Status: \(state.fetchStatus.description)"
                 } else {
                     return "Status: Not Started"
                 }
             }()
             Text(statusText)
-            
+
             // 2. Fetch Products with navigation
             HStack(spacing: 8) {
                 Button(action: {
@@ -272,9 +280,9 @@ struct DataFetchSection: View {
                 }
                 .buttonStyle(.bordered)
                 .layoutPriority(1)
-                
+
                 Spacer()
-                
+
                 NavigationLink(value: "products_list") {
                     Text("Products: \(products.count)")
                         .font(.caption)
@@ -282,10 +290,10 @@ struct DataFetchSection: View {
                         .padding(.trailing, -16)
                 }
             }
-            
+
             // 3. Product Code Selection
             productPicker
-            
+
             // 4. Fetch Product Details
             Button(action: {
                 guard let code = selectedProductCode else { return }
@@ -303,7 +311,8 @@ struct DataFetchSection: View {
                             self.selectedTariffCode = nil
                         }
                         let duration = Date().timeIntervalSince(startTime)
-                        print("✅ API fetch completed in \(String(format: "%.2f", duration)) seconds")
+                        print(
+                            "✅ API fetch completed in \(String(format: "%.2f", duration)) seconds")
                     } catch {
                         print("❌ Error fetching from API: \(error.localizedDescription)")
                         await MainActor.run {
@@ -313,16 +322,18 @@ struct DataFetchSection: View {
                     }
                 }
             }) {
-                Label(String(localized: "Fetch Product Details"), systemImage: "doc.text.magnifyingglass")
+                Label(
+                    String(localized: "Fetch Product Details"),
+                    systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .disabled(selectedProductCode == nil)
-            
+
             // 5. Tariff Code Selection
             if !availableTariffCodes.isEmpty {
                 tariffPicker
             }
-            
+
             // 6. Fetch Rates
             Button(action: {
                 guard let code = selectedTariffCode else { return }
@@ -334,7 +345,7 @@ struct DataFetchSection: View {
             }
             .buttonStyle(.bordered)
             .disabled(selectedTariffCode == nil)
-            
+
             // 7. Fetch Consumption
             Button(action: {
                 Task {
@@ -344,7 +355,7 @@ struct DataFetchSection: View {
                 Label(String(localized: "Fetch Consumption"), systemImage: "bolt")
             }
             .buttonStyle(.bordered)
-            
+
             // 8. Fetch All Data
             Button(action: {
                 Task {
@@ -353,66 +364,65 @@ struct DataFetchSection: View {
                     await consumptionVM.refreshDataFromAPI(force: true)
                 }
             }) {
-                Label(String(localized: "Fetch All Data"), systemImage: "arrow.triangle.2.circlepath")
+                Label(
+                    String(localized: "Fetch All Data"), systemImage: "arrow.triangle.2.circlepath")
             }
             .buttonStyle(.bordered)
-            
+
             // 9. View Database
             Button(action: {
-                navigationToProductsList = "db_viewer"
-                // This is just a trigger—actual sheet might be controlled outside
-                // so we can use a Binding in the parent if needed. 
-                // In the main view, we used `@State private var showingDBViewer`.
-                // Just keep this logic consistent in the main view.
+                showingDBViewer = true
             }) {
                 Label(String(localized: "View Database"), systemImage: "server.rack")
             }
             .buttonStyle(.bordered)
-            .disabled(true) // We demonstrate a different approach in the parent with `showingDBViewer`.
         }
     }
-    
+
     // MARK: Sub-views in DataFetchSection
     private var productPicker: some View {
-        Picker("Select Product Code", selection: Binding(
-            get: { selectedProductCode },
-            set: { newValue in
-                selectedProductCode = newValue
-                if let code = newValue {
-                    Task {
-                        do {
-                            print("🔍 Loading local product details for: \(code)")
-                            let localDetails = try await ProductDetailRepository.shared
-                                .loadLocalProductDetail(code: code)
-                            if !localDetails.isEmpty {
-                                let codes = try await ProductDetailRepository.shared
-                                    .fetchTariffCodes(for: code)
-                                print("📦 Found local tariff codes: \(codes)")
-                                await MainActor.run {
-                                    self.availableTariffCodes = codes
-                                    self.selectedTariffCode = nil
+        Picker(
+            "Select Product Code",
+            selection: Binding(
+                get: { selectedProductCode },
+                set: { newValue in
+                    selectedProductCode = newValue
+                    if let code = newValue {
+                        Task {
+                            do {
+                                print("🔍 Loading local product details for: \(code)")
+                                let localDetails = try await ProductDetailRepository.shared
+                                    .loadLocalProductDetail(code: code)
+                                if !localDetails.isEmpty {
+                                    let codes = try await ProductDetailRepository.shared
+                                        .fetchTariffCodes(for: code)
+                                    print("📦 Found local tariff codes: \(codes)")
+                                    await MainActor.run {
+                                        self.availableTariffCodes = codes
+                                        self.selectedTariffCode = nil
+                                    }
+                                } else {
+                                    print("📝 No local data found for: \(code)")
+                                    await MainActor.run {
+                                        self.availableTariffCodes = []
+                                        self.selectedTariffCode = nil
+                                    }
                                 }
-                            } else {
-                                print("📝 No local data found for: \(code)")
+                            } catch {
+                                print("❌ Error loading local data: \(error.localizedDescription)")
                                 await MainActor.run {
                                     self.availableTariffCodes = []
                                     self.selectedTariffCode = nil
                                 }
                             }
-                        } catch {
-                            print("❌ Error loading local data: \(error.localizedDescription)")
-                            await MainActor.run {
-                                self.availableTariffCodes = []
-                                self.selectedTariffCode = nil
-                            }
                         }
+                    } else {
+                        availableTariffCodes = []
+                        selectedTariffCode = nil
                     }
-                } else {
-                    availableTariffCodes = []
-                    selectedTariffCode = nil
                 }
-            }
-        )) {
+            )
+        ) {
             Text("Select a product code").tag(Optional<String>.none)
             ForEach(products, id: \.code) { product in
                 Text(product.code ?? "").tag(Optional(product.code ?? ""))
@@ -420,7 +430,7 @@ struct DataFetchSection: View {
         }
         .pickerStyle(.menu)
     }
-    
+
     private var tariffPicker: some View {
         Picker("Select Tariff Code", selection: $selectedTariffCode) {
             Text("Select a tariff code").tag(Optional<String>.none)
@@ -436,7 +446,7 @@ struct DataFetchSection: View {
 struct StandingChargesSection: View {
     @Binding var standingCharges: [NSManagedObject]
     var onAppearAction: (() -> Void)?
-    
+
     var body: some View {
         Section(header: Text("Standing Charges")) {
             if standingCharges.isEmpty {
@@ -448,7 +458,7 @@ struct StandingChargesSection: View {
             } else {
                 Text("Standing Charges (\(standingCharges.count))")
                     .font(.headline)
-                
+
                 // List of standing charges
                 StandingChargesListView(standingCharges: standingCharges)
             }
@@ -460,7 +470,7 @@ struct StandingChargesSection: View {
 struct RatesSection: View {
     let combinedRates: [NSManagedObject]
     let availableRateProducts: Set<String>
-    
+
     var body: some View {
         Section {
             if combinedRates.isEmpty {
@@ -468,7 +478,7 @@ struct RatesSection: View {
                     .foregroundColor(.secondary)
             } else {
                 Text("Rates (\(combinedRates.count))")
-                
+
                 VStack(alignment: .leading) {
                     Text("Available Rates: \(combinedRates.count)")
                         .font(.caption)
@@ -477,31 +487,45 @@ struct RatesSection: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 RatesChartView(combinedRates: combinedRates)
             }
         }
     }
 }
 
-// MARK: - ConsumptionSection (Placeholder)
+// MARK: - ConsumptionSection
 struct ConsumptionSection: View {
+    @EnvironmentObject private var globalSettings: GlobalSettingsManager
+
     var body: some View {
         Section(header: Text("Consumption")) {
-            Text("Consumption")
-                .foregroundColor(.primary)
-            // If needed, place consumption chart or details here.
+            if globalSettings.settings.electricityMPAN != nil
+                && globalSettings.settings.electricityMeterSerialNumber != nil
+            {
+                Text("Consumption data available")
+                    .foregroundColor(.primary)
+            } else {
+                Text("Configure MPAN and Meter Serial to view consumption")
+                    .foregroundColor(.secondary)
+            }
         }
     }
 }
 
-// MARK: - CalculationsSection (Placeholder)
+// MARK: - CalculationsSection
 struct CalculationsSection: View {
+    @EnvironmentObject private var globalSettings: GlobalSettingsManager
+
     var body: some View {
         Section(LocalizedStringKey("Calculations")) {
-            // Extend or add calculation UI elements here
-            Text("No calculations yet.")
-                .foregroundColor(.secondary)
+            if !globalSettings.settings.apiKey.isEmpty {
+                Text("Ready for calculations")
+                    .foregroundColor(.primary)
+            } else {
+                Text("Configure API key to enable calculations")
+                    .foregroundColor(.secondary)
+            }
         }
     }
 }
@@ -509,60 +533,73 @@ struct CalculationsSection: View {
 // MARK: - SettingsOverviewSection
 struct SettingsOverviewSection: View {
     @EnvironmentObject private var globalSettings: GlobalSettingsManager
-    
+
+    private var regionText: String {
+        let input = globalSettings.settings.regionInput.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).uppercased()
+        return input
+    }
+
+    private var activeCardsCount: Int {
+        globalSettings.settings.cardSettings.filter { $0.isEnabled }.count
+    }
+
     var body: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
-                // Region Info
-                HStack {
-                    Label("Region", systemImage: "mappin.circle.fill")
-                        .foregroundStyle(Theme.mainTextColor)
-                    Spacer()
-                    Text(globalSettings.settings.regionInput.isEmpty ? "H (Default)" : globalSettings.settings.regionInput.uppercased())
+            HStack(alignment: .top, spacing: 20) {
+                // Left side labels
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Region")
+                        .foregroundStyle(Theme.secondaryTextColor)
+                    Text("API Status")
+                        .foregroundStyle(Theme.secondaryTextColor)
+                    Text("MPAN")
+                        .foregroundStyle(Theme.secondaryTextColor)
+                    Text("Meter Serial")
+                        .foregroundStyle(Theme.secondaryTextColor)
+                    Text("Active Cards")
+                        .foregroundStyle(Theme.secondaryTextColor)
+                    Text("Rate Display")
+                        .foregroundStyle(Theme.secondaryTextColor)
+                    Text("Language")
                         .foregroundStyle(Theme.secondaryTextColor)
                 }
-                
-                // API Status
-                HStack {
-                    Label("API Status", systemImage: "key.fill")
-                        .foregroundStyle(Theme.mainTextColor)
-                    Spacer()
-                    if !globalSettings.settings.apiKey.isEmpty {
-                        Label("Configured", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Text("Not Configured")
-                            .foregroundStyle(.red)
-                    }
-                }
-                
-                // Active Cards
-                HStack {
-                    Label("Active Cards", systemImage: "square.stack.fill")
-                        .foregroundStyle(Theme.mainTextColor)
-                    Spacer()
-                    let enabledCount = globalSettings.settings.cardSettings.filter { $0.isEnabled }.count
-                    Text("\(enabledCount)")
+
+                // Right side values
+                VStack(alignment: .trailing, spacing: 12) {
+                    Text(regionText)
                         .foregroundStyle(Theme.secondaryTextColor)
-                }
-                
-                // Display Preference
-                HStack {
-                    Label("Rate Display", systemImage: "creditcard.fill")
-                        .foregroundStyle(Theme.mainTextColor)
-                    Spacer()
+
+                    Text(!globalSettings.settings.apiKey.isEmpty ? "Configured" : "Not Configured")
+                        .foregroundStyle(
+                            !globalSettings.settings.apiKey.isEmpty ? Theme.mainTextColor : .red)
+
+                    Text(
+                        globalSettings.settings.electricityMPAN != nil
+                            ? "Configured" : "Not Configured"
+                    )
+                    .foregroundStyle(
+                        globalSettings.settings.electricityMPAN != nil ? Theme.mainTextColor : .red)
+
+                    Text(
+                        globalSettings.settings.electricityMeterSerialNumber != nil
+                            ? "Configured" : "Not Configured"
+                    )
+                    .foregroundStyle(
+                        globalSettings.settings.electricityMeterSerialNumber != nil
+                            ? Theme.mainTextColor : .red)
+
+                    Text("\(activeCardsCount)")
+                        .foregroundStyle(Theme.secondaryTextColor)
+
                     Text(globalSettings.settings.showRatesInPounds ? "Pounds (£)" : "Pence (p)")
                         .foregroundStyle(Theme.secondaryTextColor)
-                }
-                
-                // Language
-                HStack {
-                    Label("Language", systemImage: "globe")
-                        .foregroundStyle(Theme.mainTextColor)
-                    Spacer()
+
                     Text(globalSettings.settings.selectedLanguage.displayNameWithAutonym)
                         .foregroundStyle(Theme.secondaryTextColor)
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .padding(.vertical, 8)
         } header: {
@@ -577,7 +614,7 @@ struct SettingsOverviewSection: View {
 // MARK: - ProductsListView
 struct ProductsListView: View {
     let products: [ProductEntity]
-    
+
     var body: some View {
         List {
             ForEach(products, id: \.self) { product in
@@ -595,7 +632,7 @@ struct ProductsListView: View {
 // MARK: - ProductRow
 struct ProductRow: View {
     let product: ProductEntity
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(product.value(forKey: "display_name") as? String ?? "Unknown")
@@ -603,7 +640,7 @@ struct ProductRow: View {
             Text(product.value(forKey: "code") as? String ?? "")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            
+
             HStack {
                 if product.value(forKey: "is_variable") as? Bool ?? false {
                     Label(LocalizedStringKey("可变"), systemImage: "chart.xyaxis.line")
@@ -626,7 +663,7 @@ struct ProductRow: View {
 // MARK: - StandingChargesListView
 struct StandingChargesListView: View {
     let standingCharges: [NSManagedObject]
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(standingCharges, id: \.self) { charge in
@@ -634,22 +671,29 @@ struct StandingChargesListView: View {
                     HStack {
                         Text("Value (inc. VAT):")
                             .foregroundColor(.secondary)
-                        Text(String(format: "%.2fp", charge.value(forKey: "value_including_vat") as? Double ?? 0.0))
-                            .bold()
+                        Text(
+                            String(
+                                format: "%.2fp",
+                                charge.value(forKey: "value_including_vat") as? Double ?? 0.0)
+                        )
+                        .bold()
                     }
-                    
+
                     HStack {
                         Text("Value (exc. VAT):")
                             .foregroundColor(.secondary)
-                        Text(String(format: "%.2fp", charge.value(forKey: "value_excluding_vat") as? Double ?? 0.0))
+                        Text(
+                            String(
+                                format: "%.2fp",
+                                charge.value(forKey: "value_excluding_vat") as? Double ?? 0.0))
                     }
-                    
+
                     HStack {
                         Text("Valid from:")
                             .foregroundColor(.secondary)
                         Text((charge.value(forKey: "valid_from") as? Date)?.formatted() ?? "N/A")
                     }
-                    
+
                     HStack {
                         Text("Valid to:")
                             .foregroundColor(.secondary)
@@ -657,7 +701,7 @@ struct StandingChargesListView: View {
                     }
                 }
                 .padding(.vertical, 4)
-                
+
                 if charge != standingCharges.last {
                     Divider()
                 }
@@ -670,13 +714,13 @@ struct StandingChargesListView: View {
 // MARK: - RatesChartView
 struct RatesChartView: View {
     let combinedRates: [NSManagedObject]
-    
+
     struct ChartDataPoint: Identifiable, Hashable {
         let id = UUID()
         let date: Date
         let value: Double
     }
-    
+
     var body: some View {
         let chartData = combinedRates.prefix(48).map { rate in
             ChartDataPoint(
@@ -684,7 +728,7 @@ struct RatesChartView: View {
                 value: rate.value(forKey: "value_including_vat") as? Double ?? 0.0
             )
         }
-        
+
         return Chart(chartData) { point in
             LineMark(
                 x: .value("Time", point.date),
@@ -708,13 +752,13 @@ struct DBViewerView: View {
     @State private var records: [NSManagedObject] = []
     @State private var showingResetConfirmation = false
     @State private var resetStatus: String?
-    
+
     init(context: NSManagedObjectContext) {
         self.context = context
         let model = context.persistentStoreCoordinator?.managedObjectModel
         _entities = State(initialValue: model?.entities.compactMap { $0.name } ?? [])
     }
-    
+
     var body: some View {
         NavigationView {
             List {
@@ -735,7 +779,7 @@ struct DBViewerView: View {
                         }
                     }
                 }
-                
+
                 // 2. Records
                 if let selectedEntity = selectedEntity {
                     Section("\(selectedEntity) Records: \(records.count)") {
@@ -744,7 +788,7 @@ struct DBViewerView: View {
                                 .foregroundColor(.secondary)
                                 .italic()
                         }
-                        
+
                         if records.isEmpty {
                             Text("No records found")
                                 .foregroundColor(.secondary)
@@ -763,7 +807,7 @@ struct DBViewerView: View {
                         dismiss()
                     }
                 }
-                
+
                 if selectedEntity != nil {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Menu {
@@ -774,10 +818,13 @@ struct DBViewerView: View {
                             }) {
                                 Label("Refresh", systemImage: "arrow.clockwise")
                             }
-                            
-                            Button(role: .destructive, action: {
-                                showingResetConfirmation = true
-                            }) {
+
+                            Button(
+                                role: .destructive,
+                                action: {
+                                    showingResetConfirmation = true
+                                }
+                            ) {
                                 Label("Reset Data", systemImage: "trash")
                             }
                         } label: {
@@ -800,7 +847,7 @@ struct DBViewerView: View {
             }
         }
     }
-    
+
     // MARK: - Helpers
     private func loadRecords(for entityName: String) {
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: entityName)
@@ -812,14 +859,14 @@ struct DBViewerView: View {
             records = []
         }
     }
-    
+
     private func resetEntityData() {
         guard let entityName = selectedEntity else { return }
-        
+
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
         let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
         batchDeleteRequest.resultType = .resultTypeObjectIDs
-        
+
         do {
             let result = try context.execute(batchDeleteRequest) as? NSBatchDeleteResult
             let changes: [AnyHashable: Any] = [
@@ -827,11 +874,11 @@ struct DBViewerView: View {
             ]
             NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [context])
             try context.save()
-            
+
             // Reload
             records = []
             resetStatus = "✓ Data reset successfully"
-            
+
             // Clear status after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 resetStatus = nil
@@ -847,7 +894,7 @@ struct DBViewerView: View {
 struct RecordView: View {
     let record: NSManagedObject
     @State private var isExpanded = false
-    
+
     var body: some View {
         VStack(alignment: .leading) {
             Button(action: { isExpanded.toggle() }) {
@@ -861,7 +908,7 @@ struct RecordView: View {
                         .animation(.easeInOut, value: isExpanded)
                 }
             }
-            
+
             if isExpanded {
                 ForEach(Array(record.entity.attributesByName.keys).sorted(), id: \.self) { key in
                     HStack(alignment: .top) {
@@ -879,10 +926,10 @@ struct RecordView: View {
             }
         }
     }
-    
+
     private func formatValue(_ value: Any?) -> String {
         guard let value = value else { return "nil" }
-        
+
         switch value {
         case let date as Date:
             return date.formatted(date: .abbreviated, time: .shortened)
@@ -904,7 +951,9 @@ struct RecordView: View {
 struct TestView_Previews: PreviewProvider {
     static var previews: some View {
         TestView(ratesViewModel: RatesViewModel(globalTimer: GlobalTimer()))
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environment(
+                \.managedObjectContext, PersistenceController.preview.container.viewContext
+            )
             .environmentObject(GlobalSettingsManager())
     }
 }
