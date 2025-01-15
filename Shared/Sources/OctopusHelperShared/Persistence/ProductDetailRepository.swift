@@ -23,10 +23,29 @@ public final class ProductDetailRepository: ObservableObject {
 
     /// Load local detail rows for a given code
     public func loadLocalProductDetail(code: String) async throws -> [NSManagedObject] {
-        try await context.perform {
-            let req = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
-            req.predicate = NSPredicate(format: "code == %@", code)
-            return try self.context.fetch(req)
+        print("\n🔍 Loading local product detail for code: \(code)")
+        return try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
+            request.predicate = NSPredicate(format: "code == %@", code)
+            let details = try self.context.fetch(request)
+            print("📊 Found \(details.count) product details")
+            
+            // Debug: Print all details
+            for detail in details {
+                if let tariffCode = detail.value(forKey: "tariff_code") as? String,
+                   let region = detail.value(forKey: "region") as? String,
+                   let payment = detail.value(forKey: "payment") as? String {
+                    print("\n📋 Detail Info:")
+                    print("🏷️ Tariff Code: \(tariffCode)")
+                    print("🌍 Region: \(region)")
+                    print("💳 Payment: \(payment)")
+                    if let rateLink = detail.value(forKey: "link_rate") as? String {
+                        print("🔗 Rate Link: \(rateLink)")
+                    }
+                }
+            }
+            
+            return details
         }
     }
     
@@ -188,35 +207,48 @@ public final class ProductDetailRepository: ObservableObject {
         defn: OctopusTariffDefinition,
         activeAt: Date?
     ) -> NSManagedObject {
+        print("\n🔨 Building/Updating Product Detail Entity:")
+        print("📦 Product Code: \(code)")
+        print("🏷️ Tariff Code from API: \(defn.code)")
+        print("🌍 Region: \(region)")
+        print("💳 Payment: \(payment)")
+        
         // Unique constraint: code + tariffType + region + payment (or just tariff_code)
         // Suppose we fetch existing by tariff_code, if it's unique
         let tariffCode = defn.code // e.g. "E-1R-SILVER-24-12-31-A"
         let fetchReq = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
         fetchReq.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-
+        
         let existing = (try? context.fetch(fetchReq)) ?? []
+        if !existing.isEmpty {
+            print("🔄 Found existing entity with tariff code: \(tariffCode)")
+        } else {
+            print("➕ Creating new entity with tariff code: \(tariffCode)")
+        }
+        
         let detailEntity = existing.first ?? NSEntityDescription.insertNewObject(forEntityName: "ProductDetailEntity", into: context)
-
+        
+        // Store the values
         detailEntity.setValue(code, forKey: "code")
         detailEntity.setValue(activeAt ?? Date(), forKey: "tariffs_active_at")
         detailEntity.setValue(tariffType, forKey: "tariff_type")
         detailEntity.setValue(region, forKey: "region")
         detailEntity.setValue(payment, forKey: "payment")
         detailEntity.setValue(tariffCode, forKey: "tariff_code")
-        detailEntity.setValue(defn.online_discount_exc_vat ?? 0, forKey: "online_discount_exc_vat")
-        detailEntity.setValue(defn.online_discount_inc_vat ?? 0, forKey: "online_discount_inc_vat")
-        detailEntity.setValue(defn.dual_fuel_discount_exc_vat ?? 0, forKey: "dual_fuel_discount_exc_vat")
-        detailEntity.setValue(defn.dual_fuel_discount_inc_vat ?? 0, forKey: "dual_fuel_discount_inc_vat")
-        detailEntity.setValue(defn.exit_fees_exc_vat ?? 0, forKey: "exit_fees_exc_vat")
-        detailEntity.setValue(defn.exit_fees_inc_vat ?? 0, forKey: "exit_fees_inc_vat")
-        detailEntity.setValue(defn.exit_fees_type ?? "NONE", forKey: "exit_fees_type")
-
-        // find links
-        let standingLink = defn.links?.first(where: { $0.rel == "standing_charges" })?.href ?? ""
-        let ratesLink = defn.links?.first(where: { $0.rel == "standard_unit_rates" })?.href ?? ""
-        detailEntity.setValue(standingLink, forKey: "link_standing_charge")
-        detailEntity.setValue(ratesLink, forKey: "link_rate")
-
+        
+        // Store links if available
+        if let links = defn.links {
+            for link in links {
+                if link.href.contains("standard-unit-rates") {
+                    print("🔗 Found rate link: \(link.href)")
+                    detailEntity.setValue(link.href, forKey: "link_rate")
+                } else if link.href.contains("standing-charges") {
+                    print("🔗 Found standing charge link: \(link.href)")
+                    detailEntity.setValue(link.href, forKey: "link_standing_charge")
+                }
+            }
+        }
+        
         return detailEntity
     }
 }

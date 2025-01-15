@@ -291,13 +291,79 @@ extension OctopusAPIClient {
     }
 
     /// Fetches tariff rates from a specific URL.
-    public func fetchTariffRates(url: String) async throws -> [OctopusTariffRate] {
+    public func fetchTariffRates(url: String) async throws -> (totalCount: Int, results: [OctopusTariffRate]) {
+        print("🔍 Fetching tariff rates from URL: \(url)")
         guard let url = URL(string: url) else {
+            print("❌ Invalid URL: \(url)")
             throw OctopusAPIError.invalidURL
         }
         
         let response: OctopusPagedResponse<OctopusTariffRate> = try await fetchDecodable(OctopusPagedResponse<OctopusTariffRate>.self, from: url)
-        return response.results
+        print("✅ Successfully fetched \(response.results.count) rates (Total available: \(response.count))")
+        return (totalCount: response.count, results: response.results)
+    }
+    
+    /// Dedicated function for fetching Agile rates with enhanced debugging
+    public func fetchAgileRates(productCode: String, tariffCode: String) async throws -> [OctopusTariffRate] {
+        print("\n🔄 Fetching Agile rates:")
+        print("📦 Product Code: \(productCode)")
+        print("🏷️ Tariff Code: \(tariffCode)")
+        
+        // Construct the Agile rates URL
+        let baseRatesURL = "\(baseURL)/products/\(productCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/"
+        print("🌐 Constructed URL: \(baseRatesURL)")
+        
+        // 1. Fetch first page to get total count and initial rates
+        print("📥 Fetching first page to determine total records...")
+        let firstPageResponse = try await fetchTariffRates(url: baseRatesURL)
+        let totalRecords = firstPageResponse.totalCount
+        print("📊 Total records available: \(totalRecords)")
+        
+        if totalRecords == 0 {
+            print("❌ No Agile rates available")
+            return []
+        }
+        
+        // 2. Calculate total pages
+        let recordsPerPage = 100 // Octopus API standard
+        let totalPages = Int(ceil(Double(totalRecords) / Double(recordsPerPage)))
+        print("📚 Total pages to fetch: \(totalPages)")
+        
+        // 3. Fetch remaining pages in parallel for efficiency
+        print("📥 Starting parallel page fetches...")
+        var allRates = firstPageResponse.results // Start with first page results
+        
+        if totalPages > 1 {
+            // Use async let for concurrent fetches of remaining pages
+            try await withThrowingTaskGroup(of: [OctopusTariffRate].self) { group in
+                for page in 2...totalPages {
+                    group.addTask {
+                        let pageUrl = baseRatesURL + (baseRatesURL.contains("?") ? "&" : "?") + "page=\(page)"
+                        print("📄 Fetching page \(page)/\(totalPages)")
+                        let response = try await self.fetchTariffRates(url: pageUrl)
+                        return response.results
+                    }
+                }
+                
+                // Collect results as they complete
+                for try await pageRates in group {
+                    allRates.append(contentsOf: pageRates)
+                }
+            }
+        }
+        
+        // 4. Sort rates by valid_from to ensure chronological order
+        allRates.sort { $0.valid_from > $1.valid_from }
+        
+        print("✅ Successfully fetched \(allRates.count) Agile rates")
+        if let firstRate = allRates.first,
+           let lastRate = allRates.last {
+            print("📊 Rate Coverage:")
+            print("   First rate valid from: \(firstRate.valid_from)")
+            print("   Last rate valid to: \(lastRate.valid_to)")
+        }
+        
+        return allRates
     }
     
     /// Fetches standing charges from a specific URL.

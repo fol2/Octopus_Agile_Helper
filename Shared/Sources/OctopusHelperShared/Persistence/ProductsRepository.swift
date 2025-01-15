@@ -87,6 +87,17 @@ public final class ProductsRepository: ObservableObject {
         }
     }
 
+    /// Fetch all local products from ProductEntity
+    /// - Returns: Array of ProductEntity as NSManagedObject
+    public func fetchAllLocalProducts() async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "ProductEntity")
+            // Sort by code to ensure consistent order
+            request.sortDescriptors = [NSSortDescriptor(key: "code", ascending: true)]
+            return try self.context.fetch(request)
+        }
+    }
+
     /// Ensures a specific product code exists in Core Data. If not found locally,
     /// it fetches from the API (GET /products/<code>/) and upserts the data.
     /// 

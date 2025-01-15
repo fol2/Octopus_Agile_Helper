@@ -211,41 +211,132 @@ public final class RatesViewModel: ObservableObject {
     // MARK: - New Rate Fetching Logic
     public func fetchRatesForDefaultProduct() async {
         do {
+            print("\n🔍 Starting fetchRatesForDefaultProduct")
+            
             // Step 1: Get the product code using fallback logic
             guard let productCode = await fallbackAgileCodeFromProductEntity() else {
                 print("❌ No Agile product found")
                 return
             }
+            print("📦 Found product code: \(productCode)")
             
             // Step 2: Try to load product detail from local storage first
             var details = try await productDetailRepository.loadLocalProductDetail(code: productCode)
+            print("📊 Found \(details.count) local product details")
             
             // If no local data, then fetch from API
             if details.isEmpty {
                 print("🔄 No local product details found, fetching from API...")
                 details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: productCode)
+                print("📥 Fetched \(details.count) product details from API")
             }
-            
-            // Step 3: Find the rate link from the product detail
-            guard let detail = details.first,
-                  let rateLink = detail.value(forKey: "link_rate") as? String,
-                  let tariffCode = detail.value(forKey: "tariff_code") as? String else {
-                print("❌ No rate link found in product detail")
+
+            // Step 3: Check if we have valid account information
+            let accountData = GlobalSettingsManager().settings.accountData
+            var chosenDetail: NSManagedObject? = nil
+            var tariffCode: String? = nil
+            var rateLink: String? = nil
+
+            if
+                let data = accountData,
+                !data.isEmpty,
+                let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data),
+                let firstProperty = account.properties.first,
+                let firstMeterPoint = firstProperty.electricity_meter_points?.first,
+                let agreements = firstMeterPoint.agreements,
+                let activeAgreement = agreements.first(where: { agreement in
+                    // Find the active agreement
+                    if let validFrom = ISO8601DateFormatter().date(from: agreement.valid_from ?? ""),
+                       let validTo = agreement.valid_to.flatMap(ISO8601DateFormatter().date(from:)) {
+                        let now = Date()
+                        return validFrom <= now && validTo >= now
+                    }
+                    return false
+                })
+            {
+                print("🔍 Looking for product detail matching agreement: \(activeAgreement.tariff_code)")
+
+                // Step 4A: Find the matching product detail from local DB
+                if let matchingDetail = details.first(where: { detail in
+                    let detailTariffCode = detail.value(forKey: "tariff_code") as? String
+                    return detailTariffCode == activeAgreement.tariff_code
+                }),
+                let foundRateLink = matchingDetail.value(forKey: "link_rate") as? String,
+                let foundTariffCode = matchingDetail.value(forKey: "tariff_code") as? String {
+                    chosenDetail = matchingDetail
+                    rateLink = foundRateLink
+                    tariffCode = foundTariffCode
+                } else {
+                    print("❌ No matching product detail found for agreement: \(activeAgreement.tariff_code)")
+                    return
+                }
+
+            } else {
+                // Fallback: no account data or invalid, rely on local product details & region from GlobalSettings
+                print("⚠️ No valid account data found, using fallback region from GlobalSettings (if available).")
+                let regionInput = GlobalSettingsManager().settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                
+                // If you store the region in GlobalSettings, attempt to match a detail with that region
+                if !regionInput.isEmpty {
+                    chosenDetail = details.first(where: { detail in
+                        let detailRegion = detail.value(forKey: "region") as? String
+                        return detailRegion == regionInput
+                    })
+                }
+                
+                // If no region matched or region is nil, simply pick the first detail
+                if chosenDetail == nil {
+                    chosenDetail = details.first
+                }
+                
+                // Extract the tariff code and link from the chosen detail
+                if let chosen = chosenDetail,
+                   let foundTariffCode = chosen.value(forKey: "tariff_code") as? String,
+                   let foundRateLink = chosen.value(forKey: "link_rate") as? String {
+                    tariffCode = foundTariffCode
+                    rateLink = foundRateLink
+                } else {
+                    print("❌ Could not determine fallback region/tariff code from product detail.")
+                    return
+                }
+            }
+
+            // Print final product detail info
+            if let chosen = chosenDetail {
+                if let code = chosen.value(forKey: "tariff_code") as? String {
+                    print("\n📋 Product Detail Info:")
+                    print("🏷️ Tariff Code: \(code)")
+                }
+                if let region = chosen.value(forKey: "region") as? String {
+                    print("🌍 Region: \(region)")
+                }
+                if let payment = chosen.value(forKey: "payment") as? String {
+                    print("💳 Payment: \(payment)")
+                }
+                if let link = chosen.value(forKey: "link_rate") as? String {
+                    print("🔗 Rate Link: \(link)")
+                }
+            }
+
+            guard let finalTariffCode = tariffCode, let finalRateLink = rateLink else {
+                print("❌ Missing tariffCode or rateLink, cannot fetch rates.")
                 return
             }
+
+            // Step 5: Use the tariff code
+            print("\n🎯 Using tariff code: \(finalTariffCode)")
             
-            // Step 4: If no region in tariff code, append "-H"
-            let finalTariffCode = tariffCode.contains("-[A-Z]$") ? tariffCode : "\(tariffCode)-H"
+            // Step 6: Fetch and store rates
+            try await repository.fetchAndStoreRates(tariffCode: finalTariffCode, url: finalRateLink)
             
-            // Step 5: Fetch and store rates
-            try await repository.fetchAndStoreRates(tariffCode: finalTariffCode, url: rateLink)
-            
-            // Step 6: Update current agile code
+            // Step 7: Update current agile code
             self.currentAgileCode = productCode
             
-            // Step 7: Save to shared defaults for widget
+            // Step 8: Save to shared defaults for widget
             let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
             sharedDefaults?.set(productCode, forKey: "agile_code_for_widget")
+            
+            print("\n✅ Completed fetchRatesForDefaultProduct")
             
         } catch {
             print("❌ Error fetching rates: \(error)")
@@ -545,26 +636,29 @@ public final class RatesViewModel: ObservableObject {
     /// Try to find an Agile code from local product details
     /// Filters:
     /// 1. brand = OCTOPUS_ENERGY
-    /// 2. tariff_type = single_register_electricity_tariffs
-    /// 3. direction = IMPORT
+    /// 2. direction = IMPORT
+    /// 3. code contains "AGILE"
+    /// Sorted by available_from descending (most recent first)
     public func fallbackAgileCodeFromProductEntity() async -> String? {
         do {
-            let products = try await productDetailRepository.fetchAllLocalProductDetails()
+            let products = try await productsRepository.fetchAllLocalProducts()
             
             // Filter for Agile products
             let agileProducts = products.filter { obj in
-                guard let tariffType = obj.value(forKey: "tariff_type") as? String,
-                      let tariffCode = obj.value(forKey: "tariff_code") as? String else {
+                guard let direction = obj.value(forKey: "direction") as? String,
+                      let code = obj.value(forKey: "code") as? String,
+                      let brand = obj.value(forKey: "brand") as? String else {
                     return false
                 }
-                return tariffType == "single_register_electricity_tariffs" &&
-                       tariffCode.contains("AGILE")
+                return direction == "IMPORT" &&
+                       code.contains("AGILE") &&
+                       brand == "OCTOPUS_ENERGY"
             }
             
-            // Sort by valid_from date (most recent first)
+            // Sort by available_from date (most recent first)
             let sortedProducts = agileProducts.sorted { obj1, obj2 in
-                guard let date1 = obj1.value(forKey: "tariffs_active_at") as? Date,
-                      let date2 = obj2.value(forKey: "tariffs_active_at") as? Date else {
+                guard let date1 = obj1.value(forKey: "available_from") as? Date,
+                      let date2 = obj2.value(forKey: "available_from") as? Date else {
                     return false
                 }
                 return date1 > date2
