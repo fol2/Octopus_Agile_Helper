@@ -135,25 +135,6 @@ struct TestView: View {
 
                 // 6. Settings Overview
                 SettingsOverviewSection()
-
-                // 7. Fetch AGILE Rate
-                Button(action: {
-                    Task {
-                        await ratesViewModel.fetchRatesForDefaultProduct()
-                    }
-                }) {
-                    Label(
-                        String(localized: "Fetch AGILE Rate"), systemImage: "arrow.triangle.2.circlepath")
-                }
-                .buttonStyle(.bordered)
-
-                // 8. View Database
-                Button(action: {
-                    showingDBViewer = true
-                }) {
-                    Label(String(localized: "View Database"), systemImage: "server.rack")
-                }
-                .buttonStyle(.bordered)
             }
             .listStyle(.insetGrouped)
             .onChange(of: selectedTariffCode) { _, newTariff in
