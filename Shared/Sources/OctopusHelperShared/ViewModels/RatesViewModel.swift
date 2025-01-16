@@ -209,25 +209,103 @@ public final class RatesViewModel: ObservableObject {
     // ------------------------------------------------------
 
     // MARK: - New Rate Fetching Logic
+    /// Helper to get the active agile tariff code (e.g. "E-1R-AGILE-24-04-03-H") from account data if present.
+    /// Returns nil if no valid active agreement or if account data is missing.
+    private func activeAgileTariffFromAccount() -> String? {
+        let manager = GlobalSettingsManager()
+        guard
+            let data = manager.settings.accountData,
+            !data.isEmpty,
+            let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data),
+            let firstProperty = account.properties.first,
+            let firstMeterPoint = firstProperty.electricity_meter_points?.first,
+            let agreements = firstMeterPoint.agreements
+        else {
+            return nil
+        }
+
+        let now = Date()
+        // Filter to find any active agreement that has "AGILE" in the tariff_code
+        let possibleAgile = agreements.first { agreement in
+            agreement.tariff_code.contains("AGILE") && isAgreementActive(agreement: agreement, now: now)
+        }
+        return possibleAgile?.tariff_code
+    }
+
+    /// Helper to find the rate link in a list of product details
+    private func findRateLink(in details: [NSManagedObject]) -> String? {
+        guard let detail = details.first else { return nil }
+        return detail.value(forKey: "link_rate") as? String
+    }
+
     public func fetchRatesForDefaultProduct() async {
         do {
             print("\n🔍 Starting fetchRatesForDefaultProduct")
             
-            // Step 1: Get the product code using fallback logic
-            guard let productCode = await fallbackAgileCodeFromProductEntity() else {
-                print("❌ No Agile product found")
+            // First check if we have a full account-based agile tariff code (e.g. "E-1R-AGILE-24-04-03-H")
+            if let fullTariffCode = activeAgileTariffFromAccount() {
+                print("📦 Using account-based agile tariff: \(fullTariffCode)")
+
+                // Directly load local detail by full tariff code
+                var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: fullTariffCode)
+                print("📊 Found \(details.count) product details via fullTariffCode")
+
+                // If nothing is in local DB, fetch from API (the user might have run ensureProductExists, or not)
+                if details.isEmpty {
+                    print("🔄 No local product detail found for \(fullTariffCode), fetching from API...")
+                    details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fullTariffCode)
+                }
+
+                // If still empty, bail out
+                guard !details.isEmpty else {
+                    print("❌ No local product detail found even after fetch. Aborting.")
+                    return
+                }
+                
+                // From here you can skip region-based fallback entirely, and just proceed with rates fetching
+                guard let rateLink = findRateLink(in: details) else {
+                    print("❌ Could not find rate link in product details. Aborting.")
+                    return
+                }
+                
+                try await repository.fetchAndStoreRates(tariffCode: fullTariffCode, url: rateLink)
+
+                // Also fetch standing charges if available
+                let standingChargeLink = details
+                    .compactMap { $0.value(forKey: "link_standing_charge") as? String }
+                    .first
+                if let scLink = standingChargeLink {
+                    print("🔗 Found standing charge link: \(scLink)")
+                    try await repository.fetchAndStoreStandingCharges(
+                        tariffCode: fullTariffCode,
+                        url: scLink
+                    )
+                } else {
+                    print("⚠️ No standing charge link found, skipping fetch.")
+                }
+
+                // e.g. set self.currentAgileCode, store in widget, etc., then return
+                self.currentAgileCode = fullTariffCode
+                UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(fullTariffCode, forKey: "agile_code_for_widget")
+                print("\n✅ Completed account-based fetchRatesForDefaultProduct")
                 return
             }
-            print("📦 Found product code: \(productCode)")
-            
-            // Step 2: Try to load product detail from local storage first
-            var details = try await productDetailRepository.loadLocalProductDetail(code: productCode)
-            print("📊 Found \(details.count) local product details")
-            
+
+            // If we got here, either no account data or no active agile agreement => fallback
+            guard let fallbackCode = await fallbackAgileCodeFromProductEntity() else {
+                print("❌ No fallback Agile product found")
+                return
+            }
+            print("📦 Found fallback agile product code: \(fallbackCode)")
+
+            // Step 2: Try to load product detail from local storage first (fallback approach)
+            var details = try await productDetailRepository.loadLocalProductDetail(code: fallbackCode)
+            print("📊 Found \(details.count) product details from fallback")
+
             // If no local data, then fetch from API
             if details.isEmpty {
                 print("🔄 No local product details found, fetching from API...")
-                details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: productCode)
+                details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fallbackCode)
                 print("📥 Fetched \(details.count) product details from API")
             }
 
@@ -328,13 +406,24 @@ public final class RatesViewModel: ObservableObject {
             
             // Step 6: Fetch and store rates
             try await repository.fetchAndStoreRates(tariffCode: finalTariffCode, url: finalRateLink)
-            
+
+            // Also fetch standing charges if available
+            if let finalSCLink = chosenDetail?.value(forKey: "link_standing_charge") as? String {
+                print("🔗 Found standing charge link: \(finalSCLink)")
+                try await repository.fetchAndStoreStandingCharges(
+                    tariffCode: finalTariffCode,
+                    url: finalSCLink
+                )
+            } else {
+                print("⚠️ No standing charge link found for fallback scenario, skipping fetch.")
+            }
+
             // Step 7: Update current agile code
-            self.currentAgileCode = productCode
+            self.currentAgileCode = fallbackCode
             
             // Step 8: Save to shared defaults for widget
             let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-            sharedDefaults?.set(productCode, forKey: "agile_code_for_widget")
+            sharedDefaults?.set(fallbackCode, forKey: "agile_code_for_widget")
             
             print("\n✅ Completed fetchRatesForDefaultProduct")
             

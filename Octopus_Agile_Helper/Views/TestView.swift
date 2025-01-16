@@ -133,7 +133,10 @@ struct TestView: View {
                 // 5. Calculations (placeholder)
                 CalculationsSection()
 
-                // 6. Settings Overview
+                // 6. Tariff Calculations Testing
+                TariffCalculationsSection(selectedTariffCode: $selectedTariffCode)
+
+                // 7. Settings Overview
                 SettingsOverviewSection()
             }
             .listStyle(.insetGrouped)
@@ -597,6 +600,409 @@ struct CalculationsSection: View {
                     .foregroundColor(.secondary)
             }
         }
+    }
+}
+
+// MARK: - TariffCalculationsSection
+struct TariffCalculationsSection: View {
+    @EnvironmentObject private var globalSettings: GlobalSettingsManager
+    @Binding var selectedTariffCode: String?
+    @State private var startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    @State private var endDate = Date()
+    @State private var calculationResults: [NSManagedObject] = []
+    @State private var isCalculating = false
+    @State private var errorMessage: String?
+    @State private var calculationType = "single" // "single" or "account"
+    @State private var dateRangeError: String?
+    
+    // State for date range constraints
+    @State private var consumptionMinDate: Date?
+    @State private var consumptionMaxDate: Date?
+    @State private var productAvailableFrom: Date?
+    
+    private let repository: TariffCalculationRepository
+    private let context: NSManagedObjectContext
+    private let consumptionRepo = ElectricityConsumptionRepository.shared
+    private let productsRepo = ProductsRepository.shared
+    
+    init(selectedTariffCode: Binding<String?>) {
+        self._selectedTariffCode = selectedTariffCode
+        self.context = PersistenceController.shared.container.viewContext
+        self.repository = TariffCalculationRepository(context: self.context)
+    }
+    
+    // Helper to decode account data
+    private var accountResponse: OctopusAccountResponse? {
+        guard let accountData = globalSettings.settings.accountData,
+              let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData) else {
+            return nil
+        }
+        return decoded
+    }
+    
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                // Calculation Type Picker
+                Picker("Calculation Type", selection: $calculationType) {
+                    Text("Single Tariff").tag("single")
+                    Text("Account Based").tag("account")
+                }
+                .pickerStyle(.segmented)
+                .padding(.bottom, 8)
+                
+                // Date Selection
+                Group {
+                    HStack {
+                        Text("Start:")
+                            .foregroundColor(.secondary)
+                        DatePicker(
+                            "Start Date",
+                            selection: $startDate,
+                            in: getStartDateRange(),
+                            displayedComponents: [.date]
+                        )
+                        .labelsHidden()
+                        .onChange(of: startDate) { _, newValue in
+                            validateDateRange()
+                        }
+                    }
+                    
+                    HStack {
+                        Text("End:")
+                            .foregroundColor(.secondary)
+                        DatePicker(
+                            "End Date",
+                            selection: $endDate,
+                            in: getEndDateRange(),
+                            displayedComponents: [.date]
+                        )
+                        .labelsHidden()
+                        .onChange(of: endDate) { _, newValue in
+                            validateDateRange()
+                        }
+                    }
+                }
+                
+                // Date Range Error
+                if let error = dateRangeError {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+                
+                // Calculate Button
+                Button(action: {
+                    Task {
+                        await calculateCosts()
+                    }
+                }) {
+                    HStack {
+                        if isCalculating {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                        Text(calculationType == "single" ? "Calculate Single Tariff" : "Calculate Account Costs")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isCalculating || (calculationType == "single" && selectedTariffCode == nil) || dateRangeError != nil)
+                
+                // Requirements Notice
+                if calculationType == "single" && selectedTariffCode == nil {
+                    Text("Please select a tariff code above to calculate costs")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else if calculationType == "account" && accountResponse == nil {
+                    Text("Please configure your Octopus account in settings to use account-based calculations")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Error Message
+                if let error = errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+                
+                // Results Display
+                if !calculationResults.isEmpty {
+                    Divider()
+                    Text("Calculation Results")
+                        .font(.headline)
+                        .padding(.vertical, 4)
+                    
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(calculationResults, id: \.self) { result in
+                                TariffCalculationResultView(calculation: result)
+                                if result != calculationResults.last {
+                                    Divider()
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 300)
+                }
+            }
+            .padding(.vertical, 8)
+            .onAppear {
+                Task {
+                    await loadDateConstraints()
+                }
+            }
+            .onChange(of: selectedTariffCode) { _, _ in
+                Task {
+                    await loadProductAvailability()
+                }
+            }
+            .onChange(of: calculationType) { _, _ in
+                validateDateRange()
+            }
+        } header: {
+            Text("Tariff Calculations")
+                .font(Theme.subFont())
+                .foregroundStyle(Theme.secondaryTextColor)
+                .textCase(.none)
+        }
+    }
+    
+    private func getStartDateRange() -> ClosedRange<Date> {
+        let minDate: Date
+        if calculationType == "single" {
+            // For single tariff, use the later of consumption min date and product available from
+            minDate = [consumptionMinDate, productAvailableFrom]
+                .compactMap { $0 }
+                .max() ?? .distantPast
+        } else {
+            // For account calculation, only use consumption min date
+            minDate = consumptionMinDate ?? .distantPast
+        }
+        return minDate...endDate
+    }
+    
+    private func getEndDateRange() -> ClosedRange<Date> {
+        return startDate...(consumptionMaxDate ?? .distantFuture)
+    }
+    
+    private func loadDateConstraints() async {
+        do {
+            let records = try await consumptionRepo.fetchAllRecords()
+            await MainActor.run {
+                consumptionMinDate = records.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
+                consumptionMaxDate = records.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
+                validateDateRange()
+            }
+        } catch {
+            print("Error fetching consumption date range: \(error)")
+        }
+    }
+    
+    private func loadProductAvailability() async {
+        guard let tariffCode = selectedTariffCode else {
+            await MainActor.run {
+                productAvailableFrom = nil
+                validateDateRange()
+            }
+            return
+        }
+        
+        // Extract product code from tariff code (e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03")
+        let parts = tariffCode.components(separatedBy: "-")
+        guard parts.count >= 6 else {
+            await MainActor.run {
+                productAvailableFrom = nil
+                validateDateRange()
+            }
+            return
+        }
+        let productCode = parts[2...5].joined(separator: "-")
+        
+        do {
+            let products = try await productsRepo.fetchLocalProducts()
+            let product = products.first { $0.value(forKey: "code") as? String == productCode }
+            await MainActor.run {
+                productAvailableFrom = product?.value(forKey: "available_from") as? Date
+                validateDateRange()
+            }
+        } catch {
+            print("Error fetching product available_from: \(error)")
+            await MainActor.run {
+                productAvailableFrom = nil
+                validateDateRange()
+            }
+        }
+    }
+    
+    private func validateDateRange() {
+        // Clear any existing error
+        dateRangeError = nil
+        
+        // 1. Basic validation - end date must be after start date
+        guard endDate > startDate else {
+            dateRangeError = "End date must be after start date"
+            return
+        }
+        
+        // 2. Check consumption data range
+        if let min = consumptionMinDate, startDate < min {
+            dateRangeError = "Start date cannot be before earliest consumption data (\(min.formatted(date: .abbreviated, time: .omitted)))"
+            return
+        }
+        if let max = consumptionMaxDate, endDate > max {
+            dateRangeError = "End date cannot be after latest consumption data (\(max.formatted(date: .abbreviated, time: .omitted)))"
+            return
+        }
+        
+        // 3. For single tariff calculation, check product availability
+        if calculationType == "single", let availableFrom = productAvailableFrom {
+            if startDate < availableFrom {
+                dateRangeError = "Start date cannot be before product availability date (\(availableFrom.formatted(date: .abbreviated, time: .omitted)))"
+                return
+            }
+        }
+    }
+    
+    private func calculateCosts() async {
+        isCalculating = true
+        errorMessage = nil
+        calculationResults = []
+        
+        do {
+            if calculationType == "single" {
+                // Single tariff calculation
+                if let tariffCode = selectedTariffCode {
+                    print("🔍 Starting calculation for tariff: \(tariffCode)")
+                    print("📅 Period: \(startDate.formatted()) to \(endDate.formatted())")
+                    
+                    // First, verify we have standing charges
+                    let standingCharges = try await context.perform {
+                        let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+                        request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+                        return try context.fetch(request)
+                    }
+                    print("💰 Found \(standingCharges.count) standing charge records")
+                    
+                    if let firstCharge = standingCharges.first {
+                        print("📊 Example standing charge:")
+                        if let validFrom = firstCharge.value(forKey: "valid_from") as? Date {
+                            print("  - Valid from: \(validFrom.formatted())")
+                        }
+                        if let validTo = firstCharge.value(forKey: "valid_to") as? Date {
+                            print("  - Valid to: \(validTo.formatted())")
+                        }
+                        print("  - Exc VAT: \(firstCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0)")
+                        print("  - Inc VAT: \(firstCharge.value(forKey: "value_including_vat") as? Double ?? 0.0)")
+                    }
+                    
+                    let result = try await repository.calculateCostForPeriod(
+                        tariffCode: tariffCode,
+                        startDate: startDate,
+                        endDate: endDate,
+                        intervalType: "CUSTOM"
+                    )
+                    
+                    print("✅ Calculation complete")
+                    print("📊 Results:")
+                    print("  - Total kWh: \(result.value(forKey: "total_consumption_kwh") as? Double ?? 0.0)")
+                    print("  - Standing Charge (exc VAT): \(result.value(forKey: "standing_charge_cost_exc_vat") as? Double ?? 0.0)")
+                    print("  - Standing Charge (inc VAT): \(result.value(forKey: "standing_charge_cost_inc_vat") as? Double ?? 0.0)")
+                    print("  - Total Cost (exc VAT): \(result.value(forKey: "total_cost_exc_vat") as? Double ?? 0.0)")
+                    print("  - Total Cost (inc VAT): \(result.value(forKey: "total_cost_inc_vat") as? Double ?? 0.0)")
+                    
+                    await MainActor.run {
+                        calculationResults = [result]
+                    }
+                }
+            } else {
+                // Account-based calculation
+                if let accountData = accountResponse {
+                    let results = try await repository.calculateCostForAccount(
+                        accountData: accountData,
+                        startDate: startDate,
+                        endDate: endDate,
+                        intervalType: "CUSTOM"
+                    )
+                    
+                    await MainActor.run {
+                        calculationResults = results
+                    }
+                } else {
+                    errorMessage = "No account data available"
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Calculation failed: \(error.localizedDescription)"
+            }
+        }
+        
+        await MainActor.run {
+            isCalculating = false
+        }
+    }
+}
+
+// MARK: - TariffCalculationResultView
+struct TariffCalculationResultView: View {
+    let calculation: NSManagedObject
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Tariff Code
+            Text(calculation.value(forKey: "tariff_code") as? String ?? "Unknown Tariff")
+                .font(.headline)
+            
+            // Period
+            if let start = calculation.value(forKey: "period_start") as? Date,
+               let end = calculation.value(forKey: "period_end") as? Date {
+                Text("Period: \(start.formatted()) to \(end.formatted())")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Consumption
+            if let consumption = calculation.value(forKey: "total_consumption_kwh") as? Double {
+                Text("Total Usage: \(String(format: "%.2f kWh", consumption))")
+            }
+            
+            // Costs
+            Group {
+                if let costExc = calculation.value(forKey: "total_cost_exc_vat") as? Double {
+                    Text("Cost (exc. VAT): £\(String(format: "%.2f", costExc/100))")
+                }
+                if let costInc = calculation.value(forKey: "total_cost_inc_vat") as? Double {
+                    Text("Cost (inc. VAT): £\(String(format: "%.2f", costInc/100))")
+                }
+            }
+            .font(.subheadline)
+            
+            // Standing Charges
+            Group {
+                if let standingExc = calculation.value(forKey: "standing_charge_cost_exc_vat") as? Double {
+                    Text("Standing Charge (exc. VAT): £\(String(format: "%.2f", standingExc/100))")
+                }
+                if let standingInc = calculation.value(forKey: "standing_charge_cost_inc_vat") as? Double {
+                    Text("Standing Charge (inc. VAT): £\(String(format: "%.2f", standingInc/100))")
+                }
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+            
+            // Average Rates
+            Group {
+                if let avgExc = calculation.value(forKey: "average_unit_rate_exc_vat") as? Double {
+                    Text("Avg. Rate (exc. VAT): \(String(format: "%.2f p/kWh", avgExc))")
+                }
+                if let avgInc = calculation.value(forKey: "average_unit_rate_inc_vat") as? Double {
+                    Text("Avg. Rate (inc. VAT): \(String(format: "%.2f p/kWh", avgInc))")
+                }
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 4)
     }
 }
 

@@ -56,4 +56,20 @@
         <attribute name="value_excluding_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="value_including_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
     </entity>
+    <entity name="TariffCalculationEntity" representedClassName="TariffCalculationEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="average_unit_rate_exc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="average_unit_rate_inc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="create_at" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="interval_type" optional="YES" attributeType="String"/>
+        <attribute name="period_end" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="period_start" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="standing_charge_cost_exc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="standing_charge_cost_inc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="tariff_code" optional="YES" attributeType="String"/>
+        <attribute name="total_consumption_kwh" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="total_cost_exc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="total_cost_inc_vat" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="updated_at" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

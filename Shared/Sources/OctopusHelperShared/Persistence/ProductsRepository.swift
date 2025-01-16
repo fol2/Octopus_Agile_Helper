@@ -26,6 +26,16 @@ public final class ProductsRepository: ObservableObject {
     private let apiClient = OctopusAPIClient.shared
     private let context: NSManagedObjectContext
 
+    // MARK: - Constants
+    private let defaultProductCodes = [
+        "SILVER-24-12-31",
+        "SILVER-FLEX-22-11-25",
+        "SILVER-23-12-06",
+        "SILVER-24-04-03",
+        "SILVER-24-07-01",
+        "SILVER-24-10-01"
+    ]
+
     // MARK: - Initializer
     private init() {
         // Adjust to your actual persistence setup
@@ -54,13 +64,13 @@ public final class ProductsRepository: ObservableObject {
         let finalEntities = try await upsertProducts(apiItems)
         print("✅ 成功保存到Core Data，最终实体数量: \(finalEntities.count)")
 
-        // 3) After main sync, ensure we have default product if not in the list
-        let defaultProductCode = "SILVER-24-12-31"
-        let isSilverInAPI = apiItems.contains { $0.code == defaultProductCode }
-        if !isSilverInAPI {
-            print("ℹ️ Product \(defaultProductCode) not in official list, adding manually...")
-            // We won't push it into `apiItems`, we'll handle it via ensureProductExists:
-            _ = try await ensureProductExists(productCode: defaultProductCode)
+        // 3) After main sync, ensure we have all default products if not in the list
+        for defaultProductCode in defaultProductCodes {
+            let isProductInAPI = apiItems.contains { $0.code == defaultProductCode }
+            if !isProductInAPI {
+                print("ℹ️ Product \(defaultProductCode) not in official list, adding manually...")
+                _ = try await ensureProductExists(productCode: defaultProductCode)
+            }
         }
 
         return finalEntities
