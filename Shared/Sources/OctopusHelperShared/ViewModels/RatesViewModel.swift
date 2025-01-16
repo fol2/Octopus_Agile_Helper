@@ -272,6 +272,7 @@ public final class RatesViewModel: ObservableObject {
     public func fetchRatesForDefaultProduct() async {
         do {
             print("\n🔍 Starting fetchRatesForDefaultProduct")
+            self.fetchStatus = .fetching  // Set status to fetching at start
             
             // First check if we have a full account-based agile tariff code (e.g. "E-1R-AGILE-24-04-03-H")
             if let fullTariffCode = activeAgileTariffFromAccount() {
@@ -319,6 +320,15 @@ public final class RatesViewModel: ObservableObject {
                 self.currentAgileCode = fullTariffCode
                 UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(fullTariffCode, forKey: "agile_code_for_widget")
                 print("\n✅ Completed account-based fetchRatesForDefaultProduct")
+                return
+            }
+
+            // --- [FIX] Only apply fallback if we do NOT already have a full tariff code ---
+            // For example, a full code often starts with "E-1R-AGILE" or contains multiple segments.
+            // If we already have a valid "AGILE" code stored, skip overriding it with fallback.
+            if !self.currentAgileCode.isEmpty,
+               self.currentAgileCode.contains("AGILE") {
+                print("⚠️ Skipping fallback: already have full tariff code \(self.currentAgileCode)")
                 return
             }
 
@@ -451,7 +461,8 @@ public final class RatesViewModel: ObservableObject {
 
             // Step 7: Update current agile code
             self.currentAgileCode = fallbackCode
-            
+            print("WIDGET: Using fallback agile code: \(fallbackCode)")
+
             // Step 8: Save to shared defaults for widget
             let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
             sharedDefaults?.set(fallbackCode, forKey: "agile_code_for_widget")
@@ -878,53 +889,32 @@ public final class RatesViewModel: ObservableObject {
     public func setAgileProductFromAccountOrFallback(globalSettings: GlobalSettingsManager) async {
         let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
         
-        // 1) Attempt dynamic fallback from local DB
-        let fallbackCode = await fallbackAgileCodeFromProductEntity()
-
-        // If we have no account data => rely solely on fallback from ProductEntity
-        guard let accountData = globalSettings.settings.accountData,
-              !accountData.isEmpty
-        else {
-            // If account lacks an 'AGILE' tariff => fallback only if DB has an AGILE product
-            if let code = fallbackCode {
-                self.currentAgileCode = code
-            } else {
-                return
-            }
+        // If we already have a full tariff code stored (e.g. from widget), just use it
+        // Full codes look like "E-1R-AGILE-24-04-03-H"
+        if !currentAgileCode.isEmpty && currentAgileCode.contains("AGILE") {
+            // Already have a valid full code, no need to re-validate
             return
         }
-
-        do {
-            let decoder = JSONDecoder()
-            let account = try decoder.decode(OctopusAccountResponse.self, from: accountData)
-            // parse the account for an agile-based code, e.g. "AGILE-24-04-03"
-            if let matched = findAgileShortCode(in: account) {
-                currentAgileCode = matched
-            } else {
-                // If account lacks an 'AGILE' tariff => fallback only if DB has an AGILE product
-                if let code = fallbackCode {
-                    currentAgileCode = code
-                } else {
-                    // No fallback => do nothing or keep existing
-                    // currentAgileCode stays as-is
-                    return
-                }
-            }
-
-            // After we decide the actual code, store it for the widget to read:
-            sharedDefaults?.set(currentAgileCode, forKey: "agile_code_for_widget")
-
-        } catch {
-            // If JSON decode fails => fallback only if DB found an AGILE code
-            if let code = fallbackCode {
-                currentAgileCode = code
-                sharedDefaults?.set(code, forKey: "agile_code_for_widget")
-            }
+        
+        // If we get here, we need to find a valid code
+        
+        // First check if account data has an active Agile agreement
+        if let accountData = globalSettings.settings.accountData,
+           !accountData.isEmpty,
+           let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
+           let matchedAgreement = tryFindActiveAgileAgreement(in: account) {
+            // Use the full tariff code
+            currentAgileCode = matchedAgreement.tariff_code
+            return
+        }
+        
+        // Finally, try fallback from local DB
+        if let fallbackCode = await fallbackAgileCodeFromProductEntity() {
+            currentAgileCode = fallbackCode
         }
     }
 
-    // Find an active agile code from the user's agreements
-    private func findAgileShortCode(in account: OctopusAccountResponse) -> String? {
+    private func tryFindActiveAgileAgreement(in account: OctopusAccountResponse) -> OctopusAgreement? {
         // We only examine the first property + first electricity agreement for brevity
         guard let firstProp = account.properties.first,
               let elecMP = firstProp.electricity_meter_points?.first,
@@ -932,34 +922,20 @@ public final class RatesViewModel: ObservableObject {
         else { return nil }
 
         let now = Date()
-        
+
         // First try to find an active AGILE agreement
         for agreement in agreements {
             if agreement.tariff_code.contains("AGILE") {
                 // Check if agreement is currently active
                 let isActive = isAgreementActive(agreement: agreement, now: now)
                 if isActive {
-                    if let shortCode = extractShortCode(agreement.tariff_code) {
-                        return shortCode
-                    }
+                    return agreement
                 }
             }
         }
-        
-        // If no active AGILE agreement found, check if there's any active non-AGILE agreement
-        for agreement in agreements {
-            let isActive = isAgreementActive(agreement: agreement, now: now)
-            if isActive {
-                // If there's an active non-AGILE agreement, we should return nil
-                // to trigger the fallback to default AGILE
-                return nil
-            }
-        }
-        
-        // If no active agreements at all, return nil to trigger fallback
         return nil
     }
-    
+
     // Helper to check if an agreement is active
     private func isAgreementActive(agreement: OctopusAgreement, now: Date) -> Bool {
         let dateFormatter = ISO8601DateFormatter()
@@ -982,20 +958,5 @@ public final class RatesViewModel: ObservableObject {
         }
         
         return true
-    }
-
-    private func extractShortCode(_ fullTariffCode: String) -> String? {
-        // typical pattern: "E-1R-AGILE-24-04-03-H"
-        // we can split by "-" and pick index 2..5 => "AGILE-24-04-03"
-        // minimal approach:
-        let parts = fullTariffCode.components(separatedBy: "-")
-        // e.g. ["E", "1R", "AGILE", "24", "04", "03", "H"]
-        guard parts.count >= 6 else { return nil }
-        if parts[2].starts(with: "AGILE") {
-            // join back up to the 5th index
-            let joined = parts[2...5].joined(separator: "-")
-            return joined // "AGILE-24-04-03"
-        }
-        return nil
     }
 }

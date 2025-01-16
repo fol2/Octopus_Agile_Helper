@@ -115,6 +115,8 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             return
         }
         
+        fetchStatus = .fetching  // Set status to fetching at start
+        
         do {
             let allData = try await repository.fetchAllRecords()
             consumptionRecords = allData
@@ -158,10 +160,12 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             return
         }
 
-        // Set to fetching state immediately if forcing or conditions require
+        // Always set fetching status when starting a refresh
         if force || (hour >= 12 && !repository.hasDataThroughExpectedTime()) {
-            fetchStatus = .fetching
-            isLoading = true
+            withAnimation(.easeInOut(duration: 0.2)) {
+                fetchStatus = .fetching
+                isLoading = true
+            }
             error = nil
             
             do {
@@ -171,7 +175,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
                 maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
                 
-                fetchStatus = .done
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    fetchStatus = .done
+                }
                 
                 // After success, return to none after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -183,7 +189,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 }
             } catch {
                 self.error = error
-                fetchStatus = .failed
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    fetchStatus = .failed
+                }
                 
                 // If fetch fails, set to pending after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -195,7 +203,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 }
             }
             
-            isLoading = false
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isLoading = false
+            }
         }
     }
     

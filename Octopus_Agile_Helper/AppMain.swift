@@ -14,6 +14,7 @@ struct Octopus_Agile_HelperApp: App {
     )
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("isLoading") private var isLoading = true
+    @State private var showDebugView = false
     
     init() {
         // Reset isLoading to true on app launch
@@ -68,6 +69,29 @@ struct Octopus_Agile_HelperApp: App {
                     .environmentObject(ratesVM)
                     .environment(\.locale, globalSettings.locale)
                     .preferredColorScheme(.dark)
+                    #if DEBUG
+                    .overlay(alignment: .bottom) {
+                        Button {
+                            showDebugView = true
+                        } label: {
+                            Text("Debug")
+                                .font(.caption)
+                                .foregroundColor(Theme.secondaryTextColor.opacity(0.6))
+                                .padding(.bottom, 8)
+                        }
+                    }
+                    .sheet(isPresented: $showDebugView) {
+                        NavigationStack {
+                            TestView(ratesViewModel: ratesVM)
+                                .environmentObject(globalSettings)
+                                .environmentObject(globalTimer)
+                                .environmentObject(ratesVM)
+                                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                                .environment(\.locale, globalSettings.locale)
+                        }
+                        .preferredColorScheme(.dark)
+                    }
+                    #endif
                     .onChange(of: scenePhase) { _, newPhase in
                         switch newPhase {
                         case .active:
@@ -82,12 +106,10 @@ struct Octopus_Agile_HelperApp: App {
                                     checkInitialLoadingStatus()
                                 }
                             }
-                        case .background:
+                        case .inactive, .background:
                             globalTimer.stopTimer()
                             WidgetCenter.shared.reloadAllTimelines()
                             isLoading = true
-                        case .inactive:
-                            break
                         @unknown default:
                             break
                         }

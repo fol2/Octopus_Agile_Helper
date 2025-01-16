@@ -12,6 +12,19 @@ import WidgetKit
 import Charts
 import CoreData
 
+// Provide a stable string ID for each NSManagedObject (RateEntity).
+extension NSManagedObject {
+    /// Returns the existing `id` attribute, or a fallback UUID string if missing.
+    var idString: String {
+        (value(forKey: "id") as? String)
+        ?? {
+            // If somehow 'id' was never set, generate a fallback here.
+            let generated = UUID().uuidString
+            return generated
+        }()
+    }
+}
+
 // MARK: - Timeline Provider
 final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
 
@@ -48,7 +61,6 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
         let context = persistenceController.container.viewContext
         let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-        let rates = (try? context.fetch(request)) ?? []
         
         // Get agile code with proper logging
         let agileCode: String = {
@@ -63,6 +75,10 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             print("WIDGET: No agile code found, using empty string")
             return ""
         }()
+        
+        // Add tariff code filter
+        request.predicate = NSPredicate(format: "tariff_code == %@", agileCode)
+        let rates = (try? context.fetch(request)) ?? []
         
         return SimpleEntry(
             date: .now,
@@ -77,7 +93,6 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
         let context = persistenceController.container.viewContext
         let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-        let rates = (try? context.fetch(request)) ?? []
         
         // Get agile code with proper logging
         let agileCode: String = {
@@ -93,6 +108,10 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             return ""
         }()
         
+        // Add tariff code filter
+        request.predicate = NSPredicate(format: "tariff_code == %@", agileCode)
+        let rates = (try? context.fetch(request)) ?? []
+        
         return SimpleEntry(
             date: .now,
             configuration: configuration,
@@ -105,19 +124,8 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
         do {
-            // 1) Get the agile code with proper logging
-            let agileCode: String = {
-                if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
-                    print("WIDGET: Using stored agile code: \(stored)")
-                    return stored
-                }
-                if let fallback = fallbackAgileCodeFromProductEntity() {
-                    print("WIDGET: Using fallback agile code: \(fallback)")
-                    return fallback
-                }
-                print("WIDGET: No agile code found, using empty string")
-                return ""
-            }()
+            // 1) Get the agile code using the same logic as the main app
+            let agileCode: String = await getAgileCode()
             
             // 1.5) Update rates from the repository
             let repo = await repository
@@ -133,14 +141,12 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 print("WIDGET: No product details found for code: \(agileCode)")
             }
             
-            let rates = try await repo.fetchAllRates()
-
-            // Convert [NSManagedObject] -> [RateEntity]
-            let typedRates = rates.compactMap { $0 }
+            // Get rates for our specific time window
+            let rates = try await repo.fetchRatesForTimeWindow(tariffCode: agileCode)
 
             // 3) Build timeline
             let now = Date()
-            let entries = buildTimelineEntries(rates: typedRates, configuration: configuration, now: now, agileCode: agileCode)
+            let entries = buildTimelineEntries(rates: rates, configuration: configuration, now: now, agileCode: agileCode)
             
             // 4) Force next refresh soon => immediate effect on user exit
             let nextRefresh = Date().addingTimeInterval(1)
@@ -154,6 +160,57 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     }
 
     // MARK: - Private Helpers
+    
+    /// Get the Agile code using the same logic as the main app
+    private func getAgileCode() async -> String {
+        // First try to get from shared defaults (set by main app)
+        if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
+            print("WIDGET: Using stored agile code: \(stored)")
+            return stored
+        }
+        
+        // If no stored code, try to get from account data
+        if let settings = try? readGlobalSettings(),
+           let accountData = settings.accountData,
+           !accountData.isEmpty,
+           let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
+           let firstProperty = account.properties.first,
+           let firstMeterPoint = firstProperty.electricity_meter_points?.first,
+           let agreements = firstMeterPoint.agreements {
+            
+            let now = Date()
+            // Filter to find any active agreement that has "AGILE" in the tariff_code
+            if let agileAgreement = agreements.first(where: { agreement in
+                agreement.tariff_code.contains("AGILE") && isAgreementActive(agreement: agreement, now: now)
+            }) {
+                print("WIDGET: Found active Agile agreement: \(agileAgreement.tariff_code)")
+                // Use the entire tariff_code, e.g. "E-1R-AGILE-24-04-03-H"
+                return agileAgreement.tariff_code
+            }
+        }
+        
+        // If no account data or no active Agile agreement, try fallback
+        if let fallback = fallbackAgileCodeFromProductEntity() {
+            print("WIDGET: Using fallback agile code: \(fallback)")
+            return fallback
+        }
+        
+        print("WIDGET: No agile code found, using empty string")
+        return ""
+    }
+    
+    /// Helper to check if an agreement is active
+    private func isAgreementActive(agreement: OctopusAgreement, now: Date) -> Bool {
+        let valid_from = agreement.valid_from ?? Date.distantPast
+        let valid_to = agreement.valid_to ?? Date.distantFuture
+        return now >= valid_from && now < valid_to
+    }
+    
+    /// Try to read the full GlobalSettings from shared defaults
+    private func readGlobalSettings() throws -> GlobalSettings? {
+        guard let data = sharedDefaults?.data(forKey: "user_settings") else { return nil }
+        return try JSONDecoder().decode(GlobalSettings.self, from: data)
+    }
 
     /// Attempts to read global settings from shared container. Fallback to minimal keys if needed.
     private func readSettings() -> (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?) {
@@ -434,22 +491,22 @@ struct CurrentRateWidget: View {
     // Add missing computed properties and functions
     private var filteredRatesForChart: [NSManagedObject] {
         let now = Date()
+        let sortedRates = rates.sorted { 
+            ($0.value(forKey: "valid_from") as? Date ?? .distantPast) < 
+            ($1.value(forKey: "valid_from") as? Date ?? .distantPast)
+        }
         
-        // Split rates into past and future
-        let validRates = rates.filter { $0.value(forKey: "valid_from") != nil && $0.value(forKey: "valid_to") != nil }
-        let pastRates = validRates
+        // Split into past and future
+        let pastRates = sortedRates
             .filter { ($0.value(forKey: "valid_from") as? Date ?? .distantFuture) <= now }
-            .sorted { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) > ($1.value(forKey: "valid_from") as? Date ?? .distantPast) } // Latest first
-            .prefix(42) // Take up to 42 past rates
+            .suffix(42) // Take last 42 past rates (21 hours)
         
-        let futureRates = validRates
+        let futureRates = sortedRates
             .filter { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) > now }
-            .sorted { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) < ($1.value(forKey: "valid_from") as? Date ?? .distantPast) } // Earliest first
-            .prefix(33) // Take up to 33 future rates
+            .prefix(33) // Take first 33 future rates (16.5 hours)
         
-        // Combine and sort for display
-        return (Array(pastRates) + Array(futureRates))
-            .sorted { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) < ($1.value(forKey: "valid_from") as? Date ?? .distantPast) }
+        // Combine and maintain sort
+        return Array(pastRates) + Array(futureRates)
     }
 
     /// Y-axis range for chart
@@ -494,8 +551,8 @@ struct CurrentRateWidget: View {
         return rates
             .filter { rate in
                 guard let _ = rate.value(forKey: "valid_from") as? Date,
-                      let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
-                return validTo > now
+                      let valid_to = rate.value(forKey: "valid_to") as? Date else { return false }
+                return valid_to > now
             }
             .sorted { a, b in
                 let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
@@ -617,7 +674,7 @@ struct CurrentRateWidget: View {
 
     // MARK: - System Medium View
     /// A medium widget layout:
-    /// - Left side: current rate, highest & lowest (same as systemSmall)
+    /// - Left side: current rate, highest, lowest (same as systemSmall)
     /// - Right side: a mini chart with best-time background + "now" vertical line
     @ViewBuilder
     private var systemMediumView: some View {
@@ -732,10 +789,11 @@ struct CurrentRateWidget: View {
     
     @ChartContentBuilder
     private func chartBars(data: [NSManagedObject], barWidth: Double) -> some ChartContent {
-        ForEach(Array(data.enumerated()), id: \.1) { index, rate in
+        ForEach(Array(data.enumerated()),
+                id: \.element.idString) { index, rate in
+            
             if let t = rate.value(forKey: "valid_from") as? Date {
-                let value = rate.value(forKey: "value_including_vat") as? Double ?? 0
-                let baseColor = value < 0 ? Theme.secondaryColor : Theme.mainColor
+                let baseColor = (rate.value(forKey: "value_including_vat") as? Double ?? 0) < 0 ? Theme.secondaryColor : Theme.mainColor
                 let rawProgress = Double(index) / Double(max(1, data.count - 1))
                 let isToday = Calendar.current.isDate(t, inSameDayAs: Date())
                 
@@ -759,7 +817,7 @@ struct CurrentRateWidget: View {
                 
                 BarMark(
                     x: .value("Time", t),
-                    y: .value("Rate", value),
+                    y: .value("Rate", rate.value(forKey: "value_including_vat") as? Double ?? 0),
                     width: .fixed(barWidth)
                 )
                 .cornerRadius(3)
@@ -822,8 +880,8 @@ extension CurrentRateWidget {
             rateView(value: rate.value(forKey: "value_including_vat") as? Double ?? 0, color: RateColor.getColor(for: rate, allRates: rates), font: Theme.mainFont())
             
             // "Until HH:mm"
-            if let validTo = rate.value(forKey: "valid_to") as? Date {
-                Text("Until \(formatTime(validTo))")
+            if let valid_to = rate.value(forKey: "valid_to") as? Date {
+                Text("Until \(formatTime(valid_to))")
                     .font(.caption2)
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -943,8 +1001,8 @@ extension CurrentRateWidget {
         let upcoming = getUpcomingRates()
         
         if let item = upcoming.last,
-           let validFrom = item.value(forKey: "valid_from") as? Date {
-            return (item, validFrom)
+           let valid_from = item.value(forKey: "valid_from") as? Date {
+            return (item, valid_from)
         }
         return nil
     }
@@ -1161,4 +1219,23 @@ struct CurrentRateWidget_Previews: PreviewProvider {
             agileCode: "AGILE-24-10-01"
         )
     }
+}
+
+// MARK: - Account Response Models
+struct OctopusAccountResponse: Codable {
+    let properties: [OctopusProperty]
+}
+
+struct OctopusProperty: Codable {
+    let electricity_meter_points: [OctopusMeterPoint]?
+}
+
+struct OctopusMeterPoint: Codable {
+    let agreements: [OctopusAgreement]?
+}
+
+struct OctopusAgreement: Codable {
+    let tariff_code: String
+    let valid_from: Date?
+    let valid_to: Date?
 }

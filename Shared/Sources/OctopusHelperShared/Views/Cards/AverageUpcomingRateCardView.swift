@@ -268,32 +268,19 @@ public struct AverageUpcomingRateCardView: View {
         // If we have actual rates, use them for color context
         if !rates.isEmpty {
             // Find rates that match our average value
-            let matchingRates = rates.filter { rate in
-                let rateValue = rate.value(forKey: "value_including_vat") as? Double ?? 0
-                return abs(rateValue - average) < 0.01  // Small epsilon for floating point comparison
-            }
-            
-            // If we found an exact match, use its color directly
-            if let exactMatch = matchingRates.first {
-                return RateColor.getColor(for: exactMatch, allRates: rates)
-            }
-            
             // Otherwise, find the rates within our time period
             let now = Date()
             let relevantRates = rates.filter { rate in
                 guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
                 return validFrom >= now
             }
-            
-            // Create a mock rate with our average value and the first relevant time period
-            if let context = rates.first?.managedObjectContext,
-               let entity = NSEntityDescription.entity(forEntityName: "Rate", in: context),
-               let firstRelevantTime = relevantRates.first?.value(forKey: "valid_from") as? Date {
-                let mockRate = NSManagedObject(entity: entity, insertInto: nil)
-                mockRate.setValue(average, forKey: "value_including_vat")
-                mockRate.setValue(firstRelevantTime, forKey: "valid_from")
-                
-                return RateColor.getColor(for: mockRate, allRates: relevantRates)
+            // Instead of exact match, find the nearest rate by absolute difference
+            if let nearestRate = relevantRates.min(by: {
+                let v0 = ($0.value(forKey: "value_including_vat") as? Double) ?? 0
+                let v1 = ($1.value(forKey: "value_including_vat") as? Double) ?? 0
+                return abs(v0 - average) < abs(v1 - average)
+            }) {
+                return RateColor.getColor(for: nearestRate, allRates: relevantRates)
             }
         }
         

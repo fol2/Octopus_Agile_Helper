@@ -452,4 +452,26 @@ public final class RatesRepository: ObservableObject {
         // Just return eodLocal (no .toUTC)
         return eodLocal
     }
+
+    /// Fetch rates for a specific time window and tariff code
+    public func fetchRatesForTimeWindow(
+        tariffCode: String,
+        pastHours: Int = 21  // 42 rates × 30min
+    ) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let now = Date()
+            let pastBoundary = now.addingTimeInterval(-Double(pastHours) * 3600)
+            
+            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            req.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "tariff_code == %@", tariffCode),
+                // Get all rates from pastBoundary onwards (no future limit)
+                NSPredicate(format: "valid_from >= %@", pastBoundary as NSDate)
+            ])
+            req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            
+            let list = try self.context.fetch(req)
+            return list
+        }
+    }
 }
