@@ -134,6 +134,29 @@ public struct GlobalSettings: Codable {
     /// Optionally store the entire account JSON (raw) for reference or debugging
     public var accountData: Data?
 
+    /// The effective region to use for API calls - returns "H" if regionInput is empty
+    public var effectiveRegion: String {
+        let cleaned = regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        
+        // If empty, return default region "H"
+        guard !cleaned.isEmpty else { return "H" }
+        
+        // If it's a single letter A-P, it's already a valid region code
+        if cleaned.count == 1 && cleaned >= "A" && cleaned <= "P" {
+            return cleaned
+        }
+        
+        // For postcodes, check the cache
+        if let cacheData = UserDefaults.standard.data(forKey: "postcode_region_cache"),
+           let cache = try? JSONDecoder().decode([String: String].self, from: cacheData),
+           let region = cache[cleaned] {
+            return region
+        }
+        
+        // If no cached result, return "H" as fallback
+        return "H"
+    }
+
     public init(
         regionInput: String,
         apiKey: String,

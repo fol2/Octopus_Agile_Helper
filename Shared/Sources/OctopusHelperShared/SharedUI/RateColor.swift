@@ -2,10 +2,24 @@ import SwiftUI
 import CoreData
 
 public struct RateColor {
-    // Fixed rate thresholds in pence
-    private static let mediumRateThreshold = 50.0  // 50p
-    private static let highRateThreshold = 100.0   // £1
-    
+    // MARK: - Colour Definitions
+    // Adjust as needed:
+    private static let whiteColor       = Color.white
+    private static let softerRedColor   = Color(red: 1.0, green: 0.2, blue: 0.2)
+    private static let devilPurpleColor = Color(red: 0.6, green: 0.0, blue: 0.9)
+    private static let greenColor       = Color(red: 0.1, green: 1.0, blue: 0.3)
+
+    // We no longer rely on fixed thresholds for "medium" and "high" in the old sense.
+    // Instead, each day has its own maximum rate, and we apply your new logic:
+    //  - Negative -> White -> Green
+    //  - Positive up to dayMax:
+    //     * First 50% of sorted rates (by ascending value) → White
+    //     * Last 50% → gradient from white to "soft red" (up to 50p),
+    //       then from 50p to 100p → gradient to devil purple,
+    //       above 100p stays devil purple
+    //
+    // All color calculations happen only among that day's rates.
+
     /// Returns all rates for a specific day, sorted chronologically
     /// - Parameters:
     ///   - date: The date to get rates for
@@ -38,82 +52,119 @@ public struct RateColor {
 
         // Handle negative rates
         let currentValue = rate.value(forKey: "value_including_vat") as? Double ?? 0
-        print("DEBUG: RateColor - Current rate value: \(currentValue)")
-        
+        print("DEBUG: RateColor - daily color logic, currentValue = \(currentValue)")
+
+        // Negative: White -> Green gradient (day-based)
         if currentValue < 0 {
-            let negativeRates = dayRates.filter { 
-                ($0.value(forKey: "value_including_vat") as? Double ?? 0) < 0 
-            }
-            print("DEBUG: RateColor - Found \(negativeRates.count) negative rates")
-            
-            if let mostNegative = negativeRates.min(by: {
-                ($0.value(forKey: "value_including_vat") as? Double ?? 0) < ($1.value(forKey: "value_including_vat") as? Double ?? 0)
-            }) {
-                // Calculate percentage based on how close to 0 the rate is, but keep minimum 20% intensity
-                let mostNegativeValue = mostNegative.value(forKey: "value_including_vat") as? Double ?? 0
-                let rawPercentage = abs(currentValue / mostNegativeValue)
-                let percentage = 0.5 + (rawPercentage * 0.5)  // This ensures we keep at least 50% of the color
-                print("DEBUG: RateColor - Negative rate color percentage: \(percentage)")
-                
-                // Base green color (RGB: 0.2, 0.8, 0.4)
-                return Color(
-                    red: 1.0 - (0.8 * percentage),  // Interpolate from 1.0 to 0.2
-                    green: 1.0 - (0.2 * percentage),  // Interpolate from 1.0 to 0.8
-                    blue: 1.0 - (0.6 * percentage)  // Interpolate from 1.0 to 0.4
-                )
-            }
-            return Color(red: 0.2, green: 0.8, blue: 0.4)
+            return computeNegativeGradientColor(
+                dayRates: dayRates,
+                currentValue: currentValue
+            )
         }
 
-        // Find the day's rate statistics for rates below 50p
-        let sortedRates = dayRates.map { $0.value(forKey: "value_including_vat") as? Double ?? 0 }
-            .filter { $0 <= mediumRateThreshold }
+        // Positive: new day-based gradient logic
+        // 1) Sort all daily (non-negative) rates ascending
+        let positiveRates = dayRates
+            .compactMap { $0.value(forKey: "value_including_vat") as? Double }
+            .filter { $0 >= 0 }
             .sorted()
-        
-        // For rates above 100p, return devil purple
-        if currentValue > highRateThreshold {
-            print("DEBUG: RateColor - Rate above 100p, using devil purple")
-            return Color(red: 0.5, green: 0.0, blue: 0.8)  // Devil purple
-        }
-        
-        // For rates between 50p and 100p, interpolate between red and devil purple
-        if currentValue > mediumRateThreshold {
-            let percentage = (currentValue - mediumRateThreshold) / (highRateThreshold - mediumRateThreshold)
-            print("DEBUG: RateColor - Rate between 50p-100p, percentage: \(percentage)")
-            
-            // Interpolate from red (1.0, 0.0, 0.0) to devil purple (0.5, 0.0, 0.8)
-            return Color(
-                red: 1.0 - (0.5 * percentage),  // 1.0 → 0.5
-                green: 0.0,                     // Stay at 0
-                blue: 0.8 * percentage          // 0.0 → 0.8
-            )
+
+        guard !positiveRates.isEmpty else {
+            // If there's absolutely no non-negative rate, fallback to white
+            return whiteColor
         }
 
-        // For rates below or equal to 50p, use original white to red gradient
-        guard !sortedRates.isEmpty else { 
-            print("DEBUG: RateColor - No sorted rates found")
-            return .white 
+        // 2) Identify dayMax for "full color" and handle >100p => always devilPurple
+        let dayMax = positiveRates.last ?? 0
+        if currentValue > 100 {
+            print("DEBUG: RateColor - >100p => devilPurpleColor")
+            return devilPurpleColor
         }
 
-        let medianRate = sortedRates[sortedRates.count / 2]
-        print("DEBUG: RateColor - Median rate for <=50p: \(medianRate)")
+        // 3) If dayMax <= 50, we treat dayMax as 100% "soft red" boundary
+        //    If dayMax is between 50..100, we do partial gradient red → devilPurple
+        //    If currentValue > 50 => shift into purple gradient zone
+        let isAbove50 = (currentValue > 50)
 
-        // Only color rates above the median
-        if currentValue >= medianRate {
-            // Calculate how "high" the rate is compared to the range between median and 50p
-            let percentage = (currentValue - medianRate) / (mediumRateThreshold - medianRate)
-            print("DEBUG: RateColor - Above median color percentage: \(percentage)")
-            
-            // White to red gradient
-            return Color(
-                red: 1.0,  // Full red
-                green: 1.0 - percentage,  // Fade from white to no green
-                blue: 1.0 - percentage   // Fade from white to no blue
-            )
+        // 4) Determine which 'half' the current rate belongs to, by index in sorted array
+        let indexInList = positiveRates.firstIndex(where: { $0 >= currentValue }) ?? 0
+        let half = positiveRates.count / 2  // integer division
+
+        if indexInList < half {
+            // First 50% => White
+            return whiteColor
         }
-        
-        print("DEBUG: RateColor - Below median, returning white")
-        // Return white for rates below median
-        return .white
+        // Last 50% => gradient from White → Red OR Red → DevilPurple
+
+        // For rates over 50p, we do gradient from red to purple (up to 100p).
+        // For rates up to 50p, we do white->red. But we must see how far along we are in dayMax.
+        return computePositiveGradientColor(
+            currentValue: currentValue,
+            dayMax: dayMax,
+            isAbove50: isAbove50
+        )
+    }
+
+    // MARK: - Negative Rates
+    private static func computeNegativeGradientColor(dayRates: [NSManagedObject], currentValue: Double) -> Color {
+        // We do "White -> Green" using a proportion of how negative it is relative to day's min negative
+        let negatives = dayRates.compactMap {
+            $0.value(forKey: "value_including_vat") as? Double
+        }.filter { $0 < 0 }
+        guard let dayMinNeg = negatives.min() else {
+            return greenColor
+        }
+        let ratio = (currentValue - 0.0) / (dayMinNeg - 0.0) // negative / negative => positive ratio
+        // clamp ratio to [0..1]
+        let clamped = max(0.0, min(abs(ratio), 1.0))
+
+        // White (1,1,1) to greenColor
+        return Color(
+            red: 1.0 + (0.2 - 1.0) * clamped,  // 1.0 -> 0.2
+            green: 1.0 + (0.8 - 1.0) * clamped, // 1.0 -> 0.8
+            blue: 1.0 + (0.4 - 1.0) * clamped  // 1.0 -> 0.4
+        )
+    }
+
+    // MARK: - Positive Rates Gradient
+    private static func computePositiveGradientColor(
+        currentValue: Double,
+        dayMax: Double,
+        isAbove50: Bool
+    ) -> Color {
+        if !isAbove50 {
+            // White -> (soft) Red gradient
+            // dayMax might be < 50 or >= 50, but if the currentValue <= 50, we ignore purple.
+            let ratio = currentValue / 50.0 // up to 50p is 100% "soft red"
+            let clamped = max(0.0, min(ratio, 1.0))
+            return interpolate(whiteColor, softerRedColor, clamped)
+        } else if currentValue <= 100 {
+            // We are in the 50..100 range => red -> devilPurple
+            // 50p => red, 100p => devilPurple
+            let ratio = (currentValue - 50.0) / (100.0 - 50.0)
+            let clamped = max(0.0, min(ratio, 1.0))
+            // We do a simple interpolation from "softRed" to "devilPurple"
+            return interpolate(softerRedColor, devilPurpleColor, clamped)
+        } else {
+            // Over 100p => devilPurple
+            return devilPurpleColor
+        }
+    }
+
+    // MARK: - Interpolation Helper
+    private static func interpolate(_ from: Color, _ to: Color, _ fraction: Double) -> Color {
+        let f = CGFloat(max(0.0, min(fraction, 1.0)))
+        let uiFrom = UIColor(from)
+        let uiTo   = UIColor(to)
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        uiFrom.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        uiTo.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        return Color(
+            red:   Double(r1 + (r2 - r1) * f),
+            green: Double(g1 + (g2 - g1) * f),
+            blue:  Double(b1 + (b2 - b1) * f),
+            opacity: Double(a1 + (a2 - a1) * f)
+        )
     }
 } 

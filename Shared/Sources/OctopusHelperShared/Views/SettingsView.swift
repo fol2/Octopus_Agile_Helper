@@ -1119,10 +1119,6 @@ struct RegionLookupView: View {
                 Text("Using Region \(region)")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
-            } else {
-                Text("Using Region H")
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1207,6 +1203,13 @@ struct RegionLookupView: View {
         let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanedPostcode.isEmpty else { return ("H", false) }
         
+        // If it's a single letter between A and P, it's a valid region code
+        if cleanedPostcode.count == 1,
+           let firstChar = cleanedPostcode.first,
+           firstChar >= "A" && firstChar <= "P" {
+            return (cleanedPostcode, false)
+        }
+        
         let encoded = cleanedPostcode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         guard let encodedPostcode = encoded,
             let url = URL(
@@ -1266,7 +1269,7 @@ public struct SettingsView: View {
                     Spacer()
                     InfoButton(
                         message: LocalizedStringKey(
-                            "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage."
+                            "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage."
                         ),
                         title: LocalizedStringKey("Cards"),
                         mediaItems: [
@@ -1357,9 +1360,28 @@ public struct SettingsView: View {
                     }
                 ) {
                     ZStack(alignment: .trailing) {
+                        let displayValue = Binding(
+                            get: {
+                                globalSettings.settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                            },
+                            set: { newValue in
+                                // Validate input: either a postcode or a single letter A-P
+                                let cleaned = newValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                                if cleaned.isEmpty {
+                                    globalSettings.settings.regionInput = cleaned
+                                } else if cleaned.count == 1 && cleaned >= "A" && cleaned <= "P" {
+                                    // Valid region code
+                                    globalSettings.settings.regionInput = cleaned
+                                } else if cleaned.count <= 8 {  // Max UK postcode length
+                                    // Allow postcode input for lookup
+                                    globalSettings.settings.regionInput = cleaned
+                                }
+                            }
+                        )
+                        
                         TextField(
                             LocalizedStringKey("Postcode or Region Code"),
-                            text: $globalSettings.settings.regionInput,
+                            text: displayValue,
                             prompt: Text(LocalizedStringKey("e.g., SW1A 1AA, SW1A or H"))
                                 .foregroundColor(Theme.secondaryTextColor)
                         )
@@ -1403,12 +1425,12 @@ public struct SettingsView: View {
                     let input = globalSettings.settings.regionInput.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ).uppercased()
-                    if input.count == 1 && input >= "A" && input <= "P" {
+                    if !input.isEmpty && input.count == 1 && input >= "A" && input <= "P" {
                         Text("Using Region \(input)")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                             .customListRow()
-                    } else {
+                    } else if !input.isEmpty {
                         RegionLookupView(
                             postcode: input, triggerLookup: $lookupRegionManually,
                             lookupError: $lookupError)

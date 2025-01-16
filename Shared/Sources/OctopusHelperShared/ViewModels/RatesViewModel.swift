@@ -270,206 +270,132 @@ public final class RatesViewModel: ObservableObject {
     }
 
     public func fetchRatesForDefaultProduct() async {
+        print("\n🔍 Starting fetchRatesForDefaultProduct")
+        self.fetchStatus = .fetching  // Set initial fetching status
+        
         do {
-            print("\n🔍 Starting fetchRatesForDefaultProduct")
-            self.fetchStatus = .fetching  // Set status to fetching at start
-            
-            // First check if we have a full account-based agile tariff code (e.g. "E-1R-AGILE-24-04-03-H")
+            // First check if we have a full account-based agile tariff code
             if let fullTariffCode = activeAgileTariffFromAccount() {
                 print("📦 Using account-based agile tariff: \(fullTariffCode)")
-
-                // Directly load local detail by full tariff code
-                var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: fullTariffCode)
-                print("📊 Found \(details.count) product details via fullTariffCode")
-
-                // If nothing is in local DB, fetch from API (the user might have run ensureProductExists, or not)
-                if details.isEmpty {
-                    print("🔄 No local product detail found for \(fullTariffCode), fetching from API...")
-                    details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fullTariffCode)
-                }
-
-                // If still empty, bail out
-                guard !details.isEmpty else {
-                    print("❌ No local product detail found even after fetch. Aborting.")
-                    return
-                }
                 
-                // From here you can skip region-based fallback entirely, and just proceed with rates fetching
-                guard let rateLink = findRateLink(in: details) else {
-                    print("❌ Could not find rate link in product details. Aborting.")
+                // Try account-based approach
+                do {
+                    var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: fullTariffCode)
+                    print("📊 Found \(details.count) product details via fullTariffCode")
+                    
+                    if details.isEmpty {
+                        print("🔄 No local product detail found for \(fullTariffCode), fetching from API...")
+                        details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fullTariffCode)
+                    }
+                    
+                    guard !details.isEmpty else {
+                        print("❌ No local product detail found even after fetch.")
+                        // Don't set failed yet - we'll try fallback
+                        throw NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product details found"])
+                    }
+                    
+                    guard let rateLink = findRateLink(in: details) else {
+                        print("❌ Could not find rate link in product details.")
+                        // Don't set failed yet - we'll try fallback
+                        throw NSError(domain: "com.octopus", code: -2, userInfo: [NSLocalizedDescriptionKey: "No rate link found"])
+                    }
+                    
+                    try await repository.fetchAndStoreRates(tariffCode: fullTariffCode, url: rateLink)
+                    
+                    // Also fetch standing charges if available
+                    let standingChargeLink = details
+                        .compactMap { $0.value(forKey: "link_standing_charge") as? String }
+                        .first
+                    if let scLink = standingChargeLink {
+                        print("🔗 Found standing charge link: \(scLink)")
+                        try await repository.fetchAndStoreStandingCharges(
+                            tariffCode: fullTariffCode,
+                            url: scLink
+                        )
+                    }
+                    
+                    self.currentAgileCode = fullTariffCode
+                    UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(fullTariffCode, forKey: "agile_code_for_widget")
+                    self.fetchStatus = .done  // Success! Set to done
+                    print("\n✅ Completed account-based fetchRatesForDefaultProduct")
                     return
+                } catch {
+                    // Account-based approach failed, continue to fallback
+                    print("⚠️ Account-based approach failed, trying fallback...")
+                    // Keep fetchStatus as .fetching
                 }
-                
-                try await repository.fetchAndStoreRates(tariffCode: fullTariffCode, url: rateLink)
-
-                // Also fetch standing charges if available
-                let standingChargeLink = details
-                    .compactMap { $0.value(forKey: "link_standing_charge") as? String }
-                    .first
-                if let scLink = standingChargeLink {
-                    print("🔗 Found standing charge link: \(scLink)")
-                    try await repository.fetchAndStoreStandingCharges(
-                        tariffCode: fullTariffCode,
-                        url: scLink
-                    )
-                } else {
-                    print("⚠️ No standing charge link found, skipping fetch.")
-                }
-
-                // e.g. set self.currentAgileCode, store in widget, etc., then return
-                self.currentAgileCode = fullTariffCode
-                UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(fullTariffCode, forKey: "agile_code_for_widget")
-                print("\n✅ Completed account-based fetchRatesForDefaultProduct")
-                return
             }
-
-            // --- [FIX] Only apply fallback if we do NOT already have a full tariff code ---
-            // For example, a full code often starts with "E-1R-AGILE" or contains multiple segments.
-            // If we already have a valid "AGILE" code stored, skip overriding it with fallback.
+            
+            // Fallback approach
             if !self.currentAgileCode.isEmpty,
                self.currentAgileCode.contains("AGILE") {
                 print("⚠️ Skipping fallback: already have full tariff code \(self.currentAgileCode)")
+                self.fetchStatus = .done
                 return
             }
-
-            // If we got here, either no account data or no active agile agreement => fallback
+            
+            // Try fallback approach
             guard let fallbackCode = await fallbackAgileCodeFromProductEntity() else {
                 print("❌ No fallback Agile product found")
+                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -3, userInfo: [NSLocalizedDescriptionKey: "No fallback product found"]))
                 return
             }
+            
             print("📦 Found fallback agile product code: \(fallbackCode)")
-
-            // Step 2: Try to load product detail from local storage first (fallback approach)
+            
             var details = try await productDetailRepository.loadLocalProductDetail(code: fallbackCode)
             print("📊 Found \(details.count) product details from fallback")
-
-            // If no local data, then fetch from API
+            
             if details.isEmpty {
                 print("🔄 No local product details found, fetching from API...")
                 details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fallbackCode)
                 print("📥 Fetched \(details.count) product details from API")
             }
-
-            // Step 3: Check if we have valid account information
-            let accountData = GlobalSettingsManager().settings.accountData
+            
+            let effectiveRegion = GlobalSettingsManager().settings.effectiveRegion.uppercased()
+            print("📍 Using effective region: \(effectiveRegion)")
+            
+            let filteredDetails = details.filter { detail in
+                let detailRegion = detail.value(forKey: "region") as? String
+                return detailRegion == effectiveRegion
+            }
+            
             var chosenDetail: NSManagedObject? = nil
-            var tariffCode: String? = nil
-            var rateLink: String? = nil
-
-            if
-                let data = accountData,
-                !data.isEmpty,
-                let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data),
-                let firstProperty = account.properties.first,
-                let firstMeterPoint = firstProperty.electricity_meter_points?.first,
-                let agreements = firstMeterPoint.agreements,
-                let activeAgreement = agreements.first(where: { agreement in
-                    // Find the active agreement
-                    if let validFrom = ISO8601DateFormatter().date(from: agreement.valid_from ?? ""),
-                       let validTo = agreement.valid_to.flatMap(ISO8601DateFormatter().date(from:)) {
-                        let now = Date()
-                        return validFrom <= now && validTo >= now
-                    }
-                    return false
-                })
-            {
-                print("🔍 Looking for product detail matching agreement: \(activeAgreement.tariff_code)")
-
-                // Step 4A: Find the matching product detail from local DB
-                if let matchingDetail = details.first(where: { detail in
-                    let detailTariffCode = detail.value(forKey: "tariff_code") as? String
-                    return detailTariffCode == activeAgreement.tariff_code
-                }),
-                let foundRateLink = matchingDetail.value(forKey: "link_rate") as? String,
-                let foundTariffCode = matchingDetail.value(forKey: "tariff_code") as? String {
-                    chosenDetail = matchingDetail
-                    rateLink = foundRateLink
-                    tariffCode = foundTariffCode
-                } else {
-                    print("❌ No matching product detail found for agreement: \(activeAgreement.tariff_code)")
-                    return
-                }
-
+            if !filteredDetails.isEmpty {
+                print("📊 Found \(filteredDetails.count) details matching region \(effectiveRegion)")
+                chosenDetail = filteredDetails.first
             } else {
-                // Fallback: no account data or invalid, rely on local product details & region from GlobalSettings
-                print("⚠️ No valid account data found, using fallback region from GlobalSettings (if available).")
-                let regionInput = GlobalSettingsManager().settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-                
-                // If you store the region in GlobalSettings, attempt to match a detail with that region
-                if !regionInput.isEmpty {
-                    chosenDetail = details.first(where: { detail in
-                        let detailRegion = detail.value(forKey: "region") as? String
-                        return detailRegion == regionInput
-                    })
-                }
-                
-                // If no region matched or region is nil, simply pick the first detail
-                if chosenDetail == nil {
-                    chosenDetail = details.first
-                }
-                
-                // Extract the tariff code and link from the chosen detail
-                if let chosen = chosenDetail,
-                   let foundTariffCode = chosen.value(forKey: "tariff_code") as? String,
-                   let foundRateLink = chosen.value(forKey: "link_rate") as? String {
-                    tariffCode = foundTariffCode
-                    rateLink = foundRateLink
-                } else {
-                    print("❌ Could not determine fallback region/tariff code from product detail.")
-                    return
-                }
+                print("⚠️ No details found for region \(effectiveRegion), using first available detail")
+                chosenDetail = details.first
             }
-
-            // Print final product detail info
-            if let chosen = chosenDetail {
-                if let code = chosen.value(forKey: "tariff_code") as? String {
-                    print("\n📋 Product Detail Info:")
-                    print("🏷️ Tariff Code: \(code)")
-                }
-                if let region = chosen.value(forKey: "region") as? String {
-                    print("🌍 Region: \(region)")
-                }
-                if let payment = chosen.value(forKey: "payment") as? String {
-                    print("💳 Payment: \(payment)")
-                }
-                if let link = chosen.value(forKey: "link_rate") as? String {
-                    print("🔗 Rate Link: \(link)")
-                }
-            }
-
-            guard let finalTariffCode = tariffCode, let finalRateLink = rateLink else {
-                print("❌ Missing tariffCode or rateLink, cannot fetch rates.")
+            
+            guard let chosen = chosenDetail,
+                  let tariffCode = chosen.value(forKey: "tariff_code") as? String,
+                  let rateLink = chosen.value(forKey: "link_rate") as? String else {
+                print("❌ Could not find tariff code or rate link in product details")
+                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -4, userInfo: [NSLocalizedDescriptionKey: "No valid product details found"]))
                 return
             }
-
-            // Step 5: Use the tariff code
-            print("\n🎯 Using tariff code: \(finalTariffCode)")
             
-            // Step 6: Fetch and store rates
-            try await repository.fetchAndStoreRates(tariffCode: finalTariffCode, url: finalRateLink)
-
-            // Also fetch standing charges if available
-            if let finalSCLink = chosenDetail?.value(forKey: "link_standing_charge") as? String {
-                print("🔗 Found standing charge link: \(finalSCLink)")
+            print("📊 Selected product detail - Region: \(chosen.value(forKey: "region") as? String ?? "unknown"), Tariff: \(tariffCode)")
+            
+            try await repository.fetchAndStoreRates(tariffCode: tariffCode, url: rateLink)
+            
+            if let standingChargeLink = chosen.value(forKey: "link_standing_charge") as? String {
+                print("🔗 Found standing charge link: \(standingChargeLink)")
                 try await repository.fetchAndStoreStandingCharges(
-                    tariffCode: finalTariffCode,
-                    url: finalSCLink
+                    tariffCode: tariffCode,
+                    url: standingChargeLink
                 )
-            } else {
-                print("⚠️ No standing charge link found for fallback scenario, skipping fetch.")
             }
-
-            // Step 7: Update current agile code
-            self.currentAgileCode = fallbackCode
-            print("WIDGET: Using fallback agile code: \(fallbackCode)")
-
-            // Step 8: Save to shared defaults for widget
-            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-            sharedDefaults?.set(fallbackCode, forKey: "agile_code_for_widget")
             
-            print("\n✅ Completed fetchRatesForDefaultProduct")
+            self.currentAgileCode = tariffCode
+            UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(tariffCode, forKey: "agile_code_for_widget")
+            self.fetchStatus = .done  // Success! Set to done
+            print("\n✅ Completed fallback-based fetchRatesForDefaultProduct")
             
         } catch {
+            // Only set failed if we've exhausted all options
             print("❌ Error fetching rates: \(error)")
             self.fetchStatus = .failed(error)
         }
@@ -496,7 +422,16 @@ public final class RatesViewModel: ObservableObject {
 
     // NEW: Provide a method to reattach the real GlobalTimer if changed externally
     public func updateTimer(_ timer: GlobalTimer) {
+        // Preserve current status
+        let currentStatus = self.fetchStatus
+        
+        // Update timer
         setupTimer(timer)
+        
+        // Restore status if it was fetching
+        if case .fetching = currentStatus {
+            self.fetchStatus = currentStatus
+        }
     }
 
     // MARK: - Timer Setup
@@ -515,21 +450,34 @@ public final class RatesViewModel: ObservableObject {
         // For each product in productStates, re-filter upcoming
         for (code, var state) in productStates {
             state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
-            // Check cooldown
+            
+            // Check if we should attempt a refresh
+            var shouldRefresh = false
+            
             if let earliest = state.nextFetchEarliestTime {
                 if now >= earliest {
-                    // Attempt to fetch again
+                    shouldRefresh = true
                     state.nextFetchEarliestTime = nil
-                    Task {
-                        await self.refreshRatesForProduct(productCode: code, now: now)
-                    }
                 }
             } else {
-                // Normal logic: fetch every minute if needed
+                // Only auto-refresh if we don't have rates or they're stale
+                if state.allRates.isEmpty || state.upcomingRates.isEmpty {
+                    shouldRefresh = true
+                }
+            }
+            
+            if shouldRefresh {
                 Task {
+                    // Reset status before new attempt
+                    if case .failed = self.fetchStatus {
+                        withAnimation {
+                            self.fetchStatus = .fetching
+                        }
+                    }
                     await self.refreshRatesForProduct(productCode: code, now: now)
                 }
             }
+            
             productStates[code] = state
         }
     }
@@ -538,31 +486,32 @@ public final class RatesViewModel: ObservableObject {
     private func refreshRatesForProduct(productCode: String, now: Date) async {
         var state = productStates[productCode] ?? ProductRatesState()
         
-        // Check if we need to fetch
-        if let nextFetchTime = state.nextFetchEarliestTime {
-            if now < nextFetchTime {
-                print("⏳ Too soon to fetch rates for \(productCode), next fetch at \(nextFetchTime)")
-                return
-            }
-        }
-        
         // Check if already fetching
         if state.isLoading {
             print("⏳ Already fetching rates for \(productCode)")
             return
         }
         
-        state.isLoading = true
+        // Reset status and set loading
+        withAnimation {
+            state.isLoading = true
+            state.fetchStatus = .fetching
+            if case .failed = self.fetchStatus {
+                self.fetchStatus = .fetching
+            }
+        }
         productStates[productCode] = state
         
-        // First get product detail using tariff code
         do {
             let details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: productCode)
             guard let detail = details.first,
                   let tCode = detail.value(forKey: "tariff_code") as? String,
                   let link = detail.value(forKey: "link_rate") as? String else {
-                state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
-                state.isLoading = false
+                withAnimation {
+                    state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
+                    state.isLoading = false
+                    state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown
+                }
                 productStates[productCode] = state
                 return
             }
@@ -576,14 +525,27 @@ public final class RatesViewModel: ObservableObject {
                 (rate.value(forKey: "tariff_code") as? String) == tCode
             }
             state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
-            state.fetchStatus = .done
-            state.isLoading = false
-            state.nextFetchEarliestTime = now.addingTimeInterval(60 * 60) // 1 hour
+            
+            withAnimation {
+                state.fetchStatus = .done
+                state.isLoading = false
+                state.nextFetchEarliestTime = now.addingTimeInterval(60 * 60) // 1 hour cooldown on success
+                self.fetchStatus = .done
+            }
             productStates[productCode] = state
+            
         } catch {
-            state.fetchStatus = .failed(error)
-            state.isLoading = false
-            state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 minutes on error
+            print("❌ Error in refreshRatesForProduct: \(error)")
+            withAnimation {
+                state.fetchStatus = .failed(error)
+                state.isLoading = false
+                state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown on error
+                
+                // Only update main status to failed if we're not already fetching something else
+                if !productStates.values.contains(where: { $0.isLoading }) {
+                    self.fetchStatus = .failed(error)
+                }
+            }
             productStates[productCode] = state
         }
     }
@@ -592,93 +554,69 @@ public final class RatesViewModel: ObservableObject {
 
     /// Initialize local state for multiple products. Usually called at launch.
     public func initializeProducts(_ codes: [String]) async {
+        print("\n🔍 Starting initializeProducts for \(codes)")
+        self.fetchStatus = .fetching
+        
         do {
-            print("\n🔍 Starting initializeProducts for \(codes)")
-            
             for code in codes {
-                // First try to get details by tariff code directly (in case it's a full tariff code)
+                // First try to get details by tariff code directly
                 var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: code)
                 
-                // If no details found, try loading by product code
                 if details.isEmpty {
                     details = try await productDetailRepository.loadLocalProductDetail(code: code)
                 }
                 
-                // If still empty, fetch from API
                 if details.isEmpty {
                     details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: code)
                 }
                 
-                // Filter details by region if we have a region input
-                let regionInput = GlobalSettingsManager().settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-                if !regionInput.isEmpty {
-                    let filteredDetails = details.filter { detail in
-                        let detailRegion = detail.value(forKey: "region") as? String
-                        return detailRegion == regionInput
-                    }
-                    if !filteredDetails.isEmpty {
-                        details = filteredDetails
-                    }
+                let effectiveRegion = GlobalSettingsManager().settings.effectiveRegion.uppercased()
+                
+                let filteredDetails = details.filter { detail in
+                    let detailRegion = detail.value(forKey: "region") as? String
+                    return detailRegion == effectiveRegion
                 }
                 
-                guard let detail = details.first,
+                guard let detail = (filteredDetails.isEmpty ? details.first : filteredDetails.first),
                       let tariffCode = detail.value(forKey: "tariff_code") as? String,
                       let rateLink = detail.value(forKey: "link_rate") as? String else {
-                    print("❌ Could not find tariff code or rate link for \(code)")
-                    continue
+                    continue  // Skip this code and try the next one
                 }
                 
-                print("📊 Selected product detail - Region: \(detail.value(forKey: "region") as? String ?? "unknown"), Tariff: \(tariffCode)")
-                
-                // Initialize state for this product if needed
+                // Initialize state
                 if productStates[tariffCode] == nil {
                     productStates[tariffCode] = ProductRatesState()
                 }
                 
-                // Set loading state
-                productStates[tariffCode]?.isLoading = true
-                
-                // Load rates using the rate link
-                try await repository.fetchAndStoreRates(tariffCode: tariffCode, url: rateLink)
-                
-                // Update state with loaded rates
-                let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-                request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-                let rates = try await context.perform {
-                    try self.context.fetch(request)
-                }
-                
-                // Update state with loaded rates
-                if var state = productStates[tariffCode] {
-                    state.allRates = rates
-                    state.upcomingRates = rates.filter {
-                        guard let validFrom = $0.value(forKey: "valid_from") as? Date else { return false }
-                        return validFrom > Date()
-                    }
-                    productStates[tariffCode] = state
-                }
-                
-                // Clear loading state
-                productStates[tariffCode]?.isLoading = false
-                
-                // Update currentAgileCode to use the full tariff code
-                if code == currentAgileCode {
-                    currentAgileCode = tariffCode
-                    // Also update the widget
-                    UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(tariffCode, forKey: "agile_code_for_widget")
-                }
+                // Set loading state and trigger refresh
+                await refreshRatesForProduct(productCode: tariffCode, now: Date())
             }
             
-            fetchStatus = .done
+            // Only set done if we have at least one successful product
+            if productStates.values.contains(where: { $0.fetchStatus == .done }) {
+                self.fetchStatus = .done
+            }
+            // Keep fetching if any are still loading
+            else if productStates.values.contains(where: { $0.isLoading }) {
+                self.fetchStatus = .fetching
+            }
+            // Otherwise set to failed
+            else {
+                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No products initialized successfully"]))
+            }
+            
         } catch {
             print("❌ Error in initializeProducts: \(error)")
-            fetchStatus = .failed(error)
+            // Only set failed if we have no successful products
+            if !productStates.values.contains(where: { $0.fetchStatus == .done }) {
+                self.fetchStatus = .failed(error)
+            }
         }
     }
 
     /// Public method to refresh rates for a single product
     public func refreshRates(productCode: String, force: Bool = false) async {
-        print("🔄 开始刷新费率数据 (自动) - 产品代码: \(productCode)")
+        print("开始刷新费率数据 (自动) - 产品代码: \(productCode)")
         print("强制刷新: \(force ? "是" : "否")")
         var state = productStates[productCode] ?? ProductRatesState()
         if !force {
@@ -892,25 +830,47 @@ public final class RatesViewModel: ObservableObject {
         // If we already have a full tariff code stored (e.g. from widget), just use it
         // Full codes look like "E-1R-AGILE-24-04-03-H"
         if !currentAgileCode.isEmpty && currentAgileCode.contains("AGILE") {
-            // Already have a valid full code, no need to re-validate
+            // If the region has changed, update the code
+            let region = globalSettings.settings.effectiveRegion
+            if !currentAgileCode.hasSuffix("-\(region)") {
+                // Replace the region in the code
+                let components = currentAgileCode.split(separator: "-")
+                if components.count > 1 {
+                    let baseCode = components.dropLast().joined(separator: "-")
+                    currentAgileCode = "\(baseCode)-\(region)"
+                }
+            }
             return
         }
-        
-        // If we get here, we need to find a valid code
         
         // First check if account data has an active Agile agreement
         if let accountData = globalSettings.settings.accountData,
            !accountData.isEmpty,
            let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
            let matchedAgreement = tryFindActiveAgileAgreement(in: account) {
-            // Use the full tariff code
-            currentAgileCode = matchedAgreement.tariff_code
+            // Use the full tariff code but ensure it has the correct region
+            let region = globalSettings.settings.effectiveRegion
+            let components = matchedAgreement.tariff_code.split(separator: "-")
+            if components.count > 1 {
+                let baseCode = components.dropLast().joined(separator: "-")
+                currentAgileCode = "\(baseCode)-\(region)"
+            } else {
+                currentAgileCode = matchedAgreement.tariff_code
+            }
             return
         }
         
         // Finally, try fallback from local DB
         if let fallbackCode = await fallbackAgileCodeFromProductEntity() {
-            currentAgileCode = fallbackCode
+            // Ensure fallback code has correct region
+            let region = globalSettings.settings.effectiveRegion
+            let components = fallbackCode.split(separator: "-")
+            if components.count > 1 {
+                let baseCode = components.dropLast().joined(separator: "-")
+                currentAgileCode = "\(baseCode)-\(region)"
+            } else {
+                currentAgileCode = fallbackCode
+            }
         }
     }
 

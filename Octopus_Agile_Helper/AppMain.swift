@@ -7,16 +7,25 @@ import WidgetKit
 @available(iOS 17.0, *)
 struct Octopus_Agile_HelperApp: App {
     let persistenceController = PersistenceController.shared
-    @StateObject private var globalTimer = GlobalTimer()
-    @StateObject private var globalSettings = GlobalSettingsManager()
-    @StateObject private var ratesVM = RatesViewModel(
-        globalTimer: GlobalTimer() // replaced later in onAppear
-    )
+    @StateObject private var globalTimer: GlobalTimer
+    @StateObject private var globalSettings: GlobalSettingsManager
+    @StateObject private var ratesVM: RatesViewModel
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("isLoading") private var isLoading = true
     @State private var showDebugView = false
     
     init() {
+        // Initialize all StateObjects first
+        let timer = GlobalTimer()
+        let settings = GlobalSettingsManager()
+        let _ratesVM = RatesViewModel(globalTimer: timer)
+        _ratesVM.fetchStatus = .fetching  // Start with fetching status
+        
+        // Then create the StateObject wrappers
+        self._globalTimer = StateObject(wrappedValue: timer)
+        self._globalSettings = StateObject(wrappedValue: settings)
+        self._ratesVM = StateObject(wrappedValue: _ratesVM)
+        
         // Reset isLoading to true on app launch
         UserDefaults.standard.set(true, forKey: "isLoading")
         
