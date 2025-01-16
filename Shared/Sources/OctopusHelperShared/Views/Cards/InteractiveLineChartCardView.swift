@@ -143,10 +143,16 @@ extension InteractiveLineChartCardView {
     private var frontSide: some View {
         VStack(alignment: .leading, spacing: 12) {
             headerBar
-            if viewModel.isLoading(for: viewModel.currentAgileCode) {
-                ProgressView()
+            if viewModel.isLoading(for: productCode) && filteredRates.isEmpty {
+                // Show big spinner if we have no data yet
+                ProgressView("Loading...").padding(.vertical, 12)
             } else if filteredRates.isEmpty {
-                noDataView
+                // If not loading but no data => no upcoming
+                Text("No upcoming rates available")
+                    .font(Theme.secondaryFont())
+                    .foregroundStyle(Theme.secondaryTextColor)
+                    .padding(.vertical, 12)
+                    .transition(.opacity)
             } else {
                 chartView
                     .frame(height: 220)
@@ -163,15 +169,22 @@ extension InteractiveLineChartCardView {
                 Text(LocalizedStringKey(def.displayNameKey))
                     .font(Theme.titleFont())
                     .foregroundStyle(Theme.secondaryTextColor)
-            }
-            Spacer()
-            Button {
-                withAnimation(.spring()) {
-                    isFlipped = true
+                Spacer()
+                // If no data while isLoading => big spinner
+                if viewModel.isLoading(for: productCode)
+                   && filteredRates.isEmpty {
+                    ProgressView("Loading...")
+                        .font(Theme.subFont())
+                } else {
+                    Button {
+                        withAnimation(.spring()) {
+                            isFlipped = true
+                        }
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(Theme.secondaryTextColor)
+                    }
                 }
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .foregroundStyle(Theme.secondaryTextColor)
             }
         }
     }

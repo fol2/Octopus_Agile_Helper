@@ -1115,8 +1115,12 @@ struct RegionLookupView: View {
                 Text("Looking up region...")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
-            } else if let region = region {
+            } else if let region = region, !isLoading && triggerLookup == false {
                 Text("Using Region \(region)")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+            } else {
+                Text("Tap the search icon to lookup your region")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -1425,12 +1429,17 @@ public struct SettingsView: View {
                     let input = globalSettings.settings.regionInput.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ).uppercased()
-                    if !input.isEmpty && input.count == 1 && input >= "A" && input <= "P" {
+                    if input.isEmpty {
+                        Text("Default Region H")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .customListRow()
+                    } else if input.count == 1 && input >= "A" && input <= "P" {
                         Text("Using Region \(input)")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                             .customListRow()
-                    } else if !input.isEmpty {
+                    } else if input.count > 1 {
                         RegionLookupView(
                             postcode: input, triggerLookup: $lookupRegionManually,
                             lookupError: $lookupError)

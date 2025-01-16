@@ -453,8 +453,12 @@ public final class RatesViewModel: ObservableObject {
             
             // Check if we should attempt a refresh
             var shouldRefresh = false
-            
+
             if let earliest = state.nextFetchEarliestTime {
+                // If we've previously shown .failed and are trying again,
+                // set status back to .fetching to avoid showing "Failed" while re-fetching
+                if case .failed = state.fetchStatus { state.fetchStatus = .fetching }
+
                 if now >= earliest {
                     shouldRefresh = true
                     state.nextFetchEarliestTime = nil
@@ -489,15 +493,25 @@ public final class RatesViewModel: ObservableObject {
         // Check if already fetching
         if state.isLoading {
             print("⏳ Already fetching rates for \(productCode)")
+            // If we're re-fetching after a "failed" state, update to .fetching
+            if case .failed = state.fetchStatus {
+                state.fetchStatus = .fetching
+            }
+            productStates[productCode] = state
             return
         }
-        
-        // Reset status and set loading
+
+        // Set loading state
+        state.nextFetchEarliestTime = nil
         withAnimation {
             state.isLoading = true
             state.fetchStatus = .fetching
-            if case .failed = self.fetchStatus {
-                self.fetchStatus = .fetching
+            // If main fetchStatus was "failed", set it back to "fetching" to reflect an in-progress retry
+            switch self.fetchStatus {
+            case .failed:
+                withAnimation { self.fetchStatus = .fetching }
+            case .none, .done, .fetching, .pending:
+                break
             }
         }
         productStates[productCode] = state
@@ -538,15 +552,15 @@ public final class RatesViewModel: ObservableObject {
             print("❌ Error in refreshRatesForProduct: \(error)")
             withAnimation {
                 state.fetchStatus = .failed(error)
+                // If in practice we are still calling fetchAllRates or re-trying,
+                // we can set a short .fetching again, but let's keep the "failed" state
+                // until next scheduled refresh or user force refresh
+                // (to avoid flickering UI)
                 state.isLoading = false
-                state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown on error
-                
-                // Only update main status to failed if we're not already fetching something else
-                if !productStates.values.contains(where: { $0.isLoading }) {
-                    self.fetchStatus = .failed(error)
-                }
+                state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown
+
+                productStates[productCode] = state
             }
-            productStates[productCode] = state
         }
     }
 
@@ -830,16 +844,9 @@ public final class RatesViewModel: ObservableObject {
         // If we already have a full tariff code stored (e.g. from widget), just use it
         // Full codes look like "E-1R-AGILE-24-04-03-H"
         if !currentAgileCode.isEmpty && currentAgileCode.contains("AGILE") {
-            // If the region has changed, update the code
-            let region = globalSettings.settings.effectiveRegion
-            if !currentAgileCode.hasSuffix("-\(region)") {
-                // Replace the region in the code
-                let components = currentAgileCode.split(separator: "-")
-                if components.count > 1 {
-                    let baseCode = components.dropLast().joined(separator: "-")
-                    currentAgileCode = "\(baseCode)-\(region)"
-                }
-            }
+            // If region changed or account changed, we might need to re-locate the code
+            // but we only do that on request from external calls like contentView onChange
+            // to avoid unexpected re-locations here
             return
         }
         

@@ -38,7 +38,7 @@ public struct MediaItem {
     }
 }
 
-public enum CardType: String, Codable, CaseIterable {
+public enum CardType: String, Codable, CaseIterable, Equatable {
     case currentRate
     case lowestUpcoming
     case highestUpcoming

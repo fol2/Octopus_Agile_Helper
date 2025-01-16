@@ -30,21 +30,6 @@ public final class ProductDetailRepository: ObservableObject {
             let details = try self.context.fetch(request)
             print("📊 Found \(details.count) product details")
             
-            // Debug: Print all details
-            for detail in details {
-                if let tariffCode = detail.value(forKey: "tariff_code") as? String,
-                   let region = detail.value(forKey: "region") as? String,
-                   let payment = detail.value(forKey: "payment") as? String {
-                    print("\n📋 Detail Info:")
-                    print("🏷️ Tariff Code: \(tariffCode)")
-                    print("🌍 Region: \(region)")
-                    print("💳 Payment: \(payment)")
-                    if let rateLink = detail.value(forKey: "link_rate") as? String {
-                        print("🔗 Rate Link: \(rateLink)")
-                    }
-                }
-            }
-            
             return details
         }
     }

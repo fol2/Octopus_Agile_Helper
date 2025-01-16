@@ -121,6 +121,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             let allData = try await repository.fetchAllRecords()
             consumptionRecords = allData
             minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
+            if case .failed = fetchStatus {
+                fetchStatus = .fetching
+            }
             maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
             
             let calendar = Calendar.current
@@ -164,6 +167,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
         if force || (hour >= 12 && !repository.hasDataThroughExpectedTime()) {
             withAnimation(.easeInOut(duration: 0.2)) {
                 fetchStatus = .fetching
+                if case .failed = fetchStatus {
+                    fetchStatus = .fetching
+                }
                 isLoading = true
             }
             error = nil

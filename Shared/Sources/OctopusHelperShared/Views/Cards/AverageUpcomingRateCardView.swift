@@ -128,8 +128,15 @@ public struct AverageUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading(for: productCode) {
-                ProgressView()
+            if viewModel.isLoading(for: productCode)
+               && viewModel.allRates(for: productCode).isEmpty {
+                // Show big spinner if we have no data yet
+                ProgressView("Loading...").padding(.vertical, 12)
+            } else if viewModel.allRates(for: productCode).isEmpty {
+                Text(
+                  "No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages"
+                )
+                .foregroundColor(Theme.secondaryTextColor)
             } else {
                 let averages = viewModel.getLowestAverages(
                     productCode: productCode,

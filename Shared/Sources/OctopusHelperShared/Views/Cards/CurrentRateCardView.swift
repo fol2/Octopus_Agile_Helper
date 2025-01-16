@@ -58,7 +58,11 @@ public struct CurrentRateCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header row with left icon + title + "more" icon on right
             HStack(alignment: .center) {
-                if let def = CardRegistry.shared.definition(for: .currentRate) {
+                if viewModel.isLoading(for: productCode)
+                   && viewModel.allRates(for: productCode).isEmpty {
+                    ProgressView("Loading Rates...")
+                        .font(Theme.subFont())
+                } else if let def = CardRegistry.shared.definition(for: .currentRate) {
                     Image(ClockModel.iconName(for: clockIconTrigger))
                         .renderingMode(.template)
                         .resizable()
@@ -75,8 +79,10 @@ public struct CurrentRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading(for: productCode) {
-                ProgressView()
+            if viewModel.isLoading(for: productCode)
+               && viewModel.allRates(for: productCode).isEmpty {
+                // Show a bigger spinner if no rates loaded yet
+                ProgressView().padding(.vertical, 12)
             } else if let currentRate = getCurrentRate() {
                 // The current rate block
                 VStack(alignment: .leading, spacing: 8) {

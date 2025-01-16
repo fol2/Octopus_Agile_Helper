@@ -281,6 +281,12 @@ struct AllRatesListView: View {
     var body: some View {
         ScrollViewReader { scrollProxy in
             VStack(spacing: 0) {
+                // If the user expects immediate feedback while loading
+                if viewModel.isLoading(for: viewModel.currentAgileCode)
+                   && displayedRatesByDate.isEmpty {
+                    ProgressView("Fetching Rates...")
+                        .font(Theme.subFont())
+                }
                 // Add Agile code display
                 if !viewModel.currentAgileCode.isEmpty {
                     Text(viewModel.currentAgileCode)

@@ -326,7 +326,26 @@ public struct ContentView: View {
                 }
             }
         }
-        // Attempt to load data
+        // Watch for changes in regionInput or accountData => re-locate tariff code and re-fetch
+        .onChange(of: globalSettings.settings) { oldSettings, newSettings in
+            let regionChanged = oldSettings.regionInput != newSettings.regionInput
+            let accountChanged = oldSettings.accountData != newSettings.accountData
+            if regionChanged || accountChanged {
+                print("DEBUG: Region or Account changed => re-locating tariff code & re-fetching")
+                Task {
+                    // 1) Possibly re-derive the agile tariff from account or fallback
+                    await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                    // 2) If the new code is different from old, re-initialize
+                    if !ratesVM.currentAgileCode.isEmpty {
+                        await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+                    }
+                    // 3) Force refresh
+                    if !ratesVM.currentAgileCode.isEmpty {
+                        await ratesVM.fetchRatesForDefaultProduct()
+                    }
+                }
+            }
+        }
         .task {
             // Only fetch rates if we have agile cards enabled
             if hasAgileCards {

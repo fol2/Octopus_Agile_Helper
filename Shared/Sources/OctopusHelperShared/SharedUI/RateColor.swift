@@ -42,17 +42,14 @@ public struct RateColor {
 
     public static func getColor(for rate: NSManagedObject, allRates: [NSManagedObject]) -> Color {
         guard let currentValidFrom = rate.value(forKey: "valid_from") as? Date else {
-            print("DEBUG: RateColor - No valid_from date found")
             return .white
         }
 
         // Get all rates for the day
         let dayRates = getDayRates(for: currentValidFrom, allRates: allRates)
-        print("DEBUG: RateColor - Found \(dayRates.count) rates for the day")
 
         // Handle negative rates
         let currentValue = rate.value(forKey: "value_including_vat") as? Double ?? 0
-        print("DEBUG: RateColor - daily color logic, currentValue = \(currentValue)")
 
         // Negative: White -> Green gradient (day-based)
         if currentValue < 0 {
@@ -77,7 +74,6 @@ public struct RateColor {
         // 2) Identify dayMax for "full color" and handle >100p => always devilPurple
         let dayMax = positiveRates.last ?? 0
         if currentValue > 100 {
-            print("DEBUG: RateColor - >100p => devilPurpleColor")
             return devilPurpleColor
         }
 

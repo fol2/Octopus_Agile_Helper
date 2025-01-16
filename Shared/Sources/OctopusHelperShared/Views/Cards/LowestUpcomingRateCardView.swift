@@ -158,8 +158,16 @@ public struct LowestUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading(for: productCode) {
-                ProgressView()
+            if viewModel.isLoading(for: productCode)
+               && viewModel.allRates(for: productCode).isEmpty {
+                // Show loading spinner if no rates loaded
+                ProgressView("Loading...").padding(.vertical, 12)
+            } else if viewModel.allRates(for: productCode).isEmpty
+                      && viewModel.isLoading(for: productCode) {
+                ProgressView("Loading...").padding(.vertical, 12)
+            } else if viewModel.allRates(for: productCode).isEmpty {
+                Text("No upcoming rates available")
+                    .foregroundColor(Theme.secondaryTextColor)
             } else if let lowestRate = getLowestUpcomingRate(),
                       let value = lowestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
@@ -241,9 +249,6 @@ public struct LowestUpcomingRateCardView: View {
                         }
                     }
                 }
-            } else {
-                Text("No upcoming rates available")
-                    .foregroundColor(Theme.secondaryTextColor)
             }
         }
     }

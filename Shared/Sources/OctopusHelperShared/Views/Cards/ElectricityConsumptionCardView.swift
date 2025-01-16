@@ -93,9 +93,15 @@ public struct ElectricityConsumptionCardView: View {
             HStack {
                 Image(systemName: "bolt.fill")
                     .foregroundColor(Theme.icon)
-                Text("Electricity Usage")
-                    .font(Theme.titleFont())
-                    .foregroundColor(Theme.secondaryTextColor)
+                if viewModel.fetchStatus == .fetching && viewModel.consumptionRecords.isEmpty {
+                    // Show a spinner if absolutely no data + isLoading
+                    ProgressView("Loading Usage...")
+                        .font(Theme.subFont())
+                } else {
+                    Text("Electricity Usage")
+                        .font(Theme.titleFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
 
                 Spacer()
 
@@ -389,6 +395,9 @@ public struct ElectricityConsumptionCardView: View {
         guard !records.isEmpty else { return "N/A" }
         
         let totalConsumption = records.reduce(0.0) { sum, record in
+            // If we are re-fetching after failed, let's show partial or no data
+            // But you can keep it simple: skip if we have no records
+            // This snippet remains the same
             sum + (record.value(forKey: "consumption") as? Double ?? 0)
         }
         
@@ -403,6 +412,9 @@ public struct ElectricityConsumptionCardView: View {
         guard !records.isEmpty else { return "N/A" }
         
         let totalConsumption = records.reduce(0.0) { sum, record in
+            // If we are re-fetching after failed, let's show partial or no data
+            // But you can keep it simple: skip if we have no records
+            // This snippet remains the same
             sum + (record.value(forKey: "consumption") as? Double ?? 0)
         }
         

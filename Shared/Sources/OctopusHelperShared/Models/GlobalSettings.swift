@@ -101,7 +101,7 @@ public enum Language: String, Codable, CaseIterable {
 }
 
 // MARK: - Card Configuration
-public struct CardConfig: Identifiable, Codable {
+public struct CardConfig: Identifiable, Codable, Equatable {
     public let id: UUID
     public let cardType: CardType
     public var isEnabled: Bool
@@ -118,7 +118,7 @@ public struct CardConfig: Identifiable, Codable {
 }
 
 // MARK: - Global Settings
-public struct GlobalSettings: Codable {
+public struct GlobalSettings: Codable, Equatable {
     public var regionInput: String  // Can be either postcode or region code
     public var apiKey: String
     public var selectedLanguage: Language
@@ -177,6 +177,19 @@ public struct GlobalSettings: Codable {
         self.electricityMeterSerialNumber = electricityMeterSerialNumber
         self.accountNumber = accountNumber
         self.accountData = accountData
+    }
+
+    // MARK: - Equatable
+    public static func == (lhs: GlobalSettings, rhs: GlobalSettings) -> Bool {
+        lhs.regionInput == rhs.regionInput &&
+        lhs.apiKey == rhs.apiKey &&
+        lhs.selectedLanguage == rhs.selectedLanguage &&
+        lhs.showRatesInPounds == rhs.showRatesInPounds &&
+        lhs.cardSettings == rhs.cardSettings &&
+        lhs.electricityMPAN == rhs.electricityMPAN &&
+        lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber &&
+        lhs.accountNumber == rhs.accountNumber &&
+        lhs.accountData == rhs.accountData
     }
 }
 

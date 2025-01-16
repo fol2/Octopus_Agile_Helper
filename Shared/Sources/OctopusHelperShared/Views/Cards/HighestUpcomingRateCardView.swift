@@ -118,7 +118,14 @@ public struct HighestUpcomingRateCardView: View {
             }
 
             if viewModel.isLoading(for: productCode) {
-                ProgressView()
+                // Show a progress spinner if no data is available yet
+                if viewModel.allRates(for: productCode).isEmpty {
+                    ProgressView("Loading...").padding(.vertical, 12)
+                } else {
+                    // If we do have some rates loaded, show partial content below
+                    // or you can keep a smaller inline spinner
+                    ProgressView().scaleEffect(0.8)
+                }
             } else if let highestRate = viewModel.highestUpcomingRate(productCode: productCode),
                       let value = highestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
