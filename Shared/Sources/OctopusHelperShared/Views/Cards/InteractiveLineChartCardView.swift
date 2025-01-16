@@ -55,6 +55,12 @@ public struct InteractiveLineChartCardView: View {
     @StateObject private var localSettings = InteractiveChartSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
 
+    // MARK: - NEW: Decide which product code to use
+    private var productCode: String {
+        // If your plan is agile:
+        return viewModel.currentAgileCode
+    }
+
     // Flip state (front/back)
     @State private var isFlipped = false
 
@@ -476,19 +482,13 @@ extension InteractiveLineChartCardView {
 // MARK: - Data Logic
 extension InteractiveLineChartCardView {
     private var filteredRates: [NSManagedObject] {
-        // from now-1hr to now+48hrs
-        let start = now.addingTimeInterval(-3600)
-        let end = now.addingTimeInterval(48 * 3600)
-
-        // Use product-specific call:
-        let allAgileRates = viewModel.allRates(for: viewModel.currentAgileCode)
-
-        return allAgileRates
-            .filter { 
-                guard let validFrom = $0.value(forKey: "valid_from") as? Date,
-                      let validTo = $0.value(forKey: "valid_to") as? Date else { return false }
-                return validFrom >= start && validFrom <= end
-            }
+        let now = Date()
+        let allRates = viewModel.allRates(for: productCode)
+        return allRates.filter { 
+            guard let validFrom = $0.value(forKey: "valid_from") as? Date,
+                  let validTo   = $0.value(forKey: "valid_to")   as? Date else { return false }
+            return validFrom >= now.addingTimeInterval(-3600) && validFrom <= now.addingTimeInterval(48 * 3600)
+        }
             .sorted { 
                 let date1 = $0.value(forKey: "valid_from") as? Date ?? .distantPast
                 let date2 = $1.value(forKey: "valid_from") as? Date ?? .distantPast
@@ -521,9 +521,10 @@ extension InteractiveLineChartCardView {
     private var bestTimeRangesRaw: [(Date, Date)] {
         let windows = viewModel.getLowestAverages(
             productCode: viewModel.currentAgileCode,
-            hours: Int(localSettings.settings.customAverageHours)
+            hours: localSettings.settings.customAverageHours,
+            maxCount: localSettings.settings.maxListCount
         )
-        let raw = windows.map { ($0.startTime, Calendar.current.date(byAdding: .hour, value: 1, to: $0.startTime) ?? .distantFuture) }
+        let raw = windows.map { ($0.start, $0.end) }
         return mergeWindows(raw)
     }
 
@@ -544,13 +545,13 @@ extension InteractiveLineChartCardView {
     }
 
     private func findCurrentRatePeriod(_ date: Date) -> (start: Date, price: Double)? {
-        guard
-            let rate = filteredRates.first(where: { r in
-                guard let start = r.value(forKey: "valid_from") as? Date,
-                      let end = r.value(forKey: "valid_to") as? Date else { return false }
-                return date >= start && date < end
-            })
-        else {
+        let relevant = filteredRates // already filtered for productCode
+        // e.g. let relevant = viewModel.allRates(for: productCode)
+        guard let rate = relevant.first(where: { r in
+            guard let start = r.value(forKey: "valid_from") as? Date,
+                  let end = r.value(forKey: "valid_to") as? Date else { return false }
+            return date >= start && date < end
+        }) else {
             return nil
         }
         if let start = rate.value(forKey: "valid_from") as? Date {

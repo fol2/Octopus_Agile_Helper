@@ -129,6 +129,12 @@ struct CardRowView: View {
                             .font(Theme.subFont())
                     }
                     .buttonStyle(.plain)
+                    
+                    // Show the plan(s)
+                    Text("Supported: \(definition.supportedPlans.map { $0.rawValue.capitalized }.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .padding(.leading, 6)
 
                     // Toggle or 'Unlock' button
                     if cardConfig.isPurchased {

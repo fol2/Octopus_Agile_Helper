@@ -75,6 +75,7 @@ public final class RatesViewModel: ObservableObject {
     private let repository = RatesRepository.shared
     private let productDetailRepository = ProductDetailRepository.shared
     private let productsRepository = ProductsRepository.shared
+    private let context = PersistenceController.shared.container.viewContext
     private var cancellables = Set<AnyCancellable>()
     private var currentTimer: GlobalTimer?
     
@@ -137,51 +138,81 @@ public final class RatesViewModel: ObservableObject {
         return sum / Double(topN.count)
     }
 
-    /// Get lowest average rates for a specific product
-    public func getLowestAverages(productCode: String, hours: Int) -> [(startTime: Date, average: Double)] {
-        guard let state = productStates[productCode] else { return [] }
+    /// A minimal helper struct mirroring your old "ThreeHourAverageEntry".
+    /// Adjust naming if needed.
+    public struct ThreeHourAverageEntry: Identifiable {
+        public let id = UUID()
+        public let start: Date
+        public let end: Date
+        public let average: Double
+    }
+
+    /// Updated to replicate your old computeLowestAverages approach,
+    /// but using NSManagedObject instead of RateEntity.
+    private func computeLowestAverages(
+        _ inputRates: [NSManagedObject],
+        fromNow: Bool,
+        hours: Double,
+        maxCount: Int
+    ) -> [ThreeHourAverageEntry] {
         let now = Date()
-        
-        // Group rates by their start hour
-        var hourlyGroups: [Date: [NSManagedObject]] = [:]
-        state.upcomingRates.forEach { rate in
-            guard let validFrom = rate.value(forKey: "valid_from") as? Date,
-                  validFrom > now else { return }
-            
-            // Round down to the hour
-            let calendar = Calendar.current
-            let hourStart = calendar.date(
-                bySetting: .minute,
-                value: 0,
-                of: calendar.date(
-                    bySetting: .second,
-                    value: 0,
-                    of: validFrom
-                ) ?? validFrom
-            ) ?? validFrom
-            
-            var group = hourlyGroups[hourStart] ?? []
-            group.append(rate)
-            hourlyGroups[hourStart] = group
-        }
-        
-        // Calculate averages for each complete hour
-        var averages: [(startTime: Date, average: Double)] = []
-        for (startTime, rates) in hourlyGroups {
-            guard rates.count == 2 else { continue } // Skip incomplete hours
-            
-            let sum = rates.reduce(0.0) { sum, rate in
-                sum + (rate.value(forKey: "value_including_vat") as? Double ?? 0)
+
+        // We only want upcoming ones if fromNow == true
+        let sorted = inputRates
+            .filter {
+                guard
+                    let validFrom = $0.value(forKey: "valid_from") as? Date,
+                    let validTo = $0.value(forKey: "valid_to") as? Date
+                else { return false }
+                // If fromNow is true, filter out anything before 'now'
+                return fromNow ? (validFrom >= now) : true
             }
-            let average = sum / Double(rates.count)
-            averages.append((startTime: startTime, average: average))
+            .sorted {
+                let lhs = ($0.value(forKey: "valid_from") as? Date) ?? .distantPast
+                let rhs = ($1.value(forKey: "valid_from") as? Date) ?? .distantPast
+                return lhs < rhs
+            }
+
+        // We assume half-hour slots, so hours * 2 slots
+        let neededSlots = Int(hours * 2)
+
+        var results = [ThreeHourAverageEntry]()
+        for (index, slot) in sorted.enumerated() {
+            let endIndex = index + (neededSlots - 1)
+            if endIndex >= sorted.count { break }
+
+            // Sum up these half-hour slots
+            let window = sorted[index...endIndex]
+            let sum = window.reduce(0.0) { partial, obj in
+                (obj.value(forKey: "value_including_vat") as? Double ?? 0) + partial
+            }
+            let avg = sum / Double(neededSlots)
+
+            let startDate = (slot.value(forKey: "valid_from") as? Date) ?? now
+            let lastSlot = window.last!
+            let endDate = (lastSlot.value(forKey: "valid_to") as? Date)
+                ?? startDate.addingTimeInterval(1800) // fallback half-hour
+
+            results.append(
+                ThreeHourAverageEntry(start: startDate, end: endDate, average: avg)
+            )
         }
-        
-        // Sort by average rate and take the requested number of hours
-        return averages
-            .sorted { $0.average < $1.average }
-            .prefix(hours)
-            .sorted { $0.startTime < $1.startTime }
+
+        // Sort by ascending average, take up to maxCount
+        results.sort { $0.average < $1.average }
+        return Array(results.prefix(maxCount))
+    }
+
+    /// Replaces the old "getLowestAverages" function with your old logic
+    /// (now adapted to NSManagedObject). Hours can be 0.5...20.0, etc.
+    public func getLowestAverages(productCode: String, hours: Double, maxCount: Int) -> [ThreeHourAverageEntry] {
+        guard let state = productStates[productCode] else { return [] }
+        return computeLowestAverages(
+            state.upcomingRates,
+            fromNow: true,
+            hours: hours,
+            maxCount: maxCount
+        )
     }
 
     // MARK: - Rate Queries
@@ -503,19 +534,19 @@ public final class RatesViewModel: ObservableObject {
                 return
             }
         }
-
+        
         // Check if already fetching
         if state.isLoading {
             print("⏳ Already fetching rates for \(productCode)")
             return
         }
-
+        
         state.isLoading = true
         productStates[productCode] = state
-
-        // First get product detail to get the link and tariff code
+        
+        // First get product detail using tariff code
         do {
-            let details = try await productDetailRepository.loadLocalProductDetail(code: productCode)
+            let details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: productCode)
             guard let detail = details.first,
                   let tCode = detail.value(forKey: "tariff_code") as? String,
                   let link = detail.value(forKey: "link_rate") as? String else {
@@ -524,12 +555,16 @@ public final class RatesViewModel: ObservableObject {
                 productStates[productCode] = state
                 return
             }
-
+            
             // Now fetch rates
             try await repository.fetchAndStoreRates(tariffCode: tCode, url: link)
             let freshRates = try await repository.fetchAllRates()
-            state.allRates = freshRates
-            state.upcomingRates = filterUpcoming(rates: freshRates, now: now)
+            
+            // Filter rates for this tariff code
+            state.allRates = freshRates.filter { rate in
+                (rate.value(forKey: "tariff_code") as? String) == tCode
+            }
+            state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
             state.fetchStatus = .done
             state.isLoading = false
             state.nextFetchEarliestTime = now.addingTimeInterval(60 * 60) // 1 hour
@@ -546,10 +581,87 @@ public final class RatesViewModel: ObservableObject {
 
     /// Initialize local state for multiple products. Usually called at launch.
     public func initializeProducts(_ codes: [String]) async {
-        for code in codes {
-            // Always force fetch on initial load to ensure we have data
-            print("🔄 Fetching rates for \(code)")
-            await refreshRatesForProduct(productCode: code, now: Date())
+        do {
+            print("\n🔍 Starting initializeProducts for \(codes)")
+            
+            for code in codes {
+                // First try to get details by tariff code directly (in case it's a full tariff code)
+                var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: code)
+                
+                // If no details found, try loading by product code
+                if details.isEmpty {
+                    details = try await productDetailRepository.loadLocalProductDetail(code: code)
+                }
+                
+                // If still empty, fetch from API
+                if details.isEmpty {
+                    details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: code)
+                }
+                
+                // Filter details by region if we have a region input
+                let regionInput = GlobalSettingsManager().settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                if !regionInput.isEmpty {
+                    let filteredDetails = details.filter { detail in
+                        let detailRegion = detail.value(forKey: "region") as? String
+                        return detailRegion == regionInput
+                    }
+                    if !filteredDetails.isEmpty {
+                        details = filteredDetails
+                    }
+                }
+                
+                guard let detail = details.first,
+                      let tariffCode = detail.value(forKey: "tariff_code") as? String,
+                      let rateLink = detail.value(forKey: "link_rate") as? String else {
+                    print("❌ Could not find tariff code or rate link for \(code)")
+                    continue
+                }
+                
+                print("📊 Selected product detail - Region: \(detail.value(forKey: "region") as? String ?? "unknown"), Tariff: \(tariffCode)")
+                
+                // Initialize state for this product if needed
+                if productStates[tariffCode] == nil {
+                    productStates[tariffCode] = ProductRatesState()
+                }
+                
+                // Set loading state
+                productStates[tariffCode]?.isLoading = true
+                
+                // Load rates using the rate link
+                try await repository.fetchAndStoreRates(tariffCode: tariffCode, url: rateLink)
+                
+                // Update state with loaded rates
+                let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+                request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+                let rates = try await context.perform {
+                    try self.context.fetch(request)
+                }
+                
+                // Update state with loaded rates
+                if var state = productStates[tariffCode] {
+                    state.allRates = rates
+                    state.upcomingRates = rates.filter {
+                        guard let validFrom = $0.value(forKey: "valid_from") as? Date else { return false }
+                        return validFrom > Date()
+                    }
+                    productStates[tariffCode] = state
+                }
+                
+                // Clear loading state
+                productStates[tariffCode]?.isLoading = false
+                
+                // Update currentAgileCode to use the full tariff code
+                if code == currentAgileCode {
+                    currentAgileCode = tariffCode
+                    // Also update the widget
+                    UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(tariffCode, forKey: "agile_code_for_widget")
+                }
+            }
+            
+            fetchStatus = .done
+        } catch {
+            print("❌ Error in initializeProducts: \(error)")
+            fetchStatus = .failed(error)
         }
     }
 

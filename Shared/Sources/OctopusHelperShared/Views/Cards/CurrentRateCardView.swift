@@ -15,7 +15,12 @@ public struct CurrentRateCardView: View {
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
-    private func getDayRates(for date: Date, productCode: String) -> [NSManagedObject] {
+    // MARK: - Product Code
+    private var productCode: String {
+        return viewModel.currentAgileCode
+    }
+
+    private func getDayRates(for date: Date) -> [NSManagedObject] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
@@ -32,63 +37,13 @@ public struct CurrentRateCardView: View {
     }
 
     private func getRateColor(for rate: NSManagedObject) -> Color {
-        guard let currentValidFrom = rate.value(forKey: "valid_from") as? Date else {
-            return .white
-        }
-
-        // Get all rates for the day
-        let dayRates = getDayRates(for: currentValidFrom, productCode: viewModel.currentAgileCode)
-
-        // Handle negative rates
-        let currentValue = rate.value(forKey: "value_including_vat") as? Double ?? 0
-        if currentValue < 0 {
-            let negativeRates = dayRates.filter {
-                ($0.value(forKey: "value_including_vat") as? Double ?? 0) < 0
-            }
-            if let mostNegative = negativeRates.min(by: {
-                ($0.value(forKey: "value_including_vat") as? Double ?? 0) < ($1.value(forKey: "value_including_vat") as? Double ?? 0)
-            }) {
-                let mostNegativeValue = mostNegative.value(forKey: "value_including_vat") as? Double ?? 0
-                let rawPercentage = abs(currentValue / mostNegativeValue)
-                let percentage = 0.5 + (rawPercentage * 0.5)  // This ensures we keep at least 50% of the color
-                // Base green color (RGB: 0.2, 0.8, 0.4)
-                return Color(
-                    red: 1.0 - (0.8 * percentage),  // Interpolate from 1.0 to 0.2
-                    green: 1.0 - (0.2 * percentage),  // Interpolate from 1.0 to 0.8
-                    blue: 1.0 - (0.6 * percentage)  // Interpolate from 1.0 to 0.4
-                )
-            }
-            return Color(red: 0.2, green: 0.8, blue: 0.4)
-        }
-
-        // Find the day's rate statistics
-        let sortedRates = dayRates.map { $0.value(forKey: "value_including_vat") as? Double ?? 0 }.sorted()
-        guard !sortedRates.isEmpty else { return .white }
-
-        let medianRate = sortedRates[sortedRates.count / 2]
-        let maxRate = sortedRates.last ?? 0
-
-        // Only color rates above the median
-        if currentValue >= medianRate {
-            // Calculate how "high" the rate is compared to the range between median and max
-            let percentage = (currentValue - medianRate) / (maxRate - medianRate)
-            
-            // Interpolate between yellow and red based on percentage
-            return Color(
-                red: 1.0,  // Full red
-                green: 1.0 - (0.8 * percentage),  // Fade from full yellow to slight yellow
-                blue: 0.0   // No blue
-            )
-        }
-        
-        // Return white for rates below median
-        return .white
+        return RateColor.getColor(for: rate, allRates: viewModel.allRates(for: productCode))
     }
 
     /// Fetches the current active rate if any (validFrom <= now < validTo).
     private func getCurrentRate() -> NSManagedObject? {
         let now = Date()
-        return viewModel.allRates(for: viewModel.currentAgileCode).first { rate in
+        return viewModel.allRates(for: productCode).first { rate in
             guard let start = rate.value(forKey: "valid_from") as? Date,
                   let end = rate.value(forKey: "valid_to") as? Date else { return false }
             return start <= now && end > now
@@ -117,7 +72,7 @@ public struct CurrentRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading(for: viewModel.currentAgileCode) {
+            if viewModel.isLoading(for: productCode) {
                 ProgressView()
             } else if let currentRate = getCurrentRate() {
                 // The current rate block
@@ -159,7 +114,7 @@ public struct CurrentRateCardView: View {
         }
         .rateCardStyle()  // Our shared card style
         .environment(\.locale, globalSettings.locale)
-        .id("current-rate-\(refreshTrigger)")
+        .id("current-rate-\(refreshTrigger)-\(productCode)")  // Also refresh on product code change
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
@@ -168,7 +123,7 @@ public struct CurrentRateCardView: View {
             guard tickTime != nil else { return }
             Task {
                 clockIconTrigger = Date()  // Update clock icon
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                await viewModel.refreshRates(productCode: productCode)
             }
         }
         // Also re-render if app becomes active
@@ -176,7 +131,7 @@ public struct CurrentRateCardView: View {
             refreshTrigger.toggle()
             clockIconTrigger = Date()  // Update clock icon
             Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                await viewModel.refreshRates(productCode: productCode)
             }
         }
         .onTapGesture {
@@ -192,7 +147,6 @@ public struct CurrentRateCardView: View {
             let window = scene.windows.first,
             let rootViewController = window.rootViewController
         {
-
             let allRatesView = NavigationView {
                 AllRatesListView(viewModel: viewModel)
                     .environment(\.locale, globalSettings.locale)

@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// Identifies which plan(s) a given card supports.
+public enum SupportedPlan: String, Codable {
+    case agile
+    case flux
+    case any
+}
+
 public struct MediaItem {
     public let localName: String?
     public let remoteURL: URL?
@@ -54,6 +61,7 @@ public final class CardDefinition {
     public let defaultSortOrder: Int
     public let mediaItems: [MediaItem]
     public let learnMoreURL: URL?
+    public let supportedPlans: [SupportedPlan]
 
     public init(
         id: CardType,
@@ -67,7 +75,8 @@ public final class CardDefinition {
         defaultIsPurchased: Bool = true,
         defaultSortOrder: Int,
         mediaItems: [MediaItem] = [],
-        learnMoreURL: URL? = nil
+        learnMoreURL: URL? = nil,
+        supportedPlans: [SupportedPlan] = [.any]
     ) {
         self.id = id
         self.displayNameKey = displayNameKey
@@ -81,6 +90,7 @@ public final class CardDefinition {
         self.defaultSortOrder = defaultSortOrder
         self.mediaItems = mediaItems
         self.learnMoreURL = learnMoreURL
+        self.supportedPlans = supportedPlans
     }
 }
 
@@ -126,7 +136,8 @@ public final class CardRegistry: ObservableObject {
                         localName: "imgCurrentRateInfo2",
                         caption: LocalizedStringKey("Shows when rate changes")
                     ),
-                ]
+                ],
+                supportedPlans: [.agile]
             )
         )
 
@@ -149,7 +160,8 @@ public final class CardRegistry: ObservableObject {
                         localName: "imgLowestRateInfo2",
                         caption: LocalizedStringKey("Settings to list more lower rates")
                     ),
-                ]
+                ],
+                supportedPlans: [.agile]
             )
         )
 
@@ -172,7 +184,8 @@ public final class CardRegistry: ObservableObject {
                         localName: "imgHighestRateInfo2",
                         caption: LocalizedStringKey("How to find more higher rates")
                     ),
-                ]
+                ],
+                supportedPlans: [.agile]
             )
         )
 
@@ -195,7 +208,8 @@ public final class CardRegistry: ObservableObject {
                         localName: "imgAvgRateInfo2",
                         caption: LocalizedStringKey("You can choose length of period to average and how many rates to show")
                     ),
-                ]
+                ],
+                supportedPlans: [.agile]
             )
         )
 
@@ -218,7 +232,8 @@ public final class CardRegistry: ObservableObject {
                         localName: "imgChartRateInfo2",
                         caption: LocalizedStringKey("You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards")
                     ),
-                ]
+                ],
+                supportedPlans: [.agile]
             )
         )
 
@@ -234,7 +249,8 @@ public final class CardRegistry: ObservableObject {
                 defaultIsEnabled: false,
                 defaultIsPurchased: false,
                 defaultSortOrder: 6,
-                mediaItems: []
+                mediaItems: [],
+                supportedPlans: [.any]
             )
         )
     }

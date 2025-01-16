@@ -51,6 +51,7 @@ public final class ElectricityConsumptionRepository: ObservableObject {
         let apiKey = settings.apiKey
 
         guard !apiKey.isEmpty else { return }
+        guard !mpan.isEmpty, !serial.isEmpty else { return }
 
         print("🔄 Starting consumption data update")
         print("Debug - MPAN: \(mpan)")

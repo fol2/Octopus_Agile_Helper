@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import OctopusHelperShared
 import SwiftUI
+import CoreData
 
 // MARK: - Local settings
 private struct AverageCardLocalSettings: Codable {
@@ -44,6 +45,12 @@ private class AverageCardLocalSettingsManager: ObservableObject {
 public struct AverageUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
+
+    // MARK: - NEW: Decide which product code to use
+    private var productCode: String {
+        // If your plan is agile:
+        return viewModel.currentAgileCode
+    }
 
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.colorScheme) var colorScheme
@@ -121,12 +128,13 @@ public struct AverageUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading(for: viewModel.currentAgileCode) {
+            if viewModel.isLoading(for: productCode) {
                 ProgressView()
             } else {
                 let averages = viewModel.getLowestAverages(
-                    productCode: viewModel.currentAgileCode,
-                    hours: Int(localSettings.settings.customAverageHours)
+                    productCode: productCode,
+                    hours: localSettings.settings.customAverageHours,
+                    maxCount: localSettings.settings.maxListCount
                 )
 
                 if averages.isEmpty {
@@ -136,7 +144,7 @@ public struct AverageUpcomingRateCardView: View {
                     .foregroundColor(Theme.secondaryTextColor)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(averages.prefix(localSettings.settings.maxListCount), id: \.startTime) { entry in
+                        ForEach(averages.prefix(localSettings.settings.maxListCount)) { entry in
                             HStack(alignment: .firstTextBaseline) {
                                 let parts = viewModel.formatRate(
                                     entry.average,
@@ -163,8 +171,8 @@ public struct AverageUpcomingRateCardView: View {
 
                                 Text(
                                     formatTimeRange(
-                                        entry.startTime,
-                                        Calendar.current.date(byAdding: .hour, value: 1, to: entry.startTime) ?? .distantFuture,
+                                        entry.start,
+                                        entry.end,
                                         locale: globalSettings.locale
                                     )
                                 )
@@ -254,43 +262,42 @@ public struct AverageUpcomingRateCardView: View {
 
     // MARK: - Color Helper
     private func getAverageColor(for average: Double, allAverages: [Double]) -> Color {
-        guard !allAverages.isEmpty else { return .white }
+        // Get all rates for comparison
+        let rates = viewModel.allRates(for: productCode)
         
-        // Handle negative averages
-        if average < 0 {
-            let negativeAverages = allAverages.filter { $0 < 0 }
-            if let mostNegative = negativeAverages.min() {
-                let rawPercentage = abs(average / mostNegative)
-                let percentage = 0.5 + (rawPercentage * 0.5)  // This ensures we keep at least 50% of the color
-                // Base green color (RGB: 0.2, 0.8, 0.4)
-                return Color(
-                    red: 1.0 - (0.8 * percentage),  // Interpolate from 1.0 to 0.2
-                    green: 1.0 - (0.2 * percentage),  // Interpolate from 1.0 to 0.8
-                    blue: 1.0 - (0.6 * percentage)  // Interpolate from 1.0 to 0.4
-                )
+        // If we have actual rates, use them for color context
+        if !rates.isEmpty {
+            // Find the rate with the closest value to our average
+            let closestRate = rates.min(by: { abs($0.value(forKey: "value_including_vat") as? Double ?? 0 - average) < abs($1.value(forKey: "value_including_vat") as? Double ?? 0 - average) })
+            
+            if let rate = closestRate {
+                return RateColor.getColor(for: rate, allRates: rates)
             }
-            return Color(red: 0.2, green: 0.8, blue: 0.4)
         }
         
-        // Find the statistics
-        let sortedAverages = allAverages.sorted()
-        let medianAverage = sortedAverages[sortedAverages.count / 2]
-        let maxAverage = sortedAverages.last ?? 0
-        
-        // Only color averages above the median
-        if average >= medianAverage {
-            // Calculate how "high" the average is compared to the range between median and max
-            let percentage = (average - medianAverage) / (maxAverage - medianAverage)
-            
-            // Interpolate between yellow and red based on percentage
+        // Fallback to basic coloring if no rates available
+        if average < 0 {
+            // Use RateColor's green scheme for negative rates
+            return Color(red: 0.2, green: 0.8, blue: 0.4)
+        } else if average > 100 {
+            // Use RateColor's devil purple for very high rates
+            return Color(red: 0.5, green: 0.0, blue: 0.8)
+        } else if average > 50 {
+            // Interpolate between red and devil purple
+            let percentage = (average - 50) / 50
             return Color(
-                red: 1.0,  // Full red
-                green: 1.0 - (0.8 * percentage),  // Fade from full yellow to slight yellow
-                blue: 0.0   // No blue
+                red: 1.0 - (0.5 * percentage),
+                green: 0.0,
+                blue: 0.8 * percentage
+            )
+        } else {
+            // Use white to red gradient for normal rates
+            let percentage = average / 50
+            return Color(
+                red: 1.0,
+                green: 1.0 - percentage,
+                blue: 1.0 - percentage
             )
         }
-        
-        // Return white for averages below median
-        return .white
     }
 }

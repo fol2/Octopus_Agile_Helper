@@ -353,13 +353,14 @@ struct CurrentRateWidget: View {
         )
         let avgRates = widgetVM.getLowestAverages(
             productCode: agileCode,
-            hours: Int(chartSettings.customAverageHours)
+            hours: chartSettings.customAverageHours,
+            maxCount: chartSettings.maxListCount
         )
         let windows = avgRates.map { rate in 
             AveragedRateWindow(
                 average: rate.average,
-                start: rate.startTime,
-                end: Calendar.current.date(byAdding: .hour, value: 1, to: rate.startTime) ?? .distantFuture
+                start: rate.start,
+                end: rate.end
             )
         }
         let raw = windows.map { ($0.start, $0.end) }

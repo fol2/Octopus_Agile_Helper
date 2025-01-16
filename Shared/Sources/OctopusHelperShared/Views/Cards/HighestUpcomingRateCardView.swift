@@ -42,6 +42,12 @@ public struct HighestUpcomingRateCardView: View {
     @StateObject private var localSettings = HighestRateCardLocalSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
 
+    // MARK: - NEW: Decide which product code to use
+    private var productCode: String {
+        // If your plan is agile:
+        return viewModel.currentAgileCode
+    }
+
     @State private var flipped = false
     @State private var refreshTrigger = false
 
@@ -76,14 +82,14 @@ public struct HighestUpcomingRateCardView: View {
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
             Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                await viewModel.refreshRates(productCode: productCode)
             }
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
             Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                await viewModel.refreshRates(productCode: productCode)
             }
         }
     }
@@ -112,9 +118,9 @@ public struct HighestUpcomingRateCardView: View {
                 }
             }
 
-            if viewModel.isLoading(for: viewModel.currentAgileCode) {
+            if viewModel.isLoading(for: productCode) {
                 ProgressView()
-            } else if let highestRate = viewModel.highestUpcomingRate(productCode: viewModel.currentAgileCode),
+            } else if let highestRate = viewModel.highestUpcomingRate(productCode: productCode),
                       let value = highestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
                     let parts = viewModel.formatRate(
@@ -129,7 +135,7 @@ public struct HighestUpcomingRateCardView: View {
                             .foregroundColor(
                                 RateColor.getColor(
                                     for: highestRate,
-                                    allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                    allRates: viewModel.allRates(for: productCode)
                                 )
                             )
 
@@ -156,7 +162,7 @@ public struct HighestUpcomingRateCardView: View {
 
                     if localSettings.settings.showAdditionalRates {
                         // We'll filter allRates(for:) for upcoming
-                        let upcomingRates = viewModel.allRates(for: viewModel.currentAgileCode)
+                        let upcomingRates = viewModel.allRates(for: productCode)
                             .filter { rate in
                                 guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
                                 return validFrom > Date()
@@ -184,7 +190,7 @@ public struct HighestUpcomingRateCardView: View {
                                         .foregroundColor(
                                             RateColor.getColor(
                                                 for: rate,
-                                                allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                                allRates: viewModel.allRates(for: productCode)
                                             )
                                         )
 

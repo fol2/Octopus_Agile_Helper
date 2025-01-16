@@ -43,7 +43,7 @@ struct AllRatesListView: View {
         // These rates might come from viewModel.allRates(for: viewModel.currentAgileCode)
         // but we pass the sliced/fetched rates directly as param.
         let sortedRates = rates.sorted { rate1, rate2 in
-            guard let date1 = rate1.value(forKey: "validFrom") as? Date, let date2 = rate2.value(forKey: "validFrom") as? Date else {
+            guard let date1 = rate1.value(forKey: "valid_from") as? Date, let date2 = rate2.value(forKey: "valid_from") as? Date else {
                 return false
             }
             return date1 < date2
@@ -52,7 +52,7 @@ struct AllRatesListView: View {
         // Group by date string
         var groupedByDate: [String: [NSManagedObject]] = [:]
         for rate in sortedRates {
-            if let date = rate.value(forKey: "validFrom") as? Date {
+            if let date = rate.value(forKey: "valid_from") as? Date {
                 let dateString = dateFormatter.string(from: date)
                 if groupedByDate[dateString] == nil {
                     groupedByDate[dateString] = []
@@ -65,11 +65,11 @@ struct AllRatesListView: View {
         let sortedGroups = groupedByDate.map { (dateString, rates) in
             (
                 dateString,
-                rates.sorted { ($0.value(forKey: "validFrom") as? Date ?? .distantPast) < ($1.value(forKey: "validFrom") as? Date ?? .distantPast) }
+                rates.sorted { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) < ($1.value(forKey: "valid_from") as? Date ?? .distantPast) }
             )
         }.sorted { group1, group2 in
-            guard let date1 = group1.1.first?.value(forKey: "validFrom") as? Date,
-                let date2 = group2.1.first?.value(forKey: "validFrom") as? Date
+            guard let date1 = group1.1.first?.value(forKey: "valid_from") as? Date,
+                let date2 = group2.1.first?.value(forKey: "valid_from") as? Date
             else {
                 return false
             }
@@ -89,7 +89,7 @@ struct AllRatesListView: View {
                 // Append any new rates (but typically they'd be the same day, so might skip)
                 let existingRates = displayedRatesByDate[existingIndex].1
                 let combined = Array(Set(existingRates + group.1))
-                let sorted = combined.sorted { ($0.value(forKey: "validFrom") as? Date ?? .distantPast) < ($1.value(forKey: "validFrom") as? Date ?? .distantPast) }
+                let sorted = combined.sorted { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) < ($1.value(forKey: "valid_from") as? Date ?? .distantPast) }
                 displayedRatesByDate[existingIndex] = (group.0, sorted)
             } else {
                 displayedRatesByDate.append(group)
@@ -97,7 +97,7 @@ struct AllRatesListView: View {
         }
         // Sort sections by date asc
         displayedRatesByDate.sort {
-            guard let d1 = $0.1.first?.value(forKey: "validFrom") as? Date, let d2 = $1.1.first?.value(forKey: "validFrom") as? Date else { return false }
+            guard let d1 = $0.1.first?.value(forKey: "valid_from") as? Date, let d2 = $1.1.first?.value(forKey: "valid_from") as? Date else { return false }
             return d1 < d2
         }
     }
@@ -112,8 +112,23 @@ struct AllRatesListView: View {
         }
         do {
             print("DEBUG: Fetching day = \(dayStart)")
+            
+            // First ensure we have rates for this product
+            if viewModel.productStates[viewModel.currentAgileCode] == nil {
+                print("DEBUG: Initializing product state for \(viewModel.currentAgileCode)")
+                await viewModel.initializeProducts([viewModel.currentAgileCode])
+            }
+            
+            // Then fetch rates for the day
             let newRates = try await viewModel.fetchRatesForDay(dayStart)
-            addRatesToDisplayed(newRates)
+            
+            // Filter for current Agile code
+            let filteredRates = newRates.filter { rate in
+                (rate.value(forKey: "tariff_code") as? String) == viewModel.currentAgileCode
+            }
+            
+            print("DEBUG: Found \(filteredRates.count) rates for \(viewModel.currentAgileCode)")
+            addRatesToDisplayed(filteredRates)
             loadedDays.append(dayStart)
         } catch {
             print("DEBUG: Error loading day \(dayStart): \(error)")
@@ -129,6 +144,20 @@ struct AllRatesListView: View {
         hasInitiallyLoaded = true
         print("DEBUG: Loading initial data")
         currentDay = Date()
+        
+        // Ensure we have a valid Agile code
+        if viewModel.currentAgileCode.isEmpty {
+            print("DEBUG: No Agile code set, attempting to set from account or fallback")
+            await viewModel.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+        }
+        
+        // Verify we have a valid Agile code
+        guard !viewModel.currentAgileCode.isEmpty else {
+            print("DEBUG: No Agile code available, cannot load rates")
+            return
+        }
+        
+        print("DEBUG: Using Agile code: \(viewModel.currentAgileCode)")
         
         do {
             let calendar = Calendar.current
@@ -220,7 +249,7 @@ struct AllRatesListView: View {
     }
 
     private func loadNextDayIfNeeded(_ rate: NSManagedObject) {
-        if let validTo = rate.value(forKey: "validTo") as? Date,
+        if let validTo = rate.value(forKey: "valid_to") as? Date,
            let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: currentDay),
            !loadedDays.contains(where: { Calendar.current.isDate($0, inSameDayAs: nextDay) })
         {
@@ -238,7 +267,7 @@ struct AllRatesListView: View {
             return
         }
         
-        if let validFrom = rate.value(forKey: "validFrom") as? Date,
+        if let validFrom = rate.value(forKey: "valid_from") as? Date,
            let prevDay = Calendar.current.date(byAdding: .day, value: -1, to: currentDay),
            !loadedDays.contains(where: { Calendar.current.isDate($0, inSameDayAs: prevDay) })
         {
@@ -251,108 +280,142 @@ struct AllRatesListView: View {
 
     var body: some View {
         ScrollViewReader { scrollProxy in
-            List {
-                ForEach(displayedRatesByDate, id: \.0) { dateString, rates in
-                    Section {
-                        ForEach(rates, id: \.objectID) { rate in
-                            RateRowView(
-                                rate: rate, 
-                                viewModel: viewModel, 
-                                globalSettings: globalSettings,
-                                lastSceneActiveTime: lastSceneActiveTime
-                            )
-                            .id(rate.objectID)
-                            .listRowBackground(
-                                Group {
-                                    if isRateCurrentlyActive(rate) {
-                                        Theme.accent.opacity(0.1)
-                                    } else if rate.value(forKey: "valueIncludingVAT") as? Double ?? 0 < 0 {
-                                        Color(red: 0.0, green: 0.6, blue: 0.3).opacity(0.15)
-                                    } else {
-                                        Theme.secondaryBackground
+            VStack(spacing: 0) {
+                // Add Agile code display
+                if !viewModel.currentAgileCode.isEmpty {
+                    Text(viewModel.currentAgileCode)
+                        .font(Theme.subFont())
+                        .foregroundStyle(Theme.secondaryTextColor)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(Theme.mainBackground)
+                }
+                
+                List {
+                    ForEach(displayedRatesByDate, id: \.0) { dateString, rates in
+                        Section {
+                            ForEach(rates, id: \.objectID) { rate in
+                                RateRowView(
+                                    rate: rate, 
+                                    viewModel: viewModel, 
+                                    globalSettings: globalSettings,
+                                    lastSceneActiveTime: lastSceneActiveTime,
+                                    dayRates: rates
+                                )
+                                .id(rate.objectID)
+                                .listRowBackground(
+                                    Group {
+                                        if isRateCurrentlyActive(rate) {
+                                            Theme.accent.opacity(0.1)
+                                        } else if rate.value(forKey: "value_including_vat") as? Double ?? 0 < 0 {
+                                            Color(red: 0.2, green: 0.8, blue: 0.4).opacity(0.15)  // Match RateColor's green
+                                        } else {
+                                            Theme.secondaryBackground
+                                        }
+                                    }
+                                )
+                                .onAppear {
+                                    // Debug logging
+                                    print("DEBUG: Rate appeared - value: \(rate.value(forKey: "value_including_vat") as? Double ?? 0)")
+                                    let allRates = viewModel.allRates(for: viewModel.currentAgileCode)
+                                    print("DEBUG: Available rates for coloring: \(allRates.count)")
+                                    
+                                    // Load next/prev days as needed
+                                    if rate.objectID == rates.last?.objectID {
+                                        loadNextDayIfNeeded(rate)
+                                    }
+                                    if rate.objectID == rates.first?.objectID {
+                                        loadPreviousDayIfNeeded(rate)
                                     }
                                 }
-                            )
-                            .onAppear {
-                                // 3) Load next/prev days as needed
-                                if rate.objectID == rates.last?.objectID {
-                                    loadNextDayIfNeeded(rate)
-                                }
-                                if rate.objectID == rates.first?.objectID {
-                                    loadPreviousDayIfNeeded(rate)
-                                }
                             }
+                        } header: {
+                            Text(dateString)
+                                .font(Theme.titleFont())
+                                .foregroundStyle(Theme.mainTextColor)
+                                .listRowInsets(EdgeInsets())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 8)
+                                .background(Theme.mainBackground)
                         }
-                    } header: {
-                        Text(dateString)
-                            .font(Theme.titleFont())
-                            .foregroundStyle(Theme.mainTextColor)
-                            .listRowInsets(EdgeInsets())
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
-                            .background(Theme.mainBackground)
                     }
                 }
-            }
-            .listStyle(.plain)
-            .background(Theme.mainBackground)
-            .onAppear {
-                print("DEBUG: View appeared")
-                // Only start loading if we haven't loaded yet
-                if !hasInitiallyLoaded {
+                .listStyle(.plain)
+                .background(Theme.mainBackground)
+                .onAppear {
+                    print("DEBUG: View appeared")
+                    // Only start loading if we haven't loaded yet
+                    if !hasInitiallyLoaded {
+                        Task {
+                            // First ensure we have a valid Agile code
+                            if viewModel.currentAgileCode.isEmpty {
+                                print("DEBUG: Setting Agile product from account or fallback")
+                                await viewModel.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                            }
+                            
+                            // Then initialize the product if needed
+                            if !viewModel.currentAgileCode.isEmpty && viewModel.productStates[viewModel.currentAgileCode] == nil {
+                                print("DEBUG: Initializing product state")
+                                await viewModel.initializeProducts([viewModel.currentAgileCode])
+                            }
+                            
+                            await loadInitialData()
+                        }
+                    }
+                }
+                // Force re-render whenever half-hour ticks => "NOW" badge updates
+                .onReceive(refreshManager.$halfHourTick) { tickTime in
+                    guard tickTime != nil else { return }
+                    forceReRenderToggle.toggle()
+                }
+                // Also force re-render whenever app becomes active
+                .onReceive(refreshManager.$sceneActiveTick) { _ in
+                    print("DEBUG: Scene became active, updating lastSceneActiveTime")
+                    lastSceneActiveTime = Date()
+                    forceReRenderToggle.toggle()
+                }
+                .onChange(of: shouldScrollToCurrentRate) { _, shouldScroll in
+                    if shouldScroll {
+                        print("DEBUG: Scroll trigger activated")
+                        Task {
+                            await scrollToCurrentRate(proxy: scrollProxy)
+                        }
+                    }
+                }
+                // Re-render on half-hour
+                .onReceive(refreshManager.$halfHourTick) { tickTime in
+                    guard tickTime != nil else { return }
                     Task {
-                        await loadInitialData()
+                        if !viewModel.currentAgileCode.isEmpty {
+                            await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                            await loadInitialData()
+                        }
                     }
                 }
-            }
-            // Force re-render whenever half-hour ticks => "NOW" badge updates
-            .onReceive(refreshManager.$halfHourTick) { tickTime in
-                guard tickTime != nil else { return }
-                forceReRenderToggle.toggle()
-            }
-            // Also force re-render whenever app becomes active
-            .onReceive(refreshManager.$sceneActiveTick) { _ in
-                print("DEBUG: Scene became active, updating lastSceneActiveTime")
-                lastSceneActiveTime = Date()
-                forceReRenderToggle.toggle()
-            }
-            .onChange(of: shouldScrollToCurrentRate) { _, shouldScroll in
-                if shouldScroll {
-                    print("DEBUG: Scroll trigger activated")
+                // Also re-render if app becomes active
+                .onReceive(refreshManager.$sceneActiveTick) { _ in
                     Task {
-                        await scrollToCurrentRate(proxy: scrollProxy)
+                        if !viewModel.currentAgileCode.isEmpty {
+                            await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                            await loadInitialData()
+                        }
                     }
                 }
             }
-            // Re-render on half-hour
-            .onReceive(refreshManager.$halfHourTick) { tickTime in
-                guard tickTime != nil else { return }
-                Task {
-                    await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-                    await loadInitialData()
-                }
+            .navigationTitle(LocalizedStringKey("All Rates"))
+            .navigationBarTitleDisplayMode(.inline)
+            .environment(\.locale, globalSettings.locale)
+            .id("all-rates-\(refreshTrigger)-\(forceReRenderToggle ? 1 : 0)")
+            .onChange(of: globalSettings.locale) { oldValue, newValue in
+                print("DEBUG: Locale changed from \(oldValue.identifier) to \(newValue.identifier)")
+                refreshTrigger = UUID()  // Just refresh the view instead of reloading data
             }
-            // Also re-render if app becomes active
-            .onReceive(refreshManager.$sceneActiveTick) { _ in
-                Task {
-                    await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-                    await loadInitialData()
-                }
-            }
-        }
-        .navigationTitle(LocalizedStringKey("All Rates"))
-        .navigationBarTitleDisplayMode(.inline)
-        .environment(\.locale, globalSettings.locale)
-        .id("all-rates-\(refreshTrigger)-\(forceReRenderToggle ? 1 : 0)")
-        .onChange(of: globalSettings.locale) { oldValue, newValue in
-            print("DEBUG: Locale changed from \(oldValue.identifier) to \(newValue.identifier)")
-            refreshTrigger = UUID()  // Just refresh the view instead of reloading data
         }
     }
 
     private func isRateCurrentlyActive(_ rate: NSManagedObject) -> Bool {
         let now = Date()
-        guard let start = rate.value(forKey: "validFrom") as? Date, let end = rate.value(forKey: "validTo") as? Date else { return false }
+        guard let start = rate.value(forKey: "valid_from") as? Date, let end = rate.value(forKey: "valid_to") as? Date else { return false }
         return start <= now && end > now
     }
 }
@@ -362,79 +425,22 @@ private struct RateRowView: View {
     let rate: NSManagedObject
     let viewModel: RatesViewModel
     let globalSettings: GlobalSettingsManager
-    let lastSceneActiveTime: Date  // New property
+    let lastSceneActiveTime: Date
+    let dayRates: [NSManagedObject]
 
     private func getDayRates(for date: Date, productCode: String) -> [NSManagedObject] {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: date)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-
-        let allRates = viewModel.allRates(for: productCode)
-        return allRates.filter { rate in
-            guard let validFrom = rate.value(forKey: "validFrom") as? Date else { return false }
-            return validFrom >= startOfDay && validFrom < endOfDay
-        }.sorted { 
-            let date1 = $0.value(forKey: "validFrom") as? Date ?? .distantPast
-            let date2 = $1.value(forKey: "validFrom") as? Date ?? .distantPast
-            return date1 < date2
-        }
-    }
-
-    private func getRateColor(for rate: NSManagedObject, allRates: [NSManagedObject]) -> Color {
-        let currentValue = rate.value(forKey: "valueIncludingVAT") as? Double ?? 0
-        if currentValue < 0 {
-            let negativeRates = allRates.filter {
-                ($0.value(forKey: "valueIncludingVAT") as? Double ?? 0) < 0
-            }
-            if let mostNegative = negativeRates.min(by: {
-                ($0.value(forKey: "valueIncludingVAT") as? Double ?? 0) < ($1.value(forKey: "valueIncludingVAT") as? Double ?? 0)
-            }) {
-                let mostNegativeValue = mostNegative.value(forKey: "valueIncludingVAT") as? Double ?? 0
-                let rawPercentage = abs(currentValue / mostNegativeValue)
-                let percentage = 0.5 + (rawPercentage * 0.5)  // This ensures we keep at least 50% of the color
-                // Base green color (RGB: 0.2, 0.8, 0.4)
-                return Color(
-                    red: 1.0 - (0.8 * percentage),  // Interpolate from 1.0 to 0.2
-                    green: 1.0 - (0.2 * percentage),  // Interpolate from 1.0 to 0.8
-                    blue: 1.0 - (0.6 * percentage)  // Interpolate from 1.0 to 0.4
-                )
-            }
-            return Color(red: 0.2, green: 0.8, blue: 0.4)
-        }
-
-        // Find the day's rate statistics
-        let sortedRates = allRates.map { $0.value(forKey: "valueIncludingVAT") as? Double ?? 0 }.sorted()
-        guard !sortedRates.isEmpty else { return .white }
-
-        let medianRate = sortedRates[sortedRates.count / 2]
-        let maxRate = sortedRates.last ?? 0
-
-        // Only color rates above the median
-        if currentValue >= medianRate {
-            // Calculate how "high" the rate is compared to the range between median and max
-            let percentage = (currentValue - medianRate) / (maxRate - medianRate)
-            
-            // Interpolate between yellow and red based on percentage
-            return Color(
-                red: 1.0,  // Full red
-                green: 1.0 - (0.8 * percentage),  // Fade from full yellow to slight yellow
-                blue: 0.0   // No blue
-            )
-        }
-        
-        // Return white for rates below median
-        return .white
+        return RateColor.getDayRates(for: date, allRates: dayRates)
     }
 
     private func getTrend() -> (trend: TrendType, opacity: Double) {
-        guard let currentValidFrom = rate.value(forKey: "validFrom") as? Date else {
+        guard let currentValidFrom = rate.value(forKey: "valid_from") as? Date else {
             return (.noChange, 0)
         }
 
         let dayRates = getDayRates(for: currentValidFrom, productCode: viewModel.currentAgileCode)
 
         // Find the previous rate (either from same day or previous day)
-        guard let currentIndex = dayRates.firstIndex(where: { $0.value(forKey: "validFrom") as? Date == currentValidFrom })
+        guard let currentIndex = dayRates.firstIndex(where: { $0.value(forKey: "valid_from") as? Date == currentValidFrom })
         else {
             return (.noChange, 0)
         }
@@ -453,8 +459,8 @@ private struct RateRowView: View {
             return (.noChange, 0)
         }
 
-        let currentValue = rate.value(forKey: "valueIncludingVAT") as? Double ?? 0
-        let previousValue = previousRate.value(forKey: "valueIncludingVAT") as? Double ?? 0
+        let currentValue = rate.value(forKey: "value_including_vat") as? Double ?? 0
+        let previousValue = previousRate.value(forKey: "value_including_vat") as? Double ?? 0
 
         // Calculate percentage change using absolute value in denominator
         let percentageChange = ((currentValue - previousValue) / abs(previousValue)) * 100
@@ -478,8 +484,8 @@ private struct RateRowView: View {
         for i in 0..<(rates.count - 1) {
             let rate1 = rates[i]
             let rate2 = rates[i + 1]
-            let value1 = rate1.value(forKey: "valueIncludingVAT") as? Double ?? 0
-            let value2 = rate2.value(forKey: "valueIncludingVAT") as? Double ?? 0
+            let value1 = rate1.value(forKey: "value_including_vat") as? Double ?? 0
+            let value2 = rate2.value(forKey: "value_including_vat") as? Double ?? 0
             
             // Avoid division by zero
             guard abs(value1) > 0 else { continue }
@@ -518,14 +524,14 @@ private struct RateRowView: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(
-                "\(viewModel.formatTime(rate.value(forKey: "validFrom") as? Date ?? Date())) - \(viewModel.formatTime(rate.value(forKey: "validTo") as? Date ?? Date()))"
+                "\(viewModel.formatTime(rate.value(forKey: "valid_from") as? Date ?? Date())) - \(viewModel.formatTime(rate.value(forKey: "valid_to") as? Date ?? Date()))"
             )
             .font(Theme.subFont())
             .foregroundStyle(Theme.secondaryTextColor)
             .frame(minWidth: 110, alignment: .leading)
 
             let parts = viewModel.formatRate(
-                rate.value(forKey: "valueIncludingVAT") as? Double ?? 0,
+                rate.value(forKey: "value_including_vat") as? Double ?? 0,
                 showRatesInPounds: globalSettings.settings.showRatesInPounds
             )
             .split(separator: " ")
@@ -534,7 +540,7 @@ private struct RateRowView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(parts[0])  // Rate value
                         .font(Theme.mainFont2())
-                        .foregroundColor(getRateColor(for: rate, allRates: viewModel.allRates(for: viewModel.currentAgileCode)))
+                        .foregroundColor(RateColor.getColor(for: rate, allRates: dayRates))
 
                     Text(parts[1])  // "/kWh"
                         .font(Theme.subFont())
@@ -572,7 +578,7 @@ private struct RateRowView: View {
 
     private func isRateCurrentlyActive(_ rate: NSManagedObject) -> Bool {
         let now = Date()
-        guard let start = rate.value(forKey: "validFrom") as? Date, let end = rate.value(forKey: "validTo") as? Date else { return false }
+        guard let start = rate.value(forKey: "valid_from") as? Date, let end = rate.value(forKey: "valid_to") as? Date else { return false }
         return start <= now && end > now
     }
 }

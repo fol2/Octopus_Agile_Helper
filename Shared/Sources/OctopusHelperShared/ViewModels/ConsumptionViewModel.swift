@@ -87,18 +87,33 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     @Published public private(set) var consumptionRecords: [NSManagedObject] = []
     @Published public private(set) var minInterval: Date?
     @Published public private(set) var maxInterval: Date?
-    @Published public private(set) var fetchStatus: FetchStatus = .none // now recognized
+    @Published public private(set) var fetchStatus: FetchStatus = .none
     @Published public private(set) var error: Error?
     
     private let repository: ElectricityConsumptionRepository
+    private let globalSettingsManager = GlobalSettingsManager()
     
     public init() {
         self.repository = ElectricityConsumptionRepository.shared
     }
     
+    /// Checks if we have the necessary account information to fetch consumption data
+    private var hasValidAccountInfo: Bool {
+        let settings = globalSettingsManager.settings
+        return !settings.apiKey.isEmpty && 
+               !(settings.electricityMPAN ?? "").isEmpty && 
+               !(settings.electricityMeterSerialNumber ?? "").isEmpty
+    }
+    
     /// Loads existing data from Core Data
     public func loadData() async {
         error = nil
+        
+        // Skip if we don't have account info
+        guard hasValidAccountInfo else {
+            fetchStatus = .none
+            return
+        }
         
         do {
             let allData = try await repository.fetchAllRecords()
@@ -106,26 +121,26 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
             maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
             
-            // Only show pending if:
-            // 1. After noon AND
-            // 2. Missing data through previous midnight
             let calendar = Calendar.current
             let hour = calendar.component(.hour, from: Date())
             
+            // If after noon AND missing data, immediately try to fetch
             if hour >= 12 && !repository.hasDataThroughExpectedTime() {
-                fetchStatus = .pending // now recognized
-                // Don't auto-refresh here - let the UI handle that
+                // Directly call refreshDataFromAPI instead of just setting pending
+                await refreshDataFromAPI(force: true)  // Force fetch immediately
             } else {
-                fetchStatus = .none // now recognized
+                fetchStatus = .none
             }
         } catch {
             self.error = error
             print("DEBUG: Error loading consumption data: \(error)")
-            fetchStatus = .failed // now recognized
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            fetchStatus = .failed
+            
+            // If we fail to load data, set to pending after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 if self.fetchStatus == .failed {
                     withAnimation(.easeInOut(duration: 0.35)) {
-                        self.fetchStatus = .none  // now recognized
+                        self.fetchStatus = .pending  // Set to pending if we failed
                     }
                 }
             }
@@ -137,51 +152,44 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: Date())
 
-        // 1) If user pulls-to-refresh, skip "pending" and go straight to "fetching"
-        // 2) If it's after noon AND missing data, then use "pending" -> "fetching"
-        if force {
-            fetchStatus = .fetching // now recognized
-            isLoading = true
-            error = nil
-        } else if hour >= 12 && !repository.hasDataThroughExpectedTime() {
-            fetchStatus = .pending // now recognized
-            isLoading = true
-            error = nil
+        // Skip if we don't have account info
+        guard hasValidAccountInfo else {
+            fetchStatus = .none
+            return
         }
 
-        if fetchStatus == .pending || fetchStatus == .fetching {
+        // Set to fetching state immediately if forcing or conditions require
+        if force || (hour >= 12 && !repository.hasDataThroughExpectedTime()) {
+            fetchStatus = .fetching
+            isLoading = true
+            error = nil
+            
             do {
-                // If forced, we're already in .fetching
-                if fetchStatus == .pending {
-                    fetchStatus = .fetching // now recognized
-                }
                 try await repository.updateConsumptionData()
                 let allData = try await repository.fetchAllRecords()
                 consumptionRecords = allData
                 minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
                 maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
                 
-                fetchStatus = .done // now recognized
+                fetchStatus = .done
+                
+                // After success, return to none after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if self.fetchStatus == .done {
                         withAnimation(.easeInOut(duration: 0.35)) {
-                            self.fetchStatus = .none // now recognized
+                            self.fetchStatus = .none
                         }
                     }
                 }
             } catch {
                 self.error = error
-                fetchStatus = .failed // now recognized
+                fetchStatus = .failed
+                
+                // If fetch fails, set to pending after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if self.fetchStatus == .failed {
                         withAnimation(.easeInOut(duration: 0.35)) {
-                            // If we still have data, revert to .none, not .pending
-                            if !self.consumptionRecords.isEmpty {
-                                self.fetchStatus = .none // now recognized
-                            } else {
-                                // If we truly have no data, revert to .pending
-                                self.fetchStatus = .pending // now recognized
-                            }
+                            self.fetchStatus = .pending  // Always go to pending after failure
                         }
                     }
                 }

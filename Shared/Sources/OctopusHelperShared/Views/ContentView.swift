@@ -120,6 +120,7 @@ public struct ContentView: View {
     @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var statusManager = FetchStatusManager()
     @StateObject private var viewModel = ContentViewModel()
+    @State private var hasAgileCards = false
 
     // Store each card's VM in a dictionary keyed by `CardType`
     @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
@@ -154,7 +155,8 @@ public struct ContentView: View {
                             if let definition = CardRegistry.shared.definition(for: config.cardType)
                             {
                                 if config.isPurchased || !definition.isPremium {
-                                    if config.cardType == .currentRate {
+                                    if config.cardType == .currentRate || config.cardType == .lowestUpcoming || config.cardType == .highestUpcoming || config.cardType == .averageUpcoming || config.cardType == .interactiveChart {
+                                        // Use the same ratesVM for all rate-related cards
                                         definition.makeView(ratesVM)
                                     } else if let vm = cardViewModels[config.cardType] {
                                         definition.makeView(vm)
@@ -238,8 +240,8 @@ public struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task {
-                    if !ratesVM.currentAgileCode.isEmpty {
-                        await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+                    if hasAgileCards {
+                        await ratesVM.fetchRatesForDefaultProduct()
                     }
                     await consumptionVM.loadData()
 
@@ -260,8 +262,8 @@ public struct ContentView: View {
             // Check rates at 16:00
             if hour == 16, minute == 0, second == 0 {
                 Task {
-                    if !ratesVM.currentAgileCode.isEmpty {
-                        await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true)
+                    if hasAgileCards {
+                        await ratesVM.fetchRatesForDefaultProduct()
                     }
                 }
             }
@@ -281,18 +283,42 @@ public struct ContentView: View {
         // Called once when the view appears to create all card view models
         .onAppear {
             setupStatusObservers()
-            for cardType in CardType.allCases where cardType != .currentRate {
-                if cardViewModels[cardType] == nil {
-                    let newVM = CardRegistry.shared.createViewModel(for: cardType)
-                    cardViewModels[cardType] = newVM
+
+            // 1) Determine if we have at least one active card that supports .agile
+            let activeCards = sortedCardConfigs().filter { $0.isEnabled }
+            hasAgileCards = activeCards.contains {
+                if let def = CardRegistry.shared.definition(for: $0.cardType) {
+                    return def.supportedPlans.contains(.agile)
+                }
+                return false
+            }
+
+            // 2) Create VMs for non-rate cards only
+            for cardType in CardType.allCases {
+                if cardType == .electricityConsumption {  // Only create VM for non-rate cards
+                    if cardViewModels[cardType] == nil {
+                        let newVM = CardRegistry.shared.createViewModel(for: cardType)
+                        cardViewModels[cardType] = newVM
+                    }
                 }
             }
         }
         // Attempt to load data
         .task {
-            if !ratesVM.currentAgileCode.isEmpty {
-                await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+            // Only fetch rates if we have agile cards enabled
+            if hasAgileCards {
+                Task {
+                    await ratesVM.fetchRatesForDefaultProduct()
+                    // Initialize product state after setting currentAgileCode
+                    if !ratesVM.currentAgileCode.isEmpty {
+                        await ratesVM.initializeProducts([ratesVM.currentAgileCode])
+                    }
+                }
+            } else {
+                // No agile cards enabled => skip
+                print("No agile-based cards enabled. Skipping fetchRatesForDefaultProduct().")
             }
+            
             await consumptionVM.loadData()
         }
     }

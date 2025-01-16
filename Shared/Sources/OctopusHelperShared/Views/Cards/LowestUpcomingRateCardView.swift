@@ -43,13 +43,50 @@ public struct LowestUpcomingRateCardView: View {
     @StateObject private var localSettings = LowestRateCardLocalSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
 
+    // MARK: - Product Code
+    private var productCode: String {
+        return viewModel.currentAgileCode
+    }
+
     // For flipping between front (rates) and back (settings)
     @State private var flipped = false
-
     @State private var refreshTrigger = false
 
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
+
+    // MARK: - Rate Fetching Logic
+    private func getLowestUpcomingRate() -> NSManagedObject? {
+        let now = Date()
+        let upcomingRates = viewModel.allRates(for: productCode)
+            .filter { rate in
+                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+                return validFrom > now
+            }
+            .sorted { rate1, rate2 in
+                let value1 = rate1.value(forKey: "value_including_vat") as? Double ?? 0
+                let value2 = rate2.value(forKey: "value_including_vat") as? Double ?? 0
+                return value1 < value2
+            }
+        return upcomingRates.first
+    }
+
+    private func getAdditionalLowestRates() -> [NSManagedObject] {
+        let now = Date()
+        let upcomingRates = viewModel.allRates(for: productCode)
+            .filter { rate in
+                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+                return validFrom > now
+            }
+            .sorted { rate1, rate2 in
+                let value1 = rate1.value(forKey: "value_including_vat") as? Double ?? 0
+                let value2 = rate2.value(forKey: "value_including_vat") as? Double ?? 0
+                return value1 < value2
+            }
+        
+        // Skip the first one (it's shown as main rate) and take the next N
+        return Array(upcomingRates.dropFirst().prefix(localSettings.settings.additionalRatesCount))
+    }
 
     public var body: some View {
         ZStack {
@@ -69,11 +106,12 @@ public struct LowestUpcomingRateCardView: View {
                     axis: (x: 0, y: 1, z: 0),
                     perspective: 0.8)
         }
-        // Size as needed, e.g.:
+        // Size as needed
         .frame(maxWidth: 400)
         // Our shared card style
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
+        .id("lowest-upcoming-\(refreshTrigger)-\(productCode)")  // Added ID for refresh
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
@@ -81,14 +119,14 @@ public struct LowestUpcomingRateCardView: View {
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
             Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                await viewModel.refreshRates(productCode: productCode)
             }
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
             Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                await viewModel.refreshRates(productCode: productCode)
             }
         }
     }
@@ -120,9 +158,9 @@ public struct LowestUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading(for: viewModel.currentAgileCode) {
+            if viewModel.isLoading(for: productCode) {
                 ProgressView()
-            } else if let lowestRate = viewModel.lowestUpcomingRate(productCode: viewModel.currentAgileCode),
+            } else if let lowestRate = getLowestUpcomingRate(),
                       let value = lowestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
                     // Main lowest rate
@@ -138,7 +176,7 @@ public struct LowestUpcomingRateCardView: View {
                             .foregroundColor(
                                 RateColor.getColor(
                                     for: lowestRate,
-                                    allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                    allRates: viewModel.allRates(for: productCode)
                                 )
                             )
 
@@ -164,24 +202,10 @@ public struct LowestUpcomingRateCardView: View {
 
                     // Additional lowest rates if configured
                     if localSettings.settings.additionalRatesCount > 0 {
-                        // We'll filter allRates(for:) for upcoming
-                        let upcomingRates = viewModel.allRates(for: viewModel.currentAgileCode)
-                            .filter { rate in
-                                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
-                                return validFrom > Date()
-                            }
-                            .sorted { r1, r2 in
-                                (r1.value(forKey: "value_including_vat") as? Double ?? 0) < (r2.value(forKey: "value_including_vat") as? Double ?? 0)
-                            }
-
-                        if upcomingRates.count > 1 {
+                        let additionalRates = getAdditionalLowestRates()
+                        if !additionalRates.isEmpty {
                             Divider()
-                            ForEach(
-                                upcomingRates.prefix(
-                                    localSettings.settings.additionalRatesCount + 1
-                                ).dropFirst(),
-                                id: \.self
-                            ) { rate in
+                            ForEach(additionalRates, id: \.self) { rate in
                                 HStack(alignment: .firstTextBaseline) {
                                     let valStr = viewModel.formatRate(
                                         rate.value(forKey: "value_including_vat") as? Double ?? 0,
@@ -194,7 +218,7 @@ public struct LowestUpcomingRateCardView: View {
                                         .foregroundColor(
                                             RateColor.getColor(
                                                 for: rate,
-                                                allRates: viewModel.allRates(for: viewModel.currentAgileCode)
+                                                allRates: viewModel.allRates(for: productCode)
                                             )
                                         )
 
