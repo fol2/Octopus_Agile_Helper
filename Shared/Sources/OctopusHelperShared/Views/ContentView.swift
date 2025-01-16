@@ -40,6 +40,7 @@ final class FetchStatusManager: ObservableObject {
     // Track individual statuses
     private var ratesStatus: FetchStatus = .none
     private var consumptionStatus: FetchStatus = .none
+    private var clearDoneWorkItem: DispatchWorkItem?
     
     func update(ratesStatus: FetchStatus? = nil, consumptionStatus: FetchStatus? = nil) {
         if let rStatus = ratesStatus { self.ratesStatus = rStatus }
@@ -52,18 +53,34 @@ final class FetchStatusManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.3)) {
             self.combinedStatus = newStatus
         }
+        
+        // If status is .done, schedule it to be cleared after a delay
+        if case .done = newStatus {
+            clearDoneWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                withAnimation {
+                    if case .done = self?.combinedStatus {
+                        self?.combinedStatus = .none
+                    }
+                }
+            }
+            clearDoneWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: workItem)
+        }
     }
     
     private func computeCombinedStatus() -> CombinedFetchStatus {
         var fetchingSources: Set<String> = []
         var pendingSources: Set<String> = []
+        var doneSources: Set<String> = []
+        var failedSource: String?
         
         // Check rates status
         switch ratesStatus {
         case .fetching: fetchingSources.insert("Rates")
         case .pending: pendingSources.insert("Rates")
-        case .failed: return .failed(source: "Rates", error: nil)
-        case .done: return .done(source: "Rates")
+        case .failed: failedSource = "Rates"
+        case .done: doneSources.insert("Rates")
         case .none: break
         }
         
@@ -71,17 +88,23 @@ final class FetchStatusManager: ObservableObject {
         switch consumptionStatus {
         case .fetching: fetchingSources.insert("Consumption")
         case .pending: pendingSources.insert("Consumption")
-        case .failed: return .failed(source: "Consumption", error: nil)
-        case .done: return .done(source: "Consumption")
+        case .failed: failedSource = "Consumption"
+        case .done: doneSources.insert("Consumption")
         case .none: break
         }
         
         // Determine combined state
+        if let failed = failedSource {
+            return .failed(source: failed, error: nil)
+        }
         if !fetchingSources.isEmpty {
             return .fetching(sources: fetchingSources)
         }
         if !pendingSources.isEmpty {
             return .pending(sources: pendingSources)
+        }
+        if !doneSources.isEmpty {
+            return .done(source: doneSources.first ?? "Unknown")
         }
         return .none
     }

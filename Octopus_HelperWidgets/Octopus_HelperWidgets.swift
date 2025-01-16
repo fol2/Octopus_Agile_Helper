@@ -49,17 +49,28 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         let context = persistenceController.container.viewContext
         let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
         let rates = (try? context.fetch(request)) ?? []
+        
+        // Get agile code with proper logging
+        let agileCode: String = {
+            if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
+                print("WIDGET: Using stored agile code: \(stored)")
+                return stored
+            }
+            if let fallback = fallbackAgileCodeFromProductEntity() {
+                print("WIDGET: Using fallback agile code: \(fallback)")
+                return fallback
+            }
+            print("WIDGET: No agile code found, using empty string")
+            return ""
+        }()
+        
         return SimpleEntry(
             date: .now,
             configuration: ConfigurationAppIntent(),
             rates: rates,
             settings: readSettings(),
             chartSettings: chartSettings,
-            agileCode: {
-                let stored = sharedDefaults?.string(forKey: agileCodeKey)
-                let fallback = fallbackAgileCodeFromProductEntity()
-                return stored ?? fallback ?? ""
-            }()
+            agileCode: agileCode
         )
     }
 
@@ -67,57 +78,65 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         let context = persistenceController.container.viewContext
         let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
         let rates = (try? context.fetch(request)) ?? []
+        
+        // Get agile code with proper logging
+        let agileCode: String = {
+            if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
+                print("WIDGET: Using stored agile code: \(stored)")
+                return stored
+            }
+            if let fallback = fallbackAgileCodeFromProductEntity() {
+                print("WIDGET: Using fallback agile code: \(fallback)")
+                return fallback
+            }
+            print("WIDGET: No agile code found, using empty string")
+            return ""
+        }()
+        
         return SimpleEntry(
             date: .now,
             configuration: configuration,
             rates: rates,
             settings: readSettings(),
             chartSettings: chartSettings,
-            agileCode: {
-                let stored = sharedDefaults?.string(forKey: agileCodeKey)
-                let fallback = fallbackAgileCodeFromProductEntity()
-                return stored ?? fallback ?? ""
-            }()
+            agileCode: agileCode
         )
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
         do {
-            // 1) Update rates from the repository
-            let repo = await repository
-            
-            // 1.5) Read the agile code from shared defaults
+            // 1) Get the agile code with proper logging
             let agileCode: String = {
-                let stored = sharedDefaults?.string(forKey: agileCodeKey)
-                let fallback = fallbackAgileCodeFromProductEntity()
-                return stored ?? fallback ?? "AGILE-FLEX-22-11-25"
+                if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
+                    print("WIDGET: Using stored agile code: \(stored)")
+                    return stored
+                }
+                if let fallback = fallbackAgileCodeFromProductEntity() {
+                    print("WIDGET: Using fallback agile code: \(fallback)")
+                    return fallback
+                }
+                print("WIDGET: No agile code found, using empty string")
+                return ""
             }()
+            
+            // 1.5) Update rates from the repository
+            let repo = await repository
             
             // Get product detail to get link and tariff code
             let details = try await productDetailRepository.loadLocalProductDetail(code: agileCode)
             if let detail = details.first,
                let tCode = detail.value(forKey: "tariff_code") as? String,
                let link = detail.value(forKey: "link_rate") as? String {
+                print("WIDGET: Fetching rates for tariff code: \(tCode)")
                 try await repo.fetchAndStoreRates(tariffCode: tCode, url: link)
+            } else {
+                print("WIDGET: No product details found for code: \(agileCode)")
             }
             
             let rates = try await repo.fetchAllRates()
 
-            // 2) On first install or empty DB => direct fetch
-            if rates.isEmpty {
-                // If we truly need a fallback approach, either do:
-                // rates = try await directFetchAndSave()
-                // or just rely on repo.updateRates() logic above. We can comment it out if you no longer want to call direct fetch:
-                // rates = try await directFetchAndSave()
-                // For now, let's skip or comment:
-                // rates = try await directFetchAndSave()
-            }
-
             // Convert [NSManagedObject] -> [RateEntity]
             let typedRates = rates.compactMap { $0 }
-
-            // 2.5) Create a specialized RatesViewModel with the known agile code
-            _ = await RatesViewModel(widgetRates: typedRates, productCode: agileCode)
 
             // 3) Build timeline
             let now = Date()
@@ -128,6 +147,7 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             return Timeline(entries: entries, policy: .after(nextRefresh))
 
         } catch {
+            print("WIDGET: Error building timeline: \(error)")
             // 5) On error, do a short retry timeline
             return buildErrorTimeline(configuration: configuration)
         }
@@ -299,20 +319,25 @@ extension OctopusWidgetProvider {
     private func fallbackAgileCodeFromProductEntity() -> String? {
         let ctx = persistenceController.container.viewContext
         let request = NSFetchRequest<NSManagedObject>(entityName: "ProductEntity")
-        // e.g., code CONTAINS 'AGILE' AND (available_to == nil OR available_to > NOW)
-        let now = Date()
-        request.predicate = NSPredicate(
-            format: "(code CONTAINS[cd] %@) AND (available_to == nil OR available_to > %@)",
-            "AGILE", now as NSDate
-        )
+        
+        // Match main app's criteria:
+        // 1. brand = OCTOPUS_ENERGY
+        // 2. direction = IMPORT
+        // 3. code contains "AGILE"
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "code CONTAINS[cd] %@", "AGILE"),
+            NSPredicate(format: "direction == %@", "IMPORT"),
+            NSPredicate(format: "brand == %@", "OCTOPUS_ENERGY")
+        ])
+        
+        // Sort by available_from date (most recent first), matching main app
         request.sortDescriptors = [
-            // Sort descending by available_to => "latest" first
-            NSSortDescriptor(key: "available_to", ascending: false)
+            NSSortDescriptor(key: "available_from", ascending: false)
         ]
 
         do {
             let results = try ctx.fetch(request)
-            // Return first code if present
+            // Return first (most recent) code
             if let first = results.first,
                let code = first.value(forKey: "code") as? String {
                 return code
@@ -320,7 +345,6 @@ extension OctopusWidgetProvider {
         } catch {
             print("DEBUG: fallbackAgileCodeFromProductEntity error: \(error)")
         }
-        // If none found, return nil
         return nil
     }
 }

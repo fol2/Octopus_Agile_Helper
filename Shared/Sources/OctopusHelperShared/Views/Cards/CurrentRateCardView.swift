@@ -15,6 +15,9 @@ public struct CurrentRateCardView: View {
     // Use the shared manager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
+    // Track whether sheet is presented
+    @State private var showingAllRates = false
+
     // MARK: - Product Code
     private var productCode: String {
         return viewModel.currentAgileCode
@@ -135,25 +138,16 @@ public struct CurrentRateCardView: View {
             }
         }
         .onTapGesture {
-            presentAllRatesView()
+            showingAllRates = true
         }
-    }
-
-    // MARK: - Helper Methods
-
-    /// Opens a full-screen list of all rates.
-    private func presentAllRatesView() {
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-            let window = scene.windows.first,
-            let rootViewController = window.rootViewController
-        {
-            let allRatesView = NavigationView {
+        .sheet(isPresented: $showingAllRates) {
+            NavigationView {
                 AllRatesListView(viewModel: viewModel)
                     .environment(\.locale, globalSettings.locale)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button {
-                                rootViewController.dismiss(animated: true)
+                                showingAllRates = false
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
@@ -166,17 +160,10 @@ public struct CurrentRateCardView: View {
             .environment(\.locale, globalSettings.locale)
             .id("all-rates-nav-\(globalSettings.locale.identifier)")
             .preferredColorScheme(colorScheme)
-
-            let hostingController = UIHostingController(rootView: allRatesView)
-            hostingController.modalPresentationStyle = .fullScreen
-
-            // Force dark/light if needed
-            hostingController.overrideUserInterfaceStyle =
-                (colorScheme == .dark) ? .dark : .light
-
-            rootViewController.present(hostingController, animated: true)
         }
     }
+
+    // MARK: - Helper Methods
 
     /// Time formatter for "Until HH:mm".
     private var timeFormatter: DateFormatter {

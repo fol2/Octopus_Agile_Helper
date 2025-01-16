@@ -6,8 +6,7 @@ import SwiftUI
 // MARK: - Local Settings
 private struct HighestRateCardLocalSettings: Codable {
     var additionalRatesCount: Int
-    var showAdditionalRates: Bool
-    static let `default` = HighestRateCardLocalSettings(additionalRatesCount: 2, showAdditionalRates: true)
+    static let `default` = HighestRateCardLocalSettings(additionalRatesCount: 2)
 }
 
 private class HighestRateCardLocalSettingsManager: ObservableObject {
@@ -160,7 +159,7 @@ public struct HighestUpcomingRateCardView: View {
                         }
                     }
 
-                    if localSettings.settings.showAdditionalRates {
+                    if localSettings.settings.additionalRatesCount > 0 {
                         // We'll filter allRates(for:) for upcoming
                         let upcomingRates = viewModel.allRates(for: productCode)
                             .filter { rate in
@@ -259,14 +258,6 @@ public struct HighestUpcomingRateCardView: View {
                     .padding(.horizontal, 6)
                     .background(Theme.secondaryBackground)
                     .cornerRadius(8)
-            }
-            .padding(.top, 8)
-
-            // The row for "Show Additional Rates"
-            HStack(alignment: .center) {
-                Toggle("Show Additional Rates", isOn: $localSettings.settings.showAdditionalRates)
-                    .font(Theme.secondaryFont())
-                    .foregroundColor(Theme.mainTextColor)
             }
             .padding(.top, 8)
         }
