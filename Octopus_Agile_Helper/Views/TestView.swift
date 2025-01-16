@@ -130,13 +130,10 @@ struct TestView: View {
                 // 4. Consumption
                 ConsumptionSection(consumptionVM: consumptionVM)
 
-                // 5. Calculations (placeholder)
-                CalculationsSection()
-
-                // 6. Tariff Calculations Testing
+                // 5. Tariff Calculations Testing
                 TariffCalculationsSection(selectedTariffCode: $selectedTariffCode)
 
-                // 7. Settings Overview
+                // 6. Settings Overview
                 SettingsOverviewSection()
             }
             .listStyle(.insetGrouped)
@@ -586,34 +583,18 @@ struct ConsumptionSection: View {
     }
 }
 
-// MARK: - CalculationsSection
-struct CalculationsSection: View {
-    @EnvironmentObject private var globalSettings: GlobalSettingsManager
-
-    var body: some View {
-        Section(LocalizedStringKey("Calculations")) {
-            if !globalSettings.settings.apiKey.isEmpty {
-                Text("Ready for calculations")
-                    .foregroundColor(.primary)
-            } else {
-                Text("Configure API key to enable calculations")
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-}
-
 // MARK: - TariffCalculationsSection
 struct TariffCalculationsSection: View {
     @EnvironmentObject private var globalSettings: GlobalSettingsManager
     @Binding var selectedTariffCode: String?
-    @State private var startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-    @State private var endDate = Date()
+    @State private var startDate = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date())
+    @State private var endDate = Calendar.current.startOfDay(for: Date())
     @State private var calculationResults: [NSManagedObject] = []
     @State private var isCalculating = false
     @State private var errorMessage: String?
     @State private var calculationType = "single" // "single" or "account"
     @State private var dateRangeError: String?
+    @State private var isLoadingStored = false
     
     // State for date range constraints
     @State private var consumptionMinDate: Date?
@@ -629,6 +610,11 @@ struct TariffCalculationsSection: View {
         self._selectedTariffCode = selectedTariffCode
         self.context = PersistenceController.shared.container.viewContext
         self.repository = TariffCalculationRepository(context: self.context)
+    }
+    
+    // Helper to normalize dates to start of day
+    private func normalizeToStartOfDay(_ date: Date) -> Date {
+        return Calendar.current.startOfDay(for: date)
     }
     
     // Helper to decode account data
@@ -658,14 +644,17 @@ struct TariffCalculationsSection: View {
                             .foregroundColor(.secondary)
                         DatePicker(
                             "Start Date",
-                            selection: $startDate,
+                            selection: Binding(
+                                get: { startDate },
+                                set: { newValue in
+                                    startDate = normalizeToStartOfDay(newValue)
+                                    validateDateRange()
+                                }
+                            ),
                             in: getStartDateRange(),
                             displayedComponents: [.date]
                         )
                         .labelsHidden()
-                        .onChange(of: startDate) { _, newValue in
-                            validateDateRange()
-                        }
                     }
                     
                     HStack {
@@ -673,14 +662,17 @@ struct TariffCalculationsSection: View {
                             .foregroundColor(.secondary)
                         DatePicker(
                             "End Date",
-                            selection: $endDate,
+                            selection: Binding(
+                                get: { endDate },
+                                set: { newValue in
+                                    endDate = normalizeToStartOfDay(newValue)
+                                    validateDateRange()
+                                }
+                            ),
                             in: getEndDateRange(),
                             displayedComponents: [.date]
                         )
                         .labelsHidden()
-                        .onChange(of: endDate) { _, newValue in
-                            validateDateRange()
-                        }
                     }
                 }
                 
@@ -691,22 +683,42 @@ struct TariffCalculationsSection: View {
                         .font(.caption)
                 }
                 
-                // Calculate Button
-                Button(action: {
-                    Task {
-                        await calculateCosts()
-                    }
-                }) {
-                    HStack {
-                        if isCalculating {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
+                // Action Buttons
+                HStack {
+                    // Calculate Button
+                    Button(action: {
+                        Task {
+                            await calculateCosts()
                         }
-                        Text(calculationType == "single" ? "Calculate Single Tariff" : "Calculate Account Costs")
+                    }) {
+                        HStack {
+                            if isCalculating {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            }
+                            Text(calculationType == "single" ? "Calculate Single Tariff" : "Calculate Account Costs")
+                        }
                     }
+                    .buttonStyle(.bordered)
+                    .disabled(isCalculating || (calculationType == "single" && selectedTariffCode == nil) || dateRangeError != nil)
+                    
+                    // Load Stored Button
+                    Button(action: {
+                        Task {
+                            await loadStoredCalculation()
+                        }
+                    }) {
+                        HStack {
+                            if isLoadingStored {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            }
+                            Text("Load Stored")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isLoadingStored || (calculationType == "single" && selectedTariffCode == nil) || (calculationType == "account" && accountResponse == nil))
                 }
-                .buttonStyle(.bordered)
-                .disabled(isCalculating || (calculationType == "single" && selectedTariffCode == nil) || dateRangeError != nil)
                 
                 // Requirements Notice
                 if calculationType == "single" && selectedTariffCode == nil {
@@ -790,8 +802,12 @@ struct TariffCalculationsSection: View {
         do {
             let records = try await consumptionRepo.fetchAllRecords()
             await MainActor.run {
-                consumptionMinDate = records.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
-                consumptionMaxDate = records.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
+                consumptionMinDate = records.compactMap { $0.value(forKey: "interval_start") as? Date }
+                    .min()
+                    .map { normalizeToStartOfDay($0) }
+                consumptionMaxDate = records.compactMap { $0.value(forKey: "interval_end") as? Date }
+                    .max()
+                    .map { normalizeToStartOfDay($0) }
                 validateDateRange()
             }
         } catch {
@@ -823,7 +839,8 @@ struct TariffCalculationsSection: View {
             let products = try await productsRepo.fetchLocalProducts()
             let product = products.first { $0.value(forKey: "code") as? String == productCode }
             await MainActor.run {
-                productAvailableFrom = product?.value(forKey: "available_from") as? Date
+                productAvailableFrom = (product?.value(forKey: "available_from") as? Date)
+                    .map { normalizeToStartOfDay($0) }
                 validateDateRange()
             }
         } catch {
@@ -940,6 +957,79 @@ struct TariffCalculationsSection: View {
         
         await MainActor.run {
             isCalculating = false
+        }
+    }
+    
+    private func loadStoredCalculation() async {
+        isLoadingStored = true
+        errorMessage = nil
+        
+        do {
+            if calculationType == "single" {
+                // Single tariff calculation loading
+                if let tariffCode = selectedTariffCode {
+                    if let stored = try await repository.fetchStoredCalculation(
+                        tariffCode: tariffCode,
+                        intervalType: "CUSTOM",
+                        periodStart: startDate,
+                        periodEnd: endDate
+                    ) {
+                        await MainActor.run {
+                            calculationResults = [stored]
+                        }
+                    } else {
+                        await MainActor.run {
+                            errorMessage = "No stored calculation found for these parameters"
+                        }
+                    }
+                }
+            } else {
+                // Account-based calculation loading
+                if let accountData = accountResponse {
+                    // Get all tariff codes from the account's agreements
+                    var storedResults: [NSManagedObject] = []
+                    
+                    for property in accountData.properties {
+                        if let elecMP = property.electricity_meter_points?.first,
+                           let agreements = elecMP.agreements {
+                            for agreement in agreements {
+                                // Safely unwrap the optional tariff_code
+                                guard let tariffCode = agreement.tariff_code as String? else { continue }
+                                
+                                // Try to load stored calculation for each tariff
+                                if let stored = try await repository.fetchStoredCalculation(
+                                    tariffCode: tariffCode,
+                                    intervalType: "CUSTOM",
+                                    periodStart: startDate,
+                                    periodEnd: endDate
+                                ) {
+                                    storedResults.append(stored)
+                                }
+                            }
+                        }
+                    }
+                    
+                    await MainActor.run {
+                        if storedResults.isEmpty {
+                            errorMessage = "No stored calculations found for account tariffs in this period"
+                        } else {
+                            calculationResults = storedResults
+                        }
+                    }
+                } else {
+                    await MainActor.run {
+                        errorMessage = "No account data available"
+                    }
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Error loading stored calculation: \(error.localizedDescription)"
+            }
+        }
+        
+        await MainActor.run {
+            isLoadingStored = false
         }
     }
 }
