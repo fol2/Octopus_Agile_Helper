@@ -210,14 +210,18 @@ extension GlobalSettings {
 
 // MARK: - Manager (ObservableObject)
 public class GlobalSettingsManager: ObservableObject {
-
+    private var isSaving = false
+    
     @Published public var settings: GlobalSettings {
         didSet {
-            print("DEBUG: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)")
+            guard !isSaving else { return }
+            isSaving = true
+            print("GlobalSettingsManager: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)")
             saveSettings()
             if oldValue.selectedLanguage != settings.selectedLanguage {
                 locale = settings.selectedLanguage.locale
             }
+            isSaving = false
         }
     }
 

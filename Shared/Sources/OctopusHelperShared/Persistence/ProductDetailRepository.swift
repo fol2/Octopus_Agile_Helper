@@ -15,20 +15,20 @@ public final class ProductDetailRepository: ObservableObject {
     /// Fetch detail from API, parse, store into ProductDetailEntity
     @discardableResult
     public func fetchAndStoreProductDetail(productCode: String) async throws -> [NSManagedObject] {
-        print("🔄 开始获取产品详情，产品代码: \(productCode)...")
+        print("fetchAndStoreProductDetail: 🔄 开始获取产品详情，产品代码: \(productCode)...")
         let detailData = try await apiClient.fetchSingleProductDetail(productCode)
-        print("✅ API返回产品详情数据成功")
+        print("fetchAndStoreProductDetail: ✅ API返回产品详情数据成功")
         return try await upsertProductDetail(json: detailData, code: productCode)
     }
 
     /// Load local detail rows for a given code
     public func loadLocalProductDetail(code: String) async throws -> [NSManagedObject] {
-        print("\n🔍 Loading local product detail for code: \(code)")
+        print("loadLocalProductDetail: 🔍 Loading local product detail for code: \(code)")
         return try await context.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
             request.predicate = NSPredicate(format: "code == %@", code)
             let details = try self.context.fetch(request)
-            print("📊 Found \(details.count) product details")
+            print("loadLocalProductDetail: 📊 Found \(details.count) product details")
             
             return details
         }
@@ -243,13 +243,13 @@ public final class ProductDetailRepository: ObservableObject {
     ///   - region: The region code (e.g. "A", "B", "C")
     /// - Returns: The matching tariff code if found, nil otherwise
     public func findTariffCode(productCode: String, region: String) async throws -> String? {
-        print("\n🔍 Finding tariff code for:")
-        print("📦 Product Code: \(productCode)")
-        print("🌍 Region: \(region)")
+        print("findTariffCode: 🔍 Finding tariff code for:")
+        print("findTariffCode: 📦 Product Code: \(productCode)")
+        print("findTariffCode: 🌍 Region: \(region)")
         
         // Load all details for this product
         let details = try await loadLocalProductDetail(code: productCode)
-        print("📊 Found \(details.count) product details")
+        print("findTariffCode: 📊 Found \(details.count) product details")
         
         // Filter by region
         let matchingDetails = details.filter { detail in
@@ -257,14 +257,14 @@ public final class ProductDetailRepository: ObservableObject {
             return detailRegion == region.uppercased()
         }
         
-        print("🎯 Found \(matchingDetails.count) details matching region \(region)")
+        print("findTariffCode: 🎯 Found \(matchingDetails.count) details matching region \(region)")
         
         // Get first matching tariff code
         let tariffCode = matchingDetails.first?.value(forKey: "tariff_code") as? String
         if let code = tariffCode {
-            print("✅ Found matching tariff code: \(code)")
+            print("findTariffCode: ✅ Found matching tariff code: \(code)")
         } else {
-            print("❌ No matching tariff code found")
+            print("findTariffCode: ❌ No matching tariff code found")
         }
         
         return tariffCode

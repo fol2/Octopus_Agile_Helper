@@ -101,24 +101,18 @@ extension Octopus_Agile_HelperApp {
     /// Centralized function to load initial data, matching your #Preview flow.
     private func initializeAppData() async {
         do {
-            // 1) Ensure local Products are synced
-            _ = try await ProductsRepository.shared.syncAllProducts()
-            
-            // 2) Let RatesViewModel detect user's agile product or fallback
+            // 1) Let RatesViewModel detect user's agile product or fallback (includes product sync)
             await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
             
-            // 3) If we already know the agile code, initialize product data
+            // 2) If we already know the agile code, initialize product data
             if !ratesVM.currentAgileCode.isEmpty {
                 await ratesVM.initializeProducts()
             }
             
-            // 4) Mark app as initialized => show main content
+            // 3) Mark app as initialized => show main content
             withAnimation(.easeOut(duration: 0.5)) {
                 isAppInitialized = true
             }
-        } catch {
-            // Handle or log initialization errors as needed
-            print("❌ Error in initializeAppData(): \(error)")
         }
     }
 
@@ -174,7 +168,6 @@ extension Octopus_Agile_HelperApp {
             .task {
                 // Mimic your real app’s initialization
                 do {
-                    _ = try await ProductsRepository.shared.syncAllProducts()
                     await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
                     if !ratesVM.currentAgileCode.isEmpty {
                         await ratesVM.initializeProducts()
@@ -183,8 +176,6 @@ extension Octopus_Agile_HelperApp {
                     withAnimation(.easeOut(duration: 0.5)) {
                         isInitialized = true
                     }
-                } catch {
-                    print("Preview init error: \(error)")
                 }
             }
         }

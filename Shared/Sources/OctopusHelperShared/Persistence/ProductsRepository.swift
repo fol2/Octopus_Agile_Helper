@@ -36,6 +36,9 @@ public final class ProductsRepository: ObservableObject {
         "SILVER-24-10-01"
     ]
 
+    private let lastFetchKey = "ProductsRepository.lastSuccessfulFetch"
+    private let calendar = Calendar.current
+
     // MARK: - Initializer
     private init() {
         // Adjust to your actual persistence setup
@@ -54,25 +57,44 @@ public final class ProductsRepository: ObservableObject {
     /// - Throws: Possible network/decoding errors (OctopusAPIError) or Core Data errors.
     /// - Returns: Array of newly updated/inserted `ProductEntity` as NSManagedObject.
     @discardableResult
-    public func syncAllProducts(brand: String? = nil) async throws -> [NSManagedObject] {
-        print("🔄 开始同步产品数据...")
+    public func syncAllProducts(brand: String? = nil, forceFetch: Bool = false) async throws -> [NSManagedObject] {
+        // First check if we have any products at all
+        let existingProducts = try await fetchLocalProducts()
+        if existingProducts.isEmpty {
+            print("syncAllProducts: ℹ️ No local products found, fetching from API...")
+            // Skip the daily check and proceed with fetch
+        } else {
+            // Check if we've already fetched today
+            if !forceFetch, let lastFetch = UserDefaults.standard.object(forKey: lastFetchKey) as? Date {
+                let isToday = calendar.isDate(lastFetch, inSameDayAs: Date())
+                if isToday {
+                    print("syncAllProducts: ℹ️ Already fetched products today. Using local data...")
+                    return existingProducts
+                }
+            }
+        }
+        
+        print("syncAllProducts: 🔄 开始同步产品数据...")
         // 1) Fetch from the API
         let apiItems = try await apiClient.fetchAllProducts(brand: brand)
-        print("✅ API返回数据数量: \(apiItems.count)")
+        print("syncAllProducts: ✅ API返回数据数量: \(apiItems.count)")
 
         // 2) Upsert them into Core Data
         let finalEntities = try await upsertProducts(apiItems)
-        print("✅ 成功保存到Core Data，最终实体数量: \(finalEntities.count)")
+        print("syncAllProducts: ✅ 成功保存到Core Data，最终实体数量: \(finalEntities.count)")
 
         // 3) After main sync, ensure we have all default products if not in the list
         for defaultProductCode in defaultProductCodes {
             let isProductInAPI = apiItems.contains { $0.code == defaultProductCode }
             if !isProductInAPI {
-                print("ℹ️ Product \(defaultProductCode) not in official list, adding manually...")
+                print("syncAllProducts: ℹ️ Product \(defaultProductCode) not in official list, adding manually...")
                 _ = try await ensureProductExists(productCode: defaultProductCode)
             }
         }
 
+        // Store successful fetch timestamp
+        UserDefaults.standard.set(Date(), forKey: lastFetchKey)
+        
         return finalEntities
     }
 
@@ -125,14 +147,14 @@ public final class ProductsRepository: ObservableObject {
         // 1) Check if it already exists
         let existing = try await fetchLocalProductsByCode(productCode)
         if !existing.isEmpty {
-            print("✅ Product \(productCode) already in local DB, skipping fetch.")
+            print("ensureProductExists: ✅ Product \(productCode) already in local DB, skipping fetch.")
             return existing
         }
 
         // 2) Fetch from API
-        print("🌐 Fetching product details for code: \(productCode)")
+        print("ensureProductExists: 🌐 Fetching product details for code: \(productCode)")
         let detail = try await apiClient.fetchSingleProductDetail(productCode)
-        print("🔄 Upserting product + product detail for code: \(productCode)")
+        print("ensureProductExists: 🔄 Upserting product + product detail for code: \(productCode)")
 
         // 3) Upsert into ProductEntity (like syncAllProducts but for one code)
         let upserted = try await upsertProducts([
