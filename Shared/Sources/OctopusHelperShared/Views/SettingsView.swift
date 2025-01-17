@@ -1085,6 +1085,9 @@ struct RegionLookupView: View {
     @State private var error: String?
     @Binding var lookupError: String?
     
+    // Repository for region lookup
+    private let ratesRepo = RatesRepository.shared
+    
     // Cache for postcode lookup results
     @AppStorage("postcode_region_cache") private var postcodeRegionCacheData: Data = Data()
     @AppStorage("invalid_postcodes") private var invalidPostcodesData: Data = Data()
@@ -1168,6 +1171,15 @@ struct RegionLookupView: View {
             return
         }
         
+        // If it's a single letter between A and P, it's a valid region code
+        if cleanedPostcode.count == 1,
+           let firstChar = cleanedPostcode.first,
+           firstChar >= "A" && firstChar <= "P" {
+            region = cleanedPostcode
+            lookupError = nil
+            return
+        }
+        
         let loadingTask = Task {
             try? await Task.sleep(nanoseconds: 150_000_000)
             if !Task.isCancelled {
@@ -1180,19 +1192,18 @@ struct RegionLookupView: View {
         lookupError = nil
         
         do {
-            let (region, isInvalid) = try await lookupPostcodeRegion(postcode: cleanedPostcode)
-            if isInvalid {
+            if let fetchedRegion = try await ratesRepo.fetchRegionID(for: cleanedPostcode) {
+                self.region = fetchedRegion
+                lookupError = nil
+                var newCache = postcodeRegionCache
+                newCache[cleanedPostcode] = fetchedRegion
+                postcodeRegionCache = newCache
+            } else {
                 lookupError = "Invalid postcode"
                 self.region = nil
                 var newInvalidPostcodes = invalidPostcodes
                 newInvalidPostcodes.insert(cleanedPostcode)
                 invalidPostcodes = newInvalidPostcodes
-            } else if let region = region {
-                self.region = region
-                lookupError = nil
-                var newCache = postcodeRegionCache
-                newCache[cleanedPostcode] = region
-                postcodeRegionCache = newCache
             }
         } catch {
             lookupError = error.localizedDescription
@@ -1201,44 +1212,6 @@ struct RegionLookupView: View {
         
         loadingTask.cancel()
         isLoading = false
-    }
-    
-    private func lookupPostcodeRegion(postcode: String) async throws -> (String?, Bool) {
-        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedPostcode.isEmpty else { return ("H", false) }
-        
-        // If it's a single letter between A and P, it's a valid region code
-        if cleanedPostcode.count == 1,
-           let firstChar = cleanedPostcode.first,
-           firstChar >= "A" && firstChar <= "P" {
-            return (cleanedPostcode, false)
-        }
-        
-        let encoded = cleanedPostcode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-        guard let encodedPostcode = encoded,
-            let url = URL(
-                string:
-                    "https://api.octopus.energy/v1/industry/grid-supply-points/?postcode=\(encodedPostcode)"
-            )
-        else { return ("H", false) }
-        
-        let urlSession = URLSession.shared
-        let (data, response) = try await urlSession.data(for: URLRequest(url: url))
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode)
-        else {
-            return ("H", false)
-        }
-        
-        let supplyPoints = try JSONDecoder().decode(SupplyPointsResponse.self, from: data)
-        if supplyPoints.count == 0 {
-            return (nil, true)  // Indicates invalid postcode
-        }
-        if let first = supplyPoints.results.first {
-            let region = first.group_id.replacingOccurrences(of: "_", with: "")
-            return (region, false)
-        }
-        return ("H", false)
     }
 }
 

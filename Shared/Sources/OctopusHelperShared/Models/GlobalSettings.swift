@@ -124,6 +124,7 @@ public struct GlobalSettings: Codable, Equatable {
     public var selectedLanguage: Language
     public var showRatesInPounds: Bool
     public var cardSettings: [CardConfig]
+    public var currentAgileCode: String  // Non-optional, always has a value
     public var electricityMPAN: String?
     public var electricityMeterSerialNumber: String?
 
@@ -163,6 +164,7 @@ public struct GlobalSettings: Codable, Equatable {
         selectedLanguage: Language,
         showRatesInPounds: Bool,
         cardSettings: [CardConfig],
+        currentAgileCode: String = "",
         electricityMPAN: String? = nil,
         electricityMeterSerialNumber: String? = nil,
         accountNumber: String? = nil,
@@ -173,6 +175,7 @@ public struct GlobalSettings: Codable, Equatable {
         self.selectedLanguage = selectedLanguage
         self.showRatesInPounds = showRatesInPounds
         self.cardSettings = cardSettings
+        self.currentAgileCode = currentAgileCode
         self.electricityMPAN = electricityMPAN
         self.electricityMeterSerialNumber = electricityMeterSerialNumber
         self.accountNumber = accountNumber
@@ -186,6 +189,7 @@ public struct GlobalSettings: Codable, Equatable {
         lhs.selectedLanguage == rhs.selectedLanguage &&
         lhs.showRatesInPounds == rhs.showRatesInPounds &&
         lhs.cardSettings == rhs.cardSettings &&
+        lhs.currentAgileCode == rhs.currentAgileCode &&
         lhs.electricityMPAN == rhs.electricityMPAN &&
         lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber &&
         lhs.accountNumber == rhs.accountNumber &&
@@ -201,6 +205,7 @@ extension GlobalSettings {
         selectedLanguage: .english,
         showRatesInPounds: false,
         cardSettings: [],
+        currentAgileCode: "",
         electricityMPAN: nil,
         electricityMeterSerialNumber: nil,
         accountNumber: nil,
@@ -236,11 +241,9 @@ public class GlobalSettingsManager: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
             let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
         {
-
             // We have existing settings
             self.settings = decoded
             self.locale = decoded.selectedLanguage.locale
-
         } else {
             // 2. No saved settings => use system preferred language
             let matchedLanguage = Language.systemPreferred()
@@ -251,6 +254,7 @@ public class GlobalSettingsManager: ObservableObject {
                 selectedLanguage: matchedLanguage,
                 showRatesInPounds: false,
                 cardSettings: [],
+                currentAgileCode: "",
                 electricityMPAN: nil,
                 electricityMeterSerialNumber: nil,
                 accountNumber: nil,
@@ -323,6 +327,7 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
             sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
+            sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")
             sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
             sharedDefaults?.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
             sharedDefaults?.set(settings.accountNumber, forKey: "account_number")

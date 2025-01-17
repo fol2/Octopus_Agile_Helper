@@ -48,10 +48,13 @@ public final class RatesRepository: ObservableObject {
 
     // MARK: - Public API
 
-    /// New approach: we accept a known link + known tariffCode, with pagination support
-    public func fetchAndStoreRates(tariffCode: String, url: String) async throws {
-        print("\n🔄 Starting rate update for tariff: \(tariffCode)")
-        print("📡 Base URL for fetching rates: \(url)")
+    /// New approach: we accept a tariffCode and use getBaseRateURL to construct the URL, with pagination support
+    public func fetchAndStoreRates(tariffCode: String) async throws {
+        print("fetchAndStoreRates: 🔄 Starting rate update for tariff: \(tariffCode)")
+        
+        // Get base URL using our helper
+        let url = try getBaseRateURL(tariffCode: tariffCode)
+        print("fetchAndStoreRates: 📡 Base URL for fetching rates: \(url)")
         
         // 1. Query local DB state
         let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
@@ -63,27 +66,27 @@ public final class RatesRepository: ObservableObject {
         let localMaxDate = localData.compactMap { $0.value(forKey: "valid_to") as? Date }.max()
         let localCount = localData.count
  
-        print("📊 Local data state:")
-        print("📝 Record count: \(localCount)")
+        print("fetchAndStoreRates: 📊 Local data state:")
+        print("fetchAndStoreRates: 📝 Record count: \(localCount)")
         if let minDate = localMinDate {
-            print("📅 Earliest rate: \(minDate.formatted())")
+            print("fetchAndStoreRates: 📅 Earliest rate: \(minDate.formatted())")
         }
         if let maxDate = localMaxDate {
-            print("📅 Latest rate: \(maxDate.formatted())")
+            print("fetchAndStoreRates: 📅 Latest rate: \(maxDate.formatted())")
         }
  
         // 2. Get server's data range by fetching first and last pages
-        print("\n🔍 Fetching first page to determine server data range")
+        print("fetchAndStoreRates: 🔍 Fetching first page to determine server data range")
         let firstPageResponse = try await apiClient.fetchTariffRates(url: url)
         let totalRecordsOnServer = firstPageResponse.totalCount
         if totalRecordsOnServer == 0 { 
-            print("❌ No rates available on server")
+            print("fetchAndStoreRates: ❌ No rates available on server")
             return 
         }
         
         let recordsPerPage = 100 // Octopus API standard
         let totalPages = Int(ceil(Double(totalRecordsOnServer) / Double(recordsPerPage)))
-        print("📊 Total pages available: \(totalPages)")
+        print("fetchAndStoreRates: 📊 Total pages available: \(totalPages)")
  
         // Get last page to determine full date range
         let lastPageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(totalPages)"
@@ -91,57 +94,50 @@ public final class RatesRepository: ObservableObject {
         
         guard let serverNewestRate = firstPageResponse.results.first,
               let serverOldestRate = lastPageResponse.results.last else {
-            print("❌ Could not determine server data range")
+            print("fetchAndStoreRates: ❌ Could not determine server data range")
             return
         }
  
-        print("\n📅 Server data range:")
-        print("📅 Newest rate: \(serverNewestRate.valid_to.formatted())")
-        print("📅 Oldest rate: \(serverOldestRate.valid_from.formatted())")
+        print("fetchAndStoreRates: 📅 Server data range:")
+        print("fetchAndStoreRates: 📅 Newest rate: \(serverNewestRate.valid_to.formatted())")
+        print("fetchAndStoreRates: 📅 Oldest rate: \(serverOldestRate.valid_from.formatted())")
  
         // 3. Determine what data we need to fetch
-        var needNewerData = false
-        var needOlderData = false
- 
-        if let localMax = localMaxDate {
-            needNewerData = serverNewestRate.valid_to > localMax
-            print("\n🔄 Need newer data: \(needNewerData)")
-            if needNewerData {
-                print("⏰ Server has \(serverNewestRate.valid_to.timeIntervalSince(localMax) / 3600) hours of newer rates")
-            }
-        } else {
+        var needNewerData = localMaxDate == nil || serverNewestRate.valid_to > localMaxDate!
+        var needOlderData = localMinDate == nil || serverOldestRate.valid_from < localMinDate!
+        
+        print("fetchAndStoreRates: 🔍 Analyzing data requirements:")
+        if localCount == 0 {
+            print("fetchAndStoreRates: 📝 CoreData is empty - optimizing to forward-only pagination")
+            // Only optimize for truly empty CoreData
             needNewerData = true
-            print("\n🔄 No local data, need newer data: true")
-        }
- 
-        if let localMin = localMinDate {
-            needOlderData = serverOldestRate.valid_from < localMin
-            print("🔄 Need older data: \(needOlderData)")
-            if needOlderData {
-                print("⏰ Server has \(localMin.timeIntervalSince(serverOldestRate.valid_from) / 3600) hours of older rates")
-            }
+            needOlderData = false
         } else {
-            needOlderData = true
-            print("🔄 No local data, need older data: true")
-        }
- 
-        if !needNewerData && !needOlderData {
-            print("\n🔍 Local data covers the entire server range, checking for gaps")
-            if let localMin = localMinDate,
-               let localMax = localMaxDate,
-               hasMissingRecords(from: localMin, to: localMax, localData: localData) {
-                print("🕳️ Found gaps in local data, will fetch full range")
-                needNewerData = true
-                needOlderData = true
-            } else {
-                print("✅ No gaps found, data is complete")
-                return
+            // We have some data, let's be explicit about what we need
+            if needNewerData {
+                print("fetchAndStoreRates: 📥 Need newer data: Server has newer rates until \(serverNewestRate.valid_to.formatted())")
+            }
+            if needOlderData {
+                print("fetchAndStoreRates: 📥 Need older data: Server has older rates from \(serverOldestRate.valid_from.formatted())")
+            }
+            if !needNewerData && !needOlderData {
+                print("fetchAndStoreRates: 🔍 Local data covers the entire server range, checking for gaps")
+                if let localMin = localMinDate,
+                   let localMax = localMaxDate,
+                   hasMissingRecords(from: localMin, to: localMax, localData: localData) {
+                    print("fetchAndStoreRates: 🕳️ Found gaps in local data, will fetch full range")
+                    needNewerData = true
+                    needOlderData = true
+                } else {
+                    print("fetchAndStoreRates: ✅ No gaps found, data is complete")
+                    return
+                }
             }
         }
  
         // 4. Process newest data first (page 1 onwards) if needed
         if needNewerData {
-            print("\n📥 Fetching newer data (forward pagination)")
+            print("fetchAndStoreRates: 📥 Fetching newer data (forward pagination)")
             var currentPage = 1
             var hasMore = true
             
@@ -156,7 +152,7 @@ public final class RatesRepository: ObservableObject {
                        oldestInPage.valid_to <= localMax {
                         // Only store records newer than our local max
                         let newRecords = pageResponse.results.filter { $0.valid_to > localMax }
-                        print("📥 Found \(newRecords.count) new rates in page \(currentPage)")
+                        print("fetchAndStoreRates: 📥 Found \(newRecords.count) new rates in page \(currentPage)")
                         if !newRecords.isEmpty {
                             try await upsertRates(newRecords, tariffCode: tariffCode)
                         }
@@ -164,42 +160,42 @@ public final class RatesRepository: ObservableObject {
                         break
                     }
                     
-                    print("💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
+                    print("fetchAndStoreRates: 💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
                     try await upsertRates(pageResponse.results, tariffCode: tariffCode)
                     hasMore = pageResponse.results.count == recordsPerPage
                 } else {
                     // Store first page results
-                    print("💾 Storing \(firstPageResponse.results.count) rates from first page")
+                    print("fetchAndStoreRates: 💾 Storing \(firstPageResponse.results.count) rates from first page")
                     try await upsertRates(firstPageResponse.results, tariffCode: tariffCode)
                     hasMore = firstPageResponse.results.count == recordsPerPage
                 }
                 currentPage += 1
             }
-            print("✅ Completed forward pagination")
+            print("fetchAndStoreRates: ✅ Completed forward pagination")
         }
  
         // 5. Process older data if needed
         if needOlderData {
-            print("\n📥 Fetching older data (backward pagination)")
+            print("fetchAndStoreRates: 📥 Fetching older data (backward pagination)")
             var currentPage = totalPages
             var hasMore = true
             
             while hasMore && currentPage > 1 {
                 if currentPage == totalPages {
                     // We already have the last page response
-                    print("💾 Storing \(lastPageResponse.results.count) rates from last page")
+                    print("fetchAndStoreRates: 💾 Storing \(lastPageResponse.results.count) rates from last page")
                     try await upsertRates(lastPageResponse.results, tariffCode: tariffCode)
                 } else {
                     let pageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
                     let pageResponse = try await apiClient.fetchTariffRates(url: pageUrl)
-                    print("💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
+                    print("fetchAndStoreRates:  💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
                     try await upsertRates(pageResponse.results, tariffCode: tariffCode)
                 }
                 currentPage -= 1
                 hasMore = currentPage > 1
-                print("📄 Moving to page \(currentPage)")
+                print("fetchAndStoreRates: 📄 Moving to page \(currentPage)")
             }
-            print("✅ Completed backward pagination")
+            print("fetchAndStoreRates: ✅ Completed backward pagination")
         }
  
         // Final status
@@ -208,11 +204,11 @@ public final class RatesRepository: ObservableObject {
             req.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
             return try self.context.fetch(req)
         }
-        print("\n✅ Rate update complete")
-        print("📊 Final record count: \(finalData.count)")
+        print("fetchAndStoreRates: ✅ Rate update complete")
+        print("fetchAndStoreRates: 📊 Final record count: \(finalData.count)")
         if let minDate = finalData.compactMap({ $0.value(forKey: "valid_from") as? Date }).min(),
            let maxDate = finalData.compactMap({ $0.value(forKey: "valid_to") as? Date }).max() {
-            print("📅 Final date range: \(minDate.formatted()) to \(maxDate.formatted())")
+            print("fetchAndStoreRates: 📅 Final date range: \(minDate.formatted()) to \(maxDate.formatted())")
         }
     }
 
@@ -367,29 +363,6 @@ public final class RatesRepository: ObservableObject {
         }
     }
 
-    // MARK: - Additional "Agile" aggregator logic
-    //   (some apps put these in the ViewModel, but you can keep them here.)
-
-    /// Dedicated function for fetching and storing Agile rates
-    /// - Parameters:
-    ///   - productCode: Optional product code. If nil, will be derived from tariffCode
-    ///   - tariffCode: Full tariff code (e.g. "E-1R-AGILE-24-04-03-H")
-    public func fetchAndStoreAgileRates(productCode: String? = nil, tariffCode: String) async throws {
-        print("\n🔄 Starting Agile rate update:")
-        if let code = productCode {
-            print("📦 Product: \(code)")
-        }
-        print("🏷️ Tariff: \(tariffCode)")
-        
-        // Fetch rates using the dedicated Agile function
-        let rates = try await apiClient.fetchAgileRates(productCode: productCode, tariffCode: tariffCode)
-        
-        // Store the rates
-        print("💾 Storing \(rates.count) Agile rates...")
-        try await upsertRates(rates, tariffCode: tariffCode)
-        print("✅ Agile rates update complete\n")
-    }
-
     /// Return the "lowest upcoming rate" from now onward.
     public func lowestUpcomingRate() async throws -> NSManagedObject? {
         let now = Date()
@@ -463,9 +436,14 @@ public final class RatesRepository: ObservableObject {
         tariffCode: String,
         pastHours: Int = 21  // 42 rates × 30min
     ) async throws -> [NSManagedObject] {
-        try await context.perform {
+        print("fetchRatesForTimeWindow: 📊 fetchRatesForTimeWindow: Starting fetch for tariff \(tariffCode), past hours: \(pastHours)")
+        return try await context.perform {
             let now = Date()
             let pastBoundary = now.addingTimeInterval(-Double(pastHours) * 3600)
+            
+            print("fetchRatesForTimeWindow: 📅 Time window")
+            print("   • Now: \(now.formatted())")
+            print("   • Past boundary: \(pastBoundary.formatted())")
             
             let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
             req.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
@@ -476,6 +454,17 @@ public final class RatesRepository: ObservableObject {
             req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
             
             let list = try self.context.fetch(req)
+            print("fetchRatesForTimeWindow: ✅ Found \(list.count) rates")
+            
+            // Log first and last rate timestamps if available
+            if let firstRate = list.first,
+               let lastRate = list.last,
+               let firstValidFrom = firstRate.value(forKey: "valid_from") as? Date,
+               let lastValidFrom = lastRate.value(forKey: "valid_from") as? Date {
+                print("fetchRatesForTimeWindow:   • First rate from: \(firstValidFrom.formatted())")
+                print("fetchRatesForTimeWindow:   • Last rate from: \(lastValidFrom.formatted())")
+            }
+            
             return list
         }
     }
@@ -500,5 +489,29 @@ public final class RatesRepository: ObservableObject {
             let list = try self.context.fetch(request)
             return list
         }
+    }
+
+    /// Translates a tariff code to its base rate URL
+    /// - Parameters:
+    ///   - tariffCode: Full tariff code (e.g. "E-1R-AGILE-24-04-03-H")
+    ///   - productCode: Optional product code. If nil, will be derived from tariffCode
+    /// - Returns: Complete base URL for fetching rates
+    /// - Throws: OctopusAPIError if tariff code is invalid
+    private func getBaseRateURL(tariffCode: String, productCode: String? = nil) throws -> String {
+        // Determine product code
+        let effectiveProductCode: String
+        if let providedCode = productCode {
+            effectiveProductCode = providedCode
+        } else {
+            // Extract product code from tariff code (e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03")
+            let parts = tariffCode.components(separatedBy: "-")
+            guard parts.count >= 6 else {
+                throw OctopusAPIError.invalidTariffCode
+            }
+            effectiveProductCode = parts[2...5].joined(separator: "-")
+        }
+        
+        // Construct the rates URL using OctopusAPIClient's base URL
+        return "\(apiClient.apiBaseURL)/products/\(effectiveProductCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/"
     }
 }

@@ -10,12 +10,17 @@ import Foundation
 import SwiftUI
 
 extension RatesRepository {
-    /// Attempts to fetch the user’s electricity region from the provided postcode.
-    /// - Parameter postcode: The user’s postcode. Fallback to `'H'` if empty or invalid.
+    /// Attempts to fetch the user's electricity region from the provided postcode.
+    /// - Parameter postcode: The user's postcode. Fallback to `'H'` if empty or invalid.
     /// - Returns: A region ID string like "H" or "L".
     /// - Throws: Network or decoding errors. Retries on `.cancelled` up to `maxRetries`.
     public func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
-        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Clean the postcode: trim whitespace, remove all spaces, convert to uppercase
+        let cleanedPostcode = postcode
+            .trimmingCharacters(in: .whitespacesAndNewlines)  // Trim leading/trailing whitespace
+            .replacingOccurrences(of: " ", with: "")  // Remove all spaces
+            .uppercased()  // Convert to uppercase
+        
         guard !cleanedPostcode.isEmpty else { return "H" }
 
         // MARK: - Networking

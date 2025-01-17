@@ -133,10 +133,9 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             // Get product detail to get link and tariff code
             let details = try await productDetailRepository.loadLocalProductDetail(code: agileCode)
             if let detail = details.first,
-               let tCode = detail.value(forKey: "tariff_code") as? String,
-               let link = detail.value(forKey: "link_rate") as? String {
+               let tCode = detail.value(forKey: "tariff_code") as? String {
                 print("WIDGET: Fetching rates for tariff code: \(tCode)")
-                try await repo.fetchAndStoreRates(tariffCode: tCode, url: link)
+                try await repo.fetchAndStoreRates(tariffCode: tCode)
             } else {
                 print("WIDGET: No product details found for code: \(agileCode)")
             }

@@ -133,7 +133,10 @@ struct TestView: View {
                 // 5. Tariff Calculations Testing
                 TariffCalculationsSection(selectedTariffCode: $selectedTariffCode)
 
-                // 6. Settings Overview
+                // 6. Rates Time Window Testing
+                RatesTimeWindowTestSection()
+
+                // 7. Settings Overview
                 SettingsOverviewSection()
             }
             .listStyle(.insetGrouped)
@@ -149,6 +152,8 @@ struct TestView: View {
             }
             .onAppear {
                 print("Debug - TestView appeared")
+                print("Debug - GlobalSettings exists: \(String(describing: _globalSettings))")
+                print("Debug - Current AGILE Code in settings: \(globalSettings.settings.currentAgileCode)")
                 globalTimer.startTimer()
                 Task {
                     print("Debug - Starting initialization")
@@ -1549,18 +1554,178 @@ struct RecordView: View {
     }
 }
 
+// MARK: - RatesTimeWindowTestSection
+struct RatesTimeWindowTestSection: View {
+    @EnvironmentObject private var globalSettings: GlobalSettingsManager
+    @EnvironmentObject private var ratesViewModel: RatesViewModel
+    @State private var pastHours: Int = 21
+    @State private var timeWindowRates: [NSManagedObject] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var isSettingAgile = false
+    
+    private let repository = RatesRepository.shared
+    
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                // Debug Info
+                Group {
+                    Text("Debug Info:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("• Has AGILE Code: \(!globalSettings.settings.currentAgileCode.isEmpty)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("• AGILE Code: '\(globalSettings.settings.currentAgileCode)'")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("• Is Loading: \(isLoading)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("• RatesVM AGILE Code: '\(ratesViewModel.currentAgileCode)'")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Set AGILE Button
+                Button(action: {
+                    Task {
+                        isSettingAgile = true
+                        await ratesViewModel.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                        isSettingAgile = false
+                    }
+                }) {
+                    HStack {
+                        if isSettingAgile {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                        Text("Set AGILE Product")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSettingAgile)
+                
+                Divider()
+                
+                // Past Hours Stepper
+                Stepper(value: $pastHours, in: 1...48) {
+                    Text("Past Hours: \(pastHours)")
+                        .font(.subheadline)
+                }
+                
+                // Current AGILE Code Display
+                Text("Using AGILE Code: \(globalSettings.settings.currentAgileCode)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                // Fetch Button
+                Button(action: {
+                    Task {
+                        await fetchTimeWindowRates()
+                    }
+                }) {
+                    HStack {
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                        Text("Fetch Time Window Rates")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoading || globalSettings.settings.currentAgileCode.isEmpty)
+                
+                // Error Message
+                if let error = errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+                
+                // Results
+                if !timeWindowRates.isEmpty {
+                    Divider()
+                    
+                    Text("Found \(timeWindowRates.count) rates")
+                        .font(.headline)
+                        .padding(.vertical, 4)
+                    
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(timeWindowRates.indices, id: \.self) { index in
+                                let rate = timeWindowRates[index]
+                                if let validFrom = rate.value(forKey: "valid_from") as? Date,
+                                   let valueInc = rate.value(forKey: "value_including_vat") as? Double {
+                                    HStack {
+                                        Text(validFrom.formatted(date: .omitted, time: .shortened))
+                                        Spacer()
+                                        Text(String(format: "%.2fp", valueInc))
+                                            .bold()
+                                    }
+                                    .font(.caption)
+                                    
+                                    if index < timeWindowRates.count - 1 {
+                                        Divider()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 200)
+                }
+            }
+            .padding(.vertical, 8)
+        } header: {
+            Text("Time Window Test")
+                .font(Theme.subFont())
+                .foregroundStyle(Theme.secondaryTextColor)
+                .textCase(.none)
+        }
+    }
+    
+    private func fetchTimeWindowRates() async {
+        isLoading = true
+        errorMessage = nil
+        timeWindowRates = []
+        
+        do {
+            let rates = try await repository.fetchRatesForTimeWindow(
+                tariffCode: globalSettings.settings.currentAgileCode,
+                pastHours: pastHours
+            )
+            await MainActor.run {
+                timeWindowRates = rates
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Error: \(error.localizedDescription)"
+            }
+        }
+        
+        await MainActor.run {
+            isLoading = false
+        }
+    }
+}
+
 // MARK: - Previews
 struct TestView_Previews: PreviewProvider {
+    static let globalTimer = GlobalTimer()
+    static let globalSettings: GlobalSettingsManager = {
+        let settings = GlobalSettingsManager()
+        settings.settings.currentAgileCode = "E-1R-AGILE-FLEX-22-11-25-H"
+        return settings
+    }()
+    static let ratesViewModel = RatesViewModel(globalTimer: globalTimer)
+    
     static var previews: some View {
-        let globalTimer = GlobalTimer()
-        let globalSettings = GlobalSettingsManager()
-        let ratesViewModel = RatesViewModel(globalTimer: globalTimer)
-        
         TestView(ratesViewModel: ratesViewModel)
             .environment(
                 \.managedObjectContext, PersistenceController.preview.container.viewContext
             )
             .environmentObject(globalSettings)
-            .environmentObject(ratesViewModel)  // Also inject at preview level
+            .environmentObject(ratesViewModel)
     }
 }

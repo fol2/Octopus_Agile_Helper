@@ -405,7 +405,7 @@ public final class RatesViewModel: ObservableObject {
             }
             
             // Now fetch rates
-            try await repository.fetchAndStoreRates(tariffCode: tCode, url: link)
+            try await repository.fetchAndStoreRates(tariffCode: tCode)
             let freshRates = try await repository.fetchAllRates()
             
             // Filter rates for this tariff code
@@ -463,7 +463,7 @@ public final class RatesViewModel: ObservableObject {
             
             if localRates.isEmpty {
                 print("initializeProducts: 🔄 No local rates found, fetching from API...")
-                try await repository.fetchAndStoreAgileRates(tariffCode: currentAgileCode)
+                try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
                 state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
             } else {
                 // Check if we need to fetch new rates based on UK time requirements
@@ -487,7 +487,7 @@ public final class RatesViewModel: ObservableObject {
                 
                 if isAfter4PMUK && !hasSufficientData {
                     print("initializeProducts: 🔄 After 4PM UK time and insufficient data range, fetching from API...")
-                    try await repository.fetchAndStoreAgileRates(tariffCode: currentAgileCode)
+                    try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
                     state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
                 } else {
                     print("initializeProducts: 📝 Using \(localRates.count) local rates")
@@ -573,7 +573,7 @@ public final class RatesViewModel: ObservableObject {
             productStates[tariffCode] = state
             
             // Fetch both rates and standing charges
-            async let ratesTask = repository.fetchAndStoreRates(tariffCode: tCode, url: rateLink)
+            async let ratesTask = repository.fetchAndStoreRates(tariffCode: tCode)
             async let standingChargesTask = repository.fetchAndStoreStandingCharges(tariffCode: tCode, url: standingChargeLink)
             
             // Wait for both to complete
@@ -736,7 +736,10 @@ public final class RatesViewModel: ObservableObject {
         if let newTariffCode = await findTariffCodeInAccount(globalSettings: globalSettings) {
             if newTariffCode != currentAgileCode {
                 print("setAgileProductFromAccountOrFallback: 🔍 Found new active Agile tariff in account: \(newTariffCode)")
-                currentAgileCode = newTariffCode
+                await MainActor.run {
+                    currentAgileCode = newTariffCode
+                    globalSettings.settings.currentAgileCode = newTariffCode
+                }
                 return
             }
             print("setAgileProductFromAccountOrFallback: 🔍 Account has same active Agile tariff, keeping current")
@@ -751,37 +754,28 @@ public final class RatesViewModel: ObservableObject {
         let newRegion = globalSettings.settings.effectiveRegion
         if newRegion != cachedRegionUsedLastTime {
             print("setAgileProductFromAccountOrFallback: 🔍 Region changed from \(cachedRegionUsedLastTime) to \(newRegion), clearing currentAgileCode for fallback")
-            currentAgileCode = ""
+            await MainActor.run {
+                currentAgileCode = ""
+                globalSettings.settings.currentAgileCode = ""
+            }
             cachedRegionUsedLastTime = newRegion
         }
         
         // If we still have a valid code for current region, keep it
         if !currentAgileCode.isEmpty && currentAgileCode.contains("AGILE") {
             print("setAgileProductFromAccountOrFallback: 🔍 Keeping existing valid AGILE code for current region")
+            // Sync the codes if they're different
+            if currentAgileCode != globalSettings.settings.currentAgileCode {
+                await MainActor.run {
+                    globalSettings.settings.currentAgileCode = currentAgileCode
+                }
+            }
             return
         }
         
         // Last resort - try fallback
         print("setAgileProductFromAccountOrFallback: 🔍 No valid current code, trying fallback")
         await applyFallbackTariffCode(globalSettings: globalSettings, sharedDefaults: sharedDefaults)
-    }
-
-    // MARK: - Helper Methods
-
-    /// Attempt to decode the user's account data and find an active agile tariff code.
-    private func findTariffCodeInAccount(
-        globalSettings: GlobalSettingsManager
-    ) async -> String? {
-        guard
-            let accountData = globalSettings.settings.accountData,
-            !accountData.isEmpty,
-            let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
-            let matchedAgreement = tryFindActiveAgileAgreement(in: account)
-        else {
-            return nil
-        }
-
-        return matchedAgreement.tariff_code
     }
 
     /// Apply the fallback tariff code from the local DB if available, otherwise fetch from API.
@@ -817,7 +811,10 @@ public final class RatesViewModel: ObservableObject {
             }
 
             print("applyFallbackTariffCode: ✅ Found tariff code: \(tariffCode)")
-            currentAgileCode = tariffCode
+            await MainActor.run {
+                currentAgileCode = tariffCode
+                globalSettings.settings.currentAgileCode = tariffCode
+            }
 
             // Store for widget access
             sharedDefaults?.set(tariffCode, forKey: "agile_code_for_widget")
@@ -871,5 +868,23 @@ public final class RatesViewModel: ObservableObject {
         }
         
         return true
+    }
+
+    // MARK: - Helper Methods
+
+    /// Attempt to decode the user's account data and find an active agile tariff code.
+    private func findTariffCodeInAccount(
+        globalSettings: GlobalSettingsManager
+    ) async -> String? {
+        guard
+            let accountData = globalSettings.settings.accountData,
+            !accountData.isEmpty,
+            let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
+            let matchedAgreement = tryFindActiveAgileAgreement(in: account)
+        else {
+            return nil
+        }
+
+        return matchedAgreement.tariff_code
     }
 }
