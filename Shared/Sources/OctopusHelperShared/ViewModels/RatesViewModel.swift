@@ -83,6 +83,7 @@ public final class RatesViewModel: ObservableObject {
     @Published public var currentAgileCode: String = ""
     @Published public var fetchStatus: ProductFetchStatus = .none
     @Published public var productStates: [String: ProductRatesState] = [:]
+    private var cachedRegionUsedLastTime: String = ""
 
     // If you want a single array that merges all products, you can compute it on the fly
     public var allRatesMerged: [NSManagedObject] {
@@ -449,6 +450,11 @@ public final class RatesViewModel: ObservableObject {
     private func handleTimerTick(_ now: Date) {
         // For each product in productStates, re-filter upcoming
         for (code, var state) in productStates {
+            // 2) Skip if productCode is empty (avoid repeated tries with no code)
+            if code.isEmpty {
+                continue
+            }
+
             state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
             
             // Check if we should attempt a refresh
@@ -567,69 +573,56 @@ public final class RatesViewModel: ObservableObject {
     // MARK: - Public Methods
 
     /// Initialize local state for multiple products. Usually called at launch.
-    public func initializeProducts(_ codes: [String]) async {
-        print("\n🔍 Starting initializeProducts for \(codes)")
+    public func initializeProducts() async {
+        print("\n🔍 Starting initializeProducts")
         self.fetchStatus = .fetching
         
         do {
-            for code in codes {
-                // First try to get details by tariff code directly
-                var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: code)
-                
-                if details.isEmpty {
-                    details = try await productDetailRepository.loadLocalProductDetail(code: code)
-                }
-                
-                if details.isEmpty {
-                    details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: code)
-                }
-                
-                let effectiveRegion = GlobalSettingsManager().settings.effectiveRegion.uppercased()
-                
-                let filteredDetails = details.filter { detail in
-                    let detailRegion = detail.value(forKey: "region") as? String
-                    return detailRegion == effectiveRegion
-                }
-                
-                guard let detail = (filteredDetails.isEmpty ? details.first : filteredDetails.first),
-                      let tariffCode = detail.value(forKey: "tariff_code") as? String,
-                      let rateLink = detail.value(forKey: "link_rate") as? String else {
-                    continue  // Skip this code and try the next one
-                }
-                
-                // Initialize state
-                if productStates[tariffCode] == nil {
-                    productStates[tariffCode] = ProductRatesState()
-                }
-                
-                // Set loading state and trigger refresh
-                await refreshRatesForProduct(productCode: tariffCode, now: Date())
+            // Skip if we don't have a valid tariff code
+            guard !currentAgileCode.isEmpty else {
+                print("⚠️ No valid tariff code available, skipping initialization")
+                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No valid tariff code"]))
+                return
             }
             
-            // Only set done if we have at least one successful product
-            if productStates.values.contains(where: { $0.fetchStatus == .done }) {
-                self.fetchStatus = .done
+            print("📦 Initializing product state for: \(currentAgileCode)")
+            
+            // Initialize or get existing product state
+            var state = productStates[currentAgileCode] ?? ProductRatesState()
+            
+            // Try loading from local storage first
+            let localRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
+            
+            if localRates.isEmpty {
+                print("🔄 No local rates found, fetching from API...")
+                try await repository.fetchAndStoreAgileRates(tariffCode: currentAgileCode)
+                state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
+            } else {
+                print("📝 Using \(localRates.count) local rates")
+                state.allRates = localRates
             }
-            // Keep fetching if any are still loading
-            else if productStates.values.contains(where: { $0.isLoading }) {
-                self.fetchStatus = .fetching
-            }
-            // Otherwise set to failed
-            else {
-                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No products initialized successfully"]))
-            }
+            
+            // Update upcoming rates
+            state.upcomingRates = filterUpcoming(rates: state.allRates, now: Date())
+            
+            // Store the updated state
+            productStates[currentAgileCode] = state
+            
+            self.fetchStatus = .done
             
         } catch {
-            print("❌ Error in initializeProducts: \(error)")
-            // Only set failed if we have no successful products
-            if !productStates.values.contains(where: { $0.fetchStatus == .done }) {
-                self.fetchStatus = .failed(error)
-            }
+            print("❌ Error initializing products: \(error)")
+            self.fetchStatus = .failed(error)
         }
     }
 
     /// Public method to refresh rates for a single product
     public func refreshRates(productCode: String, force: Bool = false) async {
+        // 1) Skip if productCode is empty
+        guard !productCode.isEmpty else {
+            print("⚠️ Skipping refreshRates: product code is empty")
+            return
+        }
         print("开始刷新费率数据 (自动) - 产品代码: \(productCode)")
         print("强制刷新: \(force ? "是" : "否")")
         var state = productStates[productCode] ?? ProductRatesState()
@@ -694,8 +687,8 @@ public final class RatesViewModel: ObservableObject {
             try await (ratesTask, standingChargesTask)
             
             // Get fresh rates and standing charges
-            let freshRates = try await repository.fetchAllRates()
-            let freshStandingCharges = try await repository.fetchAllStandingCharges()
+            let freshRates = try await repository.fetchRatesByTariffCode(tariffCode)
+            let freshStandingCharges = try await repository.fetchStandingChargesByTariffCode(tariffCode)
             
             state.allRates = freshRates.filter { rate in
                 (rate.value(forKey: "tariff_code") as? String) == tariffCode
@@ -836,48 +829,102 @@ public final class RatesViewModel: ObservableObject {
         }
     }
 
-    // NEW: Called at app startup or whenever account might have changed
-    // Checks user's accountData for an active agile agreement code, else fallback
-    public func setAgileProductFromAccountOrFallback(globalSettings: GlobalSettingsManager) async {
+    /// Called at app startup or whenever account might have changed.
+    /// Checks user's `accountData` for an active agile agreement code, else falls back.
+    public func setAgileProductFromAccountOrFallback(
+        globalSettings: GlobalSettingsManager
+    ) async {
+        print("DEBUG: Starting setAgileProductFromAccountOrFallback")
         let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-        
-        // If we already have a full tariff code stored (e.g. from widget), just use it
-        // Full codes look like "E-1R-AGILE-24-04-03-H"
-        if !currentAgileCode.isEmpty && currentAgileCode.contains("AGILE") {
-            // If region changed or account changed, we might need to re-locate the code
-            // but we only do that on request from external calls like contentView onChange
-            // to avoid unexpected re-locations here
+        print("DEBUG: Current Agile code: \(currentAgileCode)")
+
+        // Check if region has changed
+        let newRegion = globalSettings.settings.effectiveRegion
+        if newRegion != cachedRegionUsedLastTime {
+            print("DEBUG: region changed from \(cachedRegionUsedLastTime) to \(newRegion), clearing currentAgileCode")
+            currentAgileCode = ""
+            cachedRegionUsedLastTime = newRegion
+        }
+
+        // 1) Exit early if we already have a valid 'AGILE' code
+        guard currentAgileCode.isEmpty || !currentAgileCode.contains("AGILE") else {
+            print("DEBUG: Exiting early - valid AGILE code already exists")
             return
         }
-        
-        // First check if account data has an active Agile agreement
-        if let accountData = globalSettings.settings.accountData,
-           !accountData.isEmpty,
-           let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
-           let matchedAgreement = tryFindActiveAgileAgreement(in: account) {
-            // Use the full tariff code but ensure it has the correct region
-            let region = globalSettings.settings.effectiveRegion
-            let components = matchedAgreement.tariff_code.split(separator: "-")
-            if components.count > 1 {
-                let baseCode = components.dropLast().joined(separator: "-")
-                currentAgileCode = "\(baseCode)-\(region)"
-            } else {
-                currentAgileCode = matchedAgreement.tariff_code
-            }
+
+        // 2) Try fetching from the account data
+        print("DEBUG: Attempting to fetch tariff code from account")
+        if let tariffCode = await findTariffCodeInAccount(globalSettings: globalSettings) {
+            print("DEBUG: Found tariff code in account: \(tariffCode)")
+            currentAgileCode = tariffCode
             return
         }
-        
-        // Finally, try fallback from local DB
-        if let fallbackCode = await fallbackAgileCodeFromProductEntity() {
-            // Ensure fallback code has correct region
-            let region = globalSettings.settings.effectiveRegion
-            let components = fallbackCode.split(separator: "-")
-            if components.count > 1 {
-                let baseCode = components.dropLast().joined(separator: "-")
-                currentAgileCode = "\(baseCode)-\(region)"
-            } else {
-                currentAgileCode = fallbackCode
+        print("DEBUG: No tariff code found in account")
+
+        // 3) If no tariff code in account, use fallback
+        print("DEBUG: Applying fallback tariff code")
+        await applyFallbackTariffCode(globalSettings: globalSettings, sharedDefaults: sharedDefaults)
+        print("DEBUG: Final Agile code after fallback: \(currentAgileCode)")
+    }
+
+    // MARK: - Helper Methods
+
+    /// Attempt to decode the user's account data and find an active agile tariff code.
+    private func findTariffCodeInAccount(
+        globalSettings: GlobalSettingsManager
+    ) async -> String? {
+        guard
+            let accountData = globalSettings.settings.accountData,
+            !accountData.isEmpty,
+            let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
+            let matchedAgreement = tryFindActiveAgileAgreement(in: account)
+        else {
+            return nil
+        }
+
+        return matchedAgreement.tariff_code
+    }
+
+    /// Apply the fallback tariff code from the local DB if available, otherwise fetch from API.
+    private func applyFallbackTariffCode(
+        globalSettings: GlobalSettingsManager,
+        sharedDefaults: UserDefaults?
+    ) async {
+        // Attempt to get the fallback code
+        guard let fallbackCode = await fallbackAgileCodeFromProductEntity() else {
+            return  // No fallback available, exit quietly.
+        }
+
+        do {
+            // Try loading local product details
+            var details = try await productDetailRepository.loadLocalProductDetail(code: fallbackCode)
+
+            // If no local details, fetch them from the API
+            if details.isEmpty {
+                print("🔄 No local details found for \(fallbackCode), fetching from API...")
+                details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fallbackCode)
             }
+
+            // Determine the region
+            let region = globalSettings.settings.effectiveRegion
+            print("🌍 Using effective region: \(region)")
+
+            // Find the tariff code from the product details
+            guard let tariffCode = try await productDetailRepository.findTariffCode(productCode: fallbackCode,
+                                                                                    region: region)
+            else {
+                print("❌ No tariff code found for \(fallbackCode) in region \(region)")
+                return
+            }
+
+            print("✅ Found tariff code: \(tariffCode)")
+            currentAgileCode = tariffCode
+
+            // Store for widget access
+            sharedDefaults?.set(tariffCode, forKey: "agile_code_for_widget")
+
+        } catch {
+            print("❌ Error processing fallback code: \(error)")
         }
     }
 

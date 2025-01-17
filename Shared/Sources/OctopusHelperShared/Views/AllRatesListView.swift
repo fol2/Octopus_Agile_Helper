@@ -110,28 +110,21 @@ struct AllRatesListView: View {
             print("DEBUG: Already loaded day \(dayStart)")
             return
         }
+        
         do {
-            print("DEBUG: Fetching day = \(dayStart)")
-            
-            // First ensure we have rates for this product
-            if viewModel.productStates[viewModel.currentAgileCode] == nil {
-                print("DEBUG: Initializing product state for \(viewModel.currentAgileCode)")
-                await viewModel.initializeProducts([viewModel.currentAgileCode])
-            }
-            
-            // Then fetch rates for the day
-            let newRates = try await viewModel.fetchRatesForDay(dayStart)
+            // Get rates directly from CoreData for this day
+            let dayRates = try await viewModel.fetchRatesForDay(dayStart)
             
             // Filter for current Agile code
-            let filteredRates = newRates.filter { rate in
+            let filteredRates = dayRates.filter { rate in
                 (rate.value(forKey: "tariff_code") as? String) == viewModel.currentAgileCode
             }
             
-            print("DEBUG: Found \(filteredRates.count) rates for \(viewModel.currentAgileCode)")
+            print("DEBUG: Found \(filteredRates.count) rates in CoreData for \(viewModel.currentAgileCode)")
             addRatesToDisplayed(filteredRates)
             loadedDays.append(dayStart)
         } catch {
-            print("DEBUG: Error loading day \(dayStart): \(error)")
+            print("DEBUG: Error loading day from CoreData \(dayStart): \(error)")
         }
     }
 
@@ -140,23 +133,16 @@ struct AllRatesListView: View {
             print("DEBUG: Skipping initial load - already loaded")
             return
         }
-        
         hasInitiallyLoaded = true
         print("DEBUG: Loading initial data")
         currentDay = Date()
-        
-        // Ensure we have a valid Agile code
+
+        // Check if product code is empty to avoid redundant calls
         if viewModel.currentAgileCode.isEmpty {
-            print("DEBUG: No Agile code set, attempting to set from account or fallback")
-            await viewModel.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
-        }
-        
-        // Verify we have a valid Agile code
-        guard !viewModel.currentAgileCode.isEmpty else {
-            print("DEBUG: No Agile code available, cannot load rates")
+            print("DEBUG: currentAgileCode is empty; skipping loadInitialData")
             return
         }
-        
+
         print("DEBUG: Using Agile code: \(viewModel.currentAgileCode)")
         
         do {
@@ -281,13 +267,12 @@ struct AllRatesListView: View {
     var body: some View {
         ScrollViewReader { scrollProxy in
             VStack(spacing: 0) {
-                // If the user expects immediate feedback while loading
                 if viewModel.isLoading(for: viewModel.currentAgileCode)
-                   && displayedRatesByDate.isEmpty {
+                    && displayedRatesByDate.isEmpty {
                     ProgressView("Fetching Rates...")
                         .font(Theme.subFont())
                 }
-                // Add Agile code display
+
                 if !viewModel.currentAgileCode.isEmpty {
                     Text(viewModel.currentAgileCode)
                         .font(Theme.subFont())
@@ -297,124 +282,58 @@ struct AllRatesListView: View {
                         .background(Theme.mainBackground)
                 }
                 
-                List {
-                    ForEach(displayedRatesByDate, id: \.0) { dateString, rates in
-                        Section {
-                            ForEach(rates, id: \.objectID) { rate in
-                                RateRowView(
-                                    rate: rate, 
-                                    viewModel: viewModel, 
-                                    globalSettings: globalSettings,
-                                    lastSceneActiveTime: lastSceneActiveTime,
-                                    dayRates: rates
-                                )
-                                .id(rate.objectID)
-                                .listRowBackground(
-                                    Group {
-                                        if isRateCurrentlyActive(rate) {
-                                            Theme.accent.opacity(0.1)
-                                        } else if rate.value(forKey: "value_including_vat") as? Double ?? 0 < 0 {
-                                            Color(red: 0.2, green: 0.8, blue: 0.4).opacity(0.15)  // Match RateColor's green
-                                        } else {
-                                            Theme.secondaryBackground
-                                        }
-                                    }
-                                )
-                                .onAppear {
-                                    // Debug logging
-                                    print("DEBUG: Rate appeared - value: \(rate.value(forKey: "value_including_vat") as? Double ?? 0)")
-                                    let allRates = viewModel.allRates(for: viewModel.currentAgileCode)
-                                    print("DEBUG: Available rates for coloring: \(allRates.count)")
-                                    
-                                    // Load next/prev days as needed
-                                    if rate.objectID == rates.last?.objectID {
-                                        loadNextDayIfNeeded(rate)
-                                    }
-                                    if rate.objectID == rates.first?.objectID {
-                                        loadPreviousDayIfNeeded(rate)
-                                    }
-                                }
+                // Call our extracted property here
+                ratesListView
+                    .onAppear {
+                        print("DEBUG: View appeared")
+                        if !hasInitiallyLoaded {
+                            Task {
+                                // ...
+                                await loadInitialData()
                             }
-                        } header: {
-                            Text(dateString)
-                                .font(Theme.titleFont())
-                                .foregroundStyle(Theme.mainTextColor)
-                                .listRowInsets(EdgeInsets())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 8)
-                                .background(Theme.mainBackground)
                         }
                     }
-                }
-                .listStyle(.plain)
-                .background(Theme.mainBackground)
-                .onAppear {
-                    print("DEBUG: View appeared")
-                    // Only start loading if we haven't loaded yet
-                    if !hasInitiallyLoaded {
+                    .onReceive(refreshManager.$halfHourTick) { tickTime in
+                        guard tickTime != nil else { return }
+                        forceReRenderToggle.toggle()
+                    }
+                    .onReceive(refreshManager.$sceneActiveTick) { _ in
+                        print("DEBUG: Scene became active, updating lastSceneActiveTime")
+                        lastSceneActiveTime = Date()
+                        forceReRenderToggle.toggle()
+                    }
+                    .onChange(of: shouldScrollToCurrentRate) { _, shouldScroll in
+                        if shouldScroll {
+                            Task {
+                                await scrollToCurrentRate(proxy: scrollProxy)
+                            }
+                        }
+                    }
+                    .onReceive(refreshManager.$halfHourTick) { tickTime in
+                        guard tickTime != nil else { return }
                         Task {
-                            // First ensure we have a valid Agile code
-                            if viewModel.currentAgileCode.isEmpty {
-                                print("DEBUG: Setting Agile product from account or fallback")
-                                await viewModel.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                            if !viewModel.currentAgileCode.isEmpty {
+                                // await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                                await loadInitialData()
                             }
-                            
-                            // Then initialize the product if needed
-                            if !viewModel.currentAgileCode.isEmpty && viewModel.productStates[viewModel.currentAgileCode] == nil {
-                                print("DEBUG: Initializing product state")
-                                await viewModel.initializeProducts([viewModel.currentAgileCode])
-                            }
-                            
-                            await loadInitialData()
                         }
                     }
-                }
-                // Force re-render whenever half-hour ticks => "NOW" badge updates
-                .onReceive(refreshManager.$halfHourTick) { tickTime in
-                    guard tickTime != nil else { return }
-                    forceReRenderToggle.toggle()
-                }
-                // Also force re-render whenever app becomes active
-                .onReceive(refreshManager.$sceneActiveTick) { _ in
-                    print("DEBUG: Scene became active, updating lastSceneActiveTime")
-                    lastSceneActiveTime = Date()
-                    forceReRenderToggle.toggle()
-                }
-                .onChange(of: shouldScrollToCurrentRate) { _, shouldScroll in
-                    if shouldScroll {
-                        print("DEBUG: Scroll trigger activated")
+                    .onReceive(refreshManager.$sceneActiveTick) { _ in
                         Task {
-                            await scrollToCurrentRate(proxy: scrollProxy)
+                            if !viewModel.currentAgileCode.isEmpty {
+                                // await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
+                                await loadInitialData()
+                            }
                         }
                     }
-                }
-                // Re-render on half-hour
-                .onReceive(refreshManager.$halfHourTick) { tickTime in
-                    guard tickTime != nil else { return }
-                    Task {
-                        if !viewModel.currentAgileCode.isEmpty {
-                            await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-                            await loadInitialData()
-                        }
-                    }
-                }
-                // Also re-render if app becomes active
-                .onReceive(refreshManager.$sceneActiveTick) { _ in
-                    Task {
-                        if !viewModel.currentAgileCode.isEmpty {
-                            await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-                            await loadInitialData()
-                        }
-                    }
-                }
             }
             .navigationTitle(LocalizedStringKey("All Rates"))
             .navigationBarTitleDisplayMode(.inline)
             .environment(\.locale, globalSettings.locale)
-            .id("all-rates-\(refreshTrigger)-\(forceReRenderToggle ? 1 : 0)")
+            .id(dynamicViewID)
             .onChange(of: globalSettings.locale) { oldValue, newValue in
                 print("DEBUG: Locale changed from \(oldValue.identifier) to \(newValue.identifier)")
-                refreshTrigger = UUID()  // Just refresh the view instead of reloading data
+                refreshTrigger = UUID()
             }
         }
     }
@@ -423,6 +342,67 @@ struct AllRatesListView: View {
         let now = Date()
         guard let start = rate.value(forKey: "valid_from") as? Date, let end = rate.value(forKey: "valid_to") as? Date else { return false }
         return start <= now && end > now
+    }
+}
+
+private extension AllRatesListView {
+    var dynamicViewID: String {
+        "all-rates-\(refreshTrigger)-\(forceReRenderToggle ? 1 : 0)"
+    }
+}
+
+private extension AllRatesListView {
+    
+    // This sub-view or computed property holds the big List block
+    var ratesListView: some View {
+        List {
+            ForEach(displayedRatesByDate, id: \.0) { dateString, rates in
+                Section {
+                    ForEach(rates, id: \.objectID) { rate in
+                        RateRowView(
+                            rate: rate,
+                            viewModel: viewModel,
+                            globalSettings: globalSettings,
+                            lastSceneActiveTime: lastSceneActiveTime,
+                            dayRates: rates
+                        )
+                        .id(rate.objectID)
+                        .listRowBackground(
+                            Group {
+                                if isRateCurrentlyActive(rate) {
+                                    Theme.accent.opacity(0.1)
+                                } else if rate.value(forKey: "value_including_vat") as? Double ?? 0 < 0 {
+                                    Color(red: 0.2, green: 0.8, blue: 0.4).opacity(0.15)
+                                } else {
+                                    Theme.secondaryBackground
+                                }
+                            }
+                        )
+                        .onAppear {
+                            let allRates = viewModel.allRates(for: viewModel.currentAgileCode)
+                            
+                            // Load next/prev days
+                            if rate.objectID == rates.last?.objectID {
+                                loadNextDayIfNeeded(rate)
+                            }
+                            if rate.objectID == rates.first?.objectID {
+                                loadPreviousDayIfNeeded(rate)
+                            }
+                        }
+                    }
+                } header: {
+                    Text(dateString)
+                        .font(Theme.titleFont())
+                        .foregroundStyle(Theme.mainTextColor)
+                        .listRowInsets(EdgeInsets())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                        .background(Theme.mainBackground)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .background(Theme.mainBackground)
     }
 }
 

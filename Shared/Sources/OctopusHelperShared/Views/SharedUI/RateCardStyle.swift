@@ -10,7 +10,7 @@ struct RateCardStyle: ViewModifier {
             .background(Theme.secondaryBackground)
             .cornerRadius(12)
             .padding(.bottom, 12)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 0)
     }
 }
 

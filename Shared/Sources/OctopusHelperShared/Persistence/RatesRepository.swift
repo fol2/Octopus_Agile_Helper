@@ -371,9 +371,14 @@ public final class RatesRepository: ObservableObject {
     //   (some apps put these in the ViewModel, but you can keep them here.)
 
     /// Dedicated function for fetching and storing Agile rates
-    public func fetchAndStoreAgileRates(productCode: String, tariffCode: String) async throws {
+    /// - Parameters:
+    ///   - productCode: Optional product code. If nil, will be derived from tariffCode
+    ///   - tariffCode: Full tariff code (e.g. "E-1R-AGILE-24-04-03-H")
+    public func fetchAndStoreAgileRates(productCode: String? = nil, tariffCode: String) async throws {
         print("\n🔄 Starting Agile rate update:")
-        print("📦 Product: \(productCode)")
+        if let code = productCode {
+            print("📦 Product: \(code)")
+        }
         print("🏷️ Tariff: \(tariffCode)")
         
         // Fetch rates using the dedicated Agile function
@@ -471,6 +476,28 @@ public final class RatesRepository: ObservableObject {
             req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
             
             let list = try self.context.fetch(req)
+            return list
+        }
+    }
+
+    /// Fetch rates from CoreData for a specific tariff code
+    public func fetchRatesByTariffCode(_ tariffCode: String) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            let list = try self.context.fetch(request)
+            return list
+        }
+    }
+
+    /// Fetch standing charges from CoreData for a specific tariff code
+    public func fetchStandingChargesByTariffCode(_ tariffCode: String) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            let list = try self.context.fetch(request)
             return list
         }
     }

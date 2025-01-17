@@ -1259,8 +1259,11 @@ public struct SettingsView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var lookupRegionManually = false
     @State private var lookupError: String?
+    let didFinishEditing: (() -> Void)?
 
-    public init() {}
+    public init(didFinishEditing: (() -> Void)? = nil) {
+        self.didFinishEditing = didFinishEditing
+    }
 
     public var body: some View {
         Form {
@@ -1494,6 +1497,10 @@ public struct SettingsView: View {
         .background(Theme.mainBackground)
         .environment(\.locale, globalSettings.locale)
         .navigationTitle(LocalizedStringKey("Settings"))
+        .onDisappear {
+            // Call the completion handler when view disappears
+            didFinishEditing?()
+        }
     }
 }
 
@@ -1547,17 +1554,6 @@ struct InfoButton: View {
         }
         .onChange(of: globalSettings.locale) { _, _ in
             refreshID = UUID()
-        }
-    }
-}
-
-struct SettingsView_Previews: PreviewProvider {
-    static let globalSettings = GlobalSettingsManager()
-
-    static var previews: some View {
-        NavigationStack {
-            SettingsView()
-                .environmentObject(globalSettings)
         }
     }
 }

@@ -130,18 +130,13 @@ public struct CurrentRateCardView: View {
         // Re-render on half-hour
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
-            Task {
-                clockIconTrigger = Date()  // Update clock icon
-                await viewModel.refreshRates(productCode: productCode)
-            }
+            clockIconTrigger = Date()  // Update clock icon
+            refreshTrigger.toggle()    // Force UI update
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
             clockIconTrigger = Date()  // Update clock icon
-            Task {
-                await viewModel.refreshRates(productCode: productCode)
-            }
         }
         .onTapGesture {
             showingAllRates = true

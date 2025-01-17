@@ -165,7 +165,22 @@ public struct ContentView: View {
         return currentYear > 2024 ? " Eugnel 2024-\(currentYear)" : " Eugnel 2024"
    }
 
-    public init() {}
+    public init() {
+        // Initialize view models
+        _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
+        _statusManager = StateObject(wrappedValue: FetchStatusManager())
+        _viewModel = StateObject(wrappedValue: ContentViewModel())
+        
+        // Pre-initialize hasAgileCards
+        let settings = GlobalSettingsManager().settings
+        let activeCards = settings.cardSettings.filter { $0.isEnabled }
+        hasAgileCards = activeCards.contains {
+            if let def = CardRegistry.shared.definition(for: $0.cardType) {
+                return def.supportedPlans.contains(.agile)
+            }
+            return false
+        }
+    }
 
     public var body: some View {
         NavigationStack {
@@ -236,8 +251,18 @@ public struct ContentView: View {
                                 .transition(.opacity)
                         }
                         NavigationLink(
-                            destination: SettingsView()
-                                .environment(\.locale, globalSettings.locale)
+                            destination: SettingsView(didFinishEditing: {
+                                // This runs when user returns from Settings
+                                Task {
+                                    await ratesVM.setAgileProductFromAccountOrFallback(
+                                        globalSettings: globalSettings
+                                    )
+                                    if !ratesVM.currentAgileCode.isEmpty {
+                                        await ratesVM.initializeProducts()
+                                    }
+                                }
+                            })
+                            .environment(\.locale, globalSettings.locale)
                         ) {
                             Image(systemName: "gear")
                                 .foregroundColor(Theme.mainTextColor)
@@ -263,14 +288,15 @@ public struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task {
+                    print("DEBUG: hasAgileCards = \(hasAgileCards), currentAgileCode = \(ratesVM.currentAgileCode)")
                     if hasAgileCards {
-                        await ratesVM.fetchRatesForDefaultProduct()
+                        if !ratesVM.currentAgileCode.isEmpty {
+                            await ratesVM.initializeProducts()
+                        }
+                    } else {
+                        print("No agile-based cards enabled. Skipping fetchRatesForDefaultProduct().")
                     }
                     await consumptionVM.loadData()
-
-                    if consumptionVM.fetchStatus == .pending {
-                        await consumptionVM.refreshDataFromAPI(force: false)
-                    }
                 }
                 CardRefreshManager.shared.notifyAppBecameActive()
             }
@@ -307,7 +333,6 @@ public struct ContentView: View {
         .onAppear {
             setupStatusObservers()
 
-            // 1) Determine if we have at least one active card that supports .agile
             let activeCards = sortedCardConfigs().filter { $0.isEnabled }
             hasAgileCards = activeCards.contains {
                 if let def = CardRegistry.shared.definition(for: $0.cardType) {
@@ -326,41 +351,16 @@ public struct ContentView: View {
                 }
             }
         }
-        // Watch for changes in regionInput or accountData => re-locate tariff code and re-fetch
-        .onChange(of: globalSettings.settings) { oldSettings, newSettings in
-            let regionChanged = oldSettings.regionInput != newSettings.regionInput
-            let accountChanged = oldSettings.accountData != newSettings.accountData
-            if regionChanged || accountChanged {
-                print("DEBUG: Region or Account changed => re-locating tariff code & re-fetching")
-                Task {
-                    // 1) Possibly re-derive the agile tariff from account or fallback
-                    await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
-                    // 2) If the new code is different from old, re-initialize
-                    if !ratesVM.currentAgileCode.isEmpty {
-                        await ratesVM.initializeProducts([ratesVM.currentAgileCode])
-                    }
-                    // 3) Force refresh
-                    if !ratesVM.currentAgileCode.isEmpty {
-                        await ratesVM.fetchRatesForDefaultProduct()
-                    }
-                }
-            }
-        }
         .task {
-            // Only fetch rates if we have agile cards enabled
+            print("DEBUG: hasAgileCards = \(hasAgileCards), currentAgileCode = \(ratesVM.currentAgileCode)")
             if hasAgileCards {
-                Task {
-                    await ratesVM.fetchRatesForDefaultProduct()
-                    // Initialize product state after setting currentAgileCode
-                    if !ratesVM.currentAgileCode.isEmpty {
-                        await ratesVM.initializeProducts([ratesVM.currentAgileCode])
-                    }
+                if !ratesVM.currentAgileCode.isEmpty {
+                    await ratesVM.initializeProducts()
                 }
             } else {
-                // No agile cards enabled => skip
                 print("No agile-based cards enabled. Skipping fetchRatesForDefaultProduct().")
             }
-            
+
             await consumptionVM.loadData()
         }
     }
@@ -443,15 +443,4 @@ struct CardLockedView: View {
         }
         .rateCardStyle()
     }
-}
-
-#Preview {
-    let globalTimer = GlobalTimer()
-    let globalSettings = GlobalSettingsManager()
-    let ratesVM = RatesViewModel(globalTimer: globalTimer)
-
-    return ContentView()
-        .environmentObject(globalTimer)
-        .environmentObject(globalSettings)
-        .environmentObject(ratesVM)
 }

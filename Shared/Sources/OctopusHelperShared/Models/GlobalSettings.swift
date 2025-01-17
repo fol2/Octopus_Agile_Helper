@@ -213,6 +213,7 @@ public class GlobalSettingsManager: ObservableObject {
 
     @Published public var settings: GlobalSettings {
         didSet {
+            print("DEBUG: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)")
             saveSettings()
             if oldValue.selectedLanguage != settings.selectedLanguage {
                 locale = settings.selectedLanguage.locale

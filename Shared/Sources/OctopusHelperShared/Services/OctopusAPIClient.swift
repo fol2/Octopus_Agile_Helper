@@ -17,6 +17,7 @@ public enum OctopusAPIError: Error {
     case networkError(Error)
     case decodingError(Error)
     case invalidAPIKey
+    case invalidTariffCode
 }
 
 // MARK: - Public Models
@@ -304,13 +305,30 @@ extension OctopusAPIClient {
     }
     
     /// Dedicated function for fetching Agile rates with enhanced debugging
-    public func fetchAgileRates(productCode: String, tariffCode: String) async throws -> [OctopusTariffRate] {
+    /// - Parameters:
+    ///   - productCode: Optional product code. If nil, will be derived from tariffCode
+    ///   - tariffCode: Full tariff code (e.g. "E-1R-AGILE-24-04-03-H")
+    public func fetchAgileRates(productCode: String? = nil, tariffCode: String) async throws -> [OctopusTariffRate] {
         print("\n🔄 Fetching Agile rates:")
-        print("📦 Product Code: \(productCode)")
         print("🏷️ Tariff Code: \(tariffCode)")
         
+        // Determine product code
+        let effectiveProductCode: String
+        if let providedCode = productCode {
+            effectiveProductCode = providedCode
+            print("📦 Using provided Product Code: \(effectiveProductCode)")
+        } else {
+            // Extract product code from tariff code (e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03")
+            let parts = tariffCode.components(separatedBy: "-")
+            guard parts.count >= 6 else {
+                throw OctopusAPIError.invalidTariffCode
+            }
+            effectiveProductCode = parts[2...5].joined(separator: "-")
+            print("📦 Derived Product Code: \(effectiveProductCode)")
+        }
+        
         // Construct the Agile rates URL
-        let baseRatesURL = "\(baseURL)/products/\(productCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/"
+        let baseRatesURL = "\(baseURL)/products/\(effectiveProductCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/"
         print("🌐 Constructed URL: \(baseRatesURL)")
         
         // 1. Fetch first page to get total count and initial rates

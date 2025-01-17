@@ -236,4 +236,37 @@ public final class ProductDetailRepository: ObservableObject {
         
         return detailEntity
     }
+
+    /// Find a tariff code for a given product code and region
+    /// - Parameters:
+    ///   - productCode: The product code to search for (e.g. "AGILE-24-04-03")
+    ///   - region: The region code (e.g. "A", "B", "C")
+    /// - Returns: The matching tariff code if found, nil otherwise
+    public func findTariffCode(productCode: String, region: String) async throws -> String? {
+        print("\n🔍 Finding tariff code for:")
+        print("📦 Product Code: \(productCode)")
+        print("🌍 Region: \(region)")
+        
+        // Load all details for this product
+        let details = try await loadLocalProductDetail(code: productCode)
+        print("📊 Found \(details.count) product details")
+        
+        // Filter by region
+        let matchingDetails = details.filter { detail in
+            let detailRegion = detail.value(forKey: "region") as? String
+            return detailRegion == region.uppercased()
+        }
+        
+        print("🎯 Found \(matchingDetails.count) details matching region \(region)")
+        
+        // Get first matching tariff code
+        let tariffCode = matchingDetails.first?.value(forKey: "tariff_code") as? String
+        if let code = tariffCode {
+            print("✅ Found matching tariff code: \(code)")
+        } else {
+            print("❌ No matching tariff code found")
+        }
+        
+        return tariffCode
+    }
 }
