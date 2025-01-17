@@ -466,8 +466,33 @@ public final class RatesViewModel: ObservableObject {
                 try await repository.fetchAndStoreAgileRates(tariffCode: currentAgileCode)
                 state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
             } else {
-                print("initializeProducts: 📝 Using \(localRates.count) local rates")
-                state.allRates = localRates
+                // Check if we need to fetch new rates based on UK time requirements
+                let ukTimeZone = TimeZone(identifier: "Europe/London")!
+                var ukCalendar = Calendar(identifier: .gregorian)
+                ukCalendar.timeZone = ukTimeZone
+                
+                let now = Date()
+                let ukComponents = ukCalendar.dateComponents([.hour], from: now)
+                let isAfter4PMUK = (ukComponents.hour ?? 0) >= 16
+                
+                // Calculate expected data range
+                let tomorrow = ukCalendar.date(byAdding: .day, value: 1, to: now)!
+                let tomorrowEnd = ukCalendar.date(bySettingHour: 23, minute: 0, second: 0, of: tomorrow)!
+                
+                // Check if we have sufficient data
+                let hasSufficientData = localRates.contains { rate in
+                    guard let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
+                    return validTo >= tomorrowEnd
+                }
+                
+                if isAfter4PMUK && !hasSufficientData {
+                    print("initializeProducts: 🔄 After 4PM UK time and insufficient data range, fetching from API...")
+                    try await repository.fetchAndStoreAgileRates(tariffCode: currentAgileCode)
+                    state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
+                } else {
+                    print("initializeProducts: 📝 Using \(localRates.count) local rates")
+                    state.allRates = localRates
+                }
             }
             
             // Update upcoming rates
