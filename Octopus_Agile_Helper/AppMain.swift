@@ -23,6 +23,7 @@ struct Octopus_Agile_HelperApp: App {
     // MARK: - UI States
     @State private var isAppInitialized = false
     @State private var showDebugView = false
+    @State public var hasAgileCards = false
 
     // MARK: - Init
     init() {
@@ -33,6 +34,16 @@ struct Octopus_Agile_HelperApp: App {
 
         // 2) Configure the NavBar appearance (Dark style, etc.)
         configureNavigationBarAppearance()
+
+        // 3) Check if we have any Agile cards
+        let settings = globalSettings.settings
+        let activeCards = settings.cardSettings.filter { $0.isEnabled }
+        hasAgileCards = activeCards.contains {
+            if let def = CardRegistry.shared.definition(for: $0.cardType) {
+                return def.supportedPlans.contains(.agile)
+            }
+            return false
+        }
     }
     
     // MARK: - Body
@@ -40,11 +51,10 @@ struct Octopus_Agile_HelperApp: App {
         WindowGroup {
             ZStack {
                 if isAppInitialized {
-                    ContentView()
+                    ContentView(hasAgileCards: hasAgileCards)
                         .environment(\.managedObjectContext, persistenceController.container.viewContext)
                         .environmentObject(globalSettings)
                         .environmentObject(ratesVM)
-                        // Provide the same timer object to the environment
                         .environmentObject(globalTimer)
                         .preferredColorScheme(.dark)
                         #if DEBUG
@@ -152,7 +162,7 @@ extension Octopus_Agile_HelperApp {
         var body: some View {
             ZStack {
                 if isInitialized {
-                    ContentView()
+                    ContentView(hasAgileCards: true)
                         .environmentObject(globalTimer)
                         .environmentObject(globalSettings)
                         .environmentObject(ratesVM)

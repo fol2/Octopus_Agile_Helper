@@ -309,23 +309,6 @@ struct AllRatesListView: View {
                             }
                         }
                     }
-                    .onReceive(refreshManager.$halfHourTick) { tickTime in
-                        guard tickTime != nil else { return }
-                        Task {
-                            if !viewModel.currentAgileCode.isEmpty {
-                                // await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-                                await loadInitialData()
-                            }
-                        }
-                    }
-                    .onReceive(refreshManager.$sceneActiveTick) { _ in
-                        Task {
-                            if !viewModel.currentAgileCode.isEmpty {
-                                // await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-                                await loadInitialData()
-                            }
-                        }
-                    }
             }
             .navigationTitle(LocalizedStringKey("All Rates"))
             .navigationBarTitleDisplayMode(.inline)

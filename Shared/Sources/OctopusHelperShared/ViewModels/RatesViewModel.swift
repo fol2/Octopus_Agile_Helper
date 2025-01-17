@@ -270,138 +270,6 @@ public final class RatesViewModel: ObservableObject {
         return detail.value(forKey: "link_rate") as? String
     }
 
-    public func fetchRatesForDefaultProduct() async {
-        print("\n🔍 Starting fetchRatesForDefaultProduct")
-        self.fetchStatus = .fetching  // Set initial fetching status
-        
-        do {
-            // First check if we have a full account-based agile tariff code
-            if let fullTariffCode = activeAgileTariffFromAccount() {
-                print("📦 Using account-based agile tariff: \(fullTariffCode)")
-                
-                // Try account-based approach
-                do {
-                    var details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: fullTariffCode)
-                    print("📊 Found \(details.count) product details via fullTariffCode")
-                    
-                    if details.isEmpty {
-                        print("🔄 No local product detail found for \(fullTariffCode), fetching from API...")
-                        details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fullTariffCode)
-                    }
-                    
-                    guard !details.isEmpty else {
-                        print("❌ No local product detail found even after fetch.")
-                        // Don't set failed yet - we'll try fallback
-                        throw NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product details found"])
-                    }
-                    
-                    guard let rateLink = findRateLink(in: details) else {
-                        print("❌ Could not find rate link in product details.")
-                        // Don't set failed yet - we'll try fallback
-                        throw NSError(domain: "com.octopus", code: -2, userInfo: [NSLocalizedDescriptionKey: "No rate link found"])
-                    }
-                    
-                    try await repository.fetchAndStoreRates(tariffCode: fullTariffCode, url: rateLink)
-                    
-                    // Also fetch standing charges if available
-                    let standingChargeLink = details
-                        .compactMap { $0.value(forKey: "link_standing_charge") as? String }
-                        .first
-                    if let scLink = standingChargeLink {
-                        print("🔗 Found standing charge link: \(scLink)")
-                        try await repository.fetchAndStoreStandingCharges(
-                            tariffCode: fullTariffCode,
-                            url: scLink
-                        )
-                    }
-                    
-                    self.currentAgileCode = fullTariffCode
-                    UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(fullTariffCode, forKey: "agile_code_for_widget")
-                    self.fetchStatus = .done  // Success! Set to done
-                    print("\n✅ Completed account-based fetchRatesForDefaultProduct")
-                    return
-                } catch {
-                    // Account-based approach failed, continue to fallback
-                    print("⚠️ Account-based approach failed, trying fallback...")
-                    // Keep fetchStatus as .fetching
-                }
-            }
-            
-            // Fallback approach
-            if !self.currentAgileCode.isEmpty,
-               self.currentAgileCode.contains("AGILE") {
-                print("⚠️ Skipping fallback: already have full tariff code \(self.currentAgileCode)")
-                self.fetchStatus = .done
-                return
-            }
-            
-            // Try fallback approach
-            guard let fallbackCode = await fallbackAgileCodeFromProductEntity() else {
-                print("❌ No fallback Agile product found")
-                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -3, userInfo: [NSLocalizedDescriptionKey: "No fallback product found"]))
-                return
-            }
-            
-            print("📦 Found fallback agile product code: \(fallbackCode)")
-            
-            var details = try await productDetailRepository.loadLocalProductDetail(code: fallbackCode)
-            print("📊 Found \(details.count) product details from fallback")
-            
-            if details.isEmpty {
-                print("🔄 No local product details found, fetching from API...")
-                details = try await productDetailRepository.fetchAndStoreProductDetail(productCode: fallbackCode)
-                print("📥 Fetched \(details.count) product details from API")
-            }
-            
-            let effectiveRegion = GlobalSettingsManager().settings.effectiveRegion.uppercased()
-            print("📍 Using effective region: \(effectiveRegion)")
-            
-            let filteredDetails = details.filter { detail in
-                let detailRegion = detail.value(forKey: "region") as? String
-                return detailRegion == effectiveRegion
-            }
-            
-            var chosenDetail: NSManagedObject? = nil
-            if !filteredDetails.isEmpty {
-                print("📊 Found \(filteredDetails.count) details matching region \(effectiveRegion)")
-                chosenDetail = filteredDetails.first
-            } else {
-                print("⚠️ No details found for region \(effectiveRegion), using first available detail")
-                chosenDetail = details.first
-            }
-            
-            guard let chosen = chosenDetail,
-                  let tariffCode = chosen.value(forKey: "tariff_code") as? String,
-                  let rateLink = chosen.value(forKey: "link_rate") as? String else {
-                print("❌ Could not find tariff code or rate link in product details")
-                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -4, userInfo: [NSLocalizedDescriptionKey: "No valid product details found"]))
-                return
-            }
-            
-            print("📊 Selected product detail - Region: \(chosen.value(forKey: "region") as? String ?? "unknown"), Tariff: \(tariffCode)")
-            
-            try await repository.fetchAndStoreRates(tariffCode: tariffCode, url: rateLink)
-            
-            if let standingChargeLink = chosen.value(forKey: "link_standing_charge") as? String {
-                print("🔗 Found standing charge link: \(standingChargeLink)")
-                try await repository.fetchAndStoreStandingCharges(
-                    tariffCode: tariffCode,
-                    url: standingChargeLink
-                )
-            }
-            
-            self.currentAgileCode = tariffCode
-            UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")?.set(tariffCode, forKey: "agile_code_for_widget")
-            self.fetchStatus = .done  // Success! Set to done
-            print("\n✅ Completed fallback-based fetchRatesForDefaultProduct")
-            
-        } catch {
-            // Only set failed if we've exhausted all options
-            print("❌ Error fetching rates: \(error)")
-            self.fetchStatus = .failed(error)
-        }
-    }
-
     // MARK: - Init
     public init(globalTimer: GlobalTimer) {
         setupTimer(globalTimer)
@@ -835,36 +703,39 @@ public final class RatesViewModel: ObservableObject {
         globalSettings: GlobalSettingsManager
     ) async {
         print("DEBUG: Starting setAgileProductFromAccountOrFallback")
+        
+        // 1. First priority: Check account data for active AGILE agreement
+        if let newTariffCode = await findTariffCodeInAccount(globalSettings: globalSettings) {
+            if newTariffCode != currentAgileCode {
+                print("DEBUG: Found new active Agile tariff in account: \(newTariffCode)")
+                currentAgileCode = newTariffCode
+                return
+            }
+            print("DEBUG: Account has same active Agile tariff, keeping current")
+            return
+        }
+        
+        // 2. No valid account tariff, try fallback
+        print("DEBUG: No valid tariff from account, checking fallback options")
         let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-        print("DEBUG: Current Agile code: \(currentAgileCode)")
-
-        // Check if region has changed
+        
+        // Check region only for fallback scenario
         let newRegion = globalSettings.settings.effectiveRegion
         if newRegion != cachedRegionUsedLastTime {
-            print("DEBUG: region changed from \(cachedRegionUsedLastTime) to \(newRegion), clearing currentAgileCode")
+            print("DEBUG: Region changed from \(cachedRegionUsedLastTime) to \(newRegion), clearing currentAgileCode for fallback")
             currentAgileCode = ""
             cachedRegionUsedLastTime = newRegion
         }
-
-        // 1) Exit early if we already have a valid 'AGILE' code
-        guard currentAgileCode.isEmpty || !currentAgileCode.contains("AGILE") else {
-            print("DEBUG: Exiting early - valid AGILE code already exists")
+        
+        // If we still have a valid code for current region, keep it
+        if !currentAgileCode.isEmpty && currentAgileCode.contains("AGILE") {
+            print("DEBUG: Keeping existing valid AGILE code for current region")
             return
         }
-
-        // 2) Try fetching from the account data
-        print("DEBUG: Attempting to fetch tariff code from account")
-        if let tariffCode = await findTariffCodeInAccount(globalSettings: globalSettings) {
-            print("DEBUG: Found tariff code in account: \(tariffCode)")
-            currentAgileCode = tariffCode
-            return
-        }
-        print("DEBUG: No tariff code found in account")
-
-        // 3) If no tariff code in account, use fallback
-        print("DEBUG: Applying fallback tariff code")
+        
+        // Last resort - try fallback
+        print("DEBUG: No valid current code, trying fallback")
         await applyFallbackTariffCode(globalSettings: globalSettings, sharedDefaults: sharedDefaults)
-        print("DEBUG: Final Agile code after fallback: \(currentAgileCode)")
     }
 
     // MARK: - Helper Methods

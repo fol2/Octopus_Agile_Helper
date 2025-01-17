@@ -143,7 +143,7 @@ public struct ContentView: View {
     @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var statusManager = FetchStatusManager()
     @StateObject private var viewModel = ContentViewModel()
-    @State private var hasAgileCards = false
+    let hasAgileCards: Bool  // Now passed in from AppMain
 
     // Store each card's VM in a dictionary keyed by `CardType`
     @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
@@ -165,21 +165,12 @@ public struct ContentView: View {
         return currentYear > 2024 ? " Eugnel 2024-\(currentYear)" : " Eugnel 2024"
    }
 
-    public init() {
+    public init(hasAgileCards: Bool) {
+        self.hasAgileCards = hasAgileCards
         // Initialize view models
         _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
         _statusManager = StateObject(wrappedValue: FetchStatusManager())
         _viewModel = StateObject(wrappedValue: ContentViewModel())
-        
-        // Pre-initialize hasAgileCards
-        let settings = GlobalSettingsManager().settings
-        let activeCards = settings.cardSettings.filter { $0.isEnabled }
-        hasAgileCards = activeCards.contains {
-            if let def = CardRegistry.shared.definition(for: $0.cardType) {
-                return def.supportedPlans.contains(.agile)
-            }
-            return false
-        }
     }
 
     public var body: some View {
@@ -288,14 +279,6 @@ public struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task {
-                    print("DEBUG: hasAgileCards = \(hasAgileCards), currentAgileCode = \(ratesVM.currentAgileCode)")
-                    if hasAgileCards {
-                        if !ratesVM.currentAgileCode.isEmpty {
-                            await ratesVM.initializeProducts()
-                        }
-                    } else {
-                        print("No agile-based cards enabled. Skipping fetchRatesForDefaultProduct().")
-                    }
                     await consumptionVM.loadData()
                 }
                 CardRefreshManager.shared.notifyAppBecameActive()
@@ -312,7 +295,7 @@ public struct ContentView: View {
             if hour == 16, minute == 0, second == 0 {
                 Task {
                     if hasAgileCards {
-                        await ratesVM.fetchRatesForDefaultProduct()
+                        await ratesVM.initializeProducts()
                     }
                 }
             }
@@ -333,14 +316,6 @@ public struct ContentView: View {
         .onAppear {
             setupStatusObservers()
 
-            let activeCards = sortedCardConfigs().filter { $0.isEnabled }
-            hasAgileCards = activeCards.contains {
-                if let def = CardRegistry.shared.definition(for: $0.cardType) {
-                    return def.supportedPlans.contains(.agile)
-                }
-                return false
-            }
-
             // 2) Create VMs for non-rate cards only
             for cardType in CardType.allCases {
                 if cardType == .electricityConsumption {  // Only create VM for non-rate cards
@@ -352,15 +327,6 @@ public struct ContentView: View {
             }
         }
         .task {
-            print("DEBUG: hasAgileCards = \(hasAgileCards), currentAgileCode = \(ratesVM.currentAgileCode)")
-            if hasAgileCards {
-                if !ratesVM.currentAgileCode.isEmpty {
-                    await ratesVM.initializeProducts()
-                }
-            } else {
-                print("No agile-based cards enabled. Skipping fetchRatesForDefaultProduct().")
-            }
-
             await consumptionVM.loadData()
         }
     }

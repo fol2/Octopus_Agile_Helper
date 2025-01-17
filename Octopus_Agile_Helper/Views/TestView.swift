@@ -295,7 +295,7 @@ struct DataFetchSection: View {
 
                 Spacer()
 
-                NavigationLink(value: "products_list") {
+                NavigationLink(value: "products_list" as String) {
                     Text("Products: \(products.count)")
                         .font(.caption)
                         .foregroundColor(.gray)
@@ -371,7 +371,7 @@ struct DataFetchSection: View {
             // 8. Fetch AGILE Rate
             Button(action: {
                 Task {
-                    await ratesViewModel.fetchRatesForDefaultProduct()
+                    await ratesViewModel.initializeProducts()
                 }
             }) {
                 Label(

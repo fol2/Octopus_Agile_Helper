@@ -122,9 +122,6 @@ public struct InteractiveLineChartCardView: View {
         }
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             now = Date()  // update "now"
-            Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-            }
         }
         .onChange(of: filteredRates, initial: true) { oldValue, newValue in
             recalcBarWidthAndPrintOnce()

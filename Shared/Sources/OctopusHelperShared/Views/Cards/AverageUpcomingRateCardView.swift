@@ -90,15 +90,11 @@ public struct AverageUpcomingRateCardView: View {
         // Re-render on half-hour
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
-            // Pass the Agile code:
-            Task { await viewModel.refreshRates(productCode: viewModel.currentAgileCode) }
+            refreshTrigger.toggle()
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
-            Task {
-                await viewModel.refreshRates(productCode: viewModel.currentAgileCode)
-            }
         }
     }
 
