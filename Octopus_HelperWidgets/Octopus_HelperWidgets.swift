@@ -29,22 +29,8 @@ extension NSManagedObject {
 final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
 
     // MARK: - Dependencies
-    private var repository: RatesRepository {
-        get async { await MainActor.run { RatesRepository.shared } }
-    }
     private var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-    }
-    private var persistenceController: PersistenceController {
-        PersistenceController.shared
-    }
-    private var productDetailRepository: ProductDetailRepository {
-        ProductDetailRepository.shared
-    }
-    
-    // Add RatesViewModel
-    private var ratesViewModel: RatesViewModel {
-        get async { await MainActor.run { RatesViewModel(globalTimer: GlobalTimer()) } }
     }
     
     // Add shared settings manager
@@ -201,31 +187,6 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 chartSettings: chartSettings
             )
         }
-    }
-
-    /// If an error occurs, create a short timeline that tries again in 1 second.
-    private func buildErrorTimeline(configuration: ConfigurationAppIntent) -> Timeline<SimpleEntry> {
-        let now = Date()
-        let userSettings = readSettings()
-        let retryDate = now.addingTimeInterval(1)
-
-        let entries = [
-            SimpleEntry(
-                date: now,
-                configuration: configuration,
-                rates: [],
-                settings: (showRatesInPounds: false, language: "en", agileCode: userSettings.agileCode),
-                chartSettings: chartSettings
-            ),
-            SimpleEntry(
-                date: retryDate,
-                configuration: configuration,
-                rates: [],
-                settings: (showRatesInPounds: false, language: "en", agileCode: userSettings.agileCode),
-                chartSettings: chartSettings
-            )
-        ]
-        return Timeline(entries: entries, policy: .after(retryDate))
     }
 
     /// Compute next half-hour intervals (±2 min) to create timeline entry points.
@@ -712,18 +673,6 @@ struct CurrentRateWidget: View {
         let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
         return totalChunk * barGapRatio
     }
-
-    /// Example subview for each rate row in left column
-    private func rateRow(label: String, icon: String, value: Double, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon).font(.caption2).foregroundColor(.secondary)
-            Text(label).font(.caption2).foregroundColor(.secondary)
-            Spacer()
-            Text(formatRate(value))
-                .font(.caption2)
-                .foregroundColor(color)
-        }
-    }
 }
 
 // MARK: - Subviews for CurrentRateWidget
@@ -894,7 +843,6 @@ extension CurrentRateWidget {
 }
 
 // MARK: - Widget Definition
-// @main
 struct Octopus_HelperWidgets: Widget {
     let kind = "Octopus_HelperWidgets"
     
@@ -932,78 +880,6 @@ struct Octopus_HelperWidgets: Widget {
     }
 }
 
-// MARK: - Preview Helpers
-extension PersistenceController {
-    static var widgetPreview: PersistenceController = {
-        PersistenceController.shared
-    }()
-}
-
-// MARK: - Widget Previews
-#Preview(as: .systemSmall) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let request: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "RateEntity")
-    let rates: [NSManagedObject] = (try? context.fetch(request)) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
-        chartSettings: .default
-    )
-}
-
-#Preview(as: .systemMedium) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let request: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "RateEntity")
-    let rates: [NSManagedObject] = (try? context.fetch(request)) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
-        chartSettings: .default
-    )
-}
-
-#Preview(as: .accessoryCircular) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let request: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "RateEntity")
-    let rates: [NSManagedObject] = (try? context.fetch(request)) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
-        chartSettings: .default
-    )
-}
-
-#Preview(as: .accessoryInline) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let request: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "RateEntity")
-    let rates: [NSManagedObject] = (try? context.fetch(request)) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
-        chartSettings: .default
-    )
-}
-
 extension Color {
     static func interpolate(from: Color, to: Color, progress: Double) -> Color {
         let uiColor1 = UIColor(from)
@@ -1035,14 +911,4 @@ struct AveragedRateWindow {
     let average: Double
     let start: Date
     let end: Date
-}
-
-struct CurrentRateWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        CurrentRateWidget(
-            rates: [],
-            settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-24-10-01"),
-            chartSettings: InteractiveChartSettings.default
-        )
-    }
 }
