@@ -42,7 +42,10 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         ProductDetailRepository.shared
     }
     
-    private let agileCodeKey = "agile_code_for_widget"
+    // Add RatesViewModel
+    private var ratesViewModel: RatesViewModel {
+        get async { await MainActor.run { RatesViewModel(globalTimer: GlobalTimer()) } }
+    }
     
     // Add shared settings manager
     private var chartSettings: InteractiveChartSettings {
@@ -53,222 +56,130 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         return .default
     }
     
+    // Add cache reference
+    private var cache: AgileRateWidgetCache {
+        AgileRateWidgetCache.shared
+    }
+    
     // MARK: - Public Entry Points
     override init() {
         super.init()
+        
+        // Initialize cache with current tariff code
+        let userSettings = readSettings()
+        print("WIDGET: Initializing with tariff code: \(userSettings.agileCode)")
+        Task {
+            try? await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
+        }
     }
 
     func placeholder(in context: Context) -> SimpleEntry {
-        let context = persistenceController.container.viewContext
-        let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-        
-        // Get agile code with proper logging
-        let agileCode: String = {
-            if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
-                print("WIDGET: Using stored agile code: \(stored)")
-                return stored
-            }
-            if let fallback = fallbackAgileCodeFromProductEntity() {
-                print("WIDGET: Using fallback agile code: \(fallback)")
-                return fallback
-            }
-            print("WIDGET: No agile code found, using empty string")
-            return ""
-        }()
-        
-        // Add tariff code filter
-        request.predicate = NSPredicate(format: "tariff_code == %@", agileCode)
-        let rates = (try? context.fetch(request)) ?? []
+        print("WIDGET: Creating placeholder entry")
+        let userSettings = readSettings()
         
         return SimpleEntry(
             date: .now,
             configuration: ConfigurationAppIntent(),
-            rates: rates,
-            settings: readSettings(),
-            chartSettings: chartSettings,
-            agileCode: agileCode
+            rates: [],
+            settings: userSettings,
+            chartSettings: chartSettings
         )
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        let context = persistenceController.container.viewContext
-        let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+        print("WIDGET: Creating snapshot")
+        let userSettings = readSettings()
         
-        // Get agile code with proper logging
-        let agileCode: String = {
-            if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
-                print("WIDGET: Using stored agile code: \(stored)")
-                return stored
-            }
-            if let fallback = fallbackAgileCodeFromProductEntity() {
-                print("WIDGET: Using fallback agile code: \(fallback)")
-                return fallback
-            }
-            print("WIDGET: No agile code found, using empty string")
-            return ""
-        }()
-        
-        // Add tariff code filter
-        request.predicate = NSPredicate(format: "tariff_code == %@", agileCode)
-        let rates = (try? context.fetch(request)) ?? []
-        
-        return SimpleEntry(
-            date: .now,
-            configuration: configuration,
-            rates: rates,
-            settings: readSettings(),
-            chartSettings: chartSettings,
-            agileCode: agileCode
-        )
+        // Use widgetFetchAndCacheRates to get data (will use cache if sufficient)
+        do {
+            print("WIDGET: Fetching rates for snapshot with tariff: \(userSettings.agileCode)")
+            let rates = try await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
+            print("WIDGET: Got \(rates.count) rates for snapshot")
+            return SimpleEntry(
+                date: .now,
+                configuration: configuration,
+                rates: rates,
+                settings: userSettings,
+                chartSettings: chartSettings
+            )
+        } catch {
+            print("WIDGET: Error fetching rates for snapshot: \(error)")
+            return SimpleEntry(
+                date: .now,
+                configuration: configuration,
+                rates: [],
+                settings: userSettings,
+                chartSettings: chartSettings
+            )
+        }
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+        print("WIDGET: Building timeline")
         do {
-            // 1) Get the agile code using the same logic as the main app
-            let agileCode: String = await getAgileCode()
+            let userSettings = readSettings()
+            print("WIDGET: Fetching rates for timeline with tariff: \(userSettings.agileCode)")
             
-            // 1.5) Update rates from the repository
-            let repo = await repository
+            // Use widgetFetchAndCacheRates to get data (will use cache if sufficient)
+            let rates = try await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
+            print("WIDGET: Got \(rates.count) rates for timeline")
             
-            // Get product detail to get link and tariff code
-            let details = try await productDetailRepository.loadLocalProductDetail(code: agileCode)
-            if let detail = details.first,
-               let tCode = detail.value(forKey: "tariff_code") as? String {
-                print("WIDGET: Fetching rates for tariff code: \(tCode)")
-                try await repo.fetchAndStoreRates(tariffCode: tCode)
-            } else {
-                print("WIDGET: No product details found for code: \(agileCode)")
-            }
-            
-            // Get rates for our specific time window
-            let rates = try await repo.fetchRatesForTimeWindow(tariffCode: agileCode)
-
-            // 3) Build timeline
+            // Build timeline entries using the rate data
             let now = Date()
-            let entries = buildTimelineEntries(rates: rates, configuration: configuration, now: now, agileCode: agileCode)
+            let entries = buildTimelineEntries(
+                rates: rates,
+                configuration: configuration,
+                now: now,
+                agileCode: userSettings.agileCode
+            )
+            print("WIDGET: Built \(entries.count) timeline entries")
             
-            // 4) Force next refresh soon => immediate effect on user exit
-            let nextRefresh = Date().addingTimeInterval(1)
+            // Refresh every 10 minutes to update display
+            let nextRefresh = now.addingTimeInterval(10 * 60)
+            print("WIDGET: Next refresh at \(nextRefresh.formatted())")
             return Timeline(entries: entries, policy: .after(nextRefresh))
-
         } catch {
             print("WIDGET: Error building timeline: \(error)")
-            // 5) On error, do a short retry timeline
-            return buildErrorTimeline(configuration: configuration)
+            print("WIDGET: Will retry in 15 minutes")
+            // For all errors, retry in 15 minutes
+            return Timeline(
+                entries: [buildErrorEntry(configuration: configuration)],
+                policy: .after(Date().addingTimeInterval(15 * 60))
+            )
         }
     }
-
+    
+    private func buildErrorEntry(configuration: ConfigurationAppIntent) -> SimpleEntry {
+        let userSettings = readSettings()
+        return SimpleEntry(
+            date: .now,
+            configuration: configuration,
+            rates: [],
+            settings: userSettings,
+            chartSettings: chartSettings
+        )
+    }
+    
     // MARK: - Private Helpers
     
-    /// Get the Agile code using the same logic as the main app
-    private func getAgileCode() async -> String {
-        // First try to get from shared defaults (set by main app)
-        if let stored = sharedDefaults?.string(forKey: agileCodeKey) {
-            print("WIDGET: Using stored agile code: \(stored)")
-            return stored
-        }
-        
-        // If no stored code, try to get from account data
-        if let settings = try? readGlobalSettings(),
-           let accountData = settings.accountData,
-           !accountData.isEmpty,
-           let account = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData),
-           let firstProperty = account.properties.first,
-           let firstMeterPoint = firstProperty.electricity_meter_points?.first,
-           let agreements = firstMeterPoint.agreements {
-            
-            let now = Date()
-            // Filter to find any active agreement that has "AGILE" in the tariff_code
-            if let agileAgreement = agreements.first(where: { agreement in
-                agreement.tariff_code.contains("AGILE") && isAgreementActive(agreement: agreement, now: now)
-            }) {
-                print("WIDGET: Found active Agile agreement: \(agileAgreement.tariff_code)")
-                // Use the entire tariff_code, e.g. "E-1R-AGILE-24-04-03-H"
-                return agileAgreement.tariff_code
-            }
-        }
-        
-        // If no account data or no active Agile agreement, try fallback
-        if let fallback = fallbackAgileCodeFromProductEntity() {
-            print("WIDGET: Using fallback agile code: \(fallback)")
-            return fallback
-        }
-        
-        print("WIDGET: No agile code found, using empty string")
-        return ""
-    }
-    
-    /// Helper to check if an agreement is active
-    private func isAgreementActive(agreement: OctopusAgreement, now: Date) -> Bool {
-        let valid_from = agreement.valid_from ?? Date.distantPast
-        let valid_to = agreement.valid_to ?? Date.distantFuture
-        return now >= valid_from && now < valid_to
-    }
-    
-    /// Try to read the full GlobalSettings from shared defaults
-    private func readGlobalSettings() throws -> GlobalSettings? {
-        guard let data = sharedDefaults?.data(forKey: "user_settings") else { return nil }
-        return try JSONDecoder().decode(GlobalSettings.self, from: data)
-    }
-
     /// Attempts to read global settings from shared container. Fallback to minimal keys if needed.
-    private func readSettings() -> (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?) {
+    private func readSettings() -> (showRatesInPounds: Bool, language: String, agileCode: String) {
         let defaults = sharedDefaults
         if let data = defaults?.data(forKey: "user_settings"),
            let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
         {
             return (
-                postcode: decoded.regionInput,
                 showRatesInPounds: decoded.showRatesInPounds,
                 language: decoded.selectedLanguage.rawValue,
-                electricityMPAN: decoded.electricityMPAN,
-                meterSerialNumber: decoded.electricityMeterSerialNumber
+                agileCode: decoded.currentAgileCode
             )
         }
         // Fallback if "user_settings" is missing
         return (
-            postcode: defaults?.string(forKey: "selected_postcode") ?? "",
             showRatesInPounds: defaults?.bool(forKey: "show_rates_in_pounds") ?? false,
             language: defaults?.string(forKey: "selected_language") ?? "en",
-            electricityMPAN: defaults?.string(forKey: "electricity_mpan"),
-            meterSerialNumber: defaults?.string(forKey: "meter_serial_number")
+            agileCode: defaults?.string(forKey: "agile_code_for_widget") ?? ""
         )
-    }
-
-    /// Directly fetches from API + saves to Core Data for first-time or fallback usage.
-    private func directFetchAndSave() async throws -> [NSManagedObject] {
-        _ = try await fetchRegionID()
-        // If your new code doesn't have `fetchRates(...)`, you may comment out or adapt:
-        // let rawRates = try await OctopusAPIClient.shared.fetchRates(regionID: regionID)
-        // let ctx = PersistenceController.shared.container.viewContext
-
-        // Convert raw response to NSManagedObject
-        // let entities = rawRates.map { r -> NSManagedObject in
-        //     let obj = NSEntityDescription.insertNewObject(forEntityName: "RateEntity", into: ctx)
-        //     obj.setValue(UUID().uuidString, forKey: "id")
-        //     obj.setValue(r.valid_from, forKey: "valid_from")
-        //     obj.setValue(r.valid_to, forKey: "valid_to")
-        //     obj.setValue(r.value_exc_vat, forKey: "value_excluding_vat")
-        //     obj.setValue(r.value_inc_vat, forKey: "value_including_vat")
-        //     return obj
-        // }
-        // if ctx.hasChanges { try ctx.save() }
-        // return entities
-        return []
-    }
-
-    /// Obtain the region ID from user's input (postcode or region code), fallback to "H" if none.
-    private func fetchRegionID() async throws -> String {
-        let input = readSettings().postcode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !input.isEmpty else { return "H" }
-        
-        // If input is a single letter A-P, treat it as a direct region code
-        if input.count == 1 && input >= "A" && input <= "P" {
-            return input
-        }
-        
-        // Otherwise, treat as postcode and look up region
-        return try await (await repository).fetchRegionID(for: input) ?? "H"
     }
 
     /// Build timeline entries from now up to 4 hours ahead in half-hour intervals (+/-2m).
@@ -280,16 +191,14 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     ) -> [SimpleEntry] {
         let refreshSlots = computeRefreshSlots(from: now)
         let userSettings = readSettings()
-        let chartSettings = self.chartSettings  // Get the shared chart settings
         
         return refreshSlots.map { date in
             SimpleEntry(
                 date: date,
                 configuration: configuration,
                 rates: rates,
-                settings: userSettings,
-                chartSettings: chartSettings,  // Pass chart settings to entry
-                agileCode: agileCode
+                settings: (showRatesInPounds: userSettings.showRatesInPounds, language: userSettings.language, agileCode: agileCode),
+                chartSettings: chartSettings
             )
         }
     }
@@ -305,27 +214,15 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 date: now,
                 configuration: configuration,
                 rates: [],
-                settings: userSettings,
-                chartSettings: chartSettings,
-                agileCode: {
-                    let stored = sharedDefaults?.string(forKey: agileCodeKey)
-                    let fallback = fallbackAgileCodeFromProductEntity()
-                    // If 'stored' is nil, fallback to local DB; if that is also nil => empty
-                    return stored ?? fallback ?? ""
-                }()
+                settings: (showRatesInPounds: false, language: "en", agileCode: userSettings.agileCode),
+                chartSettings: chartSettings
             ),
             SimpleEntry(
                 date: retryDate,
                 configuration: configuration,
                 rates: [],
-                settings: userSettings,
-                chartSettings: chartSettings,
-                agileCode: {
-                    let stored = sharedDefaults?.string(forKey: agileCodeKey)
-                    let fallback = fallbackAgileCodeFromProductEntity()
-                    // If 'stored' is nil, fallback to local DB; if that is also nil => empty
-                    return stored ?? fallback ?? ""
-                }()
+                settings: (showRatesInPounds: false, language: "en", agileCode: userSettings.agileCode),
+                chartSettings: chartSettings
             )
         ]
         return Timeline(entries: entries, policy: .after(retryDate))
@@ -367,52 +264,13 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     }
 }
 
-// MARK: - Local fallback for "AGILE" product
-/// Attempts to find a product in Core Data whose code contains "AGILE"
-/// and is not expired (or has no `available_to`) picking the 'latest'.
-/// Return nil if none.
-extension OctopusWidgetProvider {
-    private func fallbackAgileCodeFromProductEntity() -> String? {
-        let ctx = persistenceController.container.viewContext
-        let request = NSFetchRequest<NSManagedObject>(entityName: "ProductEntity")
-        
-        // Match main app's criteria:
-        // 1. brand = OCTOPUS_ENERGY
-        // 2. direction = IMPORT
-        // 3. code contains "AGILE"
-        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            NSPredicate(format: "code CONTAINS[cd] %@", "AGILE"),
-            NSPredicate(format: "direction == %@", "IMPORT"),
-            NSPredicate(format: "brand == %@", "OCTOPUS_ENERGY")
-        ])
-        
-        // Sort by available_from date (most recent first), matching main app
-        request.sortDescriptors = [
-            NSSortDescriptor(key: "available_from", ascending: false)
-        ]
-
-        do {
-            let results = try ctx.fetch(request)
-            // Return first (most recent) code
-            if let first = results.first,
-               let code = first.value(forKey: "code") as? String {
-                return code
-            }
-        } catch {
-            print("DEBUG: fallbackAgileCodeFromProductEntity error: \(error)")
-        }
-        return nil
-    }
-}
-
 // MARK: - Timeline Entry
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let configuration: ConfigurationAppIntent
     let rates: [NSManagedObject]
-    let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
+    let settings: (showRatesInPounds: Bool, language: String, agileCode: String)
     let chartSettings: InteractiveChartSettings
-    let agileCode: String
 }
 
 // MARK: - The Widget UI
@@ -420,19 +278,19 @@ struct SimpleEntry: TimelineEntry {
 @available(iOS 17.0, *)
 struct CurrentRateWidget: View {
     let rates: [NSManagedObject]
-    let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
+    let settings: (showRatesInPounds: Bool, language: String, agileCode: String)
     let chartSettings: InteractiveChartSettings
-    let agileCode: String
+    
     @Environment(\.widgetFamily) var family
     
     // Add computed property for best time ranges
     private var bestTimeRanges: [(Date, Date)] {
         let widgetVM = RatesViewModel(
             widgetRates: rates.compactMap { $0 },
-            productCode: agileCode
+            productCode: settings.agileCode
         )
         let avgRates = widgetVM.getLowestAverages(
-            productCode: agileCode,
+            productCode: settings.agileCode,
             hours: chartSettings.customAverageHours,
             maxCount: chartSettings.maxListCount
         )
@@ -1050,16 +908,14 @@ struct Octopus_HelperWidgets: Widget {
                 CurrentRateWidget(
                     rates: entry.rates,
                     settings: entry.settings,
-                    chartSettings: entry.chartSettings,
-                    agileCode: entry.agileCode
+                    chartSettings: entry.chartSettings
                 )
                     .containerBackground(Theme.mainBackground, for: .widget)
             } else {
                 CurrentRateWidget(
                     rates: entry.rates,
                     settings: entry.settings,
-                    chartSettings: entry.chartSettings,
-                    agileCode: entry.agileCode
+                    chartSettings: entry.chartSettings
                 )
                     .padding()
                     .background(Theme.mainBackground)
@@ -1095,15 +951,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (
-            postcode: "SW1A 1AA",
-            showRatesInPounds: false,
-            language: "en",
-            electricityMPAN: nil,
-            meterSerialNumber: nil
-        ),
-        chartSettings: .default,
-        agileCode: "AGILE-FLEX-22-11-25"
+        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
+        chartSettings: .default
     )
 }
 
@@ -1118,15 +967,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (
-            postcode: "SW1A 1AA",
-            showRatesInPounds: false,
-            language: "en",
-            electricityMPAN: nil,
-            meterSerialNumber: nil
-        ),
-        chartSettings: .default,
-        agileCode: "AGILE-FLEX-22-11-25"
+        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
+        chartSettings: .default
     )
 }
 
@@ -1141,15 +983,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (
-            postcode: "SW1A 1AA",
-            showRatesInPounds: false,
-            language: "en",
-            electricityMPAN: nil,
-            meterSerialNumber: nil
-        ),
-        chartSettings: .default,
-        agileCode: "AGILE-FLEX-22-11-25"
+        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
+        chartSettings: .default
     )
 }
 
@@ -1164,15 +999,8 @@ extension PersistenceController {
         date: .now,
         configuration: ConfigurationAppIntent(),
         rates: rates,
-        settings: (
-            postcode: "SW1A 1AA",
-            showRatesInPounds: false,
-            language: "en",
-            electricityMPAN: nil,
-            meterSerialNumber: nil
-        ),
-        chartSettings: .default,
-        agileCode: "AGILE-FLEX-22-11-25"
+        settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-FLEX-22-11-25"),
+        chartSettings: .default
     )
 }
 
@@ -1213,28 +1041,8 @@ struct CurrentRateWidget_Previews: PreviewProvider {
     static var previews: some View {
         CurrentRateWidget(
             rates: [],
-            settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-            chartSettings: InteractiveChartSettings.default,
-            agileCode: "AGILE-24-10-01"
+            settings: (showRatesInPounds: false, language: "en", agileCode: "AGILE-24-10-01"),
+            chartSettings: InteractiveChartSettings.default
         )
     }
-}
-
-// MARK: - Account Response Models
-struct OctopusAccountResponse: Codable {
-    let properties: [OctopusProperty]
-}
-
-struct OctopusProperty: Codable {
-    let electricity_meter_points: [OctopusMeterPoint]?
-}
-
-struct OctopusMeterPoint: Codable {
-    let agreements: [OctopusAgreement]?
-}
-
-struct OctopusAgreement: Codable {
-    let tariff_code: String
-    let valid_from: Date?
-    let valid_to: Date?
 }
