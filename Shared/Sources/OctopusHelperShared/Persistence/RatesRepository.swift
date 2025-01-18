@@ -1,430 +1,522 @@
+//
+//  RatesRepository.swift
+//  Octopus_Agile_Helper
+//  Full Example (adjusted to avoid name collisions and missing extensions)
+//
+//  Description:
+//    - Manages all electricity rates & standing charges in Core Data
+//      via NSManagedObject for RateEntity, StandingChargeEntity.
+//    - Preserves Agile logic: multi-page fetch, coverage checks, aggregator queries.
+//
+//  Principles:
+//    - SOLID: One class controlling rate/standing-charge data
+//    - KISS, DRY, YAGNI: Minimal duplication, straightforward upserts
+//    - Fully scalable: can handle Agile or other product codes
+//
+
 import Combine
 import CoreData
 import Foundation
 import SwiftUI
 
-// MARK: - AgileRatesPageResponse (For full historical pagination)
-private struct AgileRatesPageResponse: Codable {
-    let count: Int?
-    let next: String?
-    let previous: String?
-    let results: [OctopusRate]
-}
-
-/// Manages Octopus Agile rate data in Core Data, including fetching and caching.
 @MainActor
 public final class RatesRepository: ObservableObject {
     // MARK: - Singleton
     public static let shared = RatesRepository()
 
-    // MARK: - Public Published State
-    @Published public private(set) var currentCachedRates: [RateEntity] = []
+    // MARK: - Published
+    /// Local cache if your UI or logic needs quick reference
+    @Published public private(set) var currentCachedRates: [NSManagedObject] = []
 
     // MARK: - Dependencies
     private let apiClient = OctopusAPIClient.shared
     private let context: NSManagedObjectContext
     @AppStorage("postcode") private var postcode: String = ""
 
-    // MARK: - Networking
+    // Networking (for older agile logic if needed)
     private let urlSession: URLSession
     private let maxRetries = 3
 
-    // MARK: - Initializer
+    // MARK: - Init
     private init() {
-        context = PersistenceController.shared.container.viewContext
+        self.context = PersistenceController.shared.container.viewContext
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.waitsForConnectivity = true
-        urlSession = URLSession(configuration: config)
+        self.urlSession = URLSession(configuration: config)
     }
 
-    // MARK: - Public Methods
+    // MARK: - Public API
 
-    /// Updates the rates in the database, only fetching if needed or if `force` is `true`.
-    /// - Parameter force: Forces a fresh fetch even if we have enough data.
-    /// - Throws: Possible network or data errors.
-    public func updateRates(force: Bool = false) async throws {
-        if force || !hasDataThroughExpectedEndUKTime() {
-            try await performFetch()
+    /// New approach: we accept a tariffCode and use getBaseRateURL to construct the URL, with pagination support
+    public func fetchAndStoreRates(tariffCode: String) async throws {
+        print("fetchAndStoreRates: 🔄 Starting rate update for tariff: \(tariffCode)")
+        
+        // Get base URL using our helper
+        let url = try getBaseRateURL(tariffCode: tariffCode)
+        print("fetchAndStoreRates: 📡 Base URL for fetching rates: \(url)")
+        
+        // 1. Query local DB state
+        let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+        request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+        let localData = try await context.perform {
+            try self.context.fetch(request)
         }
-    }
-
-    /// Checks whether we have coverage through the expected end (in UK time).
-    /// - Returns: `true` if data extends past “tonight at 23:00” (if before 16:00)
-    ///   or “tomorrow at 23:00” (if after 16:00).
-    public func hasDataThroughExpectedEndUKTime() -> Bool {
-        guard let maxValidTo = currentCachedRates.compactMap(\.validTo).max() else { return false }
-        guard let endOfDayUTC = expectedEndOfDayInUTC() else { return false }
-        return maxValidTo >= endOfDayUTC
-    }
-
-    /// Fetches **all** stored rates from Core Data (sorted by `validFrom`) and
-    /// updates `currentCachedRates`.
-    /// - Returns: All fetched `RateEntity`.
-    public func fetchAllRates() async throws -> [RateEntity] {
-        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
-
-        let results = try await self.context.performAsync { try self.context.fetch(request) }
-        currentCachedRates = results
-        return results
-    }
-
-    /// Deletes *all* rates from the database. Useful for debugging or manual resets.
-    public func deleteAllRates() async throws {
-        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = RateEntity.fetchRequest()
-        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
-
-        try await self.context.performAsync {
-            try self.context.execute(deleteRequest)
-            try self.context.save()
+        let localMinDate = localData.compactMap { $0.value(forKey: "valid_from") as? Date }.min()
+        let localMaxDate = localData.compactMap { $0.value(forKey: "valid_to") as? Date }.max()
+        let localCount = localData.count
+ 
+        print("fetchAndStoreRates: 📊 Local data state:")
+        print("fetchAndStoreRates: 📝 Record count: \(localCount)")
+        if let minDate = localMinDate {
+            print("fetchAndStoreRates: 📅 Earliest rate: \(minDate.formatted())")
         }
-        currentCachedRates = []
-    }
-
-    /// Attempts to fetch the user’s electricity region from the provided postcode.
-    /// - Parameter postcode: The user’s postcode. Fallback to `'H'` if empty or invalid.
-    /// - Returns: A region ID string like "H" or "L".
-    /// - Throws: Network or decoding errors. Retries on `.cancelled` up to `maxRetries`.
-    public func fetchRegionID(for postcode: String, retryCount: Int = 0) async throws -> String? {
-        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedPostcode.isEmpty else { return "H" }
-
-        let encoded = cleanedPostcode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-        guard let encodedPostcode = encoded,
-              let url = URL(string: "https://api.octopus.energy/v1/industry/grid-supply-points/?postcode=\(encodedPostcode)")
-        else { return "H" }
-
-        do {
-            let (data, response) = try await urlSession.data(for: URLRequest(url: url))
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode)
-            else {
-                // If not successful, fallback to 'H'
-                return "H"
+        if let maxDate = localMaxDate {
+            print("fetchAndStoreRates: 📅 Latest rate: \(maxDate.formatted())")
+        }
+ 
+        // 2. Get server's data range by fetching first and last pages
+        print("fetchAndStoreRates: 🔍 Fetching first page to determine server data range")
+        let firstPageResponse = try await apiClient.fetchTariffRates(url: url)
+        let totalRecordsOnServer = firstPageResponse.totalCount
+        if totalRecordsOnServer == 0 { 
+            print("fetchAndStoreRates: ❌ No rates available on server")
+            return 
+        }
+        
+        let recordsPerPage = 100 // Octopus API standard
+        let totalPages = Int(ceil(Double(totalRecordsOnServer) / Double(recordsPerPage)))
+        print("fetchAndStoreRates: 📊 Total pages available: \(totalPages)")
+ 
+        // Get last page to determine full date range
+        let lastPageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(totalPages)"
+        let lastPageResponse = try await apiClient.fetchTariffRates(url: lastPageUrl)
+        
+        guard let serverNewestRate = firstPageResponse.results.first,
+              let serverOldestRate = lastPageResponse.results.last else {
+            print("fetchAndStoreRates: ❌ Could not determine server data range")
+            return
+        }
+ 
+        print("fetchAndStoreRates: 📅 Server data range:")
+        print("fetchAndStoreRates: 📅 Newest rate: \(serverNewestRate.valid_to.formatted())")
+        print("fetchAndStoreRates: 📅 Oldest rate: \(serverOldestRate.valid_from.formatted())")
+ 
+        // 3. Determine what data we need to fetch
+        var needNewerData = localMaxDate == nil || serverNewestRate.valid_to > localMaxDate!
+        var needOlderData = localMinDate == nil || serverOldestRate.valid_from < localMinDate!
+        
+        print("fetchAndStoreRates: 🔍 Analyzing data requirements:")
+        if localCount == 0 {
+            print("fetchAndStoreRates: 📝 CoreData is empty - optimizing to forward-only pagination")
+            // Only optimize for truly empty CoreData
+            needNewerData = true
+            needOlderData = false
+        } else {
+            // We have some data, let's be explicit about what we need
+            if needNewerData {
+                print("fetchAndStoreRates: 📥 Need newer data: Server has newer rates until \(serverNewestRate.valid_to.formatted())")
             }
-
-            let supplyPoints = try JSONDecoder().decode(SupplyPointsResponse.self, from: data)
-            if let first = supplyPoints.results.first {
-                // Strip underscores from group_id => region
-                let region = first.group_id.replacingOccurrences(of: "_", with: "")
-                return region
+            if needOlderData {
+                print("fetchAndStoreRates: 📥 Need older data: Server has older rates from \(serverOldestRate.valid_from.formatted())")
             }
-            return "H"
-
-        } catch let urlError as URLError where urlError.code == .cancelled {
-            if retryCount < maxRetries {
-                // Simple exponential-ish backoff
-                try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * (retryCount + 1)))
-                return try await fetchRegionID(for: cleanedPostcode, retryCount: retryCount + 1)
-            }
-            return "H"
-        } catch {
-            return "H"
-        }
-    }
-
-    /// Fetches a single "page" of RateEntity results from Core Data.
-    /// - Parameters:
-    ///   - offset: The fetch offset (like "start index" in zero-based).
-    ///   - limit: Max records to fetch.
-    ///   - ascending: If false, newest first.
-    /// - Returns: An array of RateEntity, sorted by validFrom ascending or descending.
-    public func fetchRatesPage(offset: Int, limit: Int, ascending: Bool = true) async throws -> [RateEntity] {
-        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-        // Sort by validFrom ascending or descending
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: ascending)]
-        request.fetchOffset = offset
-        request.fetchLimit = limit
-
-        let results = try await self.context.performAsync {
-            try self.context.fetch(request)
-        }
-
-        // For ascending = false => you get newest first. If needed, you can reverse in memory.
-        // For this snippet, let's assume ascending fetch is enough:
-        return results
-    }
-
-    /// Returns total count of RateEntity in DB, to know when we've reached "the end."
-    public func countAllRates() async throws -> Int {
-        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-        return try await self.context.performAsync {
-            try self.context.count(for: request)
-        }
-    }
-
-    public func fetchRatesForDay(_ day: Date) async throws -> [RateEntity] {
-        let calendar = Calendar(identifier: .gregorian)
-        guard let dayStart = calendar.dateInterval(of: .day, for: day)?.start,
-              let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)
-        else { return [] }
-
-        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
-        request.predicate = NSPredicate(
-            format: "(validFrom < %@) AND (validTo > %@)",
-            dayEnd as NSDate,
-            dayStart as NSDate
-        )
-        return try await context.performAsync {
-            try self.context.fetch(request)
-        }
-    }
-
-    public func earliestRateDate() async throws -> Date? {
-        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: true)]
-        request.fetchLimit = 1
-        let results = try await context.performAsync {
-            try self.context.fetch(request)
-        }
-        return results.first?.validFrom
-    }
-
-    public func latestRateDate() async throws -> Date? {
-        let request: NSFetchRequest<RateEntity> = RateEntity.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \RateEntity.validFrom, ascending: false)]
-        request.fetchLimit = 1
-        let results = try await context.performAsync {
-            try self.context.fetch(request)
-        }
-        return results.first?.validFrom
-    }
-
-    // MARK: - Private Internal Logic
-
-    /// Actually performs a fetch from the network if needed.
-    ///  1. Determine region from user’s postcode.
-    ///  2. Pull fresh rates from the Octopus API.
-    ///  3. Save them to Core Data.
-    ///  4. Refresh `currentCachedRates`.
-    private func performFetch() async throws {
-        let regionID = try await fetchRegionID(for: postcode) ?? "H"
-        let newRates = try await apiClient.fetchRates(regionID: regionID)
-        try await saveRates(newRates)
-    }
-
-    /// Stores the fetched data into Core Data. Updates `currentCachedRates`.
-    private func saveRates(_ rates: [OctopusRate]) async throws {
-        try await self.context.performAsync {
-            // Use 'self.context' explicitly
-            let existing = try self.context
-                .fetch(RateEntity.fetchRequest()) as? [RateEntity] ?? []
-
-            let existingMap = Dictionary(
-                uniqueKeysWithValues: existing.compactMap { rate -> (Date, RateEntity)? in
-                    guard let from = rate.validFrom else { return nil }
-                    return (from, rate)
-                }
-            )
-
-            for octopusRate in rates {
-                if let match = existingMap[octopusRate.valid_from] {
-                    match.validTo = octopusRate.valid_to
-                    match.valueExcludingVAT = octopusRate.value_exc_vat
-                    match.valueIncludingVAT = octopusRate.value_inc_vat
+            if !needNewerData && !needOlderData {
+                print("fetchAndStoreRates: 🔍 Local data covers the entire server range, checking for gaps")
+                if let localMin = localMinDate,
+                   let localMax = localMaxDate,
+                   hasMissingRecords(from: localMin, to: localMax, localData: localData) {
+                    print("fetchAndStoreRates: 🕳️ Found gaps in local data, will fetch full range")
+                    needNewerData = true
+                    needOlderData = true
                 } else {
-                    let newEntity = RateEntity(context: self.context)
-                    newEntity.id = octopusRate.id.uuidString
-                    newEntity.validFrom = octopusRate.valid_from
-                    newEntity.validTo = octopusRate.valid_to
-                    newEntity.valueExcludingVAT = octopusRate.value_exc_vat
-                    newEntity.valueIncludingVAT = octopusRate.value_inc_vat
+                    print("fetchAndStoreRates: ✅ No gaps found, data is complete")
+                    return
                 }
             }
-            try self.context.save()
         }
-
-        // Refresh the local cache
-        currentCachedRates = try await fetchAllRates()
-    }
-
-    /// Returns the "expected end" time in UTC based on whether it's before or after 16:00 UK time.
-    /// If before 16:00 => we want coverage up to "today at 23:00" (UK).
-    /// If after 16:00 => "tomorrow at 23:00" (UK).
-    private func expectedEndOfDayInUTC() -> Date? {
-        guard let ukTimeZone = TimeZone(identifier: "Europe/London") else { return nil }
-        var ukCalendar = Calendar(identifier: .gregorian)
-        ukCalendar.timeZone = ukTimeZone
-
-        let now = Date()
-        let hour = ukCalendar.component(.hour, from: now)
-        let offsetDay = (hour < 16) ? 0 : 1
-
-        guard let baseDay = ukCalendar.date(byAdding: .day, value: offsetDay, to: now),
-              let endOfDayLocal = ukCalendar.date(bySettingHour: 23, minute: 0, second: 0, of: baseDay)
-        else {
-            return nil
-        }
-
-        return endOfDayLocal.toUTC(from: ukTimeZone)
-    }
-
-    /// Helper function that fetches a *single* page of Agile rates with pagination metadata
-    /// - Parameters:
-    ///   - regionID: The region ID to fetch rates for
-    ///   - page: The page number to fetch
-    /// - Returns: A specialized `AgileRatesPageResponse` that includes pagination metadata
-    /// - Throws: Network, decoding, or other errors
-    private func fetchAllRatesPage(regionID: String, page: Int) async throws -> AgileRatesPageResponse {
-        let productCode = "AGILE-24-10-01"  // This matches what's used in OctopusAPIClient
-        let tariffCode = "E-1R-\(productCode)-\(regionID)"
-        let urlString = "https://api.octopus.energy/v1/products/\(productCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/?page=\(page)"
-        guard let url = URL(string: urlString) else {
-            throw OctopusAPIError.invalidURL
-        }
-        
-        do {
-            let (data, response) = try await urlSession.data(for: URLRequest(url: url))
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode)
-            else {
-                throw OctopusAPIError.invalidResponse
-            }
-            
-            // Use the same date formatter as OctopusRate for consistency
-            let decoder = JSONDecoder()
-            let dateFormatter = ISO8601DateFormatter()
-            decoder.dateDecodingStrategy = .custom { decoder in
-                let container = try decoder.singleValueContainer()
-                let dateString = try container.decode(String.self)
-                guard let date = dateFormatter.date(from: dateString) else {
-                    throw DecodingError.dataCorruptedError(
-                        in: container,
-                        debugDescription: "Invalid date format"
-                    )
-                }
-                return date
-            }
-            
-            return try decoder.decode(AgileRatesPageResponse.self, from: data)
-        } catch let urlError as URLError {
-            throw OctopusAPIError.networkError(urlError)
-        } catch let decodeError as DecodingError {
-            throw OctopusAPIError.decodingError(decodeError)
-        } catch {
-            throw OctopusAPIError.networkError(error)
-        }
-    }
-
-    /// Fetches *all* Agile rates from the Octopus API, ensuring we have both earliest and latest data.
-    /// Uses optimized fetching to only get missing data, following the same pattern as consumption.
-    /// - Throws: Network, decoding, or Core Data errors.
-    public func syncAllRates() async throws {
-        // 1. Determine region from user's postcode or fallback
-        let regionID = try await fetchRegionID(for: postcode) ?? "H"
-        
-        // 2. Query local DB state
-        let localRates = try await fetchAllRates()
-        let localMinDate = localRates.compactMap(\.validFrom).min()
-        let localMaxDate = localRates.compactMap(\.validTo).max()
-        
-        // 3. Get initial state from API (newest data)
-        let firstPageResponse = try await fetchAllRatesPage(regionID: regionID, page: 1)
-        let totalRecordsOnServer = firstPageResponse.count ?? 0
-        if totalRecordsOnServer == 0 { return }
-        
-        // 4. Process newest data first (page 1 onwards)
-        if localMaxDate == nil || firstPageResponse.results.first?.valid_from.timeIntervalSince(localMaxDate!) ?? 0 > 0 {
+ 
+        // 4. Process newest data first (page 1 onwards) if needed
+        if needNewerData {
+            print("fetchAndStoreRates: 📥 Fetching newer data (forward pagination)")
             var currentPage = 1
             var hasMore = true
             
             while hasMore {
+                if currentPage > totalPages {
+                    hasMore = false
+                    break
+                }
+                
                 if currentPage > 1 {
-                    let pageResponse = try await fetchAllRatesPage(regionID: regionID, page: currentPage)
+                    let nextPageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
+                    let pageResponse = try await apiClient.fetchTariffRates(url: nextPageUrl)
                     
                     // Stop if we hit existing data
                     if let oldestInPage = pageResponse.results.last,
                        let localMax = localMaxDate,
-                       oldestInPage.valid_from <= localMax {
-                        // Only store rates newer than our local max
-                        let newRates = pageResponse.results.filter { $0.valid_from > localMax }
-                        if !newRates.isEmpty {
-                            try await saveRates(newRates)
+                       oldestInPage.valid_to <= localMax {
+                        // Only store records newer than our local max
+                        let newRecords = pageResponse.results.filter { $0.valid_to > localMax }
+                        print("fetchAndStoreRates: 📥 Found \(newRecords.count) new rates in page \(currentPage)")
+                        if !newRecords.isEmpty {
+                            try await upsertRates(newRecords, tariffCode: tariffCode)
                         }
                         hasMore = false
                         break
                     }
                     
-                    try await saveRates(pageResponse.results)
-                    hasMore = pageResponse.next != nil
+                    print("fetchAndStoreRates: 💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
+                    try await upsertRates(pageResponse.results, tariffCode: tariffCode)
+                    hasMore = pageResponse.results.count == recordsPerPage && currentPage < totalPages
                 } else {
                     // Store first page results
-                    try await saveRates(firstPageResponse.results)
-                    hasMore = firstPageResponse.next != nil
+                    print("fetchAndStoreRates: 💾 Storing \(firstPageResponse.results.count) rates from first page")
+                    try await upsertRates(firstPageResponse.results, tariffCode: tariffCode)
+                    hasMore = firstPageResponse.results.count == recordsPerPage && currentPage < totalPages
                 }
                 currentPage += 1
             }
+            print("fetchAndStoreRates: ✅ Completed forward pagination")
         }
-        
-        // 5. Calculate if we need older data
-        if let localMin = localMinDate {
-            let pageSize = firstPageResponse.results.count
-            let totalPages = Int(ceil(Double(totalRecordsOnServer) / Double(pageSize)))
+ 
+        // 5. Process older data if needed
+        if needOlderData {
+            print("fetchAndStoreRates: 📥 Fetching older data (backward pagination)")
             var currentPage = totalPages
             var hasMore = true
             
             while hasMore && currentPage > 1 {
-                let pageResponse = try await fetchAllRatesPage(regionID: regionID, page: currentPage)
-                
-                // Stop if we hit existing data
-                if let newestInPage = pageResponse.results.first,
-                   newestInPage.valid_from <= localMin {
-                    // Only store rates older than our local min
-                    let oldRates = pageResponse.results.filter { $0.valid_from < localMin }
-                    if !oldRates.isEmpty {
-                        try await saveRates(oldRates)
-                    }
-                    hasMore = false
-                    break
+                if currentPage == totalPages {
+                    // We already have the last page response
+                    print("fetchAndStoreRates: 💾 Storing \(lastPageResponse.results.count) rates from last page")
+                    try await upsertRates(lastPageResponse.results, tariffCode: tariffCode)
+                } else {
+                    let pageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
+                    let pageResponse = try await apiClient.fetchTariffRates(url: pageUrl)
+                    print("fetchAndStoreRates:  💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
+                    try await upsertRates(pageResponse.results, tariffCode: tariffCode)
                 }
-                
-                try await saveRates(pageResponse.results)
                 currentPage -= 1
-                hasMore = pageResponse.previous != nil
+                hasMore = currentPage > 1
+                print("fetchAndStoreRates: 📄 Moving to page \(currentPage)")
             }
+            print("fetchAndStoreRates: ✅ Completed backward pagination")
+        }
+ 
+        // Final status
+        let finalData = try await context.perform {
+            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            req.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            return try self.context.fetch(req)
+        }
+        print("fetchAndStoreRates: ✅ Rate update complete")
+        print("fetchAndStoreRates: 📊 Final record count: \(finalData.count)")
+        if let minDate = finalData.compactMap({ $0.value(forKey: "valid_from") as? Date }).min(),
+           let maxDate = finalData.compactMap({ $0.value(forKey: "valid_to") as? Date }).max() {
+            print("fetchAndStoreRates: 📅 Final date range: \(minDate.formatted()) to \(maxDate.formatted())")
+        }
+    }
+
+    /// Calculate the expected number of half-hour records between two dates
+    private func expectedRecordCount(from startDate: Date, to endDate: Date) -> Int {
+        let timeInterval = endDate.timeIntervalSince(startDate)
+        // Each record is 30 minutes (1800 seconds)
+        return Int(ceil(timeInterval / 1800.0))
+    }
+
+    /// Check if we have any gaps in our local data between the given dates
+    private func hasMissingRecords(from startDate: Date, to endDate: Date, localData: [NSManagedObject]) -> Bool {
+        let expected = expectedRecordCount(from: startDate, to: endDate)
+        
+        // Filter records within this date range
+        let recordsInRange = localData.filter { record in
+            guard let recordStart = record.value(forKey: "valid_from") as? Date,
+                  let recordEnd = record.value(forKey: "valid_to") as? Date else {
+                return false
+            }
+            return recordStart >= startDate && recordEnd <= endDate
         }
         
-        // 6. Reload from DB to confirm we have everything
-        let final = try await fetchAllRates()
-        let newEarliest = final.compactMap(\.validFrom).min() ?? localMinDate
-        let newLatest = final.compactMap(\.validTo).max() ?? localMaxDate
-        print("Synced rates: earliest=\(String(describing: newEarliest)) latest=\(String(describing: newLatest))")
+        print("Debug - Date range check:")
+        print("Debug - Start: \(startDate.formatted())")
+        print("Debug - End: \(endDate.formatted())")
+        print("Debug - Expected records: \(expected)")
+        print("Debug - Actual records: \(recordsInRange.count)")
+        
+        return recordsInRange.count < expected
     }
-}
-
-// MARK: - SupplyPointsResponse (Region lookup)
-fileprivate struct SupplyPointsResponse: Codable {
-    let count: Int
-    let results: [SupplyPoint]
-}
-
-fileprivate struct SupplyPoint: Codable {
-    let group_id: String
-}
-
-// MARK: - NSManagedObjectContext async helper
-extension NSManagedObjectContext {
-    /// Convenience wrapper for async operations on the context’s queue.
-    func performAsync<T>(_ block: @escaping () throws -> T) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
-            perform {
-                do {
-                    continuation.resume(returning: try block())
-                } catch {
-                    continuation.resume(throwing: error)
+    
+    /// Fetch and store standing charges
+    public func fetchAndStoreStandingCharges(tariffCode: String, url: String) async throws {
+        let charges = try await apiClient.fetchStandingCharges(url: url)
+        try await upsertStandingCharges(charges, tariffCode: tariffCode)
+    }
+    
+    /// Store standing charges in CoreData
+    private func upsertStandingCharges(_ charges: [OctopusStandingCharge], tariffCode: String) async throws {
+        try await context.perform {
+            print("🔄 Upserting \(charges.count) standing charges for tariff \(tariffCode)")
+            
+            // Fetch only existing charges for this tariff code
+            let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            let existingCharges = try self.context.fetch(request)
+            print("📦 Found \(existingCharges.count) existing standing charges for tariff \(tariffCode)")
+            
+            // Create composite key map using both date and tariff code
+            var mapByKey = [String: NSManagedObject]()
+            for c in existingCharges {
+                if let fromDate = c.value(forKey: "valid_from") as? Date,
+                   let code = c.value(forKey: "tariff_code") as? String {
+                    let key = "\(code)_\(fromDate.timeIntervalSince1970)"
+                    mapByKey[key] = c
                 }
             }
+            
+            for charge in charges {
+                let validFrom = charge.valid_from
+                let key = "\(tariffCode)_\(validFrom.timeIntervalSince1970)"
+                
+                if let found = mapByKey[key] {
+                    // update
+                    print("🔄 Updating standing charge for \(validFrom)")
+                    if let validTo = charge.valid_to {
+                        found.setValue(validTo, forKey: "valid_to")
+                    } else {
+                        found.setValue(nil, forKey: "valid_to")
+                    }
+                    found.setValue(charge.value_excluding_vat, forKey: "value_excluding_vat")
+                    found.setValue(charge.value_including_vat, forKey: "value_including_vat")
+                } else {
+                    // insert
+                    print("➕ Inserting new standing charge for \(validFrom)")
+                    let newCharge = NSEntityDescription.insertNewObject(forEntityName: "StandingChargeEntity", into: self.context)
+                    newCharge.setValue(UUID().uuidString, forKey: "id")
+                    newCharge.setValue(charge.valid_from, forKey: "valid_from")
+                    if let validTo = charge.valid_to {
+                        newCharge.setValue(validTo, forKey: "valid_to")
+                    }
+                    newCharge.setValue(charge.value_excluding_vat, forKey: "value_excluding_vat")
+                    newCharge.setValue(charge.value_including_vat, forKey: "value_including_vat")
+                    newCharge.setValue(tariffCode, forKey: "tariff_code")
+                }
+            }
+            
+            try self.context.save()
         }
     }
-}
 
-extension Date {
-    /// Interprets this `Date` as local to `timeZone` and returns an equivalent UTC `Date`.
-    func toUTC(from timeZone: TimeZone) -> Date? {
-        let offset = timeZone.secondsFromGMT(for: self)
-        return Calendar(identifier: .gregorian)
-            .date(byAdding: .second, value: -offset, to: self)
+    /// Now we identify by `tariff_code`:
+    private func upsertRates(_ rates: [OctopusTariffRate], tariffCode: String) async throws {
+        try await context.perform {
+            // Fetch only existing rates for this tariff code
+            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            let existingRates = try self.context.fetch(request)
+            
+            // Create composite key map using both date and tariff code
+            var mapByKey = [String: NSManagedObject]()
+            for r in existingRates {
+                if let fromDate = r.value(forKey: "valid_from") as? Date,
+                   let code = r.value(forKey: "tariff_code") as? String {
+                    let key = "\(code)_\(fromDate.timeIntervalSince1970)"
+                    mapByKey[key] = r
+                }
+            }
+
+            for apiRate in rates {
+                let validFrom = apiRate.valid_from
+                let key = "\(tariffCode)_\(validFrom.timeIntervalSince1970)"
+                
+                if let found = mapByKey[key] {
+                    // update existing rate
+                    found.setValue(apiRate.valid_to, forKey: "valid_to")
+                    found.setValue(apiRate.value_exc_vat, forKey: "value_excluding_vat")
+                    found.setValue(apiRate.value_inc_vat, forKey: "value_including_vat")
+                } else {
+                    // insert new rate
+                    let newRate = NSEntityDescription.insertNewObject(forEntityName: "RateEntity", into: self.context)
+                    newRate.setValue(UUID().uuidString, forKey: "id")
+                    newRate.setValue(apiRate.valid_from, forKey: "valid_from")
+                    newRate.setValue(apiRate.valid_to, forKey: "valid_to")
+                    newRate.setValue(apiRate.value_exc_vat, forKey: "value_excluding_vat")
+                    newRate.setValue(apiRate.value_inc_vat, forKey: "value_including_vat")
+                    newRate.setValue(tariffCode, forKey: "tariff_code")
+                }
+            }
+            try self.context.save()
+        }
+    }
+
+    /// Example fetchAllRates returning NSManagedObject
+    public func fetchAllRates() async throws -> [NSManagedObject] {
+        try await context.perform {
+            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            let list = try self.context.fetch(req)
+            self.currentCachedRates = list
+            return list
+        }
+    }
+
+    /// Fetch all standing charges from CoreData
+    public func fetchAllStandingCharges() async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            return try self.context.fetch(request)
+        }
+    }
+
+    /// Return the "lowest upcoming rate" from now onward.
+    public func lowestUpcomingRate() async throws -> NSManagedObject? {
+        let now = Date()
+        return try await context.perform {
+            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            req.predicate = NSPredicate(format: "valid_from > %@", now as NSDate)
+            // sort by value_including_vat ascending
+            req.sortDescriptors = [NSSortDescriptor(key: "value_including_vat", ascending: true)]
+            req.fetchLimit = 1
+            let results = try self.context.fetch(req)
+            return results.first
+        }
+    }
+
+    /// Return the "highest upcoming rate" from now onward.
+    public func highestUpcomingRate() async throws -> NSManagedObject? {
+        let now = Date()
+        return try await context.perform {
+            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            req.predicate = NSPredicate(format: "valid_from > %@", now as NSDate)
+            req.sortDescriptors = [NSSortDescriptor(key: "value_including_vat", ascending: false)]
+            req.fetchLimit = 1
+            let results = try self.context.fetch(req)
+            return results.first
+        }
+    }
+
+    // ... you can add more aggregator methods as needed
+    // (like averageUpcomingRate, etc.)
+
+    // MARK: - Private Helpers
+
+    /// Grabs the local maximum valid_to from Core Data
+    private func getLocalMaxValidTo() -> Date? {
+        let context = PersistenceController.shared.container.viewContext
+        let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+        request.sortDescriptors = [NSSortDescriptor(key: "valid_to", ascending: false)]
+        request.fetchLimit = 1
+        
+        do {
+            let results = try context.fetch(request)
+            return results.first?.value(forKey: "valid_to") as? Date
+        } catch {
+            print("❌ Error fetching max valid_to: \(error)")
+            return nil
+        }
+    }
+
+    private func expectedEndOfDayInUTC() -> Date? {
+        // Remove "toUTC" calls or re-implement them if you have an extension in your codebase.
+        // For demonstration, let's do a simpler approach:
+        guard let ukTimeZone = TimeZone(identifier: "Europe/London") else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = ukTimeZone
+
+        let now = Date()
+        let hour = calendar.component(.hour, from: now)
+        let offsetDay = (hour < 16) ? 0 : 1
+        guard
+            let baseDay = calendar.date(byAdding: .day, value: offsetDay, to: now),
+            let eodLocal = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: baseDay)
+        else {
+            return nil
+        }
+        // Just return eodLocal (no .toUTC)
+        return eodLocal
+    }
+
+    /// Fetch rates for a specific time window and tariff code
+    public func fetchRatesForTimeWindow(
+        tariffCode: String,
+        pastHours: Int = 21  // 42 rates × 30min
+    ) async throws -> [NSManagedObject] {
+        print("fetchRatesForTimeWindow: 📊 fetchRatesForTimeWindow: Starting fetch for tariff \(tariffCode), past hours: \(pastHours)")
+        return try await context.perform {
+            let now = Date()
+            let pastBoundary = now.addingTimeInterval(-Double(pastHours) * 3600)
+            
+            print("fetchRatesForTimeWindow: 📅 Time window")
+            print("   • Now: \(now.formatted())")
+            print("   • Past boundary: \(pastBoundary.formatted())")
+            
+            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            req.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "tariff_code == %@", tariffCode),
+                // Get all rates from pastBoundary onwards (no future limit)
+                NSPredicate(format: "valid_from >= %@", pastBoundary as NSDate)
+            ])
+            req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            
+            let list = try self.context.fetch(req)
+            print("fetchRatesForTimeWindow: ✅ Found \(list.count) rates")
+            
+            // Log first and last rate timestamps if available
+            if let firstRate = list.first,
+               let lastRate = list.last,
+               let firstValidFrom = firstRate.value(forKey: "valid_from") as? Date,
+               let lastValidFrom = lastRate.value(forKey: "valid_from") as? Date {
+                print("fetchRatesForTimeWindow:   • First rate from: \(firstValidFrom.formatted())")
+                print("fetchRatesForTimeWindow:   • Last rate from: \(lastValidFrom.formatted())")
+            }
+            
+            return list
+        }
+    }
+
+    /// Fetch rates from CoreData for a specific tariff code
+    public func fetchRatesByTariffCode(_ tariffCode: String) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            let list = try self.context.fetch(request)
+            return list
+        }
+    }
+
+    /// Fetch standing charges from CoreData for a specific tariff code
+    public func fetchStandingChargesByTariffCode(_ tariffCode: String) async throws -> [NSManagedObject] {
+        try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            let list = try self.context.fetch(request)
+            return list
+        }
+    }
+
+    /// Translates a tariff code to its base rate URL
+    /// - Parameters:
+    ///   - tariffCode: Full tariff code (e.g. "E-1R-AGILE-24-04-03-H")
+    ///   - productCode: Optional product code. If nil, will be derived from tariffCode
+    /// - Returns: Complete base URL for fetching rates
+    /// - Throws: OctopusAPIError if tariff code is invalid
+    private func getBaseRateURL(tariffCode: String, productCode: String? = nil) throws -> String {
+        // Determine product code
+        let effectiveProductCode: String
+        if let providedCode = productCode {
+            effectiveProductCode = providedCode
+        } else {
+            // Extract product code from tariff code (e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03")
+            let parts = tariffCode.components(separatedBy: "-")
+            guard parts.count >= 6 else {
+                throw OctopusAPIError.invalidTariffCode
+            }
+            effectiveProductCode = parts[2...5].joined(separator: "-")
+        }
+        
+        // Construct the rates URL using OctopusAPIClient's base URL
+        return "\(apiClient.apiBaseURL)/products/\(effectiveProductCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/"
     }
 }

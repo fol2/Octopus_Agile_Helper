@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import OctopusHelperShared
 import SwiftUI
+import CoreData
 
 // MARK: - Local settings
 private struct AverageCardLocalSettings: Codable {
@@ -45,6 +46,12 @@ public struct AverageUpcomingRateCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @StateObject private var localSettings = AverageCardLocalSettingsManager()
 
+    // MARK: - NEW: Decide which product code to use
+    private var productCode: String {
+        // If your plan is agile:
+        return viewModel.currentAgileCode
+    }
+
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.colorScheme) var colorScheme
 
@@ -83,16 +90,11 @@ public struct AverageUpcomingRateCardView: View {
         // Re-render on half-hour
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
-            Task {
-                await viewModel.refreshRates()
-            }
+            refreshTrigger.toggle()
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in
             refreshTrigger.toggle()
-            Task {
-                await viewModel.refreshRates()
-            }
         }
     }
 
@@ -122,10 +124,18 @@ public struct AverageUpcomingRateCardView: View {
             }
 
             // Content
-            if viewModel.isLoading {
-                ProgressView()
+            if viewModel.isLoading(for: productCode)
+               && viewModel.allRates(for: productCode).isEmpty {
+                // Show big spinner if we have no data yet
+                ProgressView("Loading...").padding(.vertical, 12)
+            } else if viewModel.allRates(for: productCode).isEmpty {
+                Text(
+                  "No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages"
+                )
+                .foregroundColor(Theme.secondaryTextColor)
             } else {
                 let averages = viewModel.getLowestAverages(
+                    productCode: productCode,
                     hours: localSettings.settings.customAverageHours,
                     maxCount: localSettings.settings.maxListCount
                 )
@@ -137,28 +147,37 @@ public struct AverageUpcomingRateCardView: View {
                     .foregroundColor(Theme.secondaryTextColor)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(averages) { entry in
-                            HStack {
+                        ForEach(averages.prefix(localSettings.settings.maxListCount)) { entry in
+                            HStack(alignment: .firstTextBaseline) {
                                 let parts = viewModel.formatRate(
                                     entry.average,
                                     showRatesInPounds: globalSettings.settings.showRatesInPounds
-                                ).split(separator: " ")
+                                )
+                                .split(separator: " ")
 
                                 Text(parts[0])
                                     .font(Theme.mainFont2())
                                     .foregroundColor(
-                                        getRateColorForAverage(
-                                            entry.average, entry.start, entry.end))
+                                        getAverageColor(
+                                            for: entry.average,
+                                            allAverages: averages.map { $0.average }
+                                        )
+                                    )
 
                                 if parts.count > 1 {
                                     Text(parts[1])
                                         .font(Theme.subFont())
                                         .foregroundColor(Theme.secondaryTextColor)
                                 }
+
                                 Spacer()
+
                                 Text(
                                     formatTimeRange(
-                                        entry.start, entry.end, locale: globalSettings.locale)
+                                        entry.start,
+                                        entry.end,
+                                        locale: globalSettings.locale
+                                    )
                                 )
                                 .font(Theme.subFont())
                                 .foregroundColor(Theme.secondaryTextColor)
@@ -245,44 +264,30 @@ public struct AverageUpcomingRateCardView: View {
     // MARK: - Helpers
 
     // MARK: - Color Helper
-    private func getRateColorForAverage(_ average: Double, _ start: Date, _ end: Date) -> Color {
-        // Get all rates sorted by time
-        let sortedRates = viewModel.allRates
-            .filter { $0.validFrom != nil }
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
-
-        // Find the rate that starts closest to our average's start time
-        let nearestRate =
-            sortedRates
-            .min { rate1, rate2 in
-                let diff1 = abs((rate1.validFrom ?? .distantFuture).timeIntervalSince(start))
-                let diff2 = abs((rate2.validFrom ?? .distantFuture).timeIntervalSince(start))
-                return diff1 < diff2
+    private func getAverageColor(for average: Double, allAverages: [Double]) -> Color {
+        // Get all rates for comparison
+        let rates = viewModel.allRates(for: productCode)
+        
+        // If we have actual rates, use them for color context
+        if !rates.isEmpty {
+            // Find rates that match our average value
+            // Otherwise, find the rates within our time period
+            let now = Date()
+            let relevantRates = rates.filter { rate in
+                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+                return validFrom >= now
             }
-
-        // Find rates that overlap with our average period
-        let overlappingRates = sortedRates.filter { rate in
-            guard let rateStart = rate.validFrom, let rateEnd = rate.validTo else { return false }
-            return (rateStart < end && rateEnd > start)
-        }
-
-        // If we have overlapping rates, use the one closest in value to our average
-        if !overlappingRates.isEmpty {
-            let closestRate =
-                overlappingRates
-                .min { rate1, rate2 in
-                    abs(rate1.valueIncludingVAT - average) < abs(rate2.valueIncludingVAT - average)
-                }
-            if let rate = closestRate {
-                return RateColor.getColor(for: rate, allRates: viewModel.allRates)
+            // Instead of exact match, find the nearest rate by absolute difference
+            if let nearestRate = relevantRates.min(by: {
+                let v0 = ($0.value(forKey: "value_including_vat") as? Double) ?? 0
+                let v1 = ($1.value(forKey: "value_including_vat") as? Double) ?? 0
+                return abs(v0 - average) < abs(v1 - average)
+            }) {
+                return RateColor.getColor(for: nearestRate, allRates: relevantRates)
             }
         }
-
-        // Fallback to nearest rate by time if no overlapping rates
-        if let rate = nearestRate {
-            return RateColor.getColor(for: rate, allRates: viewModel.allRates)
-        }
-
+        
+        // Fallback to basic coloring if no rates available
         return .white
     }
 }

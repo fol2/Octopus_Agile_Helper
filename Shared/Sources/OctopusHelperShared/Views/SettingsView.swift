@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 
 // MARK: - Bundle Access
-private extension Bundle {
-    static var moduleBundle: Bundle? {
+extension Bundle {
+    fileprivate static var moduleBundle: Bundle? {
         // First, try to get the bundle by identifier
         if let bundle = Bundle(identifier: "com.jamesto.OctopusHelperShared") {
             return bundle
@@ -34,20 +34,20 @@ private extension Bundle {
 private final class BundleToken {}
 
 // MARK: - GDPR Data Model
-fileprivate struct GDPRData: Codable {
+private struct GDPRData: Codable {
     let title: String
     let sections: [GDPRSection]
     let `tldr`: String
     let introduction: String
 }
 
-fileprivate struct GDPRSection: Codable {
+private struct GDPRSection: Codable {
     let heading: String
     let body: [String]
 }
 
 // MARK: - GDPR Declaration ViewModel
-fileprivate class GDPRViewModel: ObservableObject {
+private class GDPRViewModel: ObservableObject {
     @Published var gdprData: GDPRData?
 
     init() {
@@ -56,7 +56,8 @@ fileprivate class GDPRViewModel: ObservableObject {
 
     private func loadGDPRJSON() {
         guard let bundle = Bundle.moduleBundle,
-              let url = bundle.url(forResource: "GDPR", withExtension: "json") else {
+            let url = bundle.url(forResource: "GDPR", withExtension: "json")
+        else {
             print("GDPR.json not found in bundle.")
             return
         }
@@ -118,17 +119,17 @@ struct GDPRDeclarationView: View {
     }
 }
 
-fileprivate struct SupplyPointsResponse: Codable {
+private struct SupplyPointsResponse: Codable {
     let count: Int
     let results: [SupplyPoint]
 }
 
-fileprivate struct SupplyPoint: Codable {
+private struct SupplyPoint: Codable {
     let group_id: String
 }
 
 // MARK: - Guide Data Model
-fileprivate struct GuideData: Codable {
+private struct GuideData: Codable {
     let title: String
     let tldr: String
     let heading: String
@@ -136,7 +137,7 @@ fileprivate struct GuideData: Codable {
 }
 
 // MARK: - Guide ViewModel
-fileprivate class GuideViewModel: ObservableObject {
+private class GuideViewModel: ObservableObject {
     @Published var guideData: GuideData?
 
     init() {
@@ -145,7 +146,8 @@ fileprivate class GuideViewModel: ObservableObject {
 
     private func loadGuideJSON() {
         guard let bundle = Bundle.moduleBundle,
-              let url = bundle.url(forResource: "Guide", withExtension: "json") else {
+            let url = bundle.url(forResource: "Guide", withExtension: "json")
+        else {
             print("Guide.json not found in bundle.")
             return
         }
@@ -198,19 +200,96 @@ struct GuideView: View {
     }
 }
 
+private struct DetailRow: View {
+    let title: String
+    let value: String
+
+    init(title: String, value: String) {
+        self.title = title
+        self.value = value
+    }
+
+    // Convenience initializer for dates
+    init(title: String, date: String?) {
+        self.title = title
+        if let dateStr = date,
+            let date = ISO8601DateFormatter().date(from: dateStr)
+        {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none  // Remove time component
+            self.value = formatter.string(from: date)
+        } else {
+            self.value = "Not specified"
+        }
+    }
+
+    var body: some View {
+        HStack {
+            Text(LocalizedStringKey(title))
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.secondaryTextColor)
+            Spacer()
+            Text(value)
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
 struct APIConfigurationView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.dismiss) var dismiss
     @State private var showGDPRConsent = false
     @State private var gdprAccepted = false
     @State private var showDeleteAPIKeyWarning = false
-    @State private var showDeleteMPANWarning = false
-    @State private var showDeleteSerialWarning = false
-    
+    @State private var isFetchingAccount = false
+    @State private var fetchError: String?
+    @State private var accountNumberInput: String = ""
+    @State private var hasAccountData: Bool = false
+    @State private var accountNumberFieldError: String?
+    @State private var apiKeyFieldError: String?
+
+    private func validateInputs() -> Bool {
+        var isValid = true
+
+        withAnimation(.smooth) {
+            // Validate API Key
+            if globalSettings.settings.apiKey.isEmpty {
+                apiKeyFieldError = "API Key is required"
+                isValid = false
+            } else if !globalSettings.settings.apiKey.hasPrefix("sk_live_") {
+                apiKeyFieldError = "API Key should start with 'sk_live_'"
+                isValid = false
+            } else {
+                apiKeyFieldError = nil
+            }
+
+            // Validate Account Number
+            if accountNumberInput.isEmpty {
+                accountNumberFieldError = "Account Number is required"
+                isValid = false
+            } else if !accountNumberInput.hasPrefix("A-") {
+                accountNumberFieldError = "Account Number should start with 'A-'"
+                isValid = false
+            } else {
+                accountNumberFieldError = nil
+            }
+        }
+
+        return isValid
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 0) {
+                    // Only show input fields if we don't have account data
+                    if !hasAccountData {
+                        withAnimation(.smooth) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                // API Key Section
                     Text(LocalizedStringKey("API Key"))
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
@@ -228,13 +307,11 @@ struct APIConfigurationView: View {
                         .padding(.horizontal, 16)
                         .font(Theme.secondaryFont())
                         .foregroundColor(Theme.mainTextColor)
-                        
-                        if !globalSettings.settings.apiKey.isEmpty {
-                            Button(action: {
-                                showDeleteAPIKeyWarning = true
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.red)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: globalSettings.settings.apiKey) { _, _ in
+                                        withAnimation(.smooth) {
+                                            apiKeyFieldError = nil
                             }
                         }
                     }
@@ -244,157 +321,758 @@ struct APIConfigurationView: View {
                         Theme.secondaryBackground
                             .padding(.horizontal, 20)
                     )
-                }
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(LocalizedStringKey("Electricity Meter Details"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    
-                    VStack(spacing: 0) {
-                        HStack {
-                            TextField(
-                                LocalizedStringKey("Electricity MPAN"),
-                                text: Binding(
-                                    get: { globalSettings.settings.electricityMPAN ?? "" },
-                                    set: { globalSettings.settings.electricityMPAN = $0.isEmpty ? nil : $0 }
-                                ),
-                                prompt: Text(LocalizedStringKey("Enter electricity MPAN (13 digits)"))
-                                    .foregroundColor(Theme.secondaryTextColor)
-                            )
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 16)
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.mainTextColor)
-                            .keyboardType(.numberPad)
-                            
-                            if !(globalSettings.settings.electricityMPAN ?? "").isEmpty {
-                                Button(action: {
-                                    showDeleteMPANWarning = true
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.red)
+                                .overlay(alignment: .trailing) {
+                                    if let error = apiKeyFieldError {
+                                        Label(error, systemImage: "exclamationmark.circle.fill")
+                                            .foregroundColor(.red)
+                                            .font(Theme.subFont())
+                                            .padding(.trailing, 36)
+                                            .transition(
+                                                .move(edge: .trailing).combined(with: .opacity))
+                                    }
                                 }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical)
-                        .background(
-                            Theme.secondaryBackground
-                                .padding(.horizontal, 20)
-                        )
-                        
-                        Divider()
-                            .background(Theme.mainBackground)
+
+                                // Account Number Section
+                        Text(LocalizedStringKey("Account Number"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
                             .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                                    .padding(.top, 16)
                         
-                        HStack {
-                            TextField(
-                                LocalizedStringKey("Electricity Meter Serial Number"),
-                                text: Binding(
-                                    get: { globalSettings.settings.electricityMeterSerialNumber ?? "" },
-                                    set: { globalSettings.settings.electricityMeterSerialNumber = $0.isEmpty ? nil : $0 }
-                                ),
-                                prompt: Text(LocalizedStringKey("Enter electricity meter serial number"))
-                                    .foregroundColor(Theme.secondaryTextColor)
-                            )
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 16)
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.mainTextColor)
-                            
-                            if !(globalSettings.settings.electricityMeterSerialNumber ?? "").isEmpty {
-                                Button(action: {
-                                    showDeleteSerialWarning = true
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.red)
+                            HStack {
+                                TextField(
+                                    LocalizedStringKey("Account Number"),
+                                    text: $accountNumberInput,
+                                    prompt: Text(LocalizedStringKey("A-XXXXX"))
+                                        .foregroundColor(Theme.secondaryTextColor)
+                                )
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 16)
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(Theme.mainTextColor)
+                                .disabled(isFetchingAccount)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .onChange(of: accountNumberInput) { _, newValue in
+                                        withAnimation(.smooth) {
+                                            accountNumberFieldError = nil
+                                            fetchError = nil
+                                        }
+                                    }
+                                
+                                if isFetchingAccount {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                            .transition(.scale.combined(with: .opacity))
+                                } else {
+                                    Button(action: {
+                                            if validateInputs() {
+                                        Task {
+                                            await confirmAccountNumber()
+                                                }
+                                        }
+                                    }) {
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .foregroundColor(Theme.mainColor)
+                                    }
+                                        .disabled(
+                                            accountNumberInput.isEmpty
+                                                || globalSettings.settings.apiKey.isEmpty
+                                        )
+                                        .transition(.scale.combined(with: .opacity))
                                 }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical)
-                        .background(
-                            Theme.secondaryBackground
-                                .padding(.horizontal, 20)
-                        )
-                        
-                        Link(destination: URL(string: "https://octopus.energy/dashboard/new/accounts/personal-details/api-access")!) {
-                            HStack(spacing: 4) {
-                                Text(LocalizedStringKey("Get API Key, MPAN and Serial Number (Login Required)"))
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.mainColor)
-                                    .textCase(.none)
-                                    .multilineTextAlignment(.leading)
-                                
-                                Spacer()
-                                
-                                Image(systemName: "arrow.up.right")
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.mainColor)
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical)
+                            .background(
+                                Theme.secondaryBackground
+                                    .padding(.horizontal, 20)
+                            )
+                                .overlay(alignment: .trailing) {
+                                    if let error = accountNumberFieldError {
+                                        Label(error, systemImage: "exclamationmark.circle.fill")
+                                    .foregroundColor(.red)
+                                            .font(Theme.subFont())
+                                            .padding(.trailing, 36)
+                                            .transition(
+                                                .move(edge: .trailing).combined(with: .opacity))
+                                    }
+                                }
+
+                                if let error = fetchError {
+                                    errorView(error)
+                                }
+
+                                // Links Section
+                                VStack(spacing: 0) {
+                                    Link(
+                                        destination: URL(
+                                            string:
+                                                "https://octopus.energy/dashboard/new/accounts/personal-details/api-access"
+                                        )!
+                                    ) {
+                                        HStack(spacing: 4) {
+                                            Text(LocalizedStringKey("Get API Key (Login Required)"))
+                                                .font(Theme.secondaryFont())
+                                                .foregroundColor(Theme.mainColor)
+                                                .textCase(.none)
+                                                .multilineTextAlignment(.leading)
+
+                                            Spacer()
+
+                                            Image(systemName: "arrow.up.right")
+                            .font(Theme.subFont())
+                                                .foregroundColor(Theme.mainColor)
+                                        }
+                            .padding(.horizontal, 20)
+                                        .padding(.vertical, 12)
+                                    }
+                                    .background(Theme.mainBackground)
+
+                                    Link(
+                                        destination: URL(
+                                            string: "https://octopus.energy/dashboard/new/accounts")!
+                                    ) {
+                                        HStack(spacing: 4) {
+                                            Text(
+                                                LocalizedStringKey(
+                                                    "Get Account Number (Login Required)")
+                                            )
+                                .font(Theme.secondaryFont())
+                                            .foregroundColor(Theme.mainColor)
+                                            .textCase(.none)
+                                            .multilineTextAlignment(.leading)
+
+                                            Spacer()
+
+                                            Image(systemName: "arrow.up.right")
+                                                .font(Theme.subFont())
+                                                .foregroundColor(Theme.mainColor)
+                                        }
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 12)
+                                        .padding(.bottom, 30)
+                                    }
+                                    .background(Theme.mainBackground)
+                            }
+                            .padding(.horizontal, 20)
+                                .padding(.top, 16)
+                            }
                         }
-                        .background(Theme.mainBackground)
+                    }
+
+                    // Display Account Information if available
+                    if hasAccountData && !isFetchingAccount,
+                        let accountData = globalSettings.settings.accountData,
+                        let account = try? JSONDecoder().decode(
+                            OctopusAccountResponse.self,
+                            from: accountData
+                        )
+                    {
+                        withAnimation(.smooth) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                // Account Number
+                                DetailRow(title: "Account Number", value: account.number)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .background(Theme.secondaryBackground)
+
+                                // Properties
+                                ForEach(
+                                    Array(account.properties.enumerated()), id: \.offset
+                                ) { index, property in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(LocalizedStringKey("Property \(index + 1)"))
+                                            .font(Theme.secondaryFont().bold())
+                                            .foregroundColor(Theme.mainTextColor)
+                                            .padding(.horizontal, 20)
+
+                                        // Electricity Meter Points
+                                        if let electricityPoints = property
+                                            .electricity_meter_points
+                                        {
+                                            ForEach(
+                                                Array(electricityPoints.enumerated()),
+                                                id: \.offset
+                                            ) { mpIndex, point in
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(
+                                                        LocalizedStringKey(
+                                                            "Electricity Supply")
+                                                    )
+                                                    .font(Theme.secondaryFont().bold())
+                                                    .foregroundColor(Theme.mainTextColor)
+                                                    .padding(.horizontal, 20)
+                                                    .padding(.vertical, 8)
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                    .background(Theme.mainColor.opacity(0))
+
+                                                    DetailRow(
+                                                        title: "MPAN", value: point.mpan
+                                                    )
+                                .padding(.horizontal, 20)
+                                                    .padding(.vertical, 4)
+
+                                                    if let meters = point.meters {
+                                                        ForEach(
+                                                            Array(meters.enumerated()),
+                                                            id: \.offset
+                                                        ) { meterIndex, meter in
+                                                            DetailRow(
+                                                                title: "Meter Serial",
+                                                                value: meter.serial_number
+                                                            )
+                                                            .padding(.horizontal, 20)
+                                                            .padding(.vertical, 4)
+                                                        }
+                                                    }
+
+                                                    if let agreements = point.agreements {
+                                                        Text(
+                                                            LocalizedStringKey("Agreements")
+                                                        )
+                                                        .font(Theme.subFont())
+                                                        .foregroundColor(
+                                                            Theme.secondaryTextColor
+                                                        )
+                                                        .padding(.horizontal, 20)
+                                                        .padding(.top, 4)
+
+                                                        let sortedAgreements = agreements.sorted {
+                                                            a1, a2 in
+                                                            // Convert dates for comparison
+                                                            let date1 =
+                                                                ISO8601DateFormatter().date(
+                                                                    from: a1.valid_from ?? "")
+                                                                ?? .distantPast
+                                                            let date2 =
+                                                                ISO8601DateFormatter().date(
+                                                                    from: a2.valid_from ?? "")
+                                                                ?? .distantPast
+                                                            return date1 > date2  // Newer dates first
+                                                        }
+
+                                                        ForEach(
+                                                            Array(sortedAgreements.enumerated()),
+                                                            id: \.offset
+                                                        ) { agIndex, agreement in
+                                                            let isExpired =
+                                                                agreement.valid_to.flatMap {
+                                                                    validTo in
+                                                                    ISO8601DateFormatter().date(
+                                                                        from: validTo)
+                                                                }.map { $0 < Date() } ?? false
+
+                                                            VStack(alignment: .leading, spacing: 4)
+                                                            {
+                            HStack {
+                                                                    DetailRow(
+                                                                        title: "Tariff",
+                                                                        value: agreement.tariff_code
+                                                                    )
+
+                                                                    Spacer()
+
+                                                                    // Status indicator
+                                                                    if isExpired {
+                                                                        Text("Expired")
+                                                                            .font(Theme.subFont())
+                                                                            .foregroundColor(
+                                                                                .red.opacity(0.8)
+                                                                            )
+                                                                            .padding(.horizontal, 8)
+                                                                            .padding(.vertical, 4)
+                                                                            .background(
+                                                                                Capsule()
+                                                                                    .fill(
+                                                                                        .red
+                                                                                            .opacity(
+                                                                                                0.1)
+                                                                                    )
+                                                                            )
+                                                                    } else {
+                                                                        Text("Active")
+                                                                            .font(Theme.subFont())
+                                                                            .foregroundColor(.green)
+                                                                            .padding(.horizontal, 8)
+                                                                            .padding(.vertical, 4)
+                                                                            .background(
+                                                                                Capsule()
+                                                                                    .fill(
+                                                                                        .green
+                                                                                            .opacity(
+                                                                                                0.1)
+                                                                                    )
+                                                                            )
+                                                                    }
+                                                                }
+                                                                .padding(.horizontal, 20)
+                                                                .padding(.vertical, 4)
+
+                                                                if let validFrom = agreement
+                                                                    .valid_from
+                                                                {
+                                                                    DetailRow(
+                                                                        title: "Valid From",
+                                                                        date: validFrom
+                                                                    )
+                                                                    .padding(.horizontal, 20)
+                                                                    .padding(.vertical, 4)
+                                                                    .foregroundColor(
+                                                                        isExpired
+                                                                            ? Theme
+                                                                                .secondaryTextColor
+                                                                                .opacity(0.6) : nil)
+                                                                }
+
+                                                                if let validTo = agreement.valid_to
+                                                                {
+                                                                    DetailRow(
+                                                                        title: "Valid To",
+                                                                        date: validTo
+                                                                    )
+                            .padding(.horizontal, 20)
+                                                                    .padding(.vertical, 4)
+                                                                    .foregroundColor(
+                                                                        isExpired
+                                                                            ? Theme
+                                                                                .secondaryTextColor
+                                                                                .opacity(0.6) : nil)
+                                                                }
+                                                            }
+                                                            .padding(.vertical, 8)
+                            .background(
+                                Theme.secondaryBackground
+                                                                    .opacity(isExpired ? 0.5 : 1)
+                                                            )
+                                                            .clipShape(
+                                                                RoundedRectangle(cornerRadius: 8))
+
+                                                            // Add a divider between agreements, except for the last one
+                                                            if agIndex < sortedAgreements.count - 1
+                                                            {
+                                                                Divider()
+                                    .padding(.horizontal, 20)
+                                                                    .padding(.vertical, 8)
+                                                                    .opacity(0.3)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                .padding(.vertical, 8)
+                                                .background(Theme.secondaryBackground)
+                                                .clipShape(
+                                                    RoundedRectangle(cornerRadius: 10))
+                                            }
+                                        }
+
+                                        // Gas Meter Points
+                                        if let gasPoints = property.gas_meter_points {
+                                            ForEach(
+                                                Array(gasPoints.enumerated()), id: \.offset
+                                            ) { mpIndex, point in
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(LocalizedStringKey("Gas Supply"))
+                                                        .font(Theme.secondaryFont().bold())
+                                                        .foregroundColor(Theme.mainTextColor)
+                                                        .padding(.horizontal, 20)
+                                                        .padding(.vertical, 8)
+                                                        .frame(
+                                                            maxWidth: .infinity, alignment: .leading
+                                                        )
+                                                        .background(Theme.mainColor.opacity(0))
+
+                                                    DetailRow(
+                                                        title: "MPRN", value: point.mprn
+                                                    )
+                                                    .padding(.horizontal, 20)
+                                                    .padding(.vertical, 4)
+
+                                                    if let meters = point.meters {
+                                                        ForEach(
+                                                            Array(meters.enumerated()),
+                                                            id: \.offset
+                                                        ) { meterIndex, meter in
+                                                            DetailRow(
+                                                                title: "Meter Serial",
+                                                                value: meter.serial_number
+                                                            )
+                                                            .padding(.horizontal, 20)
+                                                            .padding(.vertical, 4)
+                                                        }
+                                                    }
+
+                                                    if let agreements = point.agreements {
+                                                        Text(
+                                                            LocalizedStringKey("Agreements")
+                                                        )
+                                                        .font(Theme.subFont())
+                                                        .foregroundColor(
+                                                            Theme.secondaryTextColor
+                                                        )
+                                                        .padding(.horizontal, 20)
+                                                        .padding(.top, 4)
+
+                                                        let sortedAgreements = agreements.sorted {
+                                                            a1, a2 in
+                                                            // Convert dates for comparison
+                                                            let date1 =
+                                                                ISO8601DateFormatter().date(
+                                                                    from: a1.valid_from ?? "")
+                                                                ?? .distantPast
+                                                            let date2 =
+                                                                ISO8601DateFormatter().date(
+                                                                    from: a2.valid_from ?? "")
+                                                                ?? .distantPast
+                                                            return date1 > date2  // Newer dates first
+                                                        }
+
+                                                        ForEach(
+                                                            Array(sortedAgreements.enumerated()),
+                                                            id: \.offset
+                                                        ) { agIndex, agreement in
+                                                            let isExpired =
+                                                                agreement.valid_to.flatMap {
+                                                                    validTo in
+                                                                    ISO8601DateFormatter().date(
+                                                                        from: validTo)
+                                                                }.map { $0 < Date() } ?? false
+
+                                                            VStack(alignment: .leading, spacing: 4)
+                                                            {
+                                                                HStack {
+                                                                    DetailRow(
+                                                                        title: "Tariff",
+                                                                        value: agreement.tariff_code
+                                                                    )
+                                    
+                                    Spacer()
+                                    
+                                                                    // Status indicator
+                                                                    if isExpired {
+                                                                        Text("Expired")
+                                        .font(Theme.subFont())
+                                                                            .foregroundColor(
+                                                                                .red.opacity(0.8)
+                                                                            )
+                                                                            .padding(.horizontal, 8)
+                                                                            .padding(.vertical, 4)
+                                                                            .background(
+                                                                                Capsule()
+                                                                                    .fill(
+                                                                                        .red
+                                                                                            .opacity(
+                                                                                                0.1)
+                                                                                    )
+                                                                            )
+                                                                    } else {
+                                                                        Text("Active")
+                                                                            .font(Theme.subFont())
+                                                                            .foregroundColor(.green)
+                                                                            .padding(.horizontal, 8)
+                                                                            .padding(.vertical, 4)
+                                                                            .background(
+                                                                                Capsule()
+                                                                                    .fill(
+                                                                                        .green
+                                                                                            .opacity(
+                                                                                                0.1)
+                                                                                    )
+                                                                            )
+                                                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                                                .padding(.vertical, 4)
+
+                                                                if let validFrom = agreement
+                                                                    .valid_from
+                                                                {
+                                                                    DetailRow(
+                                                                        title: "Valid From",
+                                                                        date: validFrom
+                                                                    )
+                                                                    .padding(.horizontal, 20)
+                                                                    .padding(.vertical, 4)
+                                                                    .foregroundColor(
+                                                                        isExpired
+                                                                            ? Theme
+                                                                                .secondaryTextColor
+                                                                                .opacity(0.6) : nil)
+                                                                }
+
+                                                                if let validTo = agreement.valid_to
+                                                                {
+                                                                    DetailRow(
+                                                                        title: "Valid To",
+                                                                        date: validTo
+                                                                    )
+                            .padding(.horizontal, 20)
+                                                                    .padding(.vertical, 4)
+                                                                    .foregroundColor(
+                                                                        isExpired
+                                                                            ? Theme
+                                                                                .secondaryTextColor
+                                                                                .opacity(0.6) : nil)
+                                                                }
+                                                            }
+                                                            .padding(.vertical, 8)
+                                                            .background(
+                                                                Theme.secondaryBackground
+                                                                    .opacity(isExpired ? 0.5 : 1)
+                                                            )
+                                                            .clipShape(
+                                                                RoundedRectangle(cornerRadius: 8))
+
+                                                            // Add a divider between agreements, except for the last one
+                                                            if agIndex < sortedAgreements.count - 1
+                                                            {
+                                                                Divider()
+                                                                    .padding(.horizontal, 20)
+                                                                    .padding(.vertical, 8)
+                                                                    .opacity(0.3)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                .padding(.vertical, 8)
+                                                .background(Theme.secondaryBackground)
+                                                .clipShape(
+                                                    RoundedRectangle(cornerRadius: 10))
+                                            }
+                                        }
+                                    }
+                                    .padding(.vertical, 8)
+                                }
+                                .padding(.top, 16)
+                                .padding(.bottom, 10)
+                            }
+                        }
+                    }
+
+                    // Remove Account Access button
+                    if !globalSettings.settings.apiKey.isEmpty || !accountNumberInput.isEmpty {
+                        Button(action: {
+                            showDeleteAPIKeyWarning = true
+                        }) {
+                            Text(LocalizedStringKey("Remove Account Access"))
+                                .font(Theme.secondaryFont())
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color("IconColor"))
+                                )
+                                .contentShape(Rectangle())
+                        }
                         .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .padding(.bottom, 30)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LocalizedStringKey("Guide"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                        
+                        GuideView()
+                            .padding()
+                            .background(Theme.secondaryBackground)
+                    }
+                    .padding(.bottom, 30)
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LocalizedStringKey("GDPR (UK) and Data Usage Declaration"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                        
+                        GDPRDeclarationView()
+                            .padding()
+                            .background(Theme.secondaryBackground)
                     }
                 }
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(LocalizedStringKey("Guide"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    
-                    GuideView()
-                        .padding()
-                        .background(Theme.secondaryBackground)
-                }
-                .padding(.bottom, 20)
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(LocalizedStringKey("GDPR (UK) and Data Usage Declaration"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    
-                    GDPRDeclarationView()
-                        .padding()
-                        .background(Theme.secondaryBackground)
-                }
+                .padding(.vertical)
             }
             .padding(.vertical)
         }
         .background(Theme.mainBackground)
         .navigationTitle(LocalizedStringKey("API Configuration"))
-        .alert(LocalizedStringKey("Delete API Key?"), isPresented: $showDeleteAPIKeyWarning) {
-            Button(LocalizedStringKey("Cancel"), role: .cancel) {}
-            Button(LocalizedStringKey("Delete"), role: .destructive) {
-                globalSettings.settings.apiKey = ""
-            }
-        } message: {
-            Text(LocalizedStringKey("Are you sure you want to delete your API key? This will prevent access to your personal energy data."))
+        .onAppear {
+            // Restore account number from settings when view appears
+            accountNumberInput = globalSettings.settings.accountNumber ?? ""
+            hasAccountData = globalSettings.settings.accountData != nil
         }
-        .alert(LocalizedStringKey("Delete MPAN?"), isPresented: $showDeleteMPANWarning) {
+        .onChange(of: globalSettings.settings.accountData) { _, newValue in
+            hasAccountData = newValue != nil
+        }
+        .alert(
+            LocalizedStringKey("Delete Account Information?"), isPresented: $showDeleteAPIKeyWarning
+        ) {
             Button(LocalizedStringKey("Cancel"), role: .cancel) {}
             Button(LocalizedStringKey("Delete"), role: .destructive) {
+                // Clear all account-related data
+                withAnimation {
+                    globalSettings.settings.apiKey = ""
+                    globalSettings.settings.accountNumber = nil
+                    accountNumberInput = ""
+                    globalSettings.settings.accountData = nil
                 globalSettings.settings.electricityMPAN = nil
-            }
-        } message: {
-            Text(LocalizedStringKey("Are you sure you want to delete your MPAN? This will prevent access to your meter-specific data."))
-        }
-        .alert(LocalizedStringKey("Delete Serial Number?"), isPresented: $showDeleteSerialWarning) {
-            Button(LocalizedStringKey("Cancel"), role: .cancel) {}
-            Button(LocalizedStringKey("Delete"), role: .destructive) {
                 globalSettings.settings.electricityMeterSerialNumber = nil
+                    hasAccountData = false
+                }
             }
         } message: {
-            Text(LocalizedStringKey("Are you sure you want to delete your meter serial number? This will prevent access to your meter-specific data."))
+            Text(
+                LocalizedStringKey(
+                    "This will delete your:\n• API Key\n• Account Number\n• Meter Information\n• Account Data\n\nYou will need to re-enter your account information to access your energy data."
+                ))
+        }
+    }
+    
+    private func confirmAccountNumber() async {
+        isFetchingAccount = true
+        fetchError = nil
+        do {
+            print("🔄 Fetching account data...")
+            try await AccountRepository.shared.fetchAndStoreAccount(
+                accountNumber: accountNumberInput,
+                apiKey: globalSettings.settings.apiKey,
+                globalSettings: globalSettings
+            )
+
+            // Wrap state updates in withAnimation
+            await MainActor.run {
+                print("✅ Account data fetched successfully")
+                withAnimation(.smooth) {
+                    // Update all states on success
+                    globalSettings.settings.accountNumber = accountNumberInput
+                    hasAccountData = globalSettings.settings.accountData != nil
+                    print("📊 hasAccountData: \(hasAccountData)")
+                    print("📊 accountData exists: \(globalSettings.settings.accountData != nil)")
+                    isFetchingAccount = false
+                    fetchError = nil
+                }
+            }
+        } catch {
+            await MainActor.run {
+                print("❌ Error fetching account: \(error.localizedDescription)")
+                withAnimation(.smooth) {
+            fetchError = error.localizedDescription
+        isFetchingAccount = false
+                    hasAccountData = false
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func errorView(_ error: String) -> some View {
+        Text(LocalizedStringKey(error))
+            .font(Theme.subFont())
+            .foregroundColor(.red)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    private var inputFieldsView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // API Key Section
+            Text(LocalizedStringKey("API Key"))
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+
+            HStack {
+                SecureField(
+                    LocalizedStringKey("API Key"),
+                    text: $globalSettings.settings.apiKey,
+                    prompt: Text(LocalizedStringKey("sk_live_..."))
+                        .foregroundColor(Theme.secondaryTextColor)
+                )
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 16)
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical)
+            .background(
+                Theme.secondaryBackground
+                    .padding(.horizontal, 20)
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
+
+            // Account Number Section
+            Text(LocalizedStringKey("Account Number"))
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+                .padding(.top, 16)
+
+            HStack {
+                TextField(
+                    LocalizedStringKey("Account Number"),
+                    text: $accountNumberInput,
+                    prompt: Text(LocalizedStringKey("A-XXXXX"))
+                        .foregroundColor(Theme.secondaryTextColor)
+                )
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 16)
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
+                .disabled(isFetchingAccount)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .onChange(of: accountNumberInput) { _, newValue in
+                    // Clear error when user starts typing
+                    if !newValue.isEmpty {
+                        withAnimation(.smooth) {
+                            fetchError = nil
+                        }
+                    }
+                }
+
+                if isFetchingAccount {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Button(action: {
+                        Task {
+                            await confirmAccountNumber()
+                        }
+                    }) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .foregroundColor(Theme.mainColor)
+                    }
+                    .disabled(
+                        accountNumberInput.isEmpty
+                            || globalSettings.settings.apiKey.isEmpty
+                    )
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical)
+            .background(
+                Theme.secondaryBackground
+                    .padding(.horizontal, 20)
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
+
+            if let error = fetchError {
+                errorView(error)
+            }
         }
     }
 }
@@ -406,6 +1084,9 @@ struct RegionLookupView: View {
     @State private var isLoading = false
     @State private var error: String?
     @Binding var lookupError: String?
+    
+    // Repository for region lookup
+    private let ratesRepo = RatesRepository.shared
     
     // Cache for postcode lookup results
     @AppStorage("postcode_region_cache") private var postcodeRegionCacheData: Data = Data()
@@ -437,12 +1118,12 @@ struct RegionLookupView: View {
                 Text("Looking up region...")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
-            } else if let region = region {
+            } else if let region = region, !isLoading && triggerLookup == false {
                 Text("Using Region \(region)")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             } else {
-                Text("Using Region H")
+                Text("Tap the search icon to lookup your region")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -459,7 +1140,8 @@ struct RegionLookupView: View {
         }
         .onAppear {
             // Check cache on appear
-            let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
+                .uppercased()
             if !cleanedPostcode.isEmpty {
                 if let cachedRegion = postcodeRegionCache[cleanedPostcode] {
                     region = cachedRegion
@@ -489,6 +1171,15 @@ struct RegionLookupView: View {
             return
         }
         
+        // If it's a single letter between A and P, it's a valid region code
+        if cleanedPostcode.count == 1,
+           let firstChar = cleanedPostcode.first,
+           firstChar >= "A" && firstChar <= "P" {
+            region = cleanedPostcode
+            lookupError = nil
+            return
+        }
+        
         let loadingTask = Task {
             try? await Task.sleep(nanoseconds: 150_000_000)
             if !Task.isCancelled {
@@ -501,19 +1192,18 @@ struct RegionLookupView: View {
         lookupError = nil
         
         do {
-            let (region, isInvalid) = try await lookupPostcodeRegion(postcode: cleanedPostcode)
-            if isInvalid {
+            if let fetchedRegion = try await ratesRepo.fetchRegionID(for: cleanedPostcode) {
+                self.region = fetchedRegion
+                lookupError = nil
+                var newCache = postcodeRegionCache
+                newCache[cleanedPostcode] = fetchedRegion
+                postcodeRegionCache = newCache
+            } else {
                 lookupError = "Invalid postcode"
                 self.region = nil
                 var newInvalidPostcodes = invalidPostcodes
                 newInvalidPostcodes.insert(cleanedPostcode)
                 invalidPostcodes = newInvalidPostcodes
-            } else if let region = region {
-                self.region = region
-                lookupError = nil
-                var newCache = postcodeRegionCache
-                newCache[cleanedPostcode] = region
-                postcodeRegionCache = newCache
             }
         } catch {
             lookupError = error.localizedDescription
@@ -522,34 +1212,6 @@ struct RegionLookupView: View {
         
         loadingTask.cancel()
         isLoading = false
-    }
-    
-    private func lookupPostcodeRegion(postcode: String) async throws -> (String?, Bool) {
-        let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedPostcode.isEmpty else { return ("H", false) }
-        
-        let encoded = cleanedPostcode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-        guard let encodedPostcode = encoded,
-              let url = URL(string: "https://api.octopus.energy/v1/industry/grid-supply-points/?postcode=\(encodedPostcode)")
-        else { return ("H", false) }
-        
-        let urlSession = URLSession.shared
-        let (data, response) = try await urlSession.data(for: URLRequest(url: url))
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode)
-        else {
-            return ("H", false)
-        }
-        
-        let supplyPoints = try JSONDecoder().decode(SupplyPointsResponse.self, from: data)
-        if supplyPoints.count == 0 {
-            return (nil, true) // Indicates invalid postcode
-        }
-        if let first = supplyPoints.results.first {
-            let region = first.group_id.replacingOccurrences(of: "_", with: "")
-            return (region, false)
-        }
-        return ("H", false)
     }
 }
 
@@ -566,20 +1228,18 @@ extension View {
     }
 }
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @State private var lookupRegionManually = false
     @State private var lookupError: String?
+    let didFinishEditing: (() -> Void)?
 
-    var body: some View {
+    public init(didFinishEditing: (() -> Void)? = nil) {
+        self.didFinishEditing = didFinishEditing
+    }
+
+    public var body: some View {
         Form {
-            if let cached = OctopusAPIClient.shared.getCachedAgileMetadata() {
-                Text(cached.fullName)
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-                    .listRowBackground(Theme.mainBackground)
-            }
-            
             Section(
                 header: HStack {
                     Text("Cards")
@@ -589,7 +1249,7 @@ struct SettingsView: View {
                     Spacer()
                     InfoButton(
                         message: LocalizedStringKey(
-                            "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards by dragging to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage."
+                            "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage."
                         ),
                         title: LocalizedStringKey("Cards"),
                         mediaItems: [
@@ -619,81 +1279,6 @@ struct SettingsView: View {
                     }
                 }
                 .customListRow()
-            }
-            
-            Section(
-                header: HStack {
-                    Text("Region Lookup")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .textCase(.none)
-                    Spacer()
-                    InfoButton(
-                        message: LocalizedStringKey(
-                            "Enter your postcode to determine your electricity region for accurate rates, or directly enter your region code (A-P) if you know it.\n\nExamples:\n• Postcode: SW1A 1AA or SW1A\n• Region Code: H\n\nIf empty or invalid, region 'H' (Southern England) will be used as default."
-                        ),
-                        title: LocalizedStringKey("Region Lookup"),
-                        mediaItems: [
-                            MediaItem(
-                                youtubeID: "2Gp68uXVGfo",
-                                caption: LocalizedStringKey(
-                                    "Zonal pricing would make energy bills cheaper...")
-                            )
-                        ],
-                        linkURL: URL(
-                            string: "https://octopus.energy/blog/regional-pricing-explained/"),
-                        linkText: LocalizedStringKey("How zonal pricing could make bills cheaper")
-                    )
-                }
-            ) {
-                ZStack(alignment: .trailing) {
-                    TextField(
-                        LocalizedStringKey("Postcode or Region Code"),
-                        text: $globalSettings.settings.regionInput,
-                        prompt: Text(LocalizedStringKey("e.g., SW1A 1AA, SW1A or H"))
-                            .foregroundColor(Theme.secondaryTextColor)
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    .font(Theme.secondaryFont())
-                    .foregroundColor(Theme.mainTextColor)
-                    .padding(.trailing, 35)
-                    
-                    HStack(spacing: 4) {
-                        let input = globalSettings.settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-                        if input.count > 1 {
-                            Button {
-                                lookupError = nil
-                                lookupRegionManually = false
-                                DispatchQueue.main.async {
-                                    lookupRegionManually = true
-                                }
-                            } label: {
-                                Image(systemName: "magnifyingglass.circle.fill")
-                                    .foregroundColor(Theme.secondaryColor)
-                                    .font(.system(size: 20))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        if let error = lookupError {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .foregroundColor(.pink)
-                                .font(.system(size: 20))
-                        }
-                    }
-                    .padding(.trailing, 8)
-                }
-                .customListRow()
-                
-                let input = globalSettings.settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-                if input.count == 1 && input >= "A" && input <= "P" {
-                    Text("Using Region \(input)")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .customListRow()
-                } else {
-                    RegionLookupView(postcode: input, triggerLookup: $lookupRegionManually, lookupError: $lookupError)
-                }
             }
 
             Section(
@@ -725,6 +1310,117 @@ struct SettingsView: View {
                     }
                 }
                 .customListRow()
+            }
+            
+            // Only show Region Lookup if we don't have account data
+            if globalSettings.settings.accountData == nil {
+                Section(
+                    header: HStack {
+                        Text(LocalizedStringKey("Region Lookup"))
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .textCase(.none)
+                        Spacer()
+                        InfoButton(
+                            message: LocalizedStringKey(
+                                "Enter your postcode to determine your electricity region for accurate rates, or directly enter your region code (A-P) if you know it.\n\nExamples:\n• Postcode: SW1A 1AA or SW1A\n• Region Code: H\n\nIf empty or invalid, region 'H' (Southern England) will be used as default."
+                            ),
+                            title: LocalizedStringKey("Region Lookup"),
+                            mediaItems: [
+                                MediaItem(
+                                    youtubeID: "2Gp68uXVGfo",
+                                    caption: LocalizedStringKey(
+                                        "Zonal pricing would make energy bills cheaper...")
+                                )
+                            ],
+                            linkURL: URL(
+                                string: "https://octopus.energy/blog/regional-pricing-explained/"),
+                            linkText: LocalizedStringKey("How zonal pricing could make bills cheaper")
+                        )
+                    }
+                ) {
+                    ZStack(alignment: .trailing) {
+                        let displayValue = Binding(
+                            get: {
+                                globalSettings.settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                            },
+                            set: { newValue in
+                                // Validate input: either a postcode or a single letter A-P
+                                let cleaned = newValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                                if cleaned.isEmpty {
+                                    globalSettings.settings.regionInput = cleaned
+                                } else if cleaned.count == 1 && cleaned >= "A" && cleaned <= "P" {
+                                    // Valid region code
+                                    globalSettings.settings.regionInput = cleaned
+                                } else if cleaned.count <= 8 {  // Max UK postcode length
+                                    // Allow postcode input for lookup
+                                    globalSettings.settings.regionInput = cleaned
+                                }
+                            }
+                        )
+                        
+                        TextField(
+                            LocalizedStringKey("Postcode or Region Code"),
+                            text: displayValue,
+                            prompt: Text(LocalizedStringKey("e.g., SW1A 1AA, SW1A or H"))
+                                .foregroundColor(Theme.secondaryTextColor)
+                        )
+                        .onChange(of: globalSettings.settings.regionInput) { _, newValue in
+                            print("📍 Region input changed to: \(newValue)")
+                        }
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.mainTextColor)
+                        .padding(.trailing, 35)
+                        
+                        HStack(spacing: 4) {
+                            let input = globalSettings.settings.regionInput.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).uppercased()
+                            if input.count > 1 {
+                                Button {
+                                    lookupError = nil
+                                    lookupRegionManually = false
+                                    DispatchQueue.main.async {
+                                        lookupRegionManually = true
+                                    }
+                                } label: {
+                                    Image(systemName: "magnifyingglass.circle.fill")
+                                        .foregroundColor(Theme.secondaryColor)
+                                        .font(.system(size: 20))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            if let error = lookupError {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundColor(.pink)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(.trailing, 8)
+                    }
+                    .customListRow()
+                    
+                    let input = globalSettings.settings.regionInput.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ).uppercased()
+                    if input.isEmpty {
+                        Text("Default Region H")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .customListRow()
+                    } else if input.count == 1 && input >= "A" && input <= "P" {
+                        Text("Using Region \(input)")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .customListRow()
+                    } else if input.count > 1 {
+                        RegionLookupView(
+                            postcode: input, triggerLookup: $lookupRegionManually,
+                            lookupError: $lookupError)
+                    }
+                }
             }
 
             Section(
@@ -774,6 +1470,10 @@ struct SettingsView: View {
         .background(Theme.mainBackground)
         .environment(\.locale, globalSettings.locale)
         .navigationTitle(LocalizedStringKey("Settings"))
+        .onDisappear {
+            // Call the completion handler when view disappears
+            didFinishEditing?()
+        }
     }
 }
 
@@ -827,17 +1527,6 @@ struct InfoButton: View {
         }
         .onChange(of: globalSettings.locale) { _, _ in
             refreshID = UUID()
-        }
-    }
-}
-
-struct SettingsView_Previews: PreviewProvider {
-    static let globalSettings = GlobalSettingsManager()
-
-    static var previews: some View {
-        NavigationStack {
-            SettingsView()
-                .environmentObject(globalSettings)
         }
     }
 }

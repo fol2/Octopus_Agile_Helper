@@ -1,5 +1,6 @@
 import Charts
 import Combine
+import CoreData
 import Foundation
 import SwiftUI
 import OctopusHelperShared
@@ -54,6 +55,12 @@ public struct InteractiveLineChartCardView: View {
     @StateObject private var localSettings = InteractiveChartSettingsManager()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
 
+    // MARK: - NEW: Decide which product code to use
+    private var productCode: String {
+        // If your plan is agile:
+        return viewModel.currentAgileCode
+    }
+
     // Flip state (front/back)
     @State private var isFlipped = false
 
@@ -106,7 +113,7 @@ public struct InteractiveLineChartCardView: View {
         // Instead of local timer, we use CardRefreshManager
         .onReceive(refreshManager.$minuteTick) { tickTime in
             guard let t = tickTime else { return }
-            self.now = t
+            now = t
             handleMinuteTick()
         }
         .onReceive(refreshManager.$halfHourTick) { tickTime in
@@ -114,16 +121,14 @@ public struct InteractiveLineChartCardView: View {
             recalcBarWidthAndPrintOnce()
         }
         .onReceive(refreshManager.$sceneActiveTick) { _ in
-            now = Date()
-            Task {
-                await viewModel.refreshRates()
-            }
+            now = Date()  // update "now"
         }
         .onChange(of: filteredRates, initial: true) { oldValue, newValue in
             recalcBarWidthAndPrintOnce()
         }
         .onAppear {
-            now = Date()
+            // Update "now" & recalc when card first appears
+            now = Date()  
             recalcBarWidthAndPrintOnce()
         }
         .rateCardStyle()
@@ -135,10 +140,16 @@ extension InteractiveLineChartCardView {
     private var frontSide: some View {
         VStack(alignment: .leading, spacing: 12) {
             headerBar
-            if viewModel.isLoading {
-                ProgressView()
+            if viewModel.isLoading(for: productCode) && filteredRates.isEmpty {
+                // Show big spinner if we have no data yet
+                ProgressView("Loading...").padding(.vertical, 12)
             } else if filteredRates.isEmpty {
-                noDataView
+                // If not loading but no data => no upcoming
+                Text("No upcoming rates available")
+                    .font(Theme.secondaryFont())
+                    .foregroundStyle(Theme.secondaryTextColor)
+                    .padding(.vertical, 12)
+                    .transition(.opacity)
             } else {
                 chartView
                     .frame(height: 220)
@@ -155,15 +166,22 @@ extension InteractiveLineChartCardView {
                 Text(LocalizedStringKey(def.displayNameKey))
                     .font(Theme.titleFont())
                     .foregroundStyle(Theme.secondaryTextColor)
-            }
-            Spacer()
-            Button {
-                withAnimation(.spring()) {
-                    isFlipped = true
+                Spacer()
+                // If no data while isLoading => big spinner
+                if viewModel.isLoading(for: productCode)
+                   && filteredRates.isEmpty {
+                    ProgressView("Loading...")
+                        .font(Theme.subFont())
+                } else {
+                    Button {
+                        withAnimation(.spring()) {
+                            isFlipped = true
+                        }
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundStyle(Theme.secondaryTextColor)
+                    }
                 }
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .foregroundStyle(Theme.secondaryTextColor)
             }
         }
     }
@@ -180,10 +198,10 @@ extension InteractiveLineChartCardView {
 
         return Chart {
             // 1) Highlight best windows - using rendering times with epsilon shift
-            ForEach(bestTimeRangesRender, id: \.0) { (start, end) in
+            ForEach(bestTimeRangesRender, id: \.0) { window in
                 RectangleMark(
-                    xStart: .value("Start", start),
-                    xEnd: .value("End", end),
+                    xStart: .value("Window Start", window.0),
+                    xEnd: .value("Window End", window.1),
                     yStart: .value("Min", minVal),
                     yEnd: .value("Max", maxVal)
                 )
@@ -209,16 +227,16 @@ extension InteractiveLineChartCardView {
             }
 
             // 3) Bars
-            ForEach(filteredRates, id: \.validFrom) { rate in
-                if let validFrom = rate.validFrom {
+            ForEach(filteredRates, id: \.objectID) { rate in
+                if let validFrom = rate.value(forKey: "valid_from") as? Date {
                     BarMark(
                         x: .value("Time", validFrom),
-                        y: .value("Price", rate.valueIncludingVAT),
+                        y: .value("Price", rate.value(forKey: "value_including_vat") as? Double ?? 0),
                         width: .fixed(barWidth)
                     )
                     .cornerRadius(3)
                     .foregroundStyle(
-                        rate.valueIncludingVAT < 0
+                        (rate.value(forKey: "value_including_vat") as? Double ?? 0) < 0
                             ? Theme.secondaryColor
                             : Theme.mainColor
                     )
@@ -473,22 +491,23 @@ extension InteractiveLineChartCardView {
 
 // MARK: - Data Logic
 extension InteractiveLineChartCardView {
-    private var filteredRates: [RateEntity] {
-        // from now-1hr to now+48hrs
-        let start = now.addingTimeInterval(-3600)
-        let end = now.addingTimeInterval(48 * 3600)
-
-        return viewModel.allRates
-            .filter { $0.validFrom != nil && $0.validTo != nil }
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
-            .filter {
-                guard let date = $0.validFrom else { return false }
-                return (date >= start && date <= end)
+    private var filteredRates: [NSManagedObject] {
+        let now = Date()
+        let allRates = viewModel.allRates(for: productCode)
+        return allRates.filter { 
+            guard let validFrom = $0.value(forKey: "valid_from") as? Date,
+                  let validTo   = $0.value(forKey: "valid_to")   as? Date else { return false }
+            return validFrom >= now.addingTimeInterval(-3600) && validFrom <= now.addingTimeInterval(48 * 3600)
+        }
+            .sorted { 
+                let date1 = $0.value(forKey: "valid_from") as? Date ?? .distantPast
+                let date2 = $1.value(forKey: "valid_from") as? Date ?? .distantPast
+                return date1 < date2
             }
     }
 
     private var yRange: (Double, Double) {
-        let prices = filteredRates.map { $0.valueIncludingVAT }
+        let prices = filteredRates.map { $0.value(forKey: "value_including_vat") as? Double ?? 0 }
         guard !prices.isEmpty else { return (0, 10) }
         let minVal = min(0, (prices.min() ?? 0) - 2)
         let maxVal = (prices.max() ?? 0) + 2
@@ -496,33 +515,27 @@ extension InteractiveLineChartCardView {
     }
 
     private var xDomain: ClosedRange<Date> {
-        guard let earliest = filteredRates.first?.validFrom,
-            let lastRate = filteredRates.last
+        guard let earliest = filteredRates.first?.value(forKey: "valid_from") as? Date,
+              let lastRate = filteredRates.last,
+              let lastValidTo = lastRate.value(forKey: "valid_to") as? Date,
+              let lastValidFrom = lastRate.value(forKey: "valid_from") as? Date
         else {
             return now...(now.addingTimeInterval(3600))
         }
         // Base domain end on the last rate's 'validTo'
-        let domainEnd = lastRate.validTo ?? lastRate.validFrom!.addingTimeInterval(1800)
+        let domainEnd = lastValidTo ?? lastValidFrom.addingTimeInterval(1800)
         return earliest...domainEnd
     }
 
     /// The "best" time windows from the VM, merged, raw version for labels
     private var bestTimeRangesRaw: [(Date, Date)] {
-        let windows = viewModel.getLowestAveragesIncludingPastHour(
+        let windows = viewModel.getLowestAverages(
+            productCode: viewModel.currentAgileCode,
             hours: localSettings.settings.customAverageHours,
             maxCount: localSettings.settings.maxListCount
         )
         let raw = windows.map { ($0.start, $0.end) }
         return mergeWindows(raw)
-    }
-
-    /// The "best" time windows adjusted for rendering (with epsilon shift)
-    private var bestTimeRangesRender: [(Date, Date)] {
-        bestTimeRangesRaw.map { (s, e) -> (Date, Date) in
-            let adjustedStart = isExactlyOnHalfHour(s) ? s.addingTimeInterval(-900) : s
-            let adjustedEnd = isExactlyOnHalfHour(e) ? e.addingTimeInterval(-900) : e
-            return (adjustedStart, adjustedEnd)
-        }
     }
 
     private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
@@ -542,30 +555,31 @@ extension InteractiveLineChartCardView {
     }
 
     private func findCurrentRatePeriod(_ date: Date) -> (start: Date, price: Double)? {
-        guard
-            let rate = filteredRates.first(where: { r in
-                guard let start = r.validFrom, let end = r.validTo else { return false }
-                return date >= start && date < end
-            })
-        else {
+        let relevant = filteredRates // already filtered for productCode
+        // e.g. let relevant = viewModel.allRates(for: productCode)
+        guard let rate = relevant.first(where: { r in
+            guard let start = r.value(forKey: "valid_from") as? Date,
+                  let end = r.value(forKey: "valid_to") as? Date else { return false }
+            return date >= start && date < end
+        }) else {
             return nil
         }
-        if let start = rate.validFrom {
-            return (start, rate.valueIncludingVAT)
+        if let start = rate.value(forKey: "valid_from") as? Date {
+            return (start, rate.value(forKey: "value_including_vat") as? Double ?? 0)
         }
         return nil
     }
 
     private func findNearestPrice(_ date: Date) -> Double? {
         filteredRates.min {
-            abs(($0.validFrom ?? .distantPast).timeIntervalSince(date))
-                < abs(($1.validFrom ?? .distantPast).timeIntervalSince(date))
-        }?.valueIncludingVAT
+            abs(($0.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(date))
+                < abs(($1.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(date))
+        }?.value(forKey: "value_including_vat") as? Double
     }
 
     private func clampDateToDataRange(_ date: Date) -> Date {
-        guard let firstDate = filteredRates.first?.validFrom,
-            let lastDate = filteredRates.last?.validFrom
+        guard let firstDate = filteredRates.first?.value(forKey: "valid_from") as? Date,
+            let lastDate = filteredRates.last?.value(forKey: "valid_from") as? Date
         else {
             return date
         }
@@ -868,5 +882,16 @@ extension InteractiveLineChartCardView {
         let barGapRatio = 0.7  // 70% bar, 30% gap
         let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
         return totalChunk * barGapRatio
+    }
+}
+
+extension InteractiveLineChartCardView {
+    /// The "best" time windows adjusted for rendering (with epsilon shift)
+    private var bestTimeRangesRender: [(Date, Date)] {
+        bestTimeRangesRaw.map { (s, e) -> (Date, Date) in
+            let adjustedStart = isExactlyOnHalfHour(s) ? s.addingTimeInterval(-900) : s
+            let adjustedEnd = isExactlyOnHalfHour(e) ? e.addingTimeInterval(-900) : e
+            return (adjustedStart, adjustedEnd)
+        }
     }
 }

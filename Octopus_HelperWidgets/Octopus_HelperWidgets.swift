@@ -10,19 +10,27 @@ import OctopusHelperShared
 import SwiftUI
 import WidgetKit
 import Charts
+import CoreData
+
+// Provide a stable string ID for each NSManagedObject (RateEntity).
+extension NSManagedObject {
+    /// Returns the existing `id` attribute, or a fallback UUID string if missing.
+    var idString: String {
+        (value(forKey: "id") as? String)
+        ?? {
+            // If somehow 'id' was never set, generate a fallback here.
+            let generated = UUID().uuidString
+            return generated
+        }()
+    }
+}
 
 // MARK: - Timeline Provider
 final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
 
     // MARK: - Dependencies
-    private var repository: RatesRepository {
-        get async { await MainActor.run { RatesRepository.shared } }
-    }
     private var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-    }
-    private var persistenceController: PersistenceController {
-        PersistenceController.shared
     }
     
     // Add shared settings manager
@@ -34,165 +42,151 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         return .default
     }
     
+    // Add cache reference
+    private var cache: AgileRateWidgetCache {
+        AgileRateWidgetCache.shared
+    }
+    
     // MARK: - Public Entry Points
     override init() {
         super.init()
+        
+        // Initialize cache with current tariff code
+        let userSettings = readSettings()
+        print("WIDGET: Initializing with tariff code: \(userSettings.agileCode)")
+        Task {
+            try? await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
+        }
     }
 
     func placeholder(in context: Context) -> SimpleEntry {
-        let context = persistenceController.container.viewContext
-        let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+        print("WIDGET: Creating placeholder entry")
+        let userSettings = readSettings()
+        
         return SimpleEntry(
             date: .now,
             configuration: ConfigurationAppIntent(),
-            rates: rates,
-            settings: readSettings(),
+            rates: [],
+            settings: userSettings,
             chartSettings: chartSettings
         )
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        let context = persistenceController.container.viewContext
-        let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
+        print("WIDGET: Creating snapshot")
+        let userSettings = readSettings()
+        
+        // Use widgetFetchAndCacheRates to get data (will use cache if sufficient)
+        do {
+            print("WIDGET: Fetching rates for snapshot with tariff: \(userSettings.agileCode)")
+            let rates = try await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
+            print("WIDGET: Got \(rates.count) rates for snapshot")
+            return SimpleEntry(
+                date: .now,
+                configuration: configuration,
+                rates: rates,
+                settings: userSettings,
+                chartSettings: chartSettings
+            )
+        } catch {
+            print("WIDGET: Error fetching rates for snapshot: \(error)")
+            return SimpleEntry(
+                date: .now,
+                configuration: configuration,
+                rates: [],
+                settings: userSettings,
+                chartSettings: chartSettings
+            )
+        }
+    }
+    
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+        print("WIDGET: Building timeline")
+        do {
+            let userSettings = readSettings()
+            print("WIDGET: Fetching rates for timeline with tariff: \(userSettings.agileCode)")
+            
+            // Use widgetFetchAndCacheRates to get data (will use cache if sufficient)
+            let rates = try await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
+            print("WIDGET: Got \(rates.count) rates for timeline")
+            
+            // Build timeline entries using the rate data
+            let now = Date()
+            let entries = buildTimelineEntries(
+                rates: rates,
+                configuration: configuration,
+                now: now,
+                agileCode: userSettings.agileCode
+            )
+            print("WIDGET: Built \(entries.count) timeline entries")
+            
+            // Refresh every 10 minutes to update display
+            let nextRefresh = now.addingTimeInterval(10 * 60)
+            print("WIDGET: Next refresh at \(nextRefresh.formatted())")
+            return Timeline(entries: entries, policy: .after(nextRefresh))
+        } catch {
+            print("WIDGET: Error building timeline: \(error)")
+            print("WIDGET: Will retry in 15 minutes")
+            // For all errors, retry in 15 minutes
+            return Timeline(
+                entries: [buildErrorEntry(configuration: configuration)],
+                policy: .after(Date().addingTimeInterval(15 * 60))
+            )
+        }
+    }
+    
+    private func buildErrorEntry(configuration: ConfigurationAppIntent) -> SimpleEntry {
+        let userSettings = readSettings()
         return SimpleEntry(
             date: .now,
             configuration: configuration,
-            rates: rates,
-            settings: readSettings(),
+            rates: [],
+            settings: userSettings,
             chartSettings: chartSettings
         )
     }
     
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        do {
-            // 1) Update rates from the repository
-            let repo = await repository
-            try await repo.updateRates()
-            var rates = try await repo.fetchAllRates()
-
-            // 2) On first install or empty DB => direct fetch
-            if rates.isEmpty {
-                rates = try await directFetchAndSave()
-            }
-
-            // 3) Build timeline
-            let now = Date()
-            let entries = buildTimelineEntries(rates: rates, configuration: configuration, now: now)
-            
-            // 4) Force next refresh soon => immediate effect on user exit
-            let nextRefresh = Date().addingTimeInterval(1)
-            return Timeline(entries: entries, policy: .after(nextRefresh))
-
-        } catch {
-            // 5) On error, do a short retry timeline
-            return buildErrorTimeline(configuration: configuration)
-        }
-    }
-
     // MARK: - Private Helpers
-
+    
     /// Attempts to read global settings from shared container. Fallback to minimal keys if needed.
-    private func readSettings() -> (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?) {
+    private func readSettings() -> (showRatesInPounds: Bool, language: String, agileCode: String) {
         let defaults = sharedDefaults
         if let data = defaults?.data(forKey: "user_settings"),
            let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
         {
             return (
-                postcode: decoded.regionInput,
                 showRatesInPounds: decoded.showRatesInPounds,
                 language: decoded.selectedLanguage.rawValue,
-                electricityMPAN: decoded.electricityMPAN,
-                meterSerialNumber: decoded.electricityMeterSerialNumber
+                agileCode: decoded.currentAgileCode
             )
         }
         // Fallback if "user_settings" is missing
         return (
-            postcode: defaults?.string(forKey: "selected_postcode") ?? "",
             showRatesInPounds: defaults?.bool(forKey: "show_rates_in_pounds") ?? false,
             language: defaults?.string(forKey: "selected_language") ?? "en",
-            electricityMPAN: defaults?.string(forKey: "electricity_mpan"),
-            meterSerialNumber: defaults?.string(forKey: "meter_serial_number")
+            agileCode: defaults?.string(forKey: "agile_code_for_widget") ?? ""
         )
-    }
-
-    /// Directly fetches from API + saves to Core Data for first-time or fallback usage.
-    private func directFetchAndSave() async throws -> [RateEntity] {
-        let regionID = try await fetchRegionID()
-        let rawRates = try await OctopusAPIClient.shared.fetchRates(regionID: regionID)
-        let ctx = PersistenceController.shared.container.viewContext
-
-        // Convert raw response to RateEntity
-        let entities = rawRates.map { r -> RateEntity in
-            let obj = RateEntity(context: ctx)
-            obj.id = UUID().uuidString
-            obj.validFrom = r.valid_from
-            obj.validTo = r.valid_to
-            obj.valueExcludingVAT = r.value_exc_vat
-            obj.valueIncludingVAT = r.value_inc_vat
-            return obj
-        }
-        if ctx.hasChanges { try ctx.save() }
-        return entities
-    }
-
-    /// Obtain the region ID from user's input (postcode or region code), fallback to "H" if none.
-    private func fetchRegionID() async throws -> String {
-        let input = readSettings().postcode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !input.isEmpty else { return "H" }
-        
-        // If input is a single letter A-P, treat it as a direct region code
-        if input.count == 1 && input >= "A" && input <= "P" {
-            return input
-        }
-        
-        // Otherwise, treat as postcode and look up region
-        return try await (await repository).fetchRegionID(for: input) ?? "H"
     }
 
     /// Build timeline entries from now up to 4 hours ahead in half-hour intervals (+/-2m).
     private func buildTimelineEntries(
-        rates: [RateEntity],
+        rates: [NSManagedObject],
         configuration: ConfigurationAppIntent,
-        now: Date
+        now: Date,
+        agileCode: String
     ) -> [SimpleEntry] {
         let refreshSlots = computeRefreshSlots(from: now)
         let userSettings = readSettings()
-        let chartSettings = self.chartSettings  // Get the shared chart settings
         
         return refreshSlots.map { date in
             SimpleEntry(
                 date: date,
                 configuration: configuration,
                 rates: rates,
-                settings: userSettings,
-                chartSettings: chartSettings  // Pass chart settings to entry
+                settings: (showRatesInPounds: userSettings.showRatesInPounds, language: userSettings.language, agileCode: agileCode),
+                chartSettings: chartSettings
             )
         }
-    }
-
-    /// If an error occurs, create a short timeline that tries again in 1 second.
-    private func buildErrorTimeline(configuration: ConfigurationAppIntent) -> Timeline<SimpleEntry> {
-        let now = Date()
-        let userSettings = readSettings()
-        let retryDate = now.addingTimeInterval(1)
-
-        let entries = [
-            SimpleEntry(
-                date: now,
-                configuration: configuration,
-                rates: [],
-                settings: userSettings,
-                chartSettings: chartSettings
-            ),
-            SimpleEntry(
-                date: retryDate,
-                configuration: configuration,
-                rates: [],
-                settings: userSettings,
-                chartSettings: chartSettings
-            )
-        ]
-        return Timeline(entries: entries, policy: .after(retryDate))
     }
 
     /// Compute next half-hour intervals (±2 min) to create timeline entry points.
@@ -235,8 +229,8 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let configuration: ConfigurationAppIntent
-    let rates: [RateEntity]
-    let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
+    let rates: [NSManagedObject]
+    let settings: (showRatesInPounds: Bool, language: String, agileCode: String)
     let chartSettings: InteractiveChartSettings
 }
 
@@ -244,40 +238,41 @@ struct SimpleEntry: TimelineEntry {
 /// Displays the current Agile rate, plus highest & lowest upcoming times.
 @available(iOS 17.0, *)
 struct CurrentRateWidget: View {
-    let rates: [RateEntity]
-    let settings: (postcode: String, showRatesInPounds: Bool, language: String, electricityMPAN: String?, meterSerialNumber: String?)
+    let rates: [NSManagedObject]
+    let settings: (showRatesInPounds: Bool, language: String, agileCode: String)
     let chartSettings: InteractiveChartSettings
+    
     @Environment(\.widgetFamily) var family
     
     // Add computed property for best time ranges
     private var bestTimeRanges: [(Date, Date)] {
-        let viewModel = RatesViewModel(rates: rates)  // Use widget-specific initializer
-        let windows = viewModel.getLowestAveragesIncludingPastHour(
+        let widgetVM = RatesViewModel(
+            widgetRates: rates.compactMap { $0 },
+            productCode: settings.agileCode
+        )
+        let avgRates = widgetVM.getLowestAverages(
+            productCode: settings.agileCode,
             hours: chartSettings.customAverageHours,
             maxCount: chartSettings.maxListCount
         )
+        let windows = avgRates.map { rate in 
+            AveragedRateWindow(
+                average: rate.average,
+                start: rate.start,
+                end: rate.end
+            )
+        }
         let raw = windows.map { ($0.start, $0.end) }
         let merged = mergeWindows(raw)
         
         // Filter to only show ranges that overlap with our chart's visible range
-        guard let chartStart = filteredRatesForChart.first?.validFrom,
-              let lastRate = filteredRatesForChart.last,
-              let chartEnd = lastRate.validTo ?? lastRate.validFrom
-        else {
+        guard let chartStart = filteredRatesForChart.first?.value(forKey: "valid_from") as? Date,
+            let chartEnd = filteredRatesForChart.last?.value(forKey: "valid_to") as? Date else {
             return []
         }
         
-        return merged.filter { start, end in
-            // Keep if the range overlaps with our chart's time range
-            start <= chartEnd && end >= chartStart
-        }.map { start, end in
-            // Clamp the range to our chart's boundaries and add the ±900 offset
-            let adjustedStart = isExactlyOnHalfHour(start) ? start.addingTimeInterval(-900) : start
-            let adjustedEnd = isExactlyOnHalfHour(end) ? end.addingTimeInterval(-900) : end
-            return (
-                max(adjustedStart, chartStart),
-                min(adjustedEnd, chartEnd)
-            )
+        return merged.filter { window in
+            window.0 <= chartEnd && window.1 >= chartStart
         }
     }
     
@@ -294,43 +289,47 @@ struct CurrentRateWidget: View {
     private func mergeWindows(_ input: [(Date, Date)]) -> [(Date, Date)] {
         guard !input.isEmpty else { return [] }
         let sorted = input.sorted { $0.0 < $1.0 }
+        var result = [(Date, Date)]()
+        var current = sorted[0]
         
-        var merged = [sorted[0]]
         for window in sorted.dropFirst() {
-            let lastIndex = merged.count - 1
-            if window.0 <= merged[lastIndex].1 {
-                merged[lastIndex].1 = max(merged[lastIndex].1, window.1)
+            if window.0 <= current.1 {
+                // Overlapping or adjacent windows - merge them
+                current.1 = max(current.1, window.1)
             } else {
-                merged.append(window)
+                // Gap between windows - add the current one and start a new one
+                result.append(current)
+                current = window
             }
         }
-        return merged
+        result.append(current)
+        return result
     }
     
     // Add missing computed properties and functions
-    private var filteredRatesForChart: [RateEntity] {
+    private var filteredRatesForChart: [NSManagedObject] {
         let now = Date()
+        let sortedRates = rates.sorted { 
+            ($0.value(forKey: "valid_from") as? Date ?? .distantPast) < 
+            ($1.value(forKey: "valid_from") as? Date ?? .distantPast)
+        }
         
-        // Split rates into past and future
-        let validRates = rates.filter { $0.validFrom != nil && $0.validTo != nil }
-        let pastRates = validRates
-            .filter { ($0.validFrom ?? .distantFuture) <= now }
-            .sorted { ($0.validFrom ?? .distantPast) > ($1.validFrom ?? .distantPast) } // Latest first
-            .prefix(42) // Take up to 42 past rates
+        // Split into past and future
+        let pastRates = sortedRates
+            .filter { ($0.value(forKey: "valid_from") as? Date ?? .distantFuture) <= now }
+            .suffix(42) // Take last 42 past rates (21 hours)
         
-        let futureRates = validRates
-            .filter { ($0.validFrom ?? .distantPast) > now }
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) } // Earliest first
-            .prefix(33) // Take up to 33 future rates
+        let futureRates = sortedRates
+            .filter { ($0.value(forKey: "valid_from") as? Date ?? .distantPast) > now }
+            .prefix(33) // Take first 33 future rates (16.5 hours)
         
-        // Combine and sort for display
-        return (Array(pastRates) + Array(futureRates))
-            .sorted { ($0.validFrom ?? .distantPast) < ($1.validFrom ?? .distantPast) }
+        // Combine and maintain sort
+        return Array(pastRates) + Array(futureRates)
     }
 
     /// Y-axis range for chart
     private var chartYRange: (Double, Double) {
-        let prices = filteredRatesForChart.map { $0.valueIncludingVAT }
+        let prices = filteredRatesForChart.map { ($0.value(forKey: "value_including_vat") as? Double) ?? 0 }
         guard !prices.isEmpty else { return (0, 10) }
         let minVal = min(0, (prices.min() ?? 0) - 2)
         let maxVal = (prices.max() ?? 0) + 10
@@ -338,41 +337,46 @@ struct CurrentRateWidget: View {
     }
 
     private var xDomain: ClosedRange<Date> {
-        guard let earliest = filteredRatesForChart.first?.validFrom,
-            let lastRate = filteredRatesForChart.last
+        guard let earliest = filteredRatesForChart.first?.value(forKey: "valid_from") as? Date,
+            let lastRate = filteredRatesForChart.last,
+            let domainEnd = (lastRate.value(forKey: "valid_to") as? Date) ?? 
+                          ((lastRate.value(forKey: "valid_from") as? Date)?.addingTimeInterval(1800))
         else {
             return Date()...(Date().addingTimeInterval(3600))
         }
-        // Base domain end on the last rate's 'validTo'
-        let domainEnd = lastRate.validTo ?? lastRate.validFrom!.addingTimeInterval(1800)
         return earliest...domainEnd
     }
 
     private func findCurrentRatePeriod(_ date: Date) -> (start: Date, price: Double)? {
         guard
             let rate = filteredRatesForChart.first(where: { r in
-                guard let start = r.validFrom, let end = r.validTo else { return false }
+                guard let start = r.value(forKey: "valid_from") as? Date,
+                      let end = r.value(forKey: "valid_to") as? Date else { return false }
                 return date >= start && date < end
             })
         else {
             return nil
         }
-        if let start = rate.validFrom {
-            return (start, rate.valueIncludingVAT)
+        if let start = rate.value(forKey: "valid_from") as? Date {
+            return (start, rate.value(forKey: "value_including_vat") as? Double ?? 0)
         }
         return nil
     }
 
     /// Get upcoming rates including current rate, sorted by value
-    private func getUpcomingRates() -> [RateEntity] {
+    private func getUpcomingRates() -> [NSManagedObject] {
         let now = Date()
         return rates
             .filter { rate in
-                guard let from = rate.validFrom, let to = rate.validTo else { return false }
-                // Include if it overlaps with now or is in the future
-                return (from <= now && to > now) || from > now
+                guard let _ = rate.value(forKey: "valid_from") as? Date,
+                      let valid_to = rate.value(forKey: "valid_to") as? Date else { return false }
+                return valid_to > now
             }
-            .sorted { $0.valueIncludingVAT < $1.valueIncludingVAT }
+            .sorted { a, b in
+                let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+                let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+                return aValue < bValue
+            }
     }
 
     private var barWidth: Double {
@@ -428,9 +432,9 @@ struct CurrentRateWidget: View {
             if let currentRate = findCurrentRate() {
                 let upcomingRates = getUpcomingRates()
                 if !upcomingRates.isEmpty {
-                    let currentValue = currentRate.valueIncludingVAT
-                    let minRate = min(currentValue, upcomingRates.first?.valueIncludingVAT ?? currentValue)
-                    let maxRate = max(currentValue, upcomingRates.last?.valueIncludingVAT ?? currentValue)
+                    let currentValue = currentRate.value(forKey: "value_including_vat") as? Double ?? 0
+                    let minRate = min(currentValue, upcomingRates.first?.value(forKey: "value_including_vat") as? Double ?? currentValue)
+                    let maxRate = max(currentValue, upcomingRates.last?.value(forKey: "value_including_vat") as? Double ?? currentValue)
                     
                     // Normalize current value to 0-1 range
                     let normalizedValue = (currentValue - minRate) / (maxRate - minRate)
@@ -449,7 +453,7 @@ struct CurrentRateWidget: View {
                     Gauge(value: 0.5, in: 0...1) {
                         Image(systemName: "bolt.fill")
                     } currentValueLabel: {
-                        Text(formatRate(currentRate.valueIncludingVAT))
+                        Text(formatRate(currentRate.value(forKey: "value_including_vat") as? Double ?? 0))
                             .font(.system(.body, design: .rounded))
                             .minimumScaleFactor(0.5)
                     }
@@ -473,7 +477,7 @@ struct CurrentRateWidget: View {
     private var inlineView: some View {
         if let currentRate = findCurrentRate() {
             Label {
-                Text("\(formatRate(currentRate.valueIncludingVAT))/kWh")
+                Text("\(formatRate(currentRate.value(forKey: "value_including_vat") as? Double ?? 0))/kWh")
             } icon: {
                 Image(systemName: "bolt.fill")
             }
@@ -602,10 +606,12 @@ struct CurrentRateWidget: View {
     }
     
     @ChartContentBuilder
-    private func chartBars(data: [RateEntity], barWidth: Double) -> some ChartContent {
-        ForEach(Array(data.enumerated()), id: \.element.validFrom) { index, rate in
-            if let t = rate.validFrom {
-                let baseColor = rate.valueIncludingVAT < 0 ? Theme.secondaryColor : Theme.mainColor
+    private func chartBars(data: [NSManagedObject], barWidth: Double) -> some ChartContent {
+        ForEach(Array(data.enumerated()),
+                id: \.element.idString) { index, rate in
+            
+            if let t = rate.value(forKey: "valid_from") as? Date {
+                let baseColor = (rate.value(forKey: "value_including_vat") as? Double ?? 0) < 0 ? Theme.secondaryColor : Theme.mainColor
                 let rawProgress = Double(index) / Double(max(1, data.count - 1))
                 let isToday = Calendar.current.isDate(t, inSameDayAs: Date())
                 
@@ -629,7 +635,7 @@ struct CurrentRateWidget: View {
                 
                 BarMark(
                     x: .value("Time", t),
-                    y: .value("Rate", rate.valueIncludingVAT),
+                    y: .value("Rate", rate.value(forKey: "value_including_vat") as? Double ?? 0),
                     width: .fixed(barWidth)
                 )
                 .cornerRadius(3)
@@ -667,33 +673,21 @@ struct CurrentRateWidget: View {
         let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
         return totalChunk * barGapRatio
     }
-
-    /// Example subview for each rate row in left column
-    private func rateRow(label: String, icon: String, value: Double, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon).font(.caption2).foregroundColor(.secondary)
-            Text(label).font(.caption2).foregroundColor(.secondary)
-            Spacer()
-            Text(formatRate(value))
-                .font(.caption2)
-                .foregroundColor(color)
-        }
-    }
 }
 
 // MARK: - Subviews for CurrentRateWidget
 extension CurrentRateWidget {
     
-    private func contentForCurrent(rate: RateEntity) -> some View {
+    private func contentForCurrent(rate: NSManagedObject) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             topLabel(title: "Agile Current", icon: "clock")
             
             // Show large current rate
-            rateView(value: rate.valueIncludingVAT, color: RateColor.getColor(for: rate, allRates: rates), font: Theme.mainFont())
+            rateView(value: rate.value(forKey: "value_including_vat") as? Double ?? 0, color: RateColor.getColor(for: rate, allRates: rates), font: Theme.mainFont())
             
             // "Until HH:mm"
-            if let validTo = rate.validTo {
-                Text("Until \(formatTime(validTo))")
+            if let valid_to = rate.value(forKey: "valid_to") as? Date {
+                Text("Until \(formatTime(valid_to))")
                     .font(.caption2)
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -723,7 +717,7 @@ extension CurrentRateWidget {
                         .font(.caption)
                         .foregroundColor(Theme.icon)
                     rateView(
-                        value: lowestRate.valueIncludingVAT,
+                        value: lowestRate.value(forKey: "value_including_vat") as? Double ?? 0,
                         color: RateColor.getColor(for: lowestRate, allRates: rates),
                         font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
                     )
@@ -746,7 +740,7 @@ extension CurrentRateWidget {
                         .font(.caption)
                         .foregroundColor(Theme.icon)
                     rateView(
-                        value: highestRate.valueIncludingVAT,
+                        value: highestRate.value(forKey: "value_including_vat") as? Double ?? 0,
                         color: RateColor.getColor(for: highestRate, allRates: rates),
                         font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
                     )
@@ -791,27 +785,30 @@ extension CurrentRateWidget {
 
 // MARK: - Computations & Formatters
 extension CurrentRateWidget {
-    private func findCurrentRate() -> RateEntity? {
+    private func findCurrentRate() -> NSManagedObject? {
         rates.first { r in
-            guard let from = r.validFrom, let to = r.validTo else { return false }
+            guard let from = r.value(forKey: "valid_from") as? Date,
+                  let to = r.value(forKey: "valid_to") as? Date else { return false }
             return (from <= Date() && to > Date())
         }
     }
     
-    private func lowestUpcoming() -> (RateEntity, Date)? {
+    private func lowestUpcoming() -> (NSManagedObject, Date)? {
         let upcoming = getUpcomingRates()
         
-        if let item = upcoming.first, let from = item.validFrom {
+        if let item = upcoming.first,
+           let from = item.value(forKey: "valid_from") as? Date {
             return (item, from)
         }
         return nil
     }
     
-    private func highestUpcoming() -> (RateEntity, Date)? {
+    private func highestUpcoming() -> (NSManagedObject, Date)? {
         let upcoming = getUpcomingRates()
         
-        if let item = upcoming.last, let validFrom = item.validFrom {
-            return (item, validFrom)
+        if let item = upcoming.last,
+           let valid_from = item.value(forKey: "valid_from") as? Date {
+            return (item, valid_from)
         }
         return nil
     }
@@ -846,7 +843,6 @@ extension CurrentRateWidget {
 }
 
 // MARK: - Widget Definition
-// @main
 struct Octopus_HelperWidgets: Widget {
     let kind = "Octopus_HelperWidgets"
     
@@ -857,10 +853,18 @@ struct Octopus_HelperWidgets: Widget {
             provider: OctopusWidgetProvider()
         ) { entry in
             if #available(iOS 17.0, *) {
-                CurrentRateWidget(rates: entry.rates, settings: entry.settings, chartSettings: entry.chartSettings)
+                CurrentRateWidget(
+                    rates: entry.rates,
+                    settings: entry.settings,
+                    chartSettings: entry.chartSettings
+                )
                     .containerBackground(Theme.mainBackground, for: .widget)
             } else {
-                CurrentRateWidget(rates: entry.rates, settings: entry.settings, chartSettings: entry.chartSettings)
+                CurrentRateWidget(
+                    rates: entry.rates,
+                    settings: entry.settings,
+                    chartSettings: entry.chartSettings
+                )
                     .padding()
                     .background(Theme.mainBackground)
             }
@@ -874,74 +878,6 @@ struct Octopus_HelperWidgets: Widget {
             .accessoryInline
         ])
     }
-}
-
-// MARK: - Preview Helpers
-extension PersistenceController {
-    static var widgetPreview: PersistenceController = {
-        PersistenceController.shared
-    }()
-}
-
-// MARK: - Widget Previews
-#Preview(as: .systemSmall) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
-    )
-}
-
-#Preview(as: .systemMedium) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
-    )
-}
-
-#Preview(as: .accessoryCircular) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
-    )
-}
-
-#Preview(as: .accessoryInline) {
-    Octopus_HelperWidgets()
-} timeline: {
-    let context = PersistenceController.shared.container.viewContext
-    let rates = (try? context.fetch(RateEntity.fetchRequest())) ?? []
-    
-    SimpleEntry(
-        date: .now,
-        configuration: ConfigurationAppIntent(),
-        rates: rates,
-        settings: (postcode: "", showRatesInPounds: false, language: "en", electricityMPAN: nil, meterSerialNumber: nil),
-        chartSettings: InteractiveChartSettings.default
-    )
 }
 
 extension Color {
@@ -969,4 +905,10 @@ extension Color {
         
         return Color(uiColor: UIColor(red: red, green: green, blue: blue, alpha: 1.0))
     }
+}
+
+struct AveragedRateWindow {
+    let average: Double
+    let start: Date
+    let end: Date
 }

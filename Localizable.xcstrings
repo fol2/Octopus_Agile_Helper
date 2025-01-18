@@ -7,6 +7,9 @@
     "/kWh" : {
       "shouldTranslate" : false
     },
+    "%.2f kWh at" : {
+
+    },
     "%@\n%@" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -212,7 +215,6 @@
       "shouldTranslate" : false
     },
     "%@ - %@" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -822,7 +824,23 @@
         }
       }
     },
+    "%@ Records: %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ Records: %2$lld"
+          }
+        }
+      }
+    },
+    "%@ to" : {
+
+    },
     "%@/kWh" : {
+
+    },
+    "%lld" : {
 
     },
     "%lld Active" : {
@@ -1029,6 +1047,12 @@
         }
       }
     },
+    "• AGILE Code: '%@'" : {
+
+    },
+    "• RatesVM AGILE Code: '%@'" : {
+
+    },
     "A dynamic line chart showing rates, best time ranges, and more." : {
       "comment" : "descriptionKey for lineChart",
       "extractionState" : "manual",
@@ -1233,6 +1257,12 @@
         }
       }
     },
+    "Account Based" : {
+
+    },
+    "Active Cards" : {
+
+    },
     "Additional Rates to Show: %lld" : {
       "comment" : "Label for stepper controlling how many additional rates to display",
       "extractionState" : "stale",
@@ -1436,6 +1466,9 @@
           }
         }
       }
+    },
+    "AGILE Plan" : {
+
     },
     "All Rates" : {
       "comment" : "Navigation title for the list of all electricity rates",
@@ -2455,6 +2488,15 @@
         }
       }
     },
+    "API Status" : {
+
+    },
+    "API链接" : {
+
+    },
+    "Available Rates: %lld" : {
+
+    },
     "Average Rate" : {
       "comment" : "Average rate card title",
       "extractionState" : "stale",
@@ -3064,6 +3106,27 @@
           }
         }
       }
+    },
+    "Avg. Rate (exc. VAT): %@" : {
+
+    },
+    "Avg. Rate (inc. VAT): %@" : {
+
+    },
+    "Calculate Account Costs" : {
+
+    },
+    "Calculate Single Tariff" : {
+
+    },
+    "Calculation Results" : {
+
+    },
+    "Calculation Type" : {
+
+    },
+    "Cancel" : {
+
     },
     "Card Settings" : {
       "comment" : "Header for the card's settings section",
@@ -4074,6 +4137,9 @@
         }
       }
     },
+    "Configure MPAN and Meter Serial to view consumption" : {
+
+    },
     "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app. Rate display changes affect how prices are shown (pence vs pounds)." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -4276,6 +4342,18 @@
           }
         }
       }
+    },
+    "Configured" : {
+
+    },
+    "Consumption" : {
+
+    },
+    "Cost (exc. VAT): £%@" : {
+
+    },
+    "Cost (inc. VAT): £%@" : {
+
     },
     "Current Rate" : {
       "extractionState" : "manual",
@@ -5286,6 +5364,18 @@
         }
       }
     },
+    "Data Range:" : {
+
+    },
+    "Database Viewer" : {
+
+    },
+    "Debug" : {
+
+    },
+    "Debug Info:" : {
+
+    },
     "Detailed rates list after expanded" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5688,6 +5778,7 @@
       }
     },
     "Display the current electricity rate." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5888,6 +5979,9 @@
           }
         }
       }
+    },
+    "Display the current Octopus Agile rate." : {
+
     },
     "Displays the ongoing rate for the current half-hour slot." : {
       "comment" : "descriptionKey for Current Rate",
@@ -6093,9 +6187,11 @@
         }
       }
     },
+    "Distinct Products: %lld" : {
+
+    },
     "Done" : {
       "comment" : "Button to dismiss the info sheet\nButton to dismiss the settings sheet",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6684,6 +6780,39 @@
           }
         }
       }
+    },
+    "End Date" : {
+
+    },
+    "End:" : {
+
+    },
+    "Entities" : {
+
+    },
+    "Fetch AGILE Rate" : {
+
+    },
+    "Fetch Consumption" : {
+
+    },
+    "Fetch Data" : {
+
+    },
+    "Fetch Product Details" : {
+
+    },
+    "Fetch Products" : {
+
+    },
+    "Fetch Rates" : {
+
+    },
+    "Fetch Time Window Rates" : {
+
+    },
+    "Found %lld rates" : {
+
     },
     "Get your API key (Login required)" : {
       "extractionState" : "stale",
@@ -8513,7 +8642,6 @@
       }
     },
     "Language" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8708,6 +8836,9 @@
           }
         }
       }
+    },
+    "Latest Reading:" : {
+
     },
     "Learn more" : {
       "extractionState" : "stale",
@@ -8911,6 +9042,9 @@
           }
         }
       }
+    },
+    "Load Stored" : {
+
     },
     "Lowest [count] ([hours]-hour Averages)" : {
       "comment" : "Label for stepper controlling the duration of average calculation",
@@ -10526,6 +10660,9 @@
         }
       }
     },
+    "Meter Serial" : {
+
+    },
     "Min" : {
       "localizations" : {
         "ar" : {
@@ -10727,6 +10864,9 @@
           }
         }
       }
+    },
+    "MPAN" : {
+
     },
     "N" : {
 
@@ -11746,7 +11886,6 @@
       }
     },
     "No rates available" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11947,6 +12086,12 @@
           }
         }
       }
+    },
+    "No records found" : {
+
+    },
+    "No standing charges available" : {
+
     },
     "No upcoming data for [hours]-hour averages" : {
       "extractionState" : "manual",
@@ -12557,6 +12702,9 @@
         }
       }
     },
+    "Not Configured" : {
+
+    },
     "Now" : {
       "localizations" : {
         "ar" : {
@@ -12955,6 +13103,9 @@
           }
         }
       }
+    },
+    "Octomiser" : {
+
     },
     "Octopus Agile" : {
       "extractionState" : "stale",
@@ -13559,6 +13710,9 @@
         }
       }
     },
+    "Past Hours: %lld" : {
+
+    },
     "Peak Rate Warning" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -13762,6 +13916,25 @@
         }
       }
     },
+    "Pence (p)" : {
+
+    },
+    "Period: %@ to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Period: %1$@ to %2$@"
+          }
+        }
+      }
+    },
+    "Please configure your Octopus account in settings to use account-based calculations" : {
+
+    },
+    "Please select a tariff code above to calculate costs" : {
+
+    },
     "Postcode" : {
       "comment" : "Placeholder for postcode input field",
       "extractionState" : "stale",
@@ -13959,6 +14132,9 @@
           }
         }
       }
+    },
+    "Pounds (£)" : {
+
     },
     "Preferences" : {
       "comment" : "Header for the preferences section",
@@ -14559,6 +14735,12 @@
         }
       }
     },
+    "Products" : {
+
+    },
+    "Products: %lld" : {
+
+    },
     "Rate" : {
 
     },
@@ -14764,6 +14946,9 @@
           }
         }
       }
+    },
+    "Rate Display" : {
+
     },
     "Rate History" : {
       "extractionState" : "stale",
@@ -15171,8 +15356,19 @@
         }
       }
     },
+    "Rates (%lld)" : {
+
+    },
+    "Record %@" : {
+
+    },
+    "Records: %lld" : {
+
+    },
+    "Refresh" : {
+
+    },
     "Region" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15571,6 +15767,15 @@
           }
         }
       }
+    },
+    "Reset %@ Data" : {
+
+    },
+    "Reset All Records" : {
+
+    },
+    "Reset Data" : {
+
     },
     "Restore Purchases" : {
       "extractionState" : "stale",
@@ -15978,6 +16183,21 @@
         }
       }
     },
+    "Select a product code" : {
+
+    },
+    "Select a tariff code" : {
+
+    },
+    "Select Product Code" : {
+
+    },
+    "Select Tariff Code" : {
+
+    },
+    "Set AGILE Product" : {
+
+    },
     "Settings" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -16174,6 +16394,9 @@
           }
         }
       }
+    },
+    "Settings Overview" : {
+
     },
     "Settings to list more lower rates" : {
       "extractionState" : "stale",
@@ -18414,6 +18637,21 @@
         }
       }
     },
+    "Single Tariff" : {
+
+    },
+    "Standing Charge (exc. VAT): £%@" : {
+
+    },
+    "Standing Charge (inc. VAT): £%@" : {
+
+    },
+    "Standing Charges" : {
+
+    },
+    "Standing Charges (%lld)" : {
+
+    },
     "Start" : {
       "localizations" : {
         "ar" : {
@@ -18615,6 +18853,15 @@
           }
         }
       }
+    },
+    "Start Date" : {
+
+    },
+    "Start:" : {
+
+    },
+    "Status:" : {
+
     },
     "StatusIndicator.Done" : {
       "extractionState" : "stale",
@@ -19428,6 +19675,15 @@
         }
       }
     },
+    "Tariff Calculations" : {
+
+    },
+    "Test View" : {
+
+    },
+    "This will delete all records for this entity. This action cannot be undone." : {
+
+    },
     "Threshold" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -19826,6 +20082,12 @@
           }
         }
       }
+    },
+    "Time Window Test" : {
+
+    },
+    "Total Usage: %@" : {
+
     },
     "Unlock" : {
       "comment" : "Button to unlock a premium card\nButton to unlock a premium feature",
@@ -20435,6 +20697,24 @@
           }
         }
       }
+    },
+    "Using AGILE Code: %@" : {
+
+    },
+    "Valid from:" : {
+
+    },
+    "Valid to:" : {
+
+    },
+    "Value (exc. VAT):" : {
+
+    },
+    "Value (inc. VAT):" : {
+
+    },
+    "View Database" : {
+
     },
     "Warning Threshold: %@ p/kWh" : {
       "extractionState" : "stale",
@@ -21657,6 +21937,42 @@
           }
         }
       }
+    },
+    "产品特性" : {
+
+    },
+    "产品详情" : {
+
+    },
+    "可变" : {
+
+    },
+    "基本信息" : {
+
+    },
+    "折扣信息" : {
+
+    },
+    "无费率详情" : {
+
+    },
+    "无退出费用" : {
+
+    },
+    "有效期" : {
+
+    },
+    "环保" : {
+
+    },
+    "费率详情" : {
+
+    },
+    "追踪" : {
+
+    },
+    "退出费用" : {
+
     }
   },
   "version" : "1.0"

@@ -1,0 +1,110 @@
+import Combine
+import Foundation
+import SwiftUI
+
+public final class AccountRepository: ObservableObject {
+    public static let shared = AccountRepository()
+
+    private let apiClient = OctopusAPIClient.shared
+    private let productsRepo = ProductsRepository.shared
+    private let productDetailRepo = ProductDetailRepository.shared
+    private let ratesRepo = RatesRepository.shared
+
+    private init() {}
+
+    /// Fetch account JSON, store in GlobalSettings, parse MPRN/MPAN
+    public func fetchAndStoreAccount(
+        accountNumber: String, apiKey: String, globalSettings: GlobalSettingsManager
+    ) async throws {
+        print("fetchAndStoreAccount: 🔄 Starting account fetch and store...")
+        let accountData = try await apiClient.fetchAccountData(
+            accountNumber: accountNumber, apiKey: apiKey)
+        print("fetchAndStoreAccount: ✅ Account data fetched from API")
+        print("fetchAndStoreAccount: 📊 Properties count: \(accountData.properties.count)")
+        if let firstProperty = accountData.properties.first {
+            print("fetchAndStoreAccount: 📊 First property details:")
+            print("  - ID: \(firstProperty.id)")
+            print("  - Address: \(firstProperty.address_line_1 ?? "N/A")")
+            print("  - Postcode: \(firstProperty.postcode ?? "N/A")")
+            print("  - Moved in at: \(firstProperty.moved_in_at ?? "N/A")")
+        }
+
+        // 1) Convert to raw JSON for safe-keeping (if desired)
+        let rawData = try JSONEncoder().encode(accountData)
+        print("fetchAndStoreAccount: ✅ Account data encoded successfully")
+
+        // Ensure we're on the main thread for UserDefaults updates
+        await MainActor.run {
+            print("fetchAndStoreAccount: 💾 Storing account data in settings...")
+            globalSettings.settings.accountData = rawData
+            globalSettings.settings.accountNumber = accountNumber
+            
+            // Store postcode if available from first property
+            if let firstProperty = accountData.properties.first,
+               let postcode = firstProperty.postcode {
+                print("fetchAndStoreAccount: 📍 Found postcode: \(postcode)")
+                globalSettings.settings.regionInput = postcode
+                print("fetchAndStoreAccount: 📍 Updated regionInput to: \(globalSettings.settings.regionInput)")
+                
+                // Lookup region code from postcode
+                Task {
+                    do {
+                        let region = try await ratesRepo.fetchRegionID(for: postcode) ?? "H"
+                        print("fetchAndStoreAccount: 🌍 Found region code: \(region)")
+                        await MainActor.run {
+                            globalSettings.settings.regionInput = region
+                            print("fetchAndStoreAccount: 🌍 Updated regionInput to region code: \(region)")
+                        }
+                    } catch {
+                        print("fetchAndStoreAccount: ⚠️ Failed to lookup region code: \(error)")
+                    }
+                }
+            } else {
+                print("fetchAndStoreAccount: ⚠️ No postcode found in account data")
+            }
+            
+            print("fetchAndStoreAccount: ✅ Account data stored in settings")
+            print("fetchAndStoreAccount: 📊 Account data size: \(rawData.count) bytes")
+        }
+
+        // 2) For simplicity, parse the first property + first electricity_meter_points
+        if let firstProperty = accountData.properties.first,
+            let elecPoints = firstProperty.electricity_meter_points?.first,
+            let firstMeter = elecPoints.meters?.first
+        {
+            // store them in settings on main thread
+            await MainActor.run {
+                globalSettings.settings.electricityMPAN = elecPoints.mpan
+                globalSettings.settings.electricityMeterSerialNumber = firstMeter.serial_number
+            }
+        }
+
+        // 3) Process all properties and their meter points to store products
+        for property in accountData.properties {
+            // Handle electricity meter points
+            if let electricityPoints = property.electricity_meter_points {
+                for point in electricityPoints {
+                    if let agreements = point.agreements {
+                        for agreement in agreements {
+                            // Extract product code from tariff code (e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03")
+                            if let productCode = extractProductCode(from: agreement.tariff_code) {
+                                // Ensure the product exists in our database
+                                try await productsRepo.ensureProductExists(productCode: productCode)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Extracts the product code from a tariff code
+    /// e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03"
+    private func extractProductCode(from tariffCode: String) -> String? {
+        let parts = tariffCode.components(separatedBy: "-")
+        guard parts.count >= 6 else { return nil }
+
+        // For AGILE products: parts[2] would be "AGILE", parts[3,4,5] would be "24", "04", "03"
+        return parts[2...5].joined(separator: "-")  // e.g. "AGILE-24-04-03"
+    }
+}

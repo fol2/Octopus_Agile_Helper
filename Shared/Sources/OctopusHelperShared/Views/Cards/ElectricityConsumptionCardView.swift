@@ -50,7 +50,6 @@ public struct ElectricityConsumptionCardView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     
     @State private var flipped = false
-    @State private var debugRates: [RateEntity] = []
     @State private var isLoadingRates = false
     @State private var isSyncingAllRates = false
     @State private var lastSyncError: Error?
@@ -84,18 +83,6 @@ public struct ElectricityConsumptionCardView: View {
         .task {
             // On appear, load existing data
             await viewModel.loadData()
-            if localSettings.settings.isDebugMode {
-                await loadDebugRates()
-            }
-        }
-    }
-
-    private func loadDebugRates() async {
-        isLoadingRates = true
-        defer { isLoadingRates = false }
-        
-        if let ratesRepo = try? RatesRepository.shared {
-            debugRates = (try? await ratesRepo.fetchAllRates()) ?? []
         }
     }
 
@@ -106,9 +93,15 @@ public struct ElectricityConsumptionCardView: View {
             HStack {
                 Image(systemName: "bolt.fill")
                     .foregroundColor(Theme.icon)
-                Text("Electricity Usage")
-                    .font(Theme.titleFont())
-                    .foregroundColor(Theme.secondaryTextColor)
+                if viewModel.fetchStatus == .fetching && viewModel.consumptionRecords.isEmpty {
+                    // Show a spinner if absolutely no data + isLoading
+                    ProgressView("Loading Usage...")
+                        .font(Theme.subFont())
+                } else {
+                    Text("Electricity Usage")
+                        .font(Theme.titleFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
 
                 Spacer()
 
@@ -147,10 +140,6 @@ public struct ElectricityConsumptionCardView: View {
             .buttonStyle(.borderedProminent)
             .tint(Theme.mainColor)
             .disabled(viewModel.isLoading)
-
-            if localSettings.settings.isDebugMode {
-                debugView
-            }
         }
         .padding(16)
     }
@@ -275,72 +264,18 @@ public struct ElectricityConsumptionCardView: View {
         .cornerRadius(8)
     }
 
-    // MARK: - Consumption with Rate
-    private struct ConsumptionWithRate {
-        let interval_start: Date
-        let interval_end: Date
-        let consumption: Double
-        let rate: Double  // Rate in pence/kWh
-        
-        var cost: Double {
-            // Calculate cost in pounds
-            (consumption * rate) / 100.0
-        }
-    }
-
-    private func calculateConsumptionWithRates() -> [ConsumptionWithRate] {
-        let ratesRepo = RatesRepository.shared
-        
-        return viewModel.consumptionRecords.compactMap { record -> ConsumptionWithRate? in
-            guard let start = record.value(forKey: "interval_start") as? Date,
-                  let end = record.value(forKey: "interval_end") as? Date,
-                  let consumption = record.value(forKey: "consumption") as? Double else {
-                return nil
-            }
-            
-            // Find matching rate for this consumption window
-            let matchingRate = ratesRepo.currentCachedRates.first { rate in
-                guard let rateStart = rate.validFrom,
-                      let rateEnd = rate.validTo else {
-                    return false
-                }
-                // Check if the consumption interval overlaps with the rate interval
-                return start >= rateStart && end <= rateEnd
-            }
-            
-            return ConsumptionWithRate(
-                interval_start: start,
-                interval_end: end,
-                consumption: consumption,
-                rate: matchingRate?.valueIncludingVAT ?? 0.0
-            )
-        }
-    }
-
     // MARK: - Recent Consumption List View
     private var recentConsumptionListView: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Recent Usage")
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
-            
-            let consumptionWithRates = calculateConsumptionWithRates()
             ForEach(getRecentConsumption(), id: \.interval_end) { record in
-                let matchingRate = consumptionWithRates.first { 
-                    $0.interval_start == record.interval_start && 
-                    $0.interval_end == record.interval_end 
-                }
-                
                 HStack {
                     VStack(alignment: .leading) {
                         Text(formatTime(record.interval_start))
                             .font(Theme.secondaryFont())
                             .foregroundColor(Theme.secondaryTextColor)
-                        if let rate = matchingRate {
-                            Text("\(String(format: "%.1f", rate.rate))p/kWh")
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
-                        }
                     }
                     
                     Spacer()
@@ -349,30 +284,9 @@ public struct ElectricityConsumptionCardView: View {
                         Text("\(String(format: "%.2f", record.consumption)) kWh")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.mainTextColor)
-                        if let rate = matchingRate {
-                            Text("£\(String(format: "%.2f", rate.cost))")
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.mainTextColor.opacity(0.8))
-                        }
                     }
                 }
                 .padding(.vertical, 4)
-            }
-            
-            // Total Cost Summary
-            if !consumptionWithRates.isEmpty {
-                Divider()
-                    .padding(.vertical, 8)
-                
-                HStack {
-                    Text("Total Cost")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Spacer()
-                    Text("£\(String(format: "%.2f", consumptionWithRates.reduce(0) { $0 + $1.cost }))")
-                        .font(Theme.mainFont())
-                        .foregroundColor(Theme.mainTextColor)
-                }
             }
         }
         .padding(.vertical, 8)
@@ -398,91 +312,6 @@ public struct ElectricityConsumptionCardView: View {
                 .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
         }
         .padding(.vertical, 4)
-    }
-
-    // MARK: - Debug View
-    private var debugView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // DEBUG: Sync All Rates Button
-            Button {
-                Task {
-                    isSyncingAllRates = true
-                    lastSyncError = nil
-                    do {
-                        try await RatesRepository.shared.syncAllRates()
-                        await loadDebugRates()
-                    } catch {
-                        lastSyncError = error
-                        print("Error syncing all rates: \(error)")
-                    }
-                    isSyncingAllRates = false
-                }
-            } label: {
-                HStack {
-                    if isSyncingAllRates {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .padding(.trailing, 4)
-                    }
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                    Text(isSyncingAllRates ? "Syncing All Historical Rates..." : "Debug: Sync All Rates")
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            }
-            .buttonStyle(.bordered)
-            .tint(.orange)
-            .disabled(isSyncingAllRates || viewModel.isLoading)
-            
-            // DEBUG: Display Rate Info
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Debug Rate Info:")
-                    .font(Theme.secondaryFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-                
-                if isLoadingRates || isSyncingAllRates {
-                    ProgressView(isLoadingRates ? "Loading rates..." : "Syncing rates...")
-                        .scaleEffect(0.8)
-                } else {
-                    Text("Total Rates in DB: \(debugRates.count)")
-                        .font(Theme.secondaryFont())
-                    
-                    if let firstRate = debugRates.first,
-                       let lastRate = debugRates.last {
-                        Text("Historical Coverage:")
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                            .padding(.top, 4)
-                        
-                        Text("Earliest: \(formatOptionalDate(firstRate.validFrom))")
-                            .font(Theme.secondaryFont())
-                        Text("Latest: \(formatOptionalDate(lastRate.validTo))")
-                            .font(Theme.secondaryFont())
-                        
-                        if let repo = try? RatesRepository.shared {
-                            Text("Has Coverage Through Expected End: \(repo.hasDataThroughExpectedEndUKTime() ? "Yes" : "No")")
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(repo.hasDataThroughExpectedEndUKTime() ? .green : .red)
-                        }
-                    }
-                    
-                    if let error = lastSyncError {
-                        Text("Last Sync Error:")
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(.red)
-                            .padding(.top, 4)
-                        Text(error.localizedDescription)
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(.red)
-                            .lineLimit(2)
-                    }
-                }
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(Theme.secondaryBackground.opacity(0.5))
-            .cornerRadius(8)
-        }
     }
 
     // MARK: - Back Side (Settings)
@@ -528,13 +357,6 @@ public struct ElectricityConsumptionCardView: View {
                 
                 Toggle("Debug Mode", isOn: $localSettings.settings.isDebugMode)
                     .tint(Theme.mainColor)
-                    .onChange(of: localSettings.settings.isDebugMode) { newValue in
-                        if newValue {
-                            Task {
-                                await loadDebugRates()
-                            }
-                        }
-                    }
             }
             .padding(.top, 8)
 
@@ -573,6 +395,9 @@ public struct ElectricityConsumptionCardView: View {
         guard !records.isEmpty else { return "N/A" }
         
         let totalConsumption = records.reduce(0.0) { sum, record in
+            // If we are re-fetching after failed, let's show partial or no data
+            // But you can keep it simple: skip if we have no records
+            // This snippet remains the same
             sum + (record.value(forKey: "consumption") as? Double ?? 0)
         }
         
@@ -587,6 +412,9 @@ public struct ElectricityConsumptionCardView: View {
         guard !records.isEmpty else { return "N/A" }
         
         let totalConsumption = records.reduce(0.0) { sum, record in
+            // If we are re-fetching after failed, let's show partial or no data
+            // But you can keep it simple: skip if we have no records
+            // This snippet remains the same
             sum + (record.value(forKey: "consumption") as? Double ?? 0)
         }
         

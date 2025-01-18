@@ -101,7 +101,7 @@ public enum Language: String, Codable, CaseIterable {
 }
 
 // MARK: - Card Configuration
-public struct CardConfig: Identifiable, Codable {
+public struct CardConfig: Identifiable, Codable, Equatable {
     public let id: UUID
     public let cardType: CardType
     public var isEnabled: Bool
@@ -118,26 +118,82 @@ public struct CardConfig: Identifiable, Codable {
 }
 
 // MARK: - Global Settings
-public struct GlobalSettings: Codable {
+public struct GlobalSettings: Codable, Equatable {
     public var regionInput: String  // Can be either postcode or region code
     public var apiKey: String
     public var selectedLanguage: Language
     public var showRatesInPounds: Bool
     public var cardSettings: [CardConfig]
+    public var currentAgileCode: String  // Non-optional, always has a value
     public var electricityMPAN: String?
     public var electricityMeterSerialNumber: String?
 
+    // New Fields for Account-based logic
+    /// If user chooses the "Account Number" approach:
+    public var accountNumber: String?
+
+    /// Optionally store the entire account JSON (raw) for reference or debugging
+    public var accountData: Data?
+
+    /// The effective region to use for API calls - returns "H" if regionInput is empty
+    public var effectiveRegion: String {
+        let cleaned = regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        
+        // If empty, return default region "H"
+        guard !cleaned.isEmpty else { return "H" }
+        
+        // If it's a single letter A-P, it's already a valid region code
+        if cleaned.count == 1 && cleaned >= "A" && cleaned <= "P" {
+            return cleaned
+        }
+        
+        // For postcodes, check the cache
+        if let cacheData = UserDefaults.standard.data(forKey: "postcode_region_cache"),
+           let cache = try? JSONDecoder().decode([String: String].self, from: cacheData),
+           let region = cache[cleaned] {
+            return region
+        }
+        
+        // If no cached result, return "H" as fallback
+        return "H"
+    }
+
     public init(
-        regionInput: String, apiKey: String, selectedLanguage: Language, showRatesInPounds: Bool,
-        cardSettings: [CardConfig], electricityMPAN: String? = nil, electricityMeterSerialNumber: String? = nil
+        regionInput: String,
+        apiKey: String,
+        selectedLanguage: Language,
+        showRatesInPounds: Bool,
+        cardSettings: [CardConfig],
+        currentAgileCode: String = "",
+        electricityMPAN: String? = nil,
+        electricityMeterSerialNumber: String? = nil,
+        accountNumber: String? = nil,
+        accountData: Data? = nil
     ) {
         self.regionInput = regionInput
         self.apiKey = apiKey
         self.selectedLanguage = selectedLanguage
         self.showRatesInPounds = showRatesInPounds
         self.cardSettings = cardSettings
+        self.currentAgileCode = currentAgileCode
         self.electricityMPAN = electricityMPAN
         self.electricityMeterSerialNumber = electricityMeterSerialNumber
+        self.accountNumber = accountNumber
+        self.accountData = accountData
+    }
+
+    // MARK: - Equatable
+    public static func == (lhs: GlobalSettings, rhs: GlobalSettings) -> Bool {
+        lhs.regionInput == rhs.regionInput &&
+        lhs.apiKey == rhs.apiKey &&
+        lhs.selectedLanguage == rhs.selectedLanguage &&
+        lhs.showRatesInPounds == rhs.showRatesInPounds &&
+        lhs.cardSettings == rhs.cardSettings &&
+        lhs.currentAgileCode == rhs.currentAgileCode &&
+        lhs.electricityMPAN == rhs.electricityMPAN &&
+        lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber &&
+        lhs.accountNumber == rhs.accountNumber &&
+        lhs.accountData == rhs.accountData
     }
 }
 
@@ -149,20 +205,28 @@ extension GlobalSettings {
         selectedLanguage: .english,
         showRatesInPounds: false,
         cardSettings: [],
+        currentAgileCode: "",
         electricityMPAN: nil,
-        electricityMeterSerialNumber: nil
+        electricityMeterSerialNumber: nil,
+        accountNumber: nil,
+        accountData: nil
     )
 }
 
 // MARK: - Manager (ObservableObject)
 public class GlobalSettingsManager: ObservableObject {
-
+    private var isSaving = false
+    
     @Published public var settings: GlobalSettings {
         didSet {
+            guard !isSaving else { return }
+            isSaving = true
+            print("GlobalSettingsManager: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)")
             saveSettings()
             if oldValue.selectedLanguage != settings.selectedLanguage {
                 locale = settings.selectedLanguage.locale
             }
+            isSaving = false
         }
     }
 
@@ -177,11 +241,9 @@ public class GlobalSettingsManager: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
             let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
         {
-
             // We have existing settings
             self.settings = decoded
             self.locale = decoded.selectedLanguage.locale
-
         } else {
             // 2. No saved settings => use system preferred language
             let matchedLanguage = Language.systemPreferred()
@@ -191,7 +253,12 @@ public class GlobalSettingsManager: ObservableObject {
                 apiKey: "",
                 selectedLanguage: matchedLanguage,
                 showRatesInPounds: false,
-                cardSettings: []
+                cardSettings: [],
+                currentAgileCode: "",
+                electricityMPAN: nil,
+                electricityMeterSerialNumber: nil,
+                accountNumber: nil,
+                accountData: nil
             )
             self.locale = matchedLanguage.locale
         }
@@ -260,8 +327,11 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
             sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
+            sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")
             sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
             sharedDefaults?.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
+            sharedDefaults?.set(settings.accountNumber, forKey: "account_number")
+            sharedDefaults?.set(settings.accountData, forKey: "account_data")
             
             // Notify widget of changes
             #if !WIDGET

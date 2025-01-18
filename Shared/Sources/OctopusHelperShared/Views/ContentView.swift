@@ -40,6 +40,7 @@ final class FetchStatusManager: ObservableObject {
     // Track individual statuses
     private var ratesStatus: FetchStatus = .none
     private var consumptionStatus: FetchStatus = .none
+    private var clearDoneWorkItem: DispatchWorkItem?
     
     func update(ratesStatus: FetchStatus? = nil, consumptionStatus: FetchStatus? = nil) {
         if let rStatus = ratesStatus { self.ratesStatus = rStatus }
@@ -52,18 +53,34 @@ final class FetchStatusManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.3)) {
             self.combinedStatus = newStatus
         }
+        
+        // If status is .done, schedule it to be cleared after a delay
+        if case .done = newStatus {
+            clearDoneWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                withAnimation {
+                    if case .done = self?.combinedStatus {
+                        self?.combinedStatus = .none
+                    }
+                }
+            }
+            clearDoneWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: workItem)
+        }
     }
     
     private func computeCombinedStatus() -> CombinedFetchStatus {
         var fetchingSources: Set<String> = []
         var pendingSources: Set<String> = []
+        var doneSources: Set<String> = []
+        var failedSource: String?
         
         // Check rates status
         switch ratesStatus {
         case .fetching: fetchingSources.insert("Rates")
         case .pending: pendingSources.insert("Rates")
-        case .failed: return .failed(source: "Rates", error: nil)
-        case .done: return .done(source: "Rates")
+        case .failed: failedSource = "Rates"
+        case .done: doneSources.insert("Rates")
         case .none: break
         }
         
@@ -71,17 +88,23 @@ final class FetchStatusManager: ObservableObject {
         switch consumptionStatus {
         case .fetching: fetchingSources.insert("Consumption")
         case .pending: pendingSources.insert("Consumption")
-        case .failed: return .failed(source: "Consumption", error: nil)
-        case .done: return .done(source: "Consumption")
+        case .failed: failedSource = "Consumption"
+        case .done: doneSources.insert("Consumption")
         case .none: break
         }
         
         // Determine combined state
+        if let failed = failedSource {
+            return .failed(source: failed, error: nil)
+        }
         if !fetchingSources.isEmpty {
             return .fetching(sources: fetchingSources)
         }
         if !pendingSources.isEmpty {
             return .pending(sources: pendingSources)
+        }
+        if !doneSources.isEmpty {
+            return .done(source: doneSources.first ?? "Unknown")
         }
         return .none
     }
@@ -116,12 +139,11 @@ public final class ContentViewModel: ObservableObject {
 public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
-
-    // NEW: StateObject for the main RatesViewModel, initialized in onAppear
-    @StateObject private var ratesVM: RatesViewModel
-    @StateObject private var consumptionVM: ConsumptionViewModel
+    @EnvironmentObject var ratesVM: RatesViewModel
+    @StateObject private var consumptionVM = ConsumptionViewModel()
     @StateObject private var statusManager = FetchStatusManager()
     @StateObject private var viewModel = ContentViewModel()
+    let hasAgileCards: Bool  // Now passed in from AppMain
 
     // Store each card's VM in a dictionary keyed by `CardType`
     @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
@@ -140,15 +162,15 @@ public struct ContentView: View {
     // Dynamic copyright text
     private var copyrightText: String {
         let currentYear = Calendar.current.component(.year, from: Date())
-        return currentYear > 2024 ? "© Eugnel 2024-\(currentYear)" : "© Eugnel 2024"
+        return currentYear > 2024 ? " Eugnel 2024-\(currentYear)" : " Eugnel 2024"
    }
 
-    public init() {
-        // Initialize the RatesViewModel with a temporary GlobalTimer
-        // We'll update it with the real one in onAppear
-        let tempTimer = GlobalTimer()
-        _ratesVM = StateObject(wrappedValue: RatesViewModel(globalTimer: tempTimer))
+    public init(hasAgileCards: Bool) {
+        self.hasAgileCards = hasAgileCards
+        // Initialize view models
         _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
+        _statusManager = StateObject(wrappedValue: FetchStatusManager())
+        _viewModel = StateObject(wrappedValue: ContentViewModel())
     }
 
     public var body: some View {
@@ -162,7 +184,8 @@ public struct ContentView: View {
                             if let definition = CardRegistry.shared.definition(for: config.cardType)
                             {
                                 if config.isPurchased || !definition.isPremium {
-                                    if config.cardType == .currentRate {
+                                    if config.cardType == .currentRate || config.cardType == .lowestUpcoming || config.cardType == .highestUpcoming || config.cardType == .averageUpcoming || config.cardType == .interactiveChart {
+                                        // Use the same ratesVM for all rate-related cards
                                         definition.makeView(ratesVM)
                                     } else if let vm = cardViewModels[config.cardType] {
                                         definition.makeView(vm)
@@ -199,12 +222,8 @@ public struct ContentView: View {
             // Pull-to-refresh
             .refreshable {
                 await withTaskGroup(of: Void.self) { group in
-                    group.addTask {
-                        await ratesVM.refreshRates(force: true)
-                    }
-                    group.addTask {
-                        await consumptionVM.refreshDataFromAPI(force: true)
-                    }
+                    group.addTask { await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true) }
+                    group.addTask { await consumptionVM.refreshDataFromAPI(force: true) }
                 }
             }
             // Detect offset changes => check if we collapsed large title
@@ -223,8 +242,18 @@ public struct ContentView: View {
                                 .transition(.opacity)
                         }
                         NavigationLink(
-                            destination: SettingsView()
-                                .environment(\.locale, globalSettings.locale)
+                            destination: SettingsView(didFinishEditing: {
+                                // This runs when user returns from Settings
+                                Task {
+                                    await ratesVM.setAgileProductFromAccountOrFallback(
+                                        globalSettings: globalSettings
+                                    )
+                                    if !ratesVM.currentAgileCode.isEmpty {
+                                        await ratesVM.initializeProducts()
+                                    }
+                                }
+                            })
+                            .environment(\.locale, globalSettings.locale)
                         ) {
                             Image(systemName: "gear")
                                 .foregroundColor(Theme.mainTextColor)
@@ -247,16 +276,10 @@ public struct ContentView: View {
         .environment(\.locale, globalSettings.locale)
         // .onChange is optional if you want to reload or re-localise
         //.onChange(of: globalSettings.locale) { _, _ in ... }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active {
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
                 Task {
-                    await ratesVM.loadRates()
                     await consumptionVM.loadData()
-                    
-                    // If consumption is pending, trigger a refresh
-                    if consumptionVM.fetchStatus == .pending {
-                        await consumptionVM.refreshDataFromAPI(force: false)
-                    }
                 }
                 CardRefreshManager.shared.notifyAppBecameActive()
             }
@@ -271,7 +294,9 @@ public struct ContentView: View {
             // Check rates at 16:00
             if hour == 16, minute == 0, second == 0 {
                 Task {
-                    await ratesVM.loadRates()
+                    if hasAgileCards {
+                        await ratesVM.initializeProducts()
+                    }
                 }
             }
             
@@ -290,24 +315,18 @@ public struct ContentView: View {
         // Called once when the view appears to create all card view models
         .onAppear {
             setupStatusObservers()
-            // Update the RatesViewModel with the real GlobalTimer
-            ratesVM.updateTimer(globalTimer)
-            
-            // Keep dictionary for all other card types except .currentRate
-            for cardType in CardType.allCases where cardType != .currentRate {
-                if cardViewModels[cardType] == nil {
-                    let newVM = CardRegistry.shared.createViewModel(for: cardType)
-                    cardViewModels[cardType] = newVM
-                    // Optionally update timer if needed
-                    if let timedRatesVM = newVM as? RatesViewModel {
-                        timedRatesVM.updateTimer(globalTimer)
+
+            // 2) Create VMs for non-rate cards only
+            for cardType in CardType.allCases {
+                if cardType == .electricityConsumption {  // Only create VM for non-rate cards
+                    if cardViewModels[cardType] == nil {
+                        let newVM = CardRegistry.shared.createViewModel(for: cardType)
+                        cardViewModels[cardType] = newVM
                     }
                 }
             }
         }
-        // Attempt to load data
         .task {
-            await ratesVM.loadRates()
             await consumptionVM.loadData()
         }
     }
@@ -315,7 +334,7 @@ public struct ContentView: View {
     private func setupStatusObservers() {
         ratesVM.$fetchStatus
             .sink { [weak statusManager] status in
-                statusManager?.update(ratesStatus: status)
+                statusManager?.update(ratesStatus: convertToLocalFetchStatus(status))
             }
             .store(in: &viewModel.cancellables)
             
@@ -324,6 +343,18 @@ public struct ContentView: View {
                 statusManager?.update(consumptionStatus: status)
             }
             .store(in: &viewModel.cancellables)
+    }
+
+    // Provide a helper to convert ProductFetchStatus -> local FetchStatus
+    private func convertToLocalFetchStatus(_ pfs: ProductFetchStatus) -> FetchStatus {
+        // minimal logic
+        switch pfs {
+        case .none: return .none
+        case .fetching: return .fetching
+        case .done: return .done
+        case .pending: return .pending
+        case .failed(_): return .failed
+        }
     }
 
     /// Sort user's card configs by sortOrder
@@ -378,10 +409,4 @@ struct CardLockedView: View {
         }
         .rateCardStyle()
     }
-}
-
-#Preview {
-    ContentView()
-        .environmentObject(GlobalTimer())
-        .environmentObject(GlobalSettingsManager())
 }

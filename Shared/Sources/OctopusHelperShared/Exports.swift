@@ -3,6 +3,7 @@
 // Re-export all public types
 @_exported import Foundation
 @_exported import SwiftUI
+@_exported import CoreData
 
 #if canImport(UIKit)
 import UIKit

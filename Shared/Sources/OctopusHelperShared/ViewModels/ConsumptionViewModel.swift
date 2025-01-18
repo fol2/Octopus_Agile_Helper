@@ -3,6 +3,19 @@ import CoreData
 import Foundation
 import SwiftUI
 
+// --------------------------------------------
+// FIX #1: Provide a local FetchStatus for consumption
+// If you prefer to share RatesViewModel's enum, you'll need to import it or
+// define a separate file. This local enum matches your usage:
+public enum FetchStatus {
+    case none
+    case fetching
+    case done
+    case failed
+    case pending
+}
+// --------------------------------------------
+
 /// Represents the combined fetch status of all data sources
 public enum CombinedFetchStatus: Equatable {
     case none
@@ -78,30 +91,48 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     @Published public private(set) var error: Error?
     
     private let repository: ElectricityConsumptionRepository
+    private let globalSettingsManager = GlobalSettingsManager()
     
     public init() {
         self.repository = ElectricityConsumptionRepository.shared
+    }
+    
+    /// Checks if we have the necessary account information to fetch consumption data
+    private var hasValidAccountInfo: Bool {
+        let settings = globalSettingsManager.settings
+        return !settings.apiKey.isEmpty && 
+               !(settings.electricityMPAN ?? "").isEmpty && 
+               !(settings.electricityMeterSerialNumber ?? "").isEmpty
     }
     
     /// Loads existing data from Core Data
     public func loadData() async {
         error = nil
         
+        // Skip if we don't have account info
+        guard hasValidAccountInfo else {
+            fetchStatus = .none
+            return
+        }
+        
+        fetchStatus = .fetching  // Set status to fetching at start
+        
         do {
             let allData = try await repository.fetchAllRecords()
             consumptionRecords = allData
             minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
+            if case .failed = fetchStatus {
+                fetchStatus = .fetching
+            }
             maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
             
-            // Only show pending if:
-            // 1. After noon AND
-            // 2. Missing data through previous midnight
             let calendar = Calendar.current
             let hour = calendar.component(.hour, from: Date())
             
+            // If after noon AND missing data, immediately try to fetch
             if hour >= 12 && !repository.hasDataThroughExpectedTime() {
-                fetchStatus = .pending
-                // Don't auto-refresh here - let the UI handle that
+                // Directly call refreshDataFromAPI instead of just setting pending
+                await refreshDataFromAPI(force: true)  // Force fetch immediately
             } else {
                 fetchStatus = .none
             }
@@ -109,10 +140,12 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             self.error = error
             print("DEBUG: Error loading consumption data: \(error)")
             fetchStatus = .failed
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            
+            // If we fail to load data, set to pending after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 if self.fetchStatus == .failed {
                     withAnimation(.easeInOut(duration: 0.35)) {
-                        self.fetchStatus = .none  // Don't show pending after failure
+                        self.fetchStatus = .pending  // Set to pending if we failed
                     }
                 }
             }
@@ -124,31 +157,35 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: Date())
 
-        // 1) If user pulls-to-refresh, skip "pending" and go straight to "fetching"
-        // 2) If it's after noon AND missing data, then use "pending" -> "fetching"
-        if force {
-            fetchStatus = .fetching
-            isLoading = true
-            error = nil
-        } else if hour >= 12 && !repository.hasDataThroughExpectedTime() {
-            fetchStatus = .pending
-            isLoading = true
-            error = nil
+        // Skip if we don't have account info
+        guard hasValidAccountInfo else {
+            fetchStatus = .none
+            return
         }
 
-        if fetchStatus == .pending || fetchStatus == .fetching {
-            do {
-                // If forced, we're already in .fetching
-                if fetchStatus == .pending {
+        // Always set fetching status when starting a refresh
+        if force || (hour >= 12 && !repository.hasDataThroughExpectedTime()) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                fetchStatus = .fetching
+                if case .failed = fetchStatus {
                     fetchStatus = .fetching
                 }
+                isLoading = true
+            }
+            error = nil
+            
+            do {
                 try await repository.updateConsumptionData()
                 let allData = try await repository.fetchAllRecords()
                 consumptionRecords = allData
                 minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
                 maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
                 
-                fetchStatus = .done
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    fetchStatus = .done
+                }
+                
+                // After success, return to none after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if self.fetchStatus == .done {
                         withAnimation(.easeInOut(duration: 0.35)) {
@@ -158,23 +195,23 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 }
             } catch {
                 self.error = error
-                fetchStatus = .failed
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    fetchStatus = .failed
+                }
+                
+                // If fetch fails, set to pending after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if self.fetchStatus == .failed {
                         withAnimation(.easeInOut(duration: 0.35)) {
-                            // If we still have data, revert to .none, not .pending
-                            if !self.consumptionRecords.isEmpty {
-                                self.fetchStatus = .none
-                            } else {
-                                // If we truly have no data, revert to .pending
-                                self.fetchStatus = .pending
-                            }
+                            self.fetchStatus = .pending  // Always go to pending after failure
                         }
                     }
                 }
             }
             
-            isLoading = false
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isLoading = false
+            }
         }
     }
     
