@@ -142,6 +142,11 @@ public final class RatesRepository: ObservableObject {
             var hasMore = true
             
             while hasMore {
+                if currentPage > totalPages {
+                    hasMore = false
+                    break
+                }
+                
                 if currentPage > 1 {
                     let nextPageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
                     let pageResponse = try await apiClient.fetchTariffRates(url: nextPageUrl)
@@ -162,12 +167,12 @@ public final class RatesRepository: ObservableObject {
                     
                     print("fetchAndStoreRates: 💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
                     try await upsertRates(pageResponse.results, tariffCode: tariffCode)
-                    hasMore = pageResponse.results.count == recordsPerPage
+                    hasMore = pageResponse.results.count == recordsPerPage && currentPage < totalPages
                 } else {
                     // Store first page results
                     print("fetchAndStoreRates: 💾 Storing \(firstPageResponse.results.count) rates from first page")
                     try await upsertRates(firstPageResponse.results, tariffCode: tariffCode)
-                    hasMore = firstPageResponse.results.count == recordsPerPage
+                    hasMore = firstPageResponse.results.count == recordsPerPage && currentPage < totalPages
                 }
                 currentPage += 1
             }

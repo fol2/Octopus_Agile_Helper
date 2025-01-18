@@ -475,18 +475,25 @@ public final class RatesViewModel: ObservableObject {
                 let ukComponents = ukCalendar.dateComponents([.hour], from: now)
                 let isAfter4PMUK = (ukComponents.hour ?? 0) >= 16
                 
-                // Calculate expected data range
-                let tomorrow = ukCalendar.date(byAdding: .day, value: 1, to: now)!
-                let tomorrowEnd = ukCalendar.date(bySettingHour: 23, minute: 0, second: 0, of: tomorrow)!
-                
-                // Check if we have sufficient data
+                // Calculate expected end time based on current UK time
+                let targetDay = isAfter4PMUK ? 
+                    ukCalendar.date(byAdding: .day, value: 1, to: now)! : // tomorrow if after 4PM
+                    now // today if before 4PM
+
+                let expectedEndTime = ukCalendar.date(bySettingHour: 23, minute: 0, second: 0, of: targetDay)!
+
+                // Check if we have data extending to the expected end time
                 let hasSufficientData = localRates.contains { rate in
                     guard let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
-                    return validTo >= tomorrowEnd
+                    return validTo >= expectedEndTime
                 }
-                
+
                 if isAfter4PMUK && !hasSufficientData {
                     print("initializeProducts: 🔄 After 4PM UK time and insufficient data range, fetching from API...")
+                    try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
+                    state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
+                } else if !isAfter4PMUK && !hasSufficientData {
+                    print("initializeProducts: 🔄 Before 4PM UK time and missing today's rates, fetching from API...")
                     try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
                     state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
                 } else {
