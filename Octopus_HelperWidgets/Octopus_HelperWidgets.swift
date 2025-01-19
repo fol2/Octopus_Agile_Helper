@@ -381,22 +381,6 @@ struct CurrentRateWidget: View {
         return nil
     }
 
-    /// Get upcoming rates including current rate, sorted by value
-    private func getUpcomingRates() -> [NSManagedObject] {
-        let now = Date()
-        return rates
-            .filter { rate in
-                guard let _ = rate.value(forKey: "valid_from") as? Date,
-                      let valid_to = rate.value(forKey: "valid_to") as? Date else { return false }
-                return valid_to > now
-            }
-            .sorted { a, b in
-                let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
-                let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
-                return aValue < bValue
-            }
-    }
-
     private var barWidth: Double {
         let maxPossibleBars = 65.0  // Upper bound
         let currentBars = Double(filteredRatesForChart.count)
@@ -448,36 +432,25 @@ struct CurrentRateWidget: View {
     private var circularView: some View {
         Group {
             if let currentRate = findCurrentRate() {
-                let upcomingRates = getUpcomingRates()
-                if !upcomingRates.isEmpty {
-                    let currentValue = currentRate.value(forKey: "value_including_vat") as? Double ?? 0
-                    let minRate = min(currentValue, upcomingRates.first?.value(forKey: "value_including_vat") as? Double ?? currentValue)
-                    let maxRate = max(currentValue, upcomingRates.last?.value(forKey: "value_including_vat") as? Double ?? currentValue)
-                    
-                    // Normalize current value to 0-1 range
-                    let normalizedValue = (currentValue - minRate) / (maxRate - minRate)
-                    
-                    Gauge(value: normalizedValue, in: 0...1) {
-                        Image(systemName: "bolt.fill")
-                    } currentValueLabel: {
-                        Text(formatRate(currentValue))
-                            .font(.system(.body, design: .rounded))
-                            .minimumScaleFactor(0.5)
-                    }
-                    .gaugeStyle(.accessoryCircular)
-                    .tint(RateColor.getColor(for: currentRate, allRates: rates))
-                } else {
-                    // Fallback if no upcoming rates
-                    Gauge(value: 0.5, in: 0...1) {
-                        Image(systemName: "bolt.fill")
-                    } currentValueLabel: {
-                        Text(formatRate(currentRate.value(forKey: "value_including_vat") as? Double ?? 0))
-                            .font(.system(.body, design: .rounded))
-                            .minimumScaleFactor(0.5)
-                    }
-                    .gaugeStyle(.accessoryCircular)
-                    .tint(RateColor.getColor(for: currentRate, allRates: rates))
+                let widgetVM = RatesViewModel(widgetRates: rates.compactMap { $0 }, productCode: settings.agileCode)
+                let currentValue = currentRate.value(forKey: "value_including_vat") as? Double ?? 0
+                let lowestRate = widgetVM.lowestUpcomingRate(productCode: settings.agileCode)?.value(forKey: "value_including_vat") as? Double ?? currentValue
+                let highestRate = widgetVM.highestUpcomingRate(productCode: settings.agileCode)?.value(forKey: "value_including_vat") as? Double ?? currentValue
+                
+                // Normalize current value to 0-1 range
+                let minRate = min(currentValue, lowestRate)
+                let maxRate = max(currentValue, highestRate)
+                let normalizedValue = (currentValue - minRate) / (maxRate - minRate)
+                
+                Gauge(value: normalizedValue, in: 0...1) {
+                    Image(systemName: "bolt.fill")
+                } currentValueLabel: {
+                    Text(formatRate(currentValue))
+                        .font(.system(.body, design: .rounded))
+                        .minimumScaleFactor(0.5)
                 }
+                .gaugeStyle(.accessoryCircular)
+                .tint(RateColor.getColor(for: currentRate, allRates: rates))
             } else {
                 Gauge(value: 0, in: 0...1) {
                     Image(systemName: "bolt.fill")
@@ -812,9 +785,8 @@ extension CurrentRateWidget {
     }
     
     private func lowestUpcoming() -> (NSManagedObject, Date)? {
-        let upcoming = getUpcomingRates()
-        
-        if let item = upcoming.first,
+        let widgetVM = RatesViewModel(widgetRates: rates.compactMap { $0 }, productCode: settings.agileCode)
+        if let item = widgetVM.lowestUpcomingRate(productCode: settings.agileCode),
            let from = item.value(forKey: "valid_from") as? Date {
             return (item, from)
         }
@@ -822,9 +794,8 @@ extension CurrentRateWidget {
     }
     
     private func highestUpcoming() -> (NSManagedObject, Date)? {
-        let upcoming = getUpcomingRates()
-        
-        if let item = upcoming.last,
+        let widgetVM = RatesViewModel(widgetRates: rates.compactMap { $0 }, productCode: settings.agileCode)
+        if let item = widgetVM.highestUpcomingRate(productCode: settings.agileCode),
            let valid_from = item.value(forKey: "valid_from") as? Date {
             return (item, valid_from)
         }

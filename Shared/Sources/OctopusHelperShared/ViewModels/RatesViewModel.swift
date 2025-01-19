@@ -96,27 +96,6 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
         return raw
     }
 
-    /// Example aggregator for "lowest averages" (similar to your old code).
-    public func lowestAverageRates(productCode: String, count: Int = 10) -> Double? {
-        guard let state = productStates[productCode] else { return nil }
-        let now = Date()
-        let future = state.upcomingRates.filter {
-            guard let validFrom = $0.value(forKey: "valid_from") as? Date else { return false }
-            return validFrom > now
-        }
-        let sorted = future.sorted {
-            let lv = $0.value(forKey: "value_including_vat") as? Double ?? 999999
-            let rv = $1.value(forKey: "value_including_vat") as? Double ?? 999999
-            return lv < rv
-        }
-        let topN = Array(sorted.prefix(count))
-        if topN.isEmpty { return nil }
-        let sum = topN.reduce(0.0) { partial, obj in
-            partial + (obj.value(forKey: "value_including_vat") as? Double ?? 0.0)
-        }
-        return sum / Double(topN.count)
-    }
-
     /// A minimal helper struct mirroring your old "ThreeHourAverageEntry".
     /// Adjust naming if needed.
     public struct ThreeHourAverageEntry: Identifiable {

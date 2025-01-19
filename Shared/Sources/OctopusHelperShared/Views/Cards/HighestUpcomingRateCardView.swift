@@ -264,4 +264,6 @@ public struct HighestUpcomingRateCardView: View {
         // Force the entire content to stick to the top:
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
+
+    // MARK: - Private Helpers
 }

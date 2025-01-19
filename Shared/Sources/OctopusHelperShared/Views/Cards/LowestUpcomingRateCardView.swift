@@ -56,17 +56,6 @@ public struct LowestUpcomingRateCardView: View {
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
     // MARK: - Rate Fetching Logic
-    private func getLowestUpcomingRate() -> NSManagedObject? {
-        let upcomingRates = viewModel.productStates[productCode]?.upcomingRates ?? []
-        return upcomingRates
-            .sorted { rate1, rate2 in
-                let value1 = rate1.value(forKey: "value_including_vat") as? Double ?? 0
-                let value2 = rate2.value(forKey: "value_including_vat") as? Double ?? 0
-                return value1 < value2
-            }
-            .first
-    }
-
     private func getAdditionalLowestRates() -> [NSManagedObject] {
         let upcomingRates = viewModel.productStates[productCode]?.upcomingRates ?? []
         let sortedRates = upcomingRates
@@ -155,7 +144,7 @@ public struct LowestUpcomingRateCardView: View {
             } else if (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true) {
                 Text("No upcoming rates available")
                     .foregroundColor(Theme.secondaryTextColor)
-            } else if let lowestRate = getLowestUpcomingRate(),
+            } else if let lowestRate = viewModel.lowestUpcomingRate(productCode: productCode),
                       let value = lowestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
                     // Main lowest rate
