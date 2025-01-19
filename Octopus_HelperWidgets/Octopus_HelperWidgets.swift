@@ -491,7 +491,10 @@ struct CurrentRateWidget: View {
                 Gauge(value: normalizedValue, in: 0...1) {
                     Image(systemName: "bolt.fill")
                 } currentValueLabel: {
-                    Text(formatRate(currentValue))
+                    // Format without /kWh and fewer decimals for circular view
+                    Text(settings.showRatesInPounds ? 
+                        String(format: "£%.3f", currentValue / 100.0) :
+                        String(format: "%.2fp", currentValue))
                         .font(Theme.mainFont())
                         .foregroundColor(RateColor.getColor(for: currentRate, allRates: rates))
                 }
