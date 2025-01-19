@@ -6,7 +6,7 @@ public struct RateColor {
     // Adjust as needed:
     private static let whiteColor       = Color.white
     private static let softerRedColor   = Color(red: 1.0, green: 0.2, blue: 0.2)
-    private static let devilPurpleColor = Color(red: 0.6, green: 0.0, blue: 0.9)
+    private static let devilPurpleColor = Color(red: 0.9, green: 0.1, blue: 1.0)
     private static let greenColor       = Color(red: 0.1, green: 1.0, blue: 0.3)
 
     // We no longer rely on fixed thresholds for "medium" and "high" in the old sense.
