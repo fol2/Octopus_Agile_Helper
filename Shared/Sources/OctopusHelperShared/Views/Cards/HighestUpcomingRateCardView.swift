@@ -114,7 +114,7 @@ public struct HighestUpcomingRateCardView: View {
 
             if viewModel.isLoading(for: productCode) {
                 // Show a progress spinner if no data is available yet
-                if viewModel.allRates(for: productCode).isEmpty {
+                if (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true) {
                     ProgressView("Loading...").padding(.vertical, 12)
                 } else {
                     // If we do have some rates loaded, show partial content below
@@ -162,19 +162,16 @@ public struct HighestUpcomingRateCardView: View {
                     }
 
                     if localSettings.settings.additionalRatesCount > 0 {
-                        // We'll filter allRates(for:) for upcoming
-                        let upcomingRates = viewModel.allRates(for: productCode)
-                            .filter { rate in
-                                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
-                                return validFrom > Date()
-                            }
+                        // We'll use upcomingRates directly
+                        let upcomingRates = viewModel.productStates[productCode]?.upcomingRates ?? []
+                        let sortedRates = upcomingRates
                             .sorted { r1, r2 in
                                 (r1.value(forKey: "value_including_vat") as? Double ?? 0) > (r2.value(forKey: "value_including_vat") as? Double ?? 0)
                             }
 
-                        if upcomingRates.count > 1 {
+                        if sortedRates.count > 1 {
                             ForEach(
-                                upcomingRates.prefix(
+                                sortedRates.prefix(
                                     localSettings.settings.additionalRatesCount + 1
                                 ).dropFirst(),
                                 id: \.self

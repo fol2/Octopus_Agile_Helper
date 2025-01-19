@@ -101,15 +101,32 @@ extension Octopus_Agile_HelperApp {
     /// Centralized function to load initial data, matching your #Preview flow.
     private func initializeAppData() async {
         do {
-            // 1) Let RatesViewModel detect user's agile product or fallback (includes product sync)
+            // 1) Let RatesViewModel detect user's agile product or fallback
             await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
             
-            // 2) If we already know the agile code, initialize product data
+            // 2) Set up products to initialize
+            var productsToInit: [String] = []
+            
+            // Add Agile product if available
             if !ratesVM.currentAgileCode.isEmpty {
+                productsToInit.append(ratesVM.currentAgileCode)
+            }
+            
+            // Here you can add more products if needed
+            // Example:
+            // if let trackerCode = globalSettings.settings.trackerCode {
+            //     productsToInit.append(trackerCode)
+            // }
+            
+            // Set the products to initialize
+            ratesVM.productsToInitialize = productsToInit
+            
+            // 3) Initialize products if we have any
+            if !productsToInit.isEmpty {
                 await ratesVM.initializeProducts()
             }
             
-            // 3) Mark app as initialized => show main content
+            // 4) Mark app as initialized => show main content
             withAnimation(.easeOut(duration: 0.5)) {
                 isAppInitialized = true
             }

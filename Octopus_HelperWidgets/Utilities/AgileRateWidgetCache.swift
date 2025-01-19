@@ -21,6 +21,7 @@ public class AgileRateWidgetCache {
         let timestamp: Date
         let tariffCode: String
         let nextUpdateTime: Date  // When we expect new data
+        let wasAfter4PMUK: Bool   // Track when the data was fetched
     }
     
     private var cache: CacheEntry?
@@ -111,13 +112,15 @@ public class AgileRateWidgetCache {
             rates: rates,
             timestamp: Date(),
             tariffCode: tariffCode,
-            nextUpdateTime: nextUpdateTime
+            nextUpdateTime: nextUpdateTime,
+            wasAfter4PMUK: false
         )
     }
     
     /// Internal fetch implementation
     private func fetchRates(tariffCode: String, pastHours: Int) async throws -> [NSManagedObject] {
         print("CACHE: Internal fetch for tariff: \(tariffCode)")
+        let now = Date()
         
         // If tariff code changed, clear the cache and try immediate refresh
         if let cache = cache, cache.tariffCode != tariffCode {
@@ -128,28 +131,28 @@ public class AgileRateWidgetCache {
             do {
                 // First check CoreData
                 print("CACHE: Checking CoreData after tariff change")
-                let localRates = try await repository.fetchRatesForTimeWindow(
-                    tariffCode: tariffCode,
+                let localRates = try await repository.fetchRatesByTariffCode(
+                    tariffCode,
                     pastHours: pastHours
                 )
                 
-                if !localRates.isEmpty && isCacheDataSufficient(rates: localRates) {
+                if !localRates.isEmpty && isCacheDataSufficient(rates: localRates, now: now) {
                     print("CACHE: Found sufficient data in CoreData after tariff change")
-                    updateCache(rates: localRates, tariffCode: tariffCode, nextUpdateTime: calculateNextUpdateTime())
+                    updateCache(rates: localRates, tariffCode: tariffCode)
                     return localRates
                 }
                 
                 // If CoreData insufficient, try API
                 print("CACHE: CoreData insufficient after tariff change, fetching from API")
                 try await repository.fetchAndStoreRates(tariffCode: tariffCode)
-                let rates = try await repository.fetchRatesForTimeWindow(
-                    tariffCode: tariffCode,
+                let rates = try await repository.fetchRatesByTariffCode(
+                    tariffCode,
                     pastHours: pastHours
                 )
                 
-                if !rates.isEmpty && isCacheDataSufficient(rates: rates) {
+                if !rates.isEmpty && isCacheDataSufficient(rates: rates, now: now) {
                     print("CACHE: Caching \(rates.count) rates after tariff change")
-                    updateCache(rates: rates, tariffCode: tariffCode, nextUpdateTime: calculateNextUpdateTime())
+                    updateCache(rates: rates, tariffCode: tariffCode)
                     return rates
                 }
                 
@@ -161,30 +164,30 @@ public class AgileRateWidgetCache {
             }
         }
         
-        // Try cached data
-        if let rates = cache?.rates {
-            print("CACHE: Found cached data with \(rates.count) rates")
-            let filteredRates = filterRatesForTimeWindow(rates: rates, pastHours: pastHours)
-            if !filteredRates.isEmpty && isCacheDataSufficient(rates: rates) {
-                print("CACHE: Using \(filteredRates.count) cached rates (sufficient)")
+        // Check if we have valid cached data
+        if let entry = cache {
+            print("CACHE: Found cached data with \(entry.rates.count) rates")
+            if isCacheFresh(entry, now: now) && isCacheDataSufficient(rates: entry.rates, now: now) {
+                print("CACHE: Cache is fresh and sufficient")
+                let filteredRates = filterRatesForTimeWindow(rates: entry.rates, pastHours: pastHours)
                 return filteredRates
             }
-            print("CACHE: Cached data insufficient, will check CoreData")
+            print("CACHE: Cache stale or insufficient, will check CoreData")
         } else {
-            print("CACHE: No cached data available, checking CoreData")
+            print("CACHE: No cached data available")
         }
         
-        // Try CoreData first
+        // Try CoreData
         do {
             print("CACHE: Fetching from CoreData")
-            let localRates = try await repository.fetchRatesForTimeWindow(
-                tariffCode: tariffCode,
+            let localRates = try await repository.fetchRatesByTariffCode(
+                tariffCode,
                 pastHours: pastHours
             )
             
-            if !localRates.isEmpty && isCacheDataSufficient(rates: localRates) {
+            if !localRates.isEmpty && isCacheDataSufficient(rates: localRates, now: now) {
                 print("CACHE: Found sufficient data in CoreData")
-                updateCache(rates: localRates, tariffCode: tariffCode, nextUpdateTime: calculateNextUpdateTime())
+                updateCache(rates: localRates, tariffCode: tariffCode)
                 return localRates
             }
             
@@ -194,20 +197,20 @@ public class AgileRateWidgetCache {
             print("CACHE: Will try API fetch")
         }
         
-        // Only fetch from API if CoreData is insufficient
+        // Fetch from API as last resort
         do {
             print("CACHE: Fetching fresh data from API")
             try await repository.fetchAndStoreRates(tariffCode: tariffCode)
             
             print("CACHE: Fetching updated data from CoreData")
-            let rates = try await repository.fetchRatesForTimeWindow(
-                tariffCode: tariffCode,
+            let rates = try await repository.fetchRatesByTariffCode(
+                tariffCode,
                 pastHours: pastHours
             )
             
-            if !rates.isEmpty && isCacheDataSufficient(rates: rates) {
+            if !rates.isEmpty && isCacheDataSufficient(rates: rates, now: now) {
                 print("CACHE: Caching \(rates.count) fresh rates")
-                updateCache(rates: rates, tariffCode: tariffCode, nextUpdateTime: calculateNextUpdateTime())
+                updateCache(rates: rates, tariffCode: tariffCode)
                 return rates
             }
             
@@ -237,6 +240,92 @@ public class AgileRateWidgetCache {
             }
             return aDate < bDate
         }
+    }
+    
+    // MARK: - Cache Validation Helpers
+    
+    private func isAfter4PMUK(date: Date = Date()) -> Bool {
+        let ukTimeZone = TimeZone(identifier: "Europe/London") ?? .current
+        let ukCalendar = Calendar.current
+        let components = ukCalendar.dateComponents(in: ukTimeZone, from: date)
+        return (components.hour ?? 0) >= 16
+    }
+    
+    private func isCacheFresh(_ entry: CacheEntry, now: Date = Date()) -> Bool {
+        let currentlyAfter4PM = isAfter4PMUK(date: now)
+        
+        // If it's after 4PM UK now
+        if currentlyAfter4PM {
+            // Cache must have been fetched after 4PM today
+            return entry.wasAfter4PMUK && 
+                   Calendar.current.isDateInToday(entry.timestamp)
+        } else {
+            // If before 4PM, cache from after 4PM yesterday or before 4PM today is valid
+            if entry.wasAfter4PMUK {
+                return Calendar.current.isDateInYesterday(entry.timestamp)
+            } else {
+                return Calendar.current.isDateInToday(entry.timestamp)
+            }
+        }
+    }
+    
+    private func expectedEndTime(now: Date) -> Date {
+        let ukTimeZone = TimeZone(identifier: "Europe/London") ?? .current
+        var ukCalendar = Calendar.current
+        ukCalendar.timeZone = ukTimeZone
+        
+        // If after 4PM UK, expect data until 11PM tomorrow
+        // If before 4PM UK, expect data until 11PM today
+        let daysToAdd = isAfter4PMUK(date: now) ? 1 : 0
+        
+        var components = ukCalendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 23  // 11 PM
+        components.minute = 0
+        components.second = 0
+        components.day! += daysToAdd
+        
+        return ukCalendar.date(from: components) ?? now.addingTimeInterval(3600 * 24)
+    }
+    
+    private func isCacheDataSufficient(rates: [NSManagedObject], now: Date = Date()) -> Bool {
+        let endTime = expectedEndTime(now: now)
+        
+        return rates.contains { rate in
+            guard let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
+            return validTo >= endTime
+        }
+    }
+    
+    private func updateCache(rates: [NSManagedObject], tariffCode: String) {
+        let now = Date()
+        let wasAfter4PM = isAfter4PMUK(date: now)
+        
+        // Next update time:
+        // - If after 4PM, update tomorrow at 4PM
+        // - If before 4PM, update today at 4PM
+        var nextUpdate = now
+        let calendar = Calendar.current
+        if wasAfter4PM {
+            // Set for tomorrow at 4PM
+            nextUpdate = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        }
+        
+        let ukTimeZone = TimeZone(identifier: "Europe/London") ?? .current
+        var components = calendar.dateComponents([.year, .month, .day], from: nextUpdate)
+        components.hour = 16 // 4 PM
+        components.minute = 0
+        components.second = 0
+        components.timeZone = ukTimeZone
+        
+        let nextUpdateTime = calendar.date(from: components) ?? now.addingTimeInterval(3600)
+        
+        cache = CacheEntry(
+            rates: rates,
+            timestamp: now,
+            tariffCode: tariffCode,
+            nextUpdateTime: nextUpdateTime,
+            wasAfter4PMUK: wasAfter4PM
+        )
     }
     
     // MARK: - Widget Data Access

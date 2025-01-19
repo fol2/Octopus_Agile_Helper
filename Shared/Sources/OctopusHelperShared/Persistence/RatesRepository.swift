@@ -436,51 +436,49 @@ public final class RatesRepository: ObservableObject {
         return eodLocal
     }
 
-    /// Fetch rates for a specific time window and tariff code
-    public func fetchRatesForTimeWindow(
-        tariffCode: String,
-        pastHours: Int = 21  // 42 rates × 30min
+    /// Fetch rates from CoreData for a specific tariff code
+    /// If pastHours is provided, only returns rates from past X hours plus all future rates
+    public func fetchRatesByTariffCode(
+        _ tariffCode: String,
+        pastHours: Int? = nil
     ) async throws -> [NSManagedObject] {
-        print("fetchRatesForTimeWindow: 📊 fetchRatesForTimeWindow: Starting fetch for tariff \(tariffCode), past hours: \(pastHours)")
+        if let hours = pastHours {
+            print("fetchRatesByTariffCode: 📊 Starting fetch for tariff \(tariffCode), past hours: \(hours)")
+        } else {
+            print("fetchRatesByTariffCode: 📊 Starting fetch for all rates of tariff \(tariffCode)")
+        }
+        
         return try await context.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
             let now = Date()
-            let pastBoundary = now.addingTimeInterval(-Double(pastHours) * 3600)
             
-            print("fetchRatesForTimeWindow: 📅 Time window")
-            print("   • Now: \(now.formatted())")
-            print("   • Past boundary: \(pastBoundary.formatted())")
+            if let hours = pastHours {
+                let pastBoundary = now.addingTimeInterval(-Double(hours) * 3600)
+                print("fetchRatesByTariffCode: 📅 Time window")
+                print("   • Now: \(now.formatted())")
+                print("   • Past boundary: \(pastBoundary.formatted())")
+                
+                request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                    NSPredicate(format: "tariff_code == %@", tariffCode),
+                    NSPredicate(format: "valid_from >= %@", pastBoundary as NSDate)
+                ])
+            } else {
+                request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            }
             
-            let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-            req.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                NSPredicate(format: "tariff_code == %@", tariffCode),
-                // Get all rates from pastBoundary onwards (no future limit)
-                NSPredicate(format: "valid_from >= %@", pastBoundary as NSDate)
-            ])
-            req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-            
-            let list = try self.context.fetch(req)
-            print("fetchRatesForTimeWindow: ✅ Found \(list.count) rates")
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            let list = try self.context.fetch(request)
+            print("fetchRatesByTariffCode: ✅ Found \(list.count) rates")
             
             // Log first and last rate timestamps if available
             if let firstRate = list.first,
                let lastRate = list.last,
                let firstValidFrom = firstRate.value(forKey: "valid_from") as? Date,
                let lastValidFrom = lastRate.value(forKey: "valid_from") as? Date {
-                print("fetchRatesForTimeWindow:   • First rate from: \(firstValidFrom.formatted())")
-                print("fetchRatesForTimeWindow:   • Last rate from: \(lastValidFrom.formatted())")
+                print("   • First rate from: \(firstValidFrom.formatted())")
+                print("   • Last rate from: \(lastValidFrom.formatted())")
             }
             
-            return list
-        }
-    }
-
-    /// Fetch rates from CoreData for a specific tariff code
-    public func fetchRatesByTariffCode(_ tariffCode: String) async throws -> [NSManagedObject] {
-        try await context.perform {
-            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-            let list = try self.context.fetch(request)
             return list
         }
     }

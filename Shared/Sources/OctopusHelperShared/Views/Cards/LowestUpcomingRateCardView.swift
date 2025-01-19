@@ -57,27 +57,19 @@ public struct LowestUpcomingRateCardView: View {
 
     // MARK: - Rate Fetching Logic
     private func getLowestUpcomingRate() -> NSManagedObject? {
-        let now = Date()
-        let upcomingRates = viewModel.allRates(for: productCode)
-            .filter { rate in
-                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
-                return validFrom > now
-            }
+        let upcomingRates = viewModel.productStates[productCode]?.upcomingRates ?? []
+        return upcomingRates
             .sorted { rate1, rate2 in
                 let value1 = rate1.value(forKey: "value_including_vat") as? Double ?? 0
                 let value2 = rate2.value(forKey: "value_including_vat") as? Double ?? 0
                 return value1 < value2
             }
-        return upcomingRates.first
+            .first
     }
 
     private func getAdditionalLowestRates() -> [NSManagedObject] {
-        let now = Date()
-        let upcomingRates = viewModel.allRates(for: productCode)
-            .filter { rate in
-                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
-                return validFrom > now
-            }
+        let upcomingRates = viewModel.productStates[productCode]?.upcomingRates ?? []
+        let sortedRates = upcomingRates
             .sorted { rate1, rate2 in
                 let value1 = rate1.value(forKey: "value_including_vat") as? Double ?? 0
                 let value2 = rate2.value(forKey: "value_including_vat") as? Double ?? 0
@@ -85,7 +77,7 @@ public struct LowestUpcomingRateCardView: View {
             }
         
         // Skip the first one (it's shown as main rate) and take the next N
-        return Array(upcomingRates.dropFirst().prefix(localSettings.settings.additionalRatesCount))
+        return Array(sortedRates.dropFirst().prefix(localSettings.settings.additionalRatesCount))
     }
 
     public var body: some View {
@@ -154,13 +146,13 @@ public struct LowestUpcomingRateCardView: View {
 
             // Content
             if viewModel.isLoading(for: productCode)
-               && viewModel.allRates(for: productCode).isEmpty {
+               && (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true) {
                 // Show loading spinner if no rates loaded
                 ProgressView("Loading...").padding(.vertical, 12)
-            } else if viewModel.allRates(for: productCode).isEmpty
+            } else if (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true)
                       && viewModel.isLoading(for: productCode) {
                 ProgressView("Loading...").padding(.vertical, 12)
-            } else if viewModel.allRates(for: productCode).isEmpty {
+            } else if (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true) {
                 Text("No upcoming rates available")
                     .foregroundColor(Theme.secondaryTextColor)
             } else if let lowestRate = getLowestUpcomingRate(),

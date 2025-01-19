@@ -1691,8 +1691,8 @@ struct RatesTimeWindowTestSection: View {
         timeWindowRates = []
         
         do {
-            let rates = try await repository.fetchRatesForTimeWindow(
-                tariffCode: globalSettings.settings.currentAgileCode,
+            let rates = try await repository.fetchRatesByTariffCode(
+                globalSettings.settings.currentAgileCode,
                 pastHours: pastHours
             )
             await MainActor.run {

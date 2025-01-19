@@ -65,6 +65,10 @@ public struct ProductRatesState {
     public var nextFetchEarliestTime: Date? = nil
     public var isLoading: Bool = false
     
+    // New properties for cache tracking
+    public var lastFetchTimestamp: Date? = nil  // When was the data last fetched
+    public var lastFetchWasAfter4PMUK: Bool = false  // Was it after 4PM UK
+    
     public init() {}
 }
 
@@ -83,6 +87,7 @@ public final class RatesViewModel: ObservableObject {
     @Published public var currentAgileCode: String = ""
     @Published public var fetchStatus: ProductFetchStatus = .none
     @Published public var productStates: [String: ProductRatesState] = [:]
+    @Published public var productsToInitialize: [String] = []  // Array of tariff codes to initialize
     private var cachedRegionUsedLastTime: String = ""
 
     // If you want a single array that merges all products, you can compute it on the fly
@@ -406,10 +411,12 @@ public final class RatesViewModel: ObservableObject {
             
             // Now fetch rates
             try await repository.fetchAndStoreRates(tariffCode: tCode)
-            let freshRates = try await repository.fetchAllRates()
+            
+            // Load only windowed rates into memory
+            let windowedRates = try await repository.fetchRatesByTariffCode(tCode, pastHours: 48)
             
             // Filter rates for this tariff code
-            state.allRates = freshRates.filter { rate in
+            state.allRates = windowedRates.filter { rate in
                 (rate.value(forKey: "tariff_code") as? String) == tCode
             }
             state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
@@ -426,13 +433,8 @@ public final class RatesViewModel: ObservableObject {
             print("❌ Error in refreshRatesForProduct: \(error)")
             withAnimation {
                 state.fetchStatus = .failed(error)
-                // If in practice we are still calling fetchAllRates or re-trying,
-                // we can set a short .fetching again, but let's keep the "failed" state
-                // until next scheduled refresh or user force refresh
-                // (to avoid flickering UI)
                 state.isLoading = false
                 state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown
-
                 productStates[productCode] = state
             }
         }
@@ -446,72 +448,83 @@ public final class RatesViewModel: ObservableObject {
         self.fetchStatus = .fetching
         
         do {
-            // Skip if we don't have a valid tariff code
-            guard !currentAgileCode.isEmpty else {
-                print("initializeProducts: ⚠️ No valid tariff code available, skipping initialization")
-                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No valid tariff code"]))
+            // 1. Initial validation - use productsToInitialize or fallback to currentAgileCode
+            if productsToInitialize.isEmpty {
+                // Backward compatibility: if no products specified, use currentAgileCode
+                if !currentAgileCode.isEmpty {
+                    productsToInitialize = [currentAgileCode]
+                }
+            }
+            
+            guard !productsToInitialize.isEmpty else {
+                print("initializeProducts: ⚠️ No products to initialize")
+                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, 
+                    userInfo: [NSLocalizedDescriptionKey: "No products to initialize"]))
                 return
             }
             
-            print("initializeProducts: 📦 Initializing product state for: \(currentAgileCode)")
+            let now = Date()
+            let requiredEndTime = expectedEndTime(now: now)
+            print("initializeProducts: 📅 Required data until: \(requiredEndTime)")
             
-            // Initialize or get existing product state
-            var state = productStates[currentAgileCode] ?? ProductRatesState()
-            
-            // Try loading from local storage first
-            let localRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
-            
-            if localRates.isEmpty {
-                print("initializeProducts: 🔄 No local rates found, fetching from API...")
-                try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
-                state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
-            } else {
-                // Check if we need to fetch new rates based on UK time requirements
-                let ukTimeZone = TimeZone(identifier: "Europe/London")!
-                var ukCalendar = Calendar(identifier: .gregorian)
-                ukCalendar.timeZone = ukTimeZone
+            // Initialize each product
+            for productCode in productsToInitialize {
+                print("initializeProducts: 🔄 Processing \(productCode)")
                 
-                let now = Date()
-                let ukComponents = ukCalendar.dateComponents([.hour], from: now)
-                let isAfter4PMUK = (ukComponents.hour ?? 0) >= 16
+                // 2. Check cache freshness
+                if var state = productStates[productCode] {
+                    print("initializeProducts: 🔍 Found existing state for \(productCode), checking freshness")
+                    if isCacheFresh(state: state) && 
+                       isDataSufficient(state.allRates, endTime: requiredEndTime) {
+                        print("initializeProducts: ✅ Cache is fresh and sufficient for \(productCode)")
+                        continue
+                    }
+                    print("initializeProducts: ⚠️ Cache stale or insufficient for \(productCode)")
+                }
                 
-                // Calculate expected end time based on current UK time
-                let targetDay = isAfter4PMUK ? 
-                    ukCalendar.date(byAdding: .day, value: 1, to: now)! : // tomorrow if after 4PM
-                    now // today if before 4PM
-
-                let expectedEndTime = ukCalendar.date(bySettingHour: 23, minute: 0, second: 0, of: targetDay)!
-
-                // Check if we have data extending to the expected end time
-                let hasSufficientData = localRates.contains { rate in
-                    guard let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
-                    return validTo >= expectedEndTime
+                // 3. Check CoreData completeness (using full dataset)
+                print("initializeProducts: 💾 Checking CoreData completeness for \(productCode)")
+                let allLocalRates = try await repository.fetchRatesByTariffCode(productCode)
+                
+                if !allLocalRates.isEmpty && isDataSufficient(allLocalRates, endTime: requiredEndTime) {
+                    print("initializeProducts: ✅ CoreData has sufficient data for \(productCode)")
+                    // Load only the time-windowed data into memory
+                    let windowedRates = try await repository.fetchRatesByTariffCode(productCode, pastHours: 48)
+                    
+                    // Update cache with windowed data
+                    var state = productStates[productCode] ?? ProductRatesState()
+                    state.allRates = windowedRates
+                    state.upcomingRates = filterUpcoming(rates: windowedRates, now: now)
+                    state.lastFetchTimestamp = now
+                    state.lastFetchWasAfter4PMUK = isAfter4PMUK(date: now)
+                    state.fetchStatus = .done
+                    productStates[productCode] = state
+                    continue
                 }
-
-                if isAfter4PMUK && !hasSufficientData {
-                    print("initializeProducts: 🔄 After 4PM UK time and insufficient data range, fetching from API...")
-                    try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
-                    state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
-                } else if !isAfter4PMUK && !hasSufficientData {
-                    print("initializeProducts: 🔄 Before 4PM UK time and missing today's rates, fetching from API...")
-                    try await repository.fetchAndStoreRates(tariffCode: currentAgileCode)
-                    state.allRates = try await repository.fetchRatesByTariffCode(currentAgileCode)
-                } else {
-                    print("initializeProducts: 📝 Using \(localRates.count) local rates")
-                    state.allRates = localRates
-                }
+                
+                // 4. Fetch from API if needed
+                print("initializeProducts: 🌐 Fetching from API for \(productCode)")
+                try await repository.fetchAndStoreRates(tariffCode: productCode)
+                
+                // 5. Load windowed data into memory
+                let windowedRates = try await repository.fetchRatesByTariffCode(productCode, pastHours: 48)
+                
+                // Update cache with windowed data
+                var state = productStates[productCode] ?? ProductRatesState()
+                state.allRates = windowedRates
+                state.upcomingRates = filterUpcoming(rates: windowedRates, now: now)
+                state.lastFetchTimestamp = now
+                state.lastFetchWasAfter4PMUK = isAfter4PMUK(date: now)
+                state.fetchStatus = .done
+                productStates[productCode] = state
+                
+                print("initializeProducts: ✅ Successfully initialized \(productCode) with windowed data")
             }
-            
-            // Update upcoming rates
-            state.upcomingRates = filterUpcoming(rates: state.allRates, now: Date())
-            
-            // Store the updated state
-            productStates[currentAgileCode] = state
             
             self.fetchStatus = .done
             
         } catch {
-            print("initializeProducts: ❌ Error initializing products: \(error)")
+            print("initializeProducts: ❌ Error: \(error)")
             self.fetchStatus = .failed(error)
         }
     }
@@ -893,5 +906,60 @@ public final class RatesViewModel: ObservableObject {
         }
 
         return matchedAgreement.tariff_code
+    }
+
+    // MARK: - Cache Validation Helpers
+    
+    private func isAfter4PMUK(date: Date = Date()) -> Bool {
+        let ukTimeZone = TimeZone(identifier: "Europe/London") ?? .current
+        let ukCalendar = Calendar.current
+        let components = ukCalendar.dateComponents(in: ukTimeZone, from: date)
+        return (components.hour ?? 0) >= 16
+    }
+
+    private func expectedEndTime(now: Date) -> Date {
+        let ukTimeZone = TimeZone(identifier: "Europe/London") ?? .current
+        var ukCalendar = Calendar.current
+        ukCalendar.timeZone = ukTimeZone
+        
+        // If after 4PM UK, expect data until 11PM tomorrow
+        // If before 4PM UK, expect data until 11PM today
+        let daysToAdd = isAfter4PMUK(date: now) ? 1 : 0
+        
+        var components = ukCalendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 23  // 11 PM
+        components.minute = 0
+        components.second = 0
+        components.day! += daysToAdd
+        
+        return ukCalendar.date(from: components) ?? now.addingTimeInterval(3600 * 24)
+    }
+
+    private func isCacheFresh(state: ProductRatesState) -> Bool {
+        guard let lastFetch = state.lastFetchTimestamp else { return false }
+        
+        let now = Date()
+        let currentlyAfter4PM = isAfter4PMUK(date: now)
+        
+        // If it's after 4PM UK now
+        if currentlyAfter4PM {
+            // Cache must have been fetched after 4PM today
+            return state.lastFetchWasAfter4PMUK && 
+                   Calendar.current.isDateInToday(lastFetch)
+        } else {
+            // If before 4PM, cache from after 4PM yesterday or before 4PM today is valid
+            if state.lastFetchWasAfter4PMUK {
+                return Calendar.current.isDateInYesterday(lastFetch)
+            } else {
+                return Calendar.current.isDateInToday(lastFetch)
+            }
+        }
+    }
+
+    private func isDataSufficient(_ rates: [NSManagedObject], endTime: Date) -> Bool {
+        return rates.contains { rate in
+            guard let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
+            return validTo >= endTime
+        }
     }
 }

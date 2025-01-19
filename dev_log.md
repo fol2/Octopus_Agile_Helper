@@ -1,6 +1,47 @@
 # Development Log - Octopus Agile Helper
 
-## Latest Updates (13 January 2025)
+## Latest Updates (14 January 2025)
+
+### Cache System Enhancement
+- **Dual Cache Architecture**:
+  - Main App Cache (in RatesViewModel):
+    - Exclusive in-memory cache via `productStates` dictionary
+    - Per-product state tracking with timestamps
+    - Smart 4PM UK boundary handling
+    - Cache validation flow:
+      1. Check cache freshness (4PM UK logic)
+      2. Verify data sufficiency (extends to required time)
+      3. Fallback to CoreData if needed
+      4. API fetch as last resort
+
+  - Widget Cache (in AgileRateWidgetCache):
+    - Separate singleton cache for widget performance
+    - Optimized for widget timeline updates
+    - Similar 4PM UK boundary logic but independent
+    - Cache validation flow:
+      1. Check cache freshness against 4PM UK
+      2. Verify data extends to required time
+      3. Try CoreData if cache invalid
+      4. API fetch if necessary
+
+- **Cache Freshness Logic**:
+  - Both caches implement:
+    - UK timezone handling
+    - 4PM boundary checks
+    - Data sufficiency verification
+    - Smart update scheduling
+  - Key differences:
+    - Main app: Per-product caching
+    - Widget: Single product focus
+    - Independent refresh cycles
+    - Separate state tracking
+
+- **Benefits**:
+  - Reduced API calls
+  - Better widget performance
+  - Consistent 4PM updates
+  - Independent cache lifecycles
+  - Clear separation of concerns
 
 ### TestView & Settings Integration
 - **UI Enhancements**:
