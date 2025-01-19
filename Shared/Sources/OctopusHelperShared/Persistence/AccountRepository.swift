@@ -2,6 +2,10 @@ import Combine
 import Foundation
 import SwiftUI
 
+public protocol AccountRepositoryDelegate: AnyObject {
+    func accountRepository(_ repository: AccountRepository, didFindProductCodes codes: Set<String>)
+}
+
 public final class AccountRepository: ObservableObject {
     public static let shared = AccountRepository()
 
@@ -9,6 +13,7 @@ public final class AccountRepository: ObservableObject {
     private let productsRepo = ProductsRepository.shared
     private let productDetailRepo = ProductDetailRepository.shared
     private let ratesRepo = RatesRepository.shared
+    public weak var delegate: AccountRepositoryDelegate?
 
     private init() {}
 
@@ -80,6 +85,7 @@ public final class AccountRepository: ObservableObject {
         }
 
         // 3) Process all properties and their meter points to store products
+        var activeAgileCode: String? = nil
         for property in accountData.properties {
             // Handle electricity meter points
             if let electricityPoints = property.electricity_meter_points {
@@ -90,10 +96,33 @@ public final class AccountRepository: ObservableObject {
                             if let productCode = extractProductCode(from: agreement.tariff_code) {
                                 // Ensure the product exists in our database
                                 try await productsRepo.ensureProductExists(productCode: productCode)
+                                
+                                // If this is an active Agile agreement, store its code
+                                if agreement.tariff_code.contains("AGILE") {
+                                    let now = Date()
+                                    let dateFormatter = ISO8601DateFormatter()
+                                    dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                                    
+                                    let isActive = (agreement.valid_from == nil || 
+                                                  (dateFormatter.date(from: agreement.valid_from!) ?? .distantFuture) <= now) &&
+                                                 (agreement.valid_to == nil || 
+                                                  (dateFormatter.date(from: agreement.valid_to!) ?? .distantPast) >= now)
+                                    
+                                    if isActive {
+                                        activeAgileCode = productCode
+                                    }
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
+
+        // Notify delegate of the active Agile code if found
+        if let code = activeAgileCode {
+            await MainActor.run {
+                self.delegate?.accountRepository(self, didFindProductCodes: Set([code]))
             }
         }
     }

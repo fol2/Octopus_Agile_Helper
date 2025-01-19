@@ -26,6 +26,7 @@ public enum ProductFetchStatus: Equatable, CustomStringConvertible {
     case fetching
     case done
     case pending
+    case partialData
     case failed(Error)
 
     public static func == (lhs: ProductFetchStatus, rhs: ProductFetchStatus) -> Bool {
@@ -34,6 +35,7 @@ public enum ProductFetchStatus: Equatable, CustomStringConvertible {
         case (.fetching, .fetching): return true
         case (.done, .done): return true
         case (.pending, .pending): return true
+        case (.partialData, .partialData): return true
         case (.failed(_), .failed(_)): return true
         default: return false
         }
@@ -49,6 +51,8 @@ public enum ProductFetchStatus: Equatable, CustomStringConvertible {
             return "Complete"
         case .pending:
             return "Pending"
+        case .partialData:
+            return "Partial Data"
         case .failed(let error):
             return "Error: \(error.localizedDescription)"
         }
@@ -74,7 +78,7 @@ public struct ProductRatesState {
 
 /// Our multi-product RatesViewModel
 @MainActor
-public final class RatesViewModel: ObservableObject {
+public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     // MARK: - Dependencies
     private let repository = RatesRepository.shared
     private let productDetailRepository = ProductDetailRepository.shared
@@ -84,7 +88,15 @@ public final class RatesViewModel: ObservableObject {
     private var currentTimer: GlobalTimer?
     
     // MARK: - Published State
-    @Published public var currentAgileCode: String = ""
+    @Published public var currentAgileCode: String = "" {
+        didSet {
+            if !currentAgileCode.isEmpty {
+                productsToInitialize = [currentAgileCode]
+            } else {
+                productsToInitialize = []
+            }
+        }
+    }
     @Published public var fetchStatus: ProductFetchStatus = .none
     @Published public var productStates: [String: ProductRatesState] = [:]
     @Published public var productsToInitialize: [String] = []  // Array of tariff codes to initialize
@@ -279,6 +291,7 @@ public final class RatesViewModel: ObservableObject {
     public init(globalTimer: GlobalTimer) {
         setupTimer(globalTimer)
         fetchStatus = .none
+        AccountRepository.shared.delegate = self
     }
 
     // If you want a minimal init for a widget (like your old code):
@@ -389,7 +402,7 @@ public final class RatesViewModel: ObservableObject {
             switch self.fetchStatus {
             case .failed:
                 withAnimation { self.fetchStatus = .fetching }
-            case .none, .done, .fetching, .pending:
+            case .none, .done, .fetching, .pending, .partialData:
                 break
             }
         }
@@ -448,14 +461,6 @@ public final class RatesViewModel: ObservableObject {
         self.fetchStatus = .fetching
         
         do {
-            // 1. Initial validation - use productsToInitialize or fallback to currentAgileCode
-            if productsToInitialize.isEmpty {
-                // Backward compatibility: if no products specified, use currentAgileCode
-                if !currentAgileCode.isEmpty {
-                    productsToInitialize = [currentAgileCode]
-                }
-            }
-            
             guard !productsToInitialize.isEmpty else {
                 print("initializeProducts: ⚠️ No products to initialize")
                 self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, 
@@ -471,7 +476,7 @@ public final class RatesViewModel: ObservableObject {
             for productCode in productsToInitialize {
                 print("initializeProducts: 🔄 Processing \(productCode)")
                 
-                // 2. Check cache freshness
+                // 1. Check cache freshness
                 if var state = productStates[productCode] {
                     print("initializeProducts: 🔍 Found existing state for \(productCode), checking freshness")
                     if isCacheFresh(state: state) && 
@@ -482,7 +487,7 @@ public final class RatesViewModel: ObservableObject {
                     print("initializeProducts: ⚠️ Cache stale or insufficient for \(productCode)")
                 }
                 
-                // 3. Check CoreData completeness (using full dataset)
+                // 2. Check CoreData completeness (using full dataset)
                 print("initializeProducts: 💾 Checking CoreData completeness for \(productCode)")
                 let allLocalRates = try await repository.fetchRatesByTariffCode(productCode)
                 
@@ -502,23 +507,47 @@ public final class RatesViewModel: ObservableObject {
                     continue
                 }
                 
-                // 4. Fetch from API if needed
-                print("initializeProducts: 🌐 Fetching from API for \(productCode)")
-                try await repository.fetchAndStoreRates(tariffCode: productCode)
+                // 3. Fetch from API using two-phase approach
+                print("initializeProducts: 🌐 Starting two-phase fetch for \(productCode)")
                 
-                // 5. Load windowed data into memory
-                let windowedRates = try await repository.fetchRatesByTariffCode(productCode, pastHours: 48)
+                // Phase 1: Quick fetch of first page
+                let (firstPhaseRates, totalPages) = try await repository.fetchAndStoreRates(tariffCode: productCode)
                 
-                // Update cache with windowed data
+                // Update UI with first phase data
                 var state = productStates[productCode] ?? ProductRatesState()
-                state.allRates = windowedRates
-                state.upcomingRates = filterUpcoming(rates: windowedRates, now: now)
-                state.lastFetchTimestamp = now
-                state.lastFetchWasAfter4PMUK = isAfter4PMUK(date: now)
-                state.fetchStatus = .done
-                productStates[productCode] = state
+                withAnimation {
+                    state.allRates = firstPhaseRates
+                    state.upcomingRates = filterUpcoming(rates: firstPhaseRates, now: now)
+                    state.lastFetchTimestamp = now
+                    state.lastFetchWasAfter4PMUK = isAfter4PMUK(date: now)
+                    state.fetchStatus = totalPages > 1 ? .partialData : .done
+                    state.isLoading = totalPages > 1 // Keep loading if there are more pages
+                    productStates[productCode] = state
+                }
                 
-                print("initializeProducts: ✅ Successfully initialized \(productCode) with windowed data")
+                // Phase 2 happens in background, we'll update UI when Core Data changes
+                if totalPages > 1 {
+                    // Set up an async task to monitor for updates
+                    Task.detached {
+                        // Wait a bit to allow background fetch to progress
+                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                        
+                        // Get final data
+                        let finalRates = try await self.repository.fetchRatesByTariffCode(productCode, pastHours: 48)
+                        
+                        await MainActor.run {
+                            withAnimation {
+                                state.allRates = finalRates
+                                state.upcomingRates = self.filterUpcoming(rates: finalRates, now: now)
+                                state.fetchStatus = .done
+                                state.isLoading = false
+                                self.productStates[productCode] = state
+                            }
+                        }
+                    }
+                }
+                
+                print("initializeProducts: ✅ Successfully initialized \(productCode) with initial data")
             }
             
             self.fetchStatus = .done
@@ -668,6 +697,13 @@ public final class RatesViewModel: ObservableObject {
         do {
             // Only sync basic product information
             _ = try await productsRepository.syncAllProducts()
+            
+            // After syncing, ensure current Agile code is in productsToInitialize
+            await MainActor.run {
+                if !currentAgileCode.isEmpty {
+                    productsToInitialize = [currentAgileCode]
+                }
+            }
         } catch {
             print("❌ Error syncing products: \(error)")
         }
@@ -759,6 +795,7 @@ public final class RatesViewModel: ObservableObject {
                 await MainActor.run {
                     currentAgileCode = newTariffCode
                     globalSettings.settings.currentAgileCode = newTariffCode
+                    productsToInitialize = [newTariffCode]
                 }
                 return
             }
@@ -961,5 +998,10 @@ public final class RatesViewModel: ObservableObject {
             guard let validTo = rate.value(forKey: "valid_to") as? Date else { return false }
             return validTo >= endTime
         }
+    }
+
+    // MARK: - AccountRepositoryDelegate
+    public func accountRepository(_ repository: AccountRepository, didFindProductCodes codes: Set<String>) {
+        // We don't need to do anything here anymore since we only use currentAgileCode
     }
 }

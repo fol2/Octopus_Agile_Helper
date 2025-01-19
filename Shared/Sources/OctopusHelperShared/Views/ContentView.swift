@@ -353,6 +353,7 @@ public struct ContentView: View {
         case .fetching: return .fetching
         case .done: return .done
         case .pending: return .pending
+        case .partialData: return .pending
         case .failed(_): return .failed
         }
     }

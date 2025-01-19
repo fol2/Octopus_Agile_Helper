@@ -49,7 +49,11 @@ public final class RatesRepository: ObservableObject {
     // MARK: - Public API
 
     /// New approach: we accept a tariffCode and use getBaseRateURL to construct the URL, with pagination support
-    public func fetchAndStoreRates(tariffCode: String) async throws {
+    /// Now supports two-phase execution:
+    /// 1) First phase quickly fetches page 1 for immediate UI update
+    /// 2) Second phase performs smart pagination in the background
+    @discardableResult
+    public func fetchAndStoreRates(tariffCode: String) async throws -> (firstPhaseRates: [NSManagedObject], totalPages: Int) {
         print("fetchAndStoreRates: 🔄 Starting rate update for tariff: \(tariffCode)")
         
         // Get base URL using our helper
@@ -75,13 +79,13 @@ public final class RatesRepository: ObservableObject {
             print("fetchAndStoreRates: 📅 Latest rate: \(maxDate.formatted())")
         }
  
-        // 2. Get server's data range by fetching first and last pages
+        // 2. Get server's data range by fetching first page
         print("fetchAndStoreRates: 🔍 Fetching first page to determine server data range")
         let firstPageResponse = try await apiClient.fetchTariffRates(url: url)
         let totalRecordsOnServer = firstPageResponse.totalCount
         if totalRecordsOnServer == 0 { 
             print("fetchAndStoreRates: ❌ No rates available on server")
-            return 
+            return ([], 0)
         }
         
         let recordsPerPage = 100 // Octopus API standard
@@ -95,7 +99,7 @@ public final class RatesRepository: ObservableObject {
         guard let serverNewestRate = firstPageResponse.results.first,
               let serverOldestRate = lastPageResponse.results.last else {
             print("fetchAndStoreRates: ❌ Could not determine server data range")
-            return
+            return ([], totalPages)
         }
  
         print("fetchAndStoreRates: 📅 Server data range:")
@@ -109,11 +113,9 @@ public final class RatesRepository: ObservableObject {
         print("fetchAndStoreRates: 🔍 Analyzing data requirements:")
         if localCount == 0 {
             print("fetchAndStoreRates: 📝 CoreData is empty - optimizing to forward-only pagination")
-            // Only optimize for truly empty CoreData
             needNewerData = true
             needOlderData = false
         } else {
-            // We have some data, let's be explicit about what we need
             if needNewerData {
                 print("fetchAndStoreRates: 📥 Need newer data: Server has newer rates until \(serverNewestRate.valid_to.formatted())")
             }
@@ -130,91 +132,109 @@ public final class RatesRepository: ObservableObject {
                     needOlderData = true
                 } else {
                     print("fetchAndStoreRates: ✅ No gaps found, data is complete")
-                    return
+                    return (localData, totalPages)
                 }
             }
         }
- 
-        // 4. Process newest data first (page 1 onwards) if needed
-        if needNewerData {
-            print("fetchAndStoreRates: 📥 Fetching newer data (forward pagination)")
-            var currentPage = 1
-            var hasMore = true
-            
-            while hasMore {
-                if currentPage > totalPages {
-                    hasMore = false
-                    break
-                }
-                
-                if currentPage > 1 {
-                    let nextPageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
-                    let pageResponse = try await apiClient.fetchTariffRates(url: nextPageUrl)
-                    
-                    // Stop if we hit existing data
-                    if let oldestInPage = pageResponse.results.last,
-                       let localMax = localMaxDate,
-                       oldestInPage.valid_to <= localMax {
-                        // Only store records newer than our local max
-                        let newRecords = pageResponse.results.filter { $0.valid_to > localMax }
-                        print("fetchAndStoreRates: 📥 Found \(newRecords.count) new rates in page \(currentPage)")
-                        if !newRecords.isEmpty {
-                            try await upsertRates(newRecords, tariffCode: tariffCode)
-                        }
-                        hasMore = false
-                        break
-                    }
-                    
-                    print("fetchAndStoreRates: 💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
-                    try await upsertRates(pageResponse.results, tariffCode: tariffCode)
-                    hasMore = pageResponse.results.count == recordsPerPage && currentPage < totalPages
-                } else {
-                    // Store first page results
-                    print("fetchAndStoreRates: 💾 Storing \(firstPageResponse.results.count) rates from first page")
-                    try await upsertRates(firstPageResponse.results, tariffCode: tariffCode)
-                    hasMore = firstPageResponse.results.count == recordsPerPage && currentPage < totalPages
-                }
-                currentPage += 1
-            }
-            print("fetchAndStoreRates: ✅ Completed forward pagination")
-        }
- 
-        // 5. Process older data if needed
-        if needOlderData {
-            print("fetchAndStoreRates: 📥 Fetching older data (backward pagination)")
-            var currentPage = totalPages
-            var hasMore = true
-            
-            while hasMore && currentPage > 1 {
-                if currentPage == totalPages {
-                    // We already have the last page response
-                    print("fetchAndStoreRates: 💾 Storing \(lastPageResponse.results.count) rates from last page")
-                    try await upsertRates(lastPageResponse.results, tariffCode: tariffCode)
-                } else {
-                    let pageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
-                    let pageResponse = try await apiClient.fetchTariffRates(url: pageUrl)
-                    print("fetchAndStoreRates:  💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
-                    try await upsertRates(pageResponse.results, tariffCode: tariffCode)
-                }
-                currentPage -= 1
-                hasMore = currentPage > 1
-                print("fetchAndStoreRates: 📄 Moving to page \(currentPage)")
-            }
-            print("fetchAndStoreRates: ✅ Completed backward pagination")
-        }
- 
-        // Final status
-        let finalData = try await context.perform {
+
+        // Phase 1: Store first page results for immediate UI update
+        print("fetchAndStoreRates: 💾 Storing \(firstPageResponse.results.count) rates from first page")
+        try await upsertRates(firstPageResponse.results, tariffCode: tariffCode)
+        
+        // Read back the stored rates to return for phase 1
+        let firstPhaseRates = try await context.perform {
             let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
             req.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            req.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
             return try self.context.fetch(req)
         }
-        print("fetchAndStoreRates: ✅ Rate update complete")
-        print("fetchAndStoreRates: 📊 Final record count: \(finalData.count)")
-        if let minDate = finalData.compactMap({ $0.value(forKey: "valid_from") as? Date }).min(),
-           let maxDate = finalData.compactMap({ $0.value(forKey: "valid_to") as? Date }).max() {
-            print("fetchAndStoreRates: 📅 Final date range: \(minDate.formatted()) to \(maxDate.formatted())")
+
+        // Phase 2: Start background task for smart pagination
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self = self else { return }
+            do {
+                print("fetchAndStoreRates: 🔄 Starting phase 2 (background) with smart pagination")
+                
+                // 4. Process newest data first (page 2 onwards) if needed
+                if needNewerData {
+                    print("fetchAndStoreRates: 📥 Fetching newer data (forward pagination)")
+                    var currentPage = 2  // Start from page 2 since we already have page 1
+                    var hasMore = true
+                    
+                    while hasMore {
+                        if currentPage > totalPages {
+                            hasMore = false
+                            break
+                        }
+                        
+                        let nextPageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
+                        let pageResponse = try await self.apiClient.fetchTariffRates(url: nextPageUrl)
+                        
+                        // Stop if we hit existing data
+                        if let oldestInPage = pageResponse.results.last,
+                           let localMax = localMaxDate,
+                           oldestInPage.valid_to <= localMax {
+                            // Only store records newer than our local max
+                            let newRecords = pageResponse.results.filter { $0.valid_to > localMax }
+                            print("fetchAndStoreRates: 📥 Found \(newRecords.count) new rates in page \(currentPage)")
+                            if !newRecords.isEmpty {
+                                try await self.upsertRates(newRecords, tariffCode: tariffCode)
+                            }
+                            hasMore = false
+                            break
+                        }
+                        
+                        print("fetchAndStoreRates: 💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
+                        try await self.upsertRates(pageResponse.results, tariffCode: tariffCode)
+                        hasMore = pageResponse.results.count == recordsPerPage && currentPage < totalPages
+                        currentPage += 1
+                    }
+                    print("fetchAndStoreRates: ✅ Completed forward pagination")
+                }
+         
+                // 5. Process older data if needed
+                if needOlderData {
+                    print("fetchAndStoreRates: 📥 Fetching older data (backward pagination)")
+                    var currentPage = totalPages
+                    var hasMore = true
+                    
+                    while hasMore && currentPage > 1 {  // Start from last page, skip page 1
+                        if currentPage == totalPages {
+                            // We already have the last page response
+                            print("fetchAndStoreRates: 💾 Storing \(lastPageResponse.results.count) rates from last page")
+                            try await self.upsertRates(lastPageResponse.results, tariffCode: tariffCode)
+                        } else {
+                            let pageUrl = url + (url.contains("?") ? "&" : "?") + "page=\(currentPage)"
+                            let pageResponse = try await self.apiClient.fetchTariffRates(url: pageUrl)
+                            print("fetchAndStoreRates: 💾 Storing \(pageResponse.results.count) rates from page \(currentPage)")
+                            try await self.upsertRates(pageResponse.results, tariffCode: tariffCode)
+                        }
+                        currentPage -= 1
+                        hasMore = currentPage > 1
+                        print("fetchAndStoreRates: 📄 Moving to page \(currentPage)")
+                    }
+                    print("fetchAndStoreRates: ✅ Completed backward pagination")
+                }
+                
+                // Final status
+                let finalData = try await self.context.perform {
+                    let req = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+                    req.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+                    return try self.context.fetch(req)
+                }
+                
+                print("fetchAndStoreRates: ✅ Phase 2 complete")
+                print("fetchAndStoreRates: 📊 Final record count: \(finalData.count)")
+                if let minDate = finalData.compactMap({ $0.value(forKey: "valid_from") as? Date }).min(),
+                   let maxDate = finalData.compactMap({ $0.value(forKey: "valid_to") as? Date }).max() {
+                    print("fetchAndStoreRates: 📅 Final date range: \(minDate.formatted()) to \(maxDate.formatted())")
+                }
+            } catch {
+                print("fetchAndStoreRates: ❌ Error in phase 2: \(error)")
+            }
         }
+        
+        return (firstPhaseRates, totalPages)
     }
 
     /// Calculate the expected number of half-hour records between two dates

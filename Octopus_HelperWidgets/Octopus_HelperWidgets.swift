@@ -120,8 +120,8 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             )
             print("WIDGET: Built \(entries.count) timeline entries")
             
-            // Refresh every 10 minutes to update display
-            let nextRefresh = now.addingTimeInterval(10 * 60)
+            // Refresh at the next half-hour boundary
+            let nextRefresh = nextHalfHour(from: now)
             print("WIDGET: Next refresh at \(nextRefresh.formatted())")
             return Timeline(entries: entries, policy: .after(nextRefresh))
         } catch {
