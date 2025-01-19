@@ -276,6 +276,15 @@ struct CurrentRateWidget: View {
         }
     }
     
+    /// The "best" time windows adjusted for rendering (with epsilon shift)
+    private var bestTimeRangesRender: [(Date, Date)] {
+        bestTimeRanges.map { (s, e) -> (Date, Date) in
+            let adjustedStart = isExactlyOnHalfHour(s) ? s.addingTimeInterval(-900) : s
+            let adjustedEnd = isExactlyOnHalfHour(e) ? e.addingTimeInterval(-900) : e
+            return (adjustedStart, adjustedEnd)
+        }
+    }
+    
     /// Helper to check if a date is exactly on a half hour
     private func isExactlyOnHalfHour(_ date: Date) -> Bool {
         let calendar = Calendar.current
@@ -580,12 +589,12 @@ struct CurrentRateWidget: View {
     @ChartContentBuilder
     private func chartBackgroundLayers(minVal: Double, maxVal: Double, nowX: Date) -> some ChartContent {
         // 0) Best time ranges (behind everything)
-        ForEach(bestTimeRanges, id: \.0) { start, end in
+        ForEach(bestTimeRangesRender, id: \.0) { window in
             RectangleMark(
-                xStart: .value("Start", start),
-                xEnd: .value("End", end),
-                yStart: .value("Min", minVal - 20),
-                yEnd: .value("Max", maxVal + 20)
+                xStart: .value("Window Start", window.0),
+                xEnd: .value("Window End", window.1),
+                yStart: .value("Min", minVal),
+                yEnd: .value("Max", maxVal)
             )
             .foregroundStyle(Theme.mainColor.opacity(0.2))
         }
