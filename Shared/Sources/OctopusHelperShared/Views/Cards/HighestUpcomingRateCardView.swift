@@ -125,8 +125,10 @@ public struct HighestUpcomingRateCardView: View {
                       let value = highestRate.value(forKey: "value_including_vat") as? Double {
                 VStack(alignment: .leading, spacing: 8) {
                     let parts = viewModel.formatRate(
-                        value,
-                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                        excVAT: highestRate.value(forKey: "value_excluding_vat") as? Double ?? 0,
+                        incVAT: highestRate.value(forKey: "value_including_vat") as? Double ?? 0,
+                        showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                        showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                     )
                     .split(separator: " ")
 
@@ -178,8 +180,10 @@ public struct HighestUpcomingRateCardView: View {
                             ) { rate in
                                 HStack(alignment: .firstTextBaseline) {
                                     let valStr = viewModel.formatRate(
-                                        rate.value(forKey: "value_including_vat") as? Double ?? 0,
-                                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                        excVAT: rate.value(forKey: "value_excluding_vat") as? Double ?? 0,
+                                        incVAT: rate.value(forKey: "value_including_vat") as? Double ?? 0,
+                                        showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                                        showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                                     )
                                     let subParts = valStr.split(separator: " ")
 

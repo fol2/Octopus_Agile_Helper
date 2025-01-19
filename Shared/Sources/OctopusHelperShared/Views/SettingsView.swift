@@ -1464,6 +1464,15 @@ public struct SettingsView: View {
                 .foregroundColor(Theme.mainTextColor)
                 .tint(Theme.secondaryColor)
                 .customListRow()
+
+                Toggle(
+                    LocalizedStringKey("Include VAT"),
+                    isOn: $globalSettings.settings.showRatesWithVAT
+                )
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
+                .tint(Theme.secondaryColor)
+                .customListRow()
             }
         }
         .scrollContentBackground(.hidden)

@@ -163,14 +163,57 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
 
     /// Replaces the old "getLowestAverages" function with your old logic
     /// (now adapted to NSManagedObject). Hours can be 0.5...20.0, etc.
-    public func getLowestAverages(productCode: String, hours: Double, maxCount: Int) -> [ThreeHourAverageEntry] {
-        guard let state = productStates[productCode] else { return [] }
-        return computeLowestAverages(
-            state.upcomingRates,
-            fromNow: true,
-            hours: hours,
-            maxCount: maxCount
-        )
+    public func getLowestAverages(
+        productCode: String,
+        hours: Double,
+        maxCount: Int,
+        showRatesWithVAT: Bool = true
+    ) -> [(start: Date, end: Date, average: Double)] {
+        let now = Date()
+        let upcomingRates = productStates[productCode]?.upcomingRates ?? []
+        
+        // Filter for upcoming rates
+        let relevantRates = upcomingRates.filter { rate in
+            guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+            return validFrom >= now
+        }
+        
+        // Sort by start time
+        let sortedRates = relevantRates.sorted { rate1, rate2 in
+            let date1 = rate1.value(forKey: "valid_from") as? Date ?? .distantPast
+            let date2 = rate2.value(forKey: "valid_from") as? Date ?? .distantPast
+            return date1 < date2
+        }
+        
+        // Calculate window size in half-hours
+        let windowSize = Int(hours * 2)  // 2 half-hours per hour
+        
+        var windows: [(start: Date, end: Date, average: Double)] = []
+        
+        // For each possible window start
+        for i in 0...(sortedRates.count - windowSize) {
+            let windowRates = sortedRates[i..<(i + windowSize)]
+            
+            // Calculate average for this window
+            let sum = windowRates.reduce(0.0) { total, rate in
+                let value = showRatesWithVAT ?
+                    (rate.value(forKey: "value_including_vat") as? Double ?? 0) :
+                    (rate.value(forKey: "value_excluding_vat") as? Double ?? 0)
+                return total + value
+            }
+            let average = sum / Double(windowSize)
+            
+            if let start = windowRates.first?.value(forKey: "valid_from") as? Date,
+               let end = windowRates.last?.value(forKey: "valid_to") as? Date {
+                windows.append((start: start, end: end, average: average))
+            }
+        }
+        
+        // Sort by average price and return top N
+        return windows
+            .sorted { $0.average < $1.average }
+            .prefix(maxCount)
+            .map { ($0.start, $0.end, $0.average) }
     }
 
     // MARK: - Rate Queries
@@ -691,13 +734,13 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     // MARK: - Formatting
     
     /// Format a rate value for display
-    public func formatRate(_ value: Double, showRatesInPounds: Bool = false) -> String {
-        if showRatesInPounds {
-            let poundsValue = value / 100.0
-            return String(format: "£%.4f /kWh", poundsValue)
-        } else {
-            return String(format: "%.2fp /kWh", value)
-        }
+    public func formatRate(_ value: Double, showRatesInPounds: Bool = false, showRatesWithVAT: Bool = true) -> String {
+        RateFormatting.formatRate(value, showRatesInPounds: showRatesInPounds, showRatesWithVAT: showRatesWithVAT)
+    }
+    
+    /// Format a rate value for display with explicit VAT values
+    public func formatRate(excVAT: Double, incVAT: Double, showRatesInPounds: Bool = false, showRatesWithVAT: Bool = true) -> String {
+        RateFormatting.formatRate(excVAT: excVAT, incVAT: incVAT, showRatesInPounds: showRatesInPounds, showRatesWithVAT: showRatesWithVAT)
     }
 
     /// Format a date to show only the time component

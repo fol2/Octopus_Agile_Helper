@@ -88,8 +88,10 @@ public struct CurrentRateCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
                         let parts = viewModel.formatRate(
-                            currentRate.value(forKey: "value_including_vat") as? Double ?? 0,
-                            showRatesInPounds: globalSettings.settings.showRatesInPounds
+                            excVAT: currentRate.value(forKey: "value_excluding_vat") as? Double ?? 0,
+                            incVAT: currentRate.value(forKey: "value_including_vat") as? Double ?? 0,
+                            showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                            showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                         )
                         .split(separator: " ")
 

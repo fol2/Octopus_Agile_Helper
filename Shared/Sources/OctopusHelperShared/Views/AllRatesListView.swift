@@ -520,8 +520,10 @@ private struct RateRowView: View {
             .frame(minWidth: 110, alignment: .leading)
 
             let parts = viewModel.formatRate(
-                rate.value(forKey: "value_including_vat") as? Double ?? 0,
-                showRatesInPounds: globalSettings.settings.showRatesInPounds
+                excVAT: rate.value(forKey: "value_excluding_vat") as? Double ?? 0,
+                incVAT: rate.value(forKey: "value_including_vat") as? Double ?? 0,
+                showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                showRatesWithVAT: globalSettings.settings.showRatesWithVAT
             )
             .split(separator: " ")
 

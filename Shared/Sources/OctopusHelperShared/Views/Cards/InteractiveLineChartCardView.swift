@@ -231,7 +231,9 @@ extension InteractiveLineChartCardView {
                 if let validFrom = rate.value(forKey: "valid_from") as? Date {
                     BarMark(
                         x: .value("Time", validFrom),
-                        y: .value("Price", rate.value(forKey: "value_including_vat") as? Double ?? 0),
+                        y: .value("Price", globalSettings.settings.showRatesWithVAT ? 
+                            (rate.value(forKey: "value_including_vat") as? Double ?? 0) :
+                            (rate.value(forKey: "value_excluding_vat") as? Double ?? 0)),
                         width: .fixed(barWidth)
                     )
                     .cornerRadius(3)
@@ -574,7 +576,7 @@ extension InteractiveLineChartCardView {
         filteredRates.min {
             abs(($0.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(date))
                 < abs(($1.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(date))
-        }?.value(forKey: "value_including_vat") as? Double
+        }?.value(forKey: globalSettings.settings.showRatesWithVAT ? "value_including_vat" : "value_excluding_vat") as? Double
     }
 
     private func clampDateToDataRange(_ date: Date) -> Date {

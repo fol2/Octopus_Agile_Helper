@@ -123,6 +123,7 @@ public struct GlobalSettings: Codable, Equatable {
     public var apiKey: String
     public var selectedLanguage: Language
     public var showRatesInPounds: Bool
+    public var showRatesWithVAT: Bool
     public var cardSettings: [CardConfig]
     public var currentAgileCode: String  // Non-optional, always has a value
     public var electricityMPAN: String?
@@ -163,6 +164,7 @@ public struct GlobalSettings: Codable, Equatable {
         apiKey: String,
         selectedLanguage: Language,
         showRatesInPounds: Bool,
+        showRatesWithVAT: Bool,
         cardSettings: [CardConfig],
         currentAgileCode: String = "",
         electricityMPAN: String? = nil,
@@ -174,6 +176,7 @@ public struct GlobalSettings: Codable, Equatable {
         self.apiKey = apiKey
         self.selectedLanguage = selectedLanguage
         self.showRatesInPounds = showRatesInPounds
+        self.showRatesWithVAT = showRatesWithVAT
         self.cardSettings = cardSettings
         self.currentAgileCode = currentAgileCode
         self.electricityMPAN = electricityMPAN
@@ -188,6 +191,7 @@ public struct GlobalSettings: Codable, Equatable {
         lhs.apiKey == rhs.apiKey &&
         lhs.selectedLanguage == rhs.selectedLanguage &&
         lhs.showRatesInPounds == rhs.showRatesInPounds &&
+        lhs.showRatesWithVAT == rhs.showRatesWithVAT &&
         lhs.cardSettings == rhs.cardSettings &&
         lhs.currentAgileCode == rhs.currentAgileCode &&
         lhs.electricityMPAN == rhs.electricityMPAN &&
@@ -204,6 +208,7 @@ extension GlobalSettings {
         apiKey: "",
         selectedLanguage: .english,
         showRatesInPounds: false,
+        showRatesWithVAT: true,
         cardSettings: [],
         currentAgileCode: "",
         electricityMPAN: nil,
@@ -253,6 +258,7 @@ public class GlobalSettingsManager: ObservableObject {
                 apiKey: "",
                 selectedLanguage: matchedLanguage,
                 showRatesInPounds: false,
+                showRatesWithVAT: true,
                 cardSettings: [],
                 currentAgileCode: "",
                 electricityMPAN: nil,
@@ -327,6 +333,7 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
             sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
+            sharedDefaults?.set(settings.showRatesWithVAT, forKey: "show_rates_with_vat")
             sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")
             sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
             sharedDefaults?.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")

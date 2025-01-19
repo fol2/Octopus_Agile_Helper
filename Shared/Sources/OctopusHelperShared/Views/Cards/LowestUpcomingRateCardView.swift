@@ -150,8 +150,10 @@ public struct LowestUpcomingRateCardView: View {
                     // Main lowest rate
                     HStack(alignment: .firstTextBaseline) {
                         let valueStr = viewModel.formatRate(
-                            value,
-                            showRatesInPounds: globalSettings.settings.showRatesInPounds
+                            excVAT: lowestRate.value(forKey: "value_excluding_vat") as? Double ?? 0,
+                            incVAT: lowestRate.value(forKey: "value_including_vat") as? Double ?? 0,
+                            showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                            showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                         )
                         let parts = valueStr.split(separator: " ")
 
@@ -192,8 +194,10 @@ public struct LowestUpcomingRateCardView: View {
                             ForEach(additionalRates, id: \.self) { rate in
                                 HStack(alignment: .firstTextBaseline) {
                                     let valStr = viewModel.formatRate(
-                                        rate.value(forKey: "value_including_vat") as? Double ?? 0,
-                                        showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                        excVAT: rate.value(forKey: "value_excluding_vat") as? Double ?? 0,
+                                        incVAT: rate.value(forKey: "value_including_vat") as? Double ?? 0,
+                                        showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                                        showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                                     )
                                     let subParts = valStr.split(separator: " ")
 

@@ -1,13 +1,29 @@
 import Foundation
 
 public struct RateFormatting {
-    public static func formatRate(_ value: Double, showRatesInPounds: Bool = false) -> String {
+    public static func formatRate(_ value: Double, showRatesInPounds: Bool = false, showRatesWithVAT: Bool = true) -> String {
+        // Determine which value to use based on VAT preference
+        let rateValue = value
+        
         if showRatesInPounds {
             // Convert pence to pounds: 100 pence = £1
-            let poundsValue = value / 100.0
+            let poundsValue = rateValue / 100.0
             return String(format: "£%.4f /kWh", poundsValue)
         } else {
-            return String(format: "%.2fp /kWh", value)
+            return String(format: "%.2fp /kWh", rateValue)
+        }
+    }
+    
+    public static func formatRate(excVAT: Double, incVAT: Double, showRatesInPounds: Bool = false, showRatesWithVAT: Bool = true) -> String {
+        // Choose the appropriate value based on VAT preference
+        let rateValue = showRatesWithVAT ? incVAT : excVAT
+        
+        if showRatesInPounds {
+            // Convert pence to pounds: 100 pence = £1
+            let poundsValue = rateValue / 100.0
+            return String(format: "£%.4f /kWh", poundsValue)
+        } else {
+            return String(format: "%.2fp /kWh", rateValue)
         }
     }
     

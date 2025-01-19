@@ -137,7 +137,8 @@ public struct AverageUpcomingRateCardView: View {
                 let averages = viewModel.getLowestAverages(
                     productCode: productCode,
                     hours: localSettings.settings.customAverageHours,
-                    maxCount: localSettings.settings.maxListCount
+                    maxCount: localSettings.settings.maxListCount,
+                    showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                 )
 
                 if averages.isEmpty {
@@ -147,11 +148,12 @@ public struct AverageUpcomingRateCardView: View {
                     .foregroundColor(Theme.secondaryTextColor)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(averages.prefix(localSettings.settings.maxListCount)) { entry in
+                        ForEach(averages.prefix(localSettings.settings.maxListCount), id: \.start) { entry in
                             HStack(alignment: .firstTextBaseline) {
                                 let parts = viewModel.formatRate(
                                     entry.average,
-                                    showRatesInPounds: globalSettings.settings.showRatesInPounds
+                                    showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                                    showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                                 )
                                 .split(separator: " ")
 

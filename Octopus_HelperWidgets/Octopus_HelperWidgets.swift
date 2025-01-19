@@ -76,7 +76,12 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             date: .now,
             configuration: ConfigurationAppIntent(),
             rates: [],
-            settings: userSettings,
+            settings: (
+                showRatesInPounds: userSettings.showRatesInPounds,
+                showRatesWithVAT: userSettings.showRatesWithVAT,
+                language: userSettings.language,
+                agileCode: userSettings.agileCode
+            ),
             chartSettings: chartSettings
         )
     }
@@ -94,7 +99,12 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 date: .now,
                 configuration: configuration,
                 rates: rates,
-                settings: userSettings,
+                settings: (
+                    showRatesInPounds: userSettings.showRatesInPounds,
+                    showRatesWithVAT: userSettings.showRatesWithVAT,
+                    language: userSettings.language,
+                    agileCode: userSettings.agileCode
+                ),
                 chartSettings: chartSettings
             )
         } catch {
@@ -103,7 +113,12 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 date: .now,
                 configuration: configuration,
                 rates: [],
-                settings: userSettings,
+                settings: (
+                    showRatesInPounds: userSettings.showRatesInPounds,
+                    showRatesWithVAT: userSettings.showRatesWithVAT,
+                    language: userSettings.language,
+                    agileCode: userSettings.agileCode
+                ),
                 chartSettings: chartSettings
             )
         }
@@ -129,9 +144,19 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             )
             DebugLogger.debug("Built \(entries.count) timeline entries", component: .widget)
             
-            // Refresh at the next half-hour boundary
+            // Refresh at the next half-hour boundary or when settings change
             let nextRefresh = nextHalfHour(from: now)
             DebugLogger.debug("Next refresh at \(nextRefresh.formatted())", component: .widget)
+            
+            // Add observer for settings changes
+            NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification,
+                object: sharedDefaults,
+                queue: .main
+            ) { _ in
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            
             return Timeline(entries: entries, policy: .after(nextRefresh))
         } catch {
             DebugLogger.debug("Error building timeline: \(error)", component: .widget)
@@ -150,7 +175,12 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
             date: .now,
             configuration: configuration,
             rates: [],
-            settings: userSettings,
+            settings: (
+                showRatesInPounds: userSettings.showRatesInPounds,
+                showRatesWithVAT: userSettings.showRatesWithVAT,
+                language: userSettings.language,
+                agileCode: userSettings.agileCode
+            ),
             chartSettings: chartSettings
         )
     }
@@ -158,13 +188,14 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     // MARK: - Private Helpers
     
     /// Attempts to read global settings from shared container. Fallback to minimal keys if needed.
-    private func readSettings() -> (showRatesInPounds: Bool, language: String, agileCode: String) {
+    private func readSettings() -> (showRatesInPounds: Bool, showRatesWithVAT: Bool, language: String, agileCode: String) {
         let defaults = sharedDefaults
         if let data = defaults?.data(forKey: "user_settings"),
            let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
         {
             return (
                 showRatesInPounds: decoded.showRatesInPounds,
+                showRatesWithVAT: decoded.showRatesWithVAT,
                 language: decoded.selectedLanguage.rawValue,
                 agileCode: decoded.currentAgileCode
             )
@@ -172,6 +203,7 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         // Fallback if "user_settings" is missing
         return (
             showRatesInPounds: defaults?.bool(forKey: "show_rates_in_pounds") ?? false,
+            showRatesWithVAT: defaults?.bool(forKey: "show_rates_with_vat") ?? true,
             language: defaults?.string(forKey: "selected_language") ?? "en",
             agileCode: defaults?.string(forKey: "agile_code_for_widget") ?? ""
         )
@@ -192,7 +224,12 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 date: date,
                 configuration: configuration,
                 rates: rates,
-                settings: (showRatesInPounds: userSettings.showRatesInPounds, language: userSettings.language, agileCode: agileCode),
+                settings: (
+                    showRatesInPounds: userSettings.showRatesInPounds,
+                    showRatesWithVAT: userSettings.showRatesWithVAT,
+                    language: userSettings.language,
+                    agileCode: agileCode
+                ),
                 chartSettings: chartSettings
             )
         }
@@ -239,7 +276,7 @@ struct SimpleEntry: TimelineEntry {
     let date: Date
     let configuration: ConfigurationAppIntent
     let rates: [NSManagedObject]
-    let settings: (showRatesInPounds: Bool, language: String, agileCode: String)
+    let settings: (showRatesInPounds: Bool, showRatesWithVAT: Bool, language: String, agileCode: String)
     let chartSettings: InteractiveChartSettings
 }
 
@@ -248,7 +285,7 @@ struct SimpleEntry: TimelineEntry {
 @available(iOS 17.0, *)
 struct CurrentRateWidget: View {
     let rates: [NSManagedObject]
-    let settings: (showRatesInPounds: Bool, language: String, agileCode: String)
+    let settings: (showRatesInPounds: Bool, showRatesWithVAT: Bool, language: String, agileCode: String)
     let chartSettings: InteractiveChartSettings
     
     @Environment(\.widgetFamily) var family
@@ -347,7 +384,7 @@ struct CurrentRateWidget: View {
 
     /// Y-axis range for chart
     private var chartYRange: (Double, Double) {
-        let prices = filteredRatesForChart.map { ($0.value(forKey: "value_including_vat") as? Double) ?? 0 }
+        let prices = filteredRatesForChart.map(getRateValue)
         guard !prices.isEmpty else { return (0, 10) }
         let minVal = min(0, (prices.min() ?? 0) - 2)
         let maxVal = (prices.max() ?? 0) + 2
@@ -376,7 +413,7 @@ struct CurrentRateWidget: View {
             return nil
         }
         if let start = rate.value(forKey: "valid_from") as? Date {
-            return (start, rate.value(forKey: "value_including_vat") as? Double ?? 0)
+            return (start, getRateValue(rate))
         }
         return nil
     }
@@ -390,11 +427,18 @@ struct CurrentRateWidget: View {
         return totalChunk * barGapRatio
     }
 
-    private func formatPrice(_ pence: Double) -> String {
+    private func formatRate(_ raw: Double) -> String {
         if settings.showRatesInPounds {
-            return String(format: "£%.2f", pence / 100.0)
+            // Format with 2 decimals for pounds
+            let formatted = String(format: "£%.3f", raw / 100.0)
+            return "\(formatted)/kWh"
         } else {
-            return String(format: "%.0fp", pence)
+            // Use the standard RateFormatting for pence
+            return RateFormatting.formatRate(
+                raw,
+                showRatesInPounds: settings.showRatesInPounds,
+                showRatesWithVAT: settings.showRatesWithVAT
+            )
         }
     }
     
@@ -433,21 +477,23 @@ struct CurrentRateWidget: View {
         Group {
             if let currentRate = findCurrentRate() {
                 let widgetVM = RatesViewModel(widgetRates: rates.compactMap { $0 }, productCode: settings.agileCode)
-                let currentValue = currentRate.value(forKey: "value_including_vat") as? Double ?? 0
-                let lowestRate = widgetVM.lowestUpcomingRate(productCode: settings.agileCode)?.value(forKey: "value_including_vat") as? Double ?? currentValue
-                let highestRate = widgetVM.highestUpcomingRate(productCode: settings.agileCode)?.value(forKey: "value_including_vat") as? Double ?? currentValue
+                let currentValue = getRateValue(currentRate)
+                let lowestRate = widgetVM.lowestUpcomingRate(productCode: settings.agileCode)
+                let lowestValue = lowestRate != nil ? getRateValue(lowestRate!) : currentValue
+                let highestRate = widgetVM.highestUpcomingRate(productCode: settings.agileCode)
+                let highestValue = highestRate != nil ? getRateValue(highestRate!) : currentValue
                 
                 // Normalize current value to 0-1 range
-                let minRate = min(currentValue, lowestRate)
-                let maxRate = max(currentValue, highestRate)
+                let minRate = min(currentValue, lowestValue)
+                let maxRate = max(currentValue, highestValue)
                 let normalizedValue = (currentValue - minRate) / (maxRate - minRate)
                 
                 Gauge(value: normalizedValue, in: 0...1) {
                     Image(systemName: "bolt.fill")
                 } currentValueLabel: {
                     Text(formatRate(currentValue))
-                        .font(.system(.body, design: .rounded))
-                        .minimumScaleFactor(0.5)
+                        .font(Theme.mainFont())
+                        .foregroundColor(RateColor.getColor(for: currentRate, allRates: rates))
                 }
                 .gaugeStyle(.accessoryCircular)
                 .tint(RateColor.getColor(for: currentRate, allRates: rates))
@@ -456,7 +502,7 @@ struct CurrentRateWidget: View {
                     Image(systemName: "bolt.fill")
                 } currentValueLabel: {
                     Text("--")
-                        .font(.system(.body, design: .rounded))
+                        .font(Theme.mainFont())
                 }
                 .gaugeStyle(.accessoryCircular)
                 .tint(.gray)
@@ -468,7 +514,7 @@ struct CurrentRateWidget: View {
     private var inlineView: some View {
         if let currentRate = findCurrentRate() {
             Label {
-                Text("\(formatRate(currentRate.value(forKey: "value_including_vat") as? Double ?? 0))/kWh")
+                Text("\(formatRate(getRateValue(currentRate)))")
             } icon: {
                 Image(systemName: "bolt.fill")
             }
@@ -602,7 +648,7 @@ struct CurrentRateWidget: View {
                 id: \.element.idString) { index, rate in
             
             if let t = rate.value(forKey: "valid_from") as? Date {
-                let baseColor = (rate.value(forKey: "value_including_vat") as? Double ?? 0) < 0 ? Theme.secondaryColor : Theme.mainColor
+                let baseColor = getRateValue(rate) < 0 ? Theme.secondaryColor : Theme.mainColor
                 let rawProgress = Double(index) / Double(max(1, data.count - 1))
                 let isToday = Calendar.current.isDate(t, inSameDayAs: Date())
                 
@@ -626,7 +672,7 @@ struct CurrentRateWidget: View {
                 
                 BarMark(
                     x: .value("Time", t),
-                    y: .value("Rate", rate.value(forKey: "value_including_vat") as? Double ?? 0),
+                    y: .value("Rate", getRateValue(rate)),
                     width: .fixed(barWidth)
                 )
                 .cornerRadius(3)
@@ -674,7 +720,7 @@ extension CurrentRateWidget {
             topLabel(title: "Agile Current", icon: "clock")
             
             // Show large current rate
-            rateView(value: rate.value(forKey: "value_including_vat") as? Double ?? 0, color: RateColor.getColor(for: rate, allRates: rates), font: Theme.mainFont())
+            rateView(value: getRateValue(rate), color: RateColor.getColor(for: rate, allRates: rates), font: Theme.mainFont())
             
             // "Until HH:mm"
             if let valid_to = rate.value(forKey: "valid_to") as? Date {
@@ -708,7 +754,7 @@ extension CurrentRateWidget {
                         .font(.caption)
                         .foregroundColor(Theme.icon)
                     rateView(
-                        value: lowestRate.value(forKey: "value_including_vat") as? Double ?? 0,
+                        value: getRateValue(lowestRate),
                         color: RateColor.getColor(for: lowestRate, allRates: rates),
                         font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
                     )
@@ -731,7 +777,7 @@ extension CurrentRateWidget {
                         .font(.caption)
                         .foregroundColor(Theme.icon)
                     rateView(
-                        value: highestRate.value(forKey: "value_including_vat") as? Double ?? 0,
+                        value: getRateValue(highestRate),
                         color: RateColor.getColor(for: highestRate, allRates: rates),
                         font: family == .systemSmall ? Theme.titleFont() : Theme.mainFont()
                     )
@@ -802,25 +848,31 @@ extension CurrentRateWidget {
         return nil
     }
     
-    private func rateView(value: Double, color: Color, font: Font) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Text(formatRate(value))
-                .font(font)
-                .foregroundColor(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-            Text("/kWh")
-                .font(.caption2)
-                .foregroundColor(Theme.secondaryTextColor)
-                .scaleEffect(0.8)
+    private func getRateValue(_ rate: NSManagedObject) -> Double {
+        if settings.showRatesWithVAT {
+            return rate.value(forKey: "value_including_vat") as? Double ?? 0
+        } else {
+            return rate.value(forKey: "value_excluding_vat") as? Double ?? 0
         }
     }
-    
-    private func formatRate(_ raw: Double) -> String {
-        if settings.showRatesInPounds {
-            return String(format: "£%.3f", raw / 100.0)
-        } else {
-            return String(format: "%.2fp", raw)
+
+    private func rateView(value: Double, color: Color, font: Font) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            let parts = formatRate(value).split(separator: "/")
+            if parts.count > 0 {
+                Text(String(parts[0]))
+                    .font(font)
+                    .foregroundColor(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                
+                if parts.count > 1 {
+                    Text("/\(parts[1])")
+                        .font(.caption2)
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .scaleEffect(0.8)
+                }
+            }
         }
     }
     
