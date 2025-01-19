@@ -112,7 +112,7 @@ public struct HighestUpcomingRateCardView: View {
                 }
             }
 
-            if viewModel.isLoading(for: productCode) {
+            if viewModel.isLoading(for: productCode) && viewModel.fetchState == .loading {
                 // Show a progress spinner if no data is available yet
                 if (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true) {
                     ProgressView("Loading...").padding(.vertical, 12)

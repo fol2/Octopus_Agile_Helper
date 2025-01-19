@@ -10,8 +10,6 @@ import CoreData
 import OctopusHelperShared
 import SwiftUI
 
-// MARK: - Scroll Offset Key
-
 /// A preference key to track the vertical offset in a ScrollView.
 struct ScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -33,115 +31,17 @@ private struct OffsetTrackingView: View {
     }
 }
 
-// MARK: - Fetch Status Manager
-final class FetchStatusManager: ObservableObject {
-    @Published private(set) var combinedStatus: CombinedFetchStatus = .none
-    
-    // Track individual statuses
-    private var ratesStatus: FetchStatus = .none
-    private var consumptionStatus: FetchStatus = .none
-    private var clearDoneWorkItem: DispatchWorkItem?
-    
-    func update(ratesStatus: FetchStatus? = nil, consumptionStatus: FetchStatus? = nil) {
-        if let rStatus = ratesStatus { self.ratesStatus = rStatus }
-        if let cStatus = consumptionStatus { self.consumptionStatus = cStatus }
-        
-        // Compute combined status
-        let newStatus = computeCombinedStatus()
-        
-        // Animate status change if needed
-        withAnimation(.easeInOut(duration: 0.3)) {
-            self.combinedStatus = newStatus
-        }
-        
-        // If status is .done, schedule it to be cleared after a delay
-        if case .done = newStatus {
-            clearDoneWorkItem?.cancel()
-            let workItem = DispatchWorkItem { [weak self] in
-                withAnimation {
-                    if case .done = self?.combinedStatus {
-                        self?.combinedStatus = .none
-                    }
-                }
-            }
-            clearDoneWorkItem = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: workItem)
-        }
-    }
-    
-    private func computeCombinedStatus() -> CombinedFetchStatus {
-        var fetchingSources: Set<String> = []
-        var pendingSources: Set<String> = []
-        var doneSources: Set<String> = []
-        var failedSource: String?
-        
-        // Check rates status
-        switch ratesStatus {
-        case .fetching: fetchingSources.insert("Rates")
-        case .pending: pendingSources.insert("Rates")
-        case .failed: failedSource = "Rates"
-        case .done: doneSources.insert("Rates")
-        case .none: break
-        }
-        
-        // Check consumption status
-        switch consumptionStatus {
-        case .fetching: fetchingSources.insert("Consumption")
-        case .pending: pendingSources.insert("Consumption")
-        case .failed: failedSource = "Consumption"
-        case .done: doneSources.insert("Consumption")
-        case .none: break
-        }
-        
-        // Determine combined state
-        if let failed = failedSource {
-            return .failed(source: failed, error: nil)
-        }
-        if !fetchingSources.isEmpty {
-            return .fetching(sources: fetchingSources)
-        }
-        if !pendingSources.isEmpty {
-            return .pending(sources: pendingSources)
-        }
-        if !doneSources.isEmpty {
-            return .done(source: doneSources.first ?? "Unknown")
-        }
-        return .none
-    }
-}
-
-// MARK: - Combined Status Indicator View
-struct CombinedStatusIndicatorView: View {
-    let status: CombinedFetchStatus
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(status.color)
-                .frame(width: 8, height: 8)
-            Text(status.displayText)
-                .font(Theme.subFont())
-                .foregroundColor(Theme.secondaryTextColor)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Theme.secondaryBackground)
-        .cornerRadius(8)
-    }
-}
-
-// MARK: - ContentView
-
 public final class ContentViewModel: ObservableObject {
     var cancellables = Set<AnyCancellable>()
 }
 
+/// Simplified: we no longer use FetchStatusManager or CombinedFetchStatus
+/// We'll do an inline aggregator if needed or just show each VM's fetchState.
 public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var ratesVM: RatesViewModel
     @StateObject private var consumptionVM = ConsumptionViewModel()
-    @StateObject private var statusManager = FetchStatusManager()
     @StateObject private var viewModel = ContentViewModel()
     let hasAgileCards: Bool  // Now passed in from AppMain
 
@@ -163,20 +63,18 @@ public struct ContentView: View {
     private var copyrightText: String {
         let currentYear = Calendar.current.component(.year, from: Date())
         return currentYear > 2024 ? " Eugnel 2024-\(currentYear)" : " Eugnel 2024"
-   }
+    }
 
     public init(hasAgileCards: Bool) {
         self.hasAgileCards = hasAgileCards
         // Initialize view models
         _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
-        _statusManager = StateObject(wrappedValue: FetchStatusManager())
         _viewModel = StateObject(wrappedValue: ContentViewModel())
     }
 
     public var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: true) {
-
                 // The main content (cards)
                 VStack(spacing: 0) {
                     ForEach(sortedCardConfigs()) { config in
@@ -216,10 +114,42 @@ public struct ContentView: View {
             .background(Theme.mainBackground)
             .scrollContentBackground(.hidden)
             .coordinateSpace(name: "scrollArea")  // for offset detection
-            .navigationTitle(LocalizedStringKey("Octopus Agile"))
+            .navigationTitle(LocalizedStringKey("Octomiser"))
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 8) {
+                        // If you want a single combined color, do a quick aggregator
+                        Circle()
+                            .fill(aggregateColor)
+                            .frame(width: 8, height: 8)
+                        NavigationLink {
+                            SettingsView(didFinishEditing: {
+                                Task {
+                                    await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                                    if !ratesVM.currentAgileCode.isEmpty {
+                                        await ratesVM.initializeProducts()
+                                    }
+                                }
+                            })
+                            .environment(\.locale, globalSettings.locale)
+                        } label: {
+                            Image(systemName: "gear")
+                                .foregroundColor(Theme.mainTextColor)
+                                .font(Theme.secondaryFont())
+                        }
+                    }
+                }
 
-            // Pull-to-refresh
+                // Principal => inline title, only if isCollapsed == true
+                ToolbarItem(placement: .principal) {
+                    if isCollapsed {
+                        InlineCenteredTitle()
+                            .transition(.opacity)
+                            .animation(.easeInOut(duration: 0.3), value: isCollapsed)
+                    }
+                }
+            }
             .refreshable {
                 await withTaskGroup(of: Void.self) { group in
                     group.addTask { await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true) }
@@ -232,129 +162,80 @@ public struct ContentView: View {
                     isCollapsed = (offset < -50)
                 }
             }
-            .toolbar {
-                // 1) Trailing => gear + optional status
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    // We animate the HStack so the gear doesn't jump
-                    HStack(spacing: 8) {
-                        if statusManager.combinedStatus != .none {
-                            CombinedStatusIndicatorView(status: statusManager.combinedStatus)
-                                .transition(.opacity)
-                        }
-                        NavigationLink(
-                            destination: SettingsView(didFinishEditing: {
-                                // This runs when user returns from Settings
-                                Task {
-                                    await ratesVM.setAgileProductFromAccountOrFallback(
-                                        globalSettings: globalSettings
-                                    )
-                                    if !ratesVM.currentAgileCode.isEmpty {
-                                        await ratesVM.initializeProducts()
-                                    }
-                                }
-                            })
-                            .environment(\.locale, globalSettings.locale)
-                        ) {
-                            Image(systemName: "gear")
-                                .foregroundColor(Theme.mainTextColor)
-                                .font(Theme.secondaryFont())
+            // Listen for language changes => force re-render
+            .environment(\.locale, globalSettings.locale)
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    Task {
+                        await consumptionVM.loadData()
+                    }
+                    CardRefreshManager.shared.notifyAppBecameActive()
+                }
+            }
+            .onReceive(contentTimer) { _ in
+                let calendar = Calendar.current
+                let now = Date()
+                let hour = calendar.component(.hour, from: now)
+                let minute = calendar.component(.minute, from: now)
+                let second = calendar.component(.second, from: now)
+
+                // Check rates at 16:00
+                if hour == 16, minute == 0, second == 0 {
+                    Task {
+                        if hasAgileCards {
+                            await ratesVM.initializeProducts()
                         }
                     }
                 }
-
-                // 2) Principal => inline title, only if isCollapsed == true
-                ToolbarItem(placement: .principal) {
-                    if isCollapsed {
-                        InlineCenteredTitle()
-                            .transition(.opacity)
-                            .animation(.easeInOut(duration: 0.3), value: isCollapsed)
+                
+                // Check consumption at 12:00 (noon)
+                // This is when we start expecting previous day's data
+                if hour == 12, minute == 0, second == 0 {
+                    Task {
+                        await consumptionVM.loadData()
                     }
                 }
             }
-        }
-        // Listen for language changes => force re-render
-        .environment(\.locale, globalSettings.locale)
-        // .onChange is optional if you want to reload or re-localise
-        //.onChange(of: globalSettings.locale) { _, _ in ... }
-        .onChange(of: scenePhase) { phase in
-            if phase == .active {
-                Task {
-                    await consumptionVM.loadData()
-                }
-                CardRefreshManager.shared.notifyAppBecameActive()
-            }
-        }
-        .onReceive(contentTimer) { _ in
-            let calendar = Calendar.current
-            let now = Date()
-            let hour = calendar.component(.hour, from: now)
-            let minute = calendar.component(.minute, from: now)
-            let second = calendar.component(.second, from: now)
-
-            // Check rates at 16:00
-            if hour == 16, minute == 0, second == 0 {
-                Task {
-                    if hasAgileCards {
-                        await ratesVM.initializeProducts()
+            .onAppear {
+                // Create VMs for non-rate cards only
+                for cardType in CardType.allCases {
+                    if cardType == .electricityConsumption {  // Only create VM for non-rate cards
+                        if cardViewModels[cardType] == nil {
+                            let newVM = CardRegistry.shared.createViewModel(for: cardType)
+                            cardViewModels[cardType] = newVM
+                        }
                     }
                 }
+                Task { await consumptionVM.loadData() }
             }
-            
-            // Check consumption at 12:00 (noon)
-            // This is when we start expecting previous day's data
-            if hour == 12, minute == 0, second == 0 {
-                Task {
-                    await consumptionVM.loadData()
-                    // If pending after noon check, trigger refresh
-                    if consumptionVM.fetchStatus == .pending {
-                        await consumptionVM.refreshDataFromAPI(force: false)
-                    }
-                }
-            }
-        }
-        // Called once when the view appears to create all card view models
-        .onAppear {
-            setupStatusObservers()
-
-            // 2) Create VMs for non-rate cards only
-            for cardType in CardType.allCases {
-                if cardType == .electricityConsumption {  // Only create VM for non-rate cards
-                    if cardViewModels[cardType] == nil {
-                        let newVM = CardRegistry.shared.createViewModel(for: cardType)
-                        cardViewModels[cardType] = newVM
-                    }
-                }
-            }
-        }
-        .task {
-            await consumptionVM.loadData()
         }
     }
 
-    private func setupStatusObservers() {
-        ratesVM.$fetchStatus
-            .sink { [weak statusManager] status in
-                statusManager?.update(ratesStatus: convertToLocalFetchStatus(status))
-            }
-            .store(in: &viewModel.cancellables)
-            
-        consumptionVM.$fetchStatus
-            .sink { [weak statusManager] status in
-                statusManager?.update(consumptionStatus: status)
-            }
-            .store(in: &viewModel.cancellables)
-    }
+    // MARK: - Helper Methods
+    private var aggregateColor: Color {
+        // If no API key/account info, only consider rates state
+        let hasAccountInfo = !globalSettings.settings.apiKey.isEmpty && 
+                           globalSettings.settings.electricityMPAN != nil && 
+                           globalSettings.settings.electricityMeterSerialNumber != nil
 
-    // Provide a helper to convert ProductFetchStatus -> local FetchStatus
-    private func convertToLocalFetchStatus(_ pfs: ProductFetchStatus) -> FetchStatus {
-        // minimal logic
-        switch pfs {
-        case .none: return .none
-        case .fetching: return .fetching
-        case .done: return .done
-        case .pending: return .pending
-        case .partialData: return .pending
-        case .failed(_): return .failed
+        switch (ratesVM.fetchState, consumptionVM.fetchState) {
+        case (.failure(_), _),
+             (_, .failure(_)) where hasAccountInfo:
+            return .red
+        case (.loading, _),
+             (_, .loading) where hasAccountInfo:
+            return .blue
+        case (.partial, _),
+             (_, .partial) where hasAccountInfo:
+            return .orange
+        case (.success, _) where !hasAccountInfo:
+            // Only check rates success if no account info
+            return .green
+        case (.success, .success) where hasAccountInfo:
+            // Check both when account info exists
+            return .green
+        default:
+            return .clear
         }
     }
 
@@ -371,7 +252,7 @@ private struct InlineCenteredTitle: View {
     var body: some View {
         HStack {
             Spacer()
-            Text("Octopus Agile")
+            Text("Octomiser")
                 .font(Theme.titleFont())
                 .foregroundColor(Theme.mainTextColor)
             Spacer()

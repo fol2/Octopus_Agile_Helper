@@ -7,10 +7,7 @@ import WidgetKit
 @available(iOS 17.0, *)
 struct Octopus_Agile_HelperApp: App {
     // MARK: - Dependencies that must exist before StateObjects
-    // Make globalTimer a plain stored property so we can pass it into the RatesViewModel init
     private let globalTimer = GlobalTimer()
-
-    // MARK: - Persistence
     private let persistenceController = PersistenceController.shared
 
     // MARK: - StateObjects
@@ -29,7 +26,6 @@ struct Octopus_Agile_HelperApp: App {
     init() {
         // 1) Create the RatesViewModel with the previously declared globalTimer
         let initialRatesVM = RatesViewModel(globalTimer: globalTimer)
-        initialRatesVM.fetchStatus = .fetching  // Optional: start in fetching state
         _ratesVM = StateObject(wrappedValue: initialRatesVM)
 
         // 2) Configure the NavBar appearance (Dark style, etc.)
@@ -85,10 +81,8 @@ struct Octopus_Agile_HelperApp: App {
                 }
             }
             .task {
-                // Perform one-time async initialization
                 await initializeAppData()
             }
-            // Use new iOS 17 style: .onChange(scenePhase)
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(newPhase)
             }
@@ -98,42 +92,28 @@ struct Octopus_Agile_HelperApp: App {
 
 // MARK: - Private Helpers
 extension Octopus_Agile_HelperApp {
-    /// Centralized function to load initial data, matching your #Preview flow.
     private func initializeAppData() async {
         do {
-            // 1) Let RatesViewModel detect user's agile product or fallback
             await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
             
-            // 2) Set up products to initialize
             var productsToInit: [String] = []
             
-            // Add Agile product if available
             if !ratesVM.currentAgileCode.isEmpty {
                 productsToInit.append(ratesVM.currentAgileCode)
             }
             
-            // Here you can add more products if needed
-            // Example:
-            // if let trackerCode = globalSettings.settings.trackerCode {
-            //     productsToInit.append(trackerCode)
-            // }
-            
-            // Set the products to initialize
             ratesVM.productsToInitialize = productsToInit
             
-            // 3) Initialize products if we have any
             if !productsToInit.isEmpty {
                 await ratesVM.initializeProducts()
             }
-            
-            // 4) Mark app as initialized => show main content
+
             withAnimation(.easeOut(duration: 0.5)) {
                 isAppInitialized = true
             }
         }
     }
 
-    /// Handles app lifecycle changes
     private func handleScenePhaseChange(_ phase: ScenePhase) {
         switch phase {
         case .active:
@@ -147,7 +127,6 @@ extension Octopus_Agile_HelperApp {
         }
     }
 
-    /// Configures the global UINavigationBar appearance for large & standard titles
     private func configureNavigationBarAppearance() {
         let appearance = UINavigationBarAppearance()
         appearance.configureWithDefaultBackground()
@@ -183,13 +162,11 @@ extension Octopus_Agile_HelperApp {
                 }
             }
             .task {
-                // Mimic your real app’s initialization
                 do {
                     await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
                     if !ratesVM.currentAgileCode.isEmpty {
                         await ratesVM.initializeProducts()
                     }
-                    // Show main content
                     withAnimation(.easeOut(duration: 0.5)) {
                         isInitialized = true
                     }

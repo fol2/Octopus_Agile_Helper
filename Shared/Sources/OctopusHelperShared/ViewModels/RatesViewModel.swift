@@ -21,51 +21,12 @@ import CoreData
 import Foundation
 import SwiftUI
 
-public enum ProductFetchStatus: Equatable, CustomStringConvertible {
-    case none
-    case fetching
-    case done
-    case pending
-    case partialData
-    case failed(Error)
-
-    public static func == (lhs: ProductFetchStatus, rhs: ProductFetchStatus) -> Bool {
-        switch (lhs, rhs) {
-        case (.none, .none): return true
-        case (.fetching, .fetching): return true
-        case (.done, .done): return true
-        case (.pending, .pending): return true
-        case (.partialData, .partialData): return true
-        case (.failed(_), .failed(_)): return true
-        default: return false
-        }
-    }
-
-    public var description: String {
-        switch self {
-        case .none:
-            return "Not Started"
-        case .fetching:
-            return "Fetching..."
-        case .done:
-            return "Complete"
-        case .pending:
-            return "Pending"
-        case .partialData:
-            return "Partial Data"
-        case .failed(let error):
-            return "Error: \(error.localizedDescription)"
-        }
-    }
-}
-
 /// Data container for each product's local state
 public struct ProductRatesState {
     public var allRates: [NSManagedObject] = []
     public var upcomingRates: [NSManagedObject] = []
     public var standingCharges: [NSManagedObject] = []
     public var currentStandingCharge: NSManagedObject? = nil
-    public var fetchStatus: ProductFetchStatus = .none
     public var nextFetchEarliestTime: Date? = nil
     public var isLoading: Bool = false
     
@@ -97,7 +58,7 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
             }
         }
     }
-    @Published public var fetchStatus: ProductFetchStatus = .none
+    @Published public var fetchState: DataFetchState = .idle
     @Published public var productStates: [String: ProductRatesState] = [:]
     @Published public var productsToInitialize: [String] = []  // Array of tariff codes to initialize
     private var cachedRegionUsedLastTime: String = ""
@@ -290,7 +251,7 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     // MARK: - Init
     public init(globalTimer: GlobalTimer) {
         setupTimer(globalTimer)
-        fetchStatus = .none
+        fetchState = .idle
         AccountRepository.shared.delegate = self
     }
 
@@ -310,14 +271,14 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     // NEW: Provide a method to reattach the real GlobalTimer if changed externally
     public func updateTimer(_ timer: GlobalTimer) {
         // Preserve current status
-        let currentStatus = self.fetchStatus
+        let currentStatus = self.fetchState
         
         // Update timer
         setupTimer(timer)
         
-        // Restore status if it was fetching
-        if case .fetching = currentStatus {
-            self.fetchStatus = currentStatus
+        // Restore status if it was loading
+        if case .loading = currentStatus {
+            self.fetchState = currentStatus
         }
     }
 
@@ -348,12 +309,11 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
 
             if let earliest = state.nextFetchEarliestTime {
                 // If we've previously shown .failed and are trying again,
-                // set status back to .fetching to avoid showing "Failed" while re-fetching
-                if case .failed = state.fetchStatus { state.fetchStatus = .fetching }
+                // set status back to .loading to avoid showing "Failed" while re-fetching
+                if self.fetchState.isFailure { self.fetchState = .loading }
 
                 if now >= earliest {
                     shouldRefresh = true
-                    state.nextFetchEarliestTime = nil
                 }
             } else {
                 // Only auto-refresh if we don't have rates or they're stale
@@ -365,9 +325,9 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
             if shouldRefresh {
                 Task {
                     // Reset status before new attempt
-                    if case .failed = self.fetchStatus {
+                    if self.fetchState.isFailure {
                         withAnimation {
-                            self.fetchStatus = .fetching
+                            self.fetchState = .loading
                         }
                     }
                     await self.refreshRatesForProduct(productCode: code, now: now)
@@ -385,26 +345,17 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
         // Check if already fetching
         if state.isLoading {
             print("⏳ Already fetching rates for \(productCode)")
-            // If we're re-fetching after a "failed" state, update to .fetching
-            if case .failed = state.fetchStatus {
-                state.fetchStatus = .fetching
+            if self.fetchState.isFailure {
+                self.fetchState = .loading
             }
             productStates[productCode] = state
             return
         }
 
-        // Set loading state
         state.nextFetchEarliestTime = nil
         withAnimation {
             state.isLoading = true
-            state.fetchStatus = .fetching
-            // If main fetchStatus was "failed", set it back to "fetching" to reflect an in-progress retry
-            switch self.fetchStatus {
-            case .failed:
-                withAnimation { self.fetchStatus = .fetching }
-            case .none, .done, .fetching, .pending, .partialData:
-                break
-            }
+            self.fetchState = .loading
         }
         productStates[productCode] = state
         
@@ -414,7 +365,7 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
                   let tCode = detail.value(forKey: "tariff_code") as? String,
                   let link = detail.value(forKey: "link_rate") as? String else {
                 withAnimation {
-                    state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
+                    self.fetchState = .failure(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
                     state.isLoading = false
                     state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown
                 }
@@ -423,7 +374,11 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
             }
             
             // Now fetch rates
-            try await repository.fetchAndStoreRates(tariffCode: tCode)
+            // Phase 1: Initial fetch (BLUE state)
+            withAnimation {
+                self.fetchState = .loading
+            }
+            let (firstPhaseRates, totalPages) = try await repository.fetchAndStoreRates(tariffCode: tCode)
             
             // Load only windowed rates into memory
             let windowedRates = try await repository.fetchRatesByTariffCode(tCode, pastHours: 48)
@@ -434,22 +389,50 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
             }
             state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
             
+            if totalPages > 1 {
+                // Phase 2: Background fetch (ORANGE state)
+                withAnimation {
+                    self.fetchState = .partial
+                    state.isLoading = true
+                }
+                productStates[productCode] = state
+                
+                // Wait for background fetch to complete
+                try await repository.waitForBackgroundFetch()
+                
+                // After background fetch completes, get all rates
+                let allRates = try await repository.fetchRatesByTariffCode(tCode, pastHours: 48)
+                state.allRates = allRates.filter { rate in
+                    (rate.value(forKey: "tariff_code") as? String) == tCode
+                }
+                state.upcomingRates = filterUpcoming(rates: state.allRates, now: now)
+            }
+            
+            // All fetches complete (GREEN state)
             withAnimation {
-                state.fetchStatus = .done
+                self.fetchState = .success
                 state.isLoading = false
                 state.nextFetchEarliestTime = now.addingTimeInterval(60 * 60) // 1 hour cooldown on success
-                self.fetchStatus = .done
             }
             productStates[productCode] = state
+            
+            // Auto-transition to idle after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                if case .success = self.fetchState {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        self.fetchState = .idle
+                    }
+                }
+            }
             
         } catch {
             print("❌ Error in refreshRatesForProduct: \(error)")
             withAnimation {
-                state.fetchStatus = .failed(error)
+                self.fetchState = .failure(error)
                 state.isLoading = false
                 state.nextFetchEarliestTime = now.addingTimeInterval(60 * 5) // 5 min cooldown
-                productStates[productCode] = state
             }
+            productStates[productCode] = state
         }
     }
 
@@ -458,12 +441,12 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     /// Initialize local state for multiple products. Usually called at launch.
     public func initializeProducts() async {
         print("initializeProducts: 🔍 Starting")
-        self.fetchStatus = .fetching
+        self.fetchState = .loading
         
         do {
             guard !productsToInitialize.isEmpty else {
                 print("initializeProducts: ⚠️ No products to initialize")
-                self.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, 
+                self.fetchState = .failure(NSError(domain: "com.octopus", code: -1, 
                     userInfo: [NSLocalizedDescriptionKey: "No products to initialize"]))
                 return
             }
@@ -502,7 +485,7 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
                     state.upcomingRates = filterUpcoming(rates: windowedRates, now: now)
                     state.lastFetchTimestamp = now
                     state.lastFetchWasAfter4PMUK = isAfter4PMUK(date: now)
-                    state.fetchStatus = .done
+                    state.isLoading = false
                     productStates[productCode] = state
                     continue
                 }
@@ -520,41 +503,49 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
                     state.upcomingRates = filterUpcoming(rates: firstPhaseRates, now: now)
                     state.lastFetchTimestamp = now
                     state.lastFetchWasAfter4PMUK = isAfter4PMUK(date: now)
-                    state.fetchStatus = totalPages > 1 ? .partialData : .done
-                    state.isLoading = totalPages > 1 // Keep loading if there are more pages
                     productStates[productCode] = state
                 }
                 
-                // Phase 2 happens in background, we'll update UI when Core Data changes
                 if totalPages > 1 {
-                    // Set up an async task to monitor for updates
-                    Task.detached {
-                        // Wait a bit to allow background fetch to progress
-                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-                        
-                        // Get final data
-                        let finalRates = try await self.repository.fetchRatesByTariffCode(productCode, pastHours: 48)
-                        
-                        await MainActor.run {
-                            withAnimation {
-                                state.allRates = finalRates
-                                state.upcomingRates = self.filterUpcoming(rates: finalRates, now: now)
-                                state.fetchStatus = .done
-                                state.isLoading = false
-                                self.productStates[productCode] = state
-                            }
-                        }
+                    // Phase 2: Background fetch (ORANGE state)
+                    withAnimation {
+                        state.isLoading = true
+                        self.fetchState = .partial
                     }
+                    productStates[productCode] = state
+                    
+                    // Wait for background fetch to complete
+                    try await repository.waitForBackgroundFetch()
+                    
+                    // After background fetch completes, get all rates
+                    let allRates = try await repository.fetchRatesByTariffCode(productCode)
+                    state.allRates = allRates
+                    state.upcomingRates = filterUpcoming(rates: allRates, now: now)
+                    state.isLoading = false
+                }
+                
+                // All fetches complete (GREEN state)
+                withAnimation {
+                    self.fetchState = .success
                 }
                 
                 print("initializeProducts: ✅ Successfully initialized \(productCode) with initial data")
             }
             
-            self.fetchStatus = .done
+            self.fetchState = .success
+            
+            // Auto-transition to idle after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                if case .success = self.fetchState {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        self.fetchState = .idle
+                    }
+                }
+            }
             
         } catch {
             print("initializeProducts: ❌ Error: \(error)")
-            self.fetchStatus = .failed(error)
+            self.fetchState = .failure(error)
         }
     }
 
@@ -584,13 +575,12 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
         }
         
         do {
-            state.fetchStatus = .fetching
+            state.isLoading = true
             productStates[productCode] = state
             
             await refreshRatesForProduct(productCode: productCode, now: Date())
         } catch {
             print("❌ Error refreshing rates: \(error)")
-            state.fetchStatus = .failed(error)
             state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 5) // 5 min cooldown on error
             productStates[productCode] = state
         }
@@ -600,25 +590,26 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     public func fetchRates(tariffCode: String) async {
         print("🔄 开始获取费率，tariffCode: \(tariffCode)")
         
+        self.fetchState = .loading
+
         do {
             let details = try await productDetailRepository.loadLocalProductDetailByTariffCode(tariffCode: tariffCode)
             guard let detail = details.first,
                   let tCode = detail.value(forKey: "tariff_code") as? String,
-                  let rateLink = detail.value(forKey: "link_rate") as? String,
+                  let link = detail.value(forKey: "link_rate") as? String,
                   let standingChargeLink = detail.value(forKey: "link_standing_charge") as? String else {
                 print("❌ No product detail found for tariff code \(tariffCode)")
                 var state = productStates[tariffCode] ?? ProductRatesState()
-                state.fetchStatus = .failed(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
+                self.fetchState = .failure(NSError(domain: "com.octopus", code: -1, userInfo: [NSLocalizedDescriptionKey: "No product detail found"]))
                 productStates[tariffCode] = state
                 return
             }
             
             print("📦 Found product detail - tariff: \(tCode)")
-            print("📊 Rate link: \(rateLink)")
+            print("📊 Rate link: \(link)")
             print("💰 Standing charge link: \(standingChargeLink)")
             
             var state = productStates[tariffCode] ?? ProductRatesState()
-            state.fetchStatus = .fetching
             productStates[tariffCode] = state
             
             // Fetch both rates and standing charges
@@ -653,15 +644,24 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
                 return validFrom <= now && validTo >= now
             }
             
-            state.fetchStatus = .done
+            self.fetchState = .success
             state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 60) // 1 hour cooldown
             productStates[tariffCode] = state
+            
+            // Auto-transition to idle after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                if case .success = self.fetchState {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        self.fetchState = .idle
+                    }
+                }
+            }
             
             print("✅ Successfully fetched rates and standing charges for \(tariffCode)")
         } catch {
             print("❌ Error fetching rates: \(error.localizedDescription)")
             var state = productStates[tariffCode] ?? ProductRatesState()
-            state.fetchStatus = .failed(error)
+            self.fetchState = .failure(error)
             state.nextFetchEarliestTime = Date().addingTimeInterval(60 * 5) // 5 min cooldown on error
             productStates[tariffCode] = state
         }

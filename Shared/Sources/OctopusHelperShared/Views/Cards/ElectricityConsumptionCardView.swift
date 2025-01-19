@@ -93,7 +93,7 @@ public struct ElectricityConsumptionCardView: View {
             HStack {
                 Image(systemName: "bolt.fill")
                     .foregroundColor(Theme.icon)
-                if viewModel.fetchStatus == .fetching && viewModel.consumptionRecords.isEmpty {
+                if viewModel.fetchState == .loading && viewModel.consumptionRecords.isEmpty {
                     // Show a spinner if absolutely no data + isLoading
                     ProgressView("Loading Usage...")
                         .font(Theme.subFont())

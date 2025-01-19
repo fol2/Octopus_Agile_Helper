@@ -277,9 +277,9 @@ struct DataFetchSection: View {
             // 1. Status
             let statusText: String = {
                 if let code = selectedTariffCode,
-                    let state = ratesViewModel.productStates[code]
+                    let _ = ratesViewModel.productStates[code]
                 {
-                    return "Status: \(state.fetchStatus.description)"
+                    return "Status: \(ratesViewModel.fetchState.description)"
                 } else {
                     return "Status: Not Started"
                 }
@@ -568,22 +568,22 @@ struct ConsumptionSection: View {
     }
     
     private var statusText: String {
-        switch consumptionVM.fetchStatus {
-        case .none: return "Idle"
-        case .fetching: return "Fetching..."
-        case .done: return "Complete"
-        case .failed: return "Failed"
-        case .pending: return "Pending"
+        switch consumptionVM.fetchState {
+        case .idle: return "Idle"
+        case .loading: return "Loading..."
+        case .partial: return "Partial Data"
+        case .success: return "Complete"
+        case .failure(let error): return "Error: \(error.localizedDescription)"
         }
     }
     
     private var statusColor: Color {
-        switch consumptionVM.fetchStatus {
-        case .none: return .primary
-        case .fetching: return .blue
-        case .done: return .green
-        case .failed: return .red
-        case .pending: return .orange
+        switch consumptionVM.fetchState {
+        case .idle: return .primary
+        case .loading: return .blue
+        case .partial: return .orange
+        case .success: return .green
+        case .failure: return .red
         }
     }
 }
@@ -1278,12 +1278,10 @@ struct StandingChargesListView: View {
                     HStack {
                         Text("Value (inc. VAT):")
                             .foregroundColor(.secondary)
-                        Text(
-                            String(
-                                format: "%.2fp",
-                                charge.value(forKey: "value_including_vat") as? Double ?? 0.0)
-                        )
-                        .bold()
+                        Text(String(
+                            format: "%.2fp",
+                            charge.value(forKey: "value_including_vat") as? Double ?? 0.0))
+                            .bold()
                     }
 
                     HStack {

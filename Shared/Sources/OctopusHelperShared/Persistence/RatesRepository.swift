@@ -150,7 +150,7 @@ public final class RatesRepository: ObservableObject {
         }
 
         // Phase 2: Start background task for smart pagination
-        Task.detached(priority: .utility) { [weak self] in
+        backgroundFetchTask = Task.detached(priority: .utility) { [weak self] in
             guard let self = self else { return }
             do {
                 print("fetchAndStoreRates: 🔄 Starting phase 2 (background) with smart pagination")
@@ -536,5 +536,14 @@ public final class RatesRepository: ObservableObject {
         
         // Construct the rates URL using OctopusAPIClient's base URL
         return "\(apiClient.apiBaseURL)/products/\(effectiveProductCode)/electricity-tariffs/\(tariffCode)/standard-unit-rates/"
+    }
+
+    private var backgroundFetchTask: Task<Void, Error>?
+    
+    /// Wait for any ongoing background fetch to complete
+    public func waitForBackgroundFetch() async throws {
+        if let task = backgroundFetchTask {
+            try await task.value
+        }
     }
 }

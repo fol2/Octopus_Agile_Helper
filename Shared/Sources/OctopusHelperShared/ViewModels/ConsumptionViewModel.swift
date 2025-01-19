@@ -3,77 +3,13 @@ import CoreData
 import Foundation
 import SwiftUI
 
-// --------------------------------------------
-// FIX #1: Provide a local FetchStatus for consumption
-// If you prefer to share RatesViewModel's enum, you'll need to import it or
-// define a separate file. This local enum matches your usage:
-public enum FetchStatus {
-    case none
-    case fetching
-    case done
-    case failed
-    case pending
-}
-// --------------------------------------------
-
-/// Represents the combined fetch status of all data sources
-public enum CombinedFetchStatus: Equatable {
-    case none
-    case fetching(sources: Set<String>)
-    case done(source: String)
-    case failed(source: String, error: Error?)
-    case pending(sources: Set<String>)
-    
-    public var displayText: String {
-        switch self {
-        case .none:
-            return ""
-        case .fetching(let sources):
-            return sources.count > 1 ? "Updating Multiple..." : "Updating \(sources.first!)..."
-        case .done(let source):
-            return "\(source) Updated"
-        case .failed(let source, _):
-            return "\(source) Failed"
-        case .pending(let sources):
-            return sources.count > 1 ? "Pending Updates..." : "Pending \(sources.first!)..."
-        }
-    }
-    
-    public var color: Color {
-        switch self {
-        case .none: return .clear
-        case .fetching: return .blue
-        case .done: return .green
-        case .failed: return .red
-        case .pending: return .orange
-        }
-    }
-    
-    public static func == (lhs: CombinedFetchStatus, rhs: CombinedFetchStatus) -> Bool {
-        switch (lhs, rhs) {
-        case (.none, .none):
-            return true
-        case (.fetching(let s1), .fetching(let s2)):
-            return s1 == s2
-        case (.done(let s1), .done(let s2)):
-            return s1 == s2
-        case (.failed(let s1, _), .failed(let s2, _)):
-            return s1 == s2
-        case (.pending(let s1), .pending(let s2)):
-            return s1 == s2
-        default:
-            return false
-        }
-    }
-}
-
-/// Protocol defining the interface for consumption view models
+/// We'll remove all references to local/combined enums and adopt DataFetchState
 public protocol ConsumptionViewModeling: ObservableObject {
     var isLoading: Bool { get }
     var consumptionRecords: [NSManagedObject] { get }
     var minInterval: Date? { get }
     var maxInterval: Date? { get }
-    var fetchStatus: FetchStatus { get }
+    var fetchState: DataFetchState { get }
     var error: Error? { get }
     
     func loadData() async
@@ -87,7 +23,7 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     @Published public private(set) var consumptionRecords: [NSManagedObject] = []
     @Published public private(set) var minInterval: Date?
     @Published public private(set) var maxInterval: Date?
-    @Published public private(set) var fetchStatus: FetchStatus = .none
+    @Published public private(set) var fetchState: DataFetchState = .idle
     @Published public private(set) var error: Error?
     
     private let repository: ElectricityConsumptionRepository
@@ -107,22 +43,22 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     
     /// Loads existing data from Core Data
     public func loadData() async {
-        error = nil
+        self.error = nil
         
         // Skip if we don't have account info
         guard hasValidAccountInfo else {
-            fetchStatus = .none
+            fetchState = .idle
             return
         }
         
-        fetchStatus = .fetching  // Set status to fetching at start
+        fetchState = .loading
         
         do {
             let allData = try await repository.fetchAllRecords()
             consumptionRecords = allData
             minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
-            if case .failed = fetchStatus {
-                fetchStatus = .fetching
+            if self.fetchState.isFailure {
+                fetchState = .loading
             }
             maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
             
@@ -131,21 +67,21 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             
             // If after noon AND missing data, immediately try to fetch
             if hour >= 12 && !repository.hasDataThroughExpectedTime() {
-                // Directly call refreshDataFromAPI instead of just setting pending
+                // Directly call refreshDataFromAPI instead of just setting partial
                 await refreshDataFromAPI(force: true)  // Force fetch immediately
             } else {
-                fetchStatus = .none
+                fetchState = .success
             }
         } catch {
             self.error = error
             print("DEBUG: Error loading consumption data: \(error)")
-            fetchStatus = .failed
+            fetchState = .failure(error)
             
-            // If we fail to load data, set to pending after delay
+            // If we fail to load data, set to partial after delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                if self.fetchStatus == .failed {
+                if self.fetchState.isFailure {
                     withAnimation(.easeInOut(duration: 0.35)) {
-                        self.fetchStatus = .pending  // Set to pending if we failed
+                        self.fetchState = .partial
                     }
                 }
             }
@@ -159,16 +95,16 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
 
         // Skip if we don't have account info
         guard hasValidAccountInfo else {
-            fetchStatus = .none
+            fetchState = .idle
             return
         }
 
-        // Always set fetching status when starting a refresh
+        // Always set loading status when starting a refresh
         if force || (hour >= 12 && !repository.hasDataThroughExpectedTime()) {
             withAnimation(.easeInOut(duration: 0.2)) {
-                fetchStatus = .fetching
-                if case .failed = fetchStatus {
-                    fetchStatus = .fetching
+                fetchState = .loading
+                if self.fetchState.isFailure {
+                    fetchState = .loading
                 }
                 isLoading = true
             }
@@ -182,28 +118,28 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
                 
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    fetchStatus = .done
+                    fetchState = .success
                 }
                 
-                // After success, return to none after delay
+                // After success, return to idle after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    if self.fetchStatus == .done {
+                    if case .success = self.fetchState {
                         withAnimation(.easeInOut(duration: 0.35)) {
-                            self.fetchStatus = .none
+                            self.fetchState = .idle
                         }
                     }
                 }
             } catch {
                 self.error = error
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    fetchStatus = .failed
+                    fetchState = .failure(error)
                 }
                 
-                // If fetch fails, set to pending after delay
+                // If fetch fails, set to idle after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    if self.fetchStatus == .failed {
+                    if self.fetchState.isFailure {
                         withAnimation(.easeInOut(duration: 0.35)) {
-                            self.fetchStatus = .pending  // Always go to pending after failure
+                            self.fetchState = .idle  // or .partial
                         }
                     }
                 }
