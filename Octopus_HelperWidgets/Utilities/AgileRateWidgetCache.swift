@@ -119,31 +119,31 @@ public class AgileRateWidgetCache {
     
     /// Internal fetch implementation
     private func fetchRates(tariffCode: String, pastHours: Int) async throws -> [NSManagedObject] {
-        print("CACHE: Internal fetch for tariff: \(tariffCode)")
+        DebugLogger.debug("Internal fetch for tariff: \(tariffCode)", component: .widgetCache)
         let now = Date()
         
         // If tariff code changed, clear the cache and try immediate refresh
         if let cache = cache, cache.tariffCode != tariffCode {
-            print("CACHE: Tariff code changed from \(cache.tariffCode) to \(tariffCode)")
+            DebugLogger.debug("Tariff code changed from \(cache.tariffCode) to \(tariffCode)", component: .widgetCache)
             clearCache()
             
             // Try to fetch new data
             do {
                 // First check CoreData
-                print("CACHE: Checking CoreData after tariff change")
+                DebugLogger.debug("Checking CoreData after tariff change", component: .widgetCache)
                 let localRates = try await repository.fetchRatesByTariffCode(
                     tariffCode,
                     pastHours: pastHours
                 )
                 
                 if !localRates.isEmpty && isCacheDataSufficient(rates: localRates, now: now) {
-                    print("CACHE: Found sufficient data in CoreData after tariff change")
+                    DebugLogger.debug("Found sufficient data in CoreData after tariff change", component: .widgetCache)
                     updateCache(rates: localRates, tariffCode: tariffCode)
                     return localRates
                 }
                 
                 // If CoreData insufficient, try API
-                print("CACHE: CoreData insufficient after tariff change, fetching from API")
+                DebugLogger.debug("CoreData insufficient after tariff change, fetching from API", component: .widgetCache)
                 try await repository.fetchAndStoreRates(tariffCode: tariffCode)
                 let rates = try await repository.fetchRatesByTariffCode(
                     tariffCode,
@@ -151,74 +151,74 @@ public class AgileRateWidgetCache {
                 )
                 
                 if !rates.isEmpty && isCacheDataSufficient(rates: rates, now: now) {
-                    print("CACHE: Caching \(rates.count) rates after tariff change")
+                    DebugLogger.debug("Caching \(rates.count) rates after tariff change", component: .widgetCache)
                     updateCache(rates: rates, tariffCode: tariffCode)
                     return rates
                 }
                 
-                print("CACHE: New data after tariff change is insufficient")
+                DebugLogger.debug("New data after tariff change is insufficient", component: .widgetCache)
                 throw AgileRateWidgetCacheError.localDataIncomplete
             } catch {
-                print("CACHE: Failed to fetch new data after tariff change: \(error)")
+                DebugLogger.debug("Failed to fetch new data after tariff change: \(error)", component: .widgetCache)
                 throw AgileRateWidgetCacheError.fetchFailed(error)
             }
         }
         
         // Check if we have valid cached data
         if let entry = cache {
-            print("CACHE: Found cached data with \(entry.rates.count) rates")
+            DebugLogger.debug("Found cached data with \(entry.rates.count) rates", component: .widgetCache)
             if isCacheFresh(entry, now: now) && isCacheDataSufficient(rates: entry.rates, now: now) {
-                print("CACHE: Cache is fresh and sufficient")
+                DebugLogger.debug("Cache is fresh and sufficient", component: .widgetCache)
                 let filteredRates = filterRatesForTimeWindow(rates: entry.rates, pastHours: pastHours)
                 return filteredRates
             }
-            print("CACHE: Cache stale or insufficient, will check CoreData")
+            DebugLogger.debug("Cache stale or insufficient, will check CoreData", component: .widgetCache)
         } else {
-            print("CACHE: No cached data available")
+            DebugLogger.debug("No cached data available", component: .widgetCache)
         }
         
         // Try CoreData
         do {
-            print("CACHE: Fetching from CoreData")
+            DebugLogger.debug("Fetching from CoreData", component: .widgetCache)
             let localRates = try await repository.fetchRatesByTariffCode(
                 tariffCode,
                 pastHours: pastHours
             )
             
             if !localRates.isEmpty && isCacheDataSufficient(rates: localRates, now: now) {
-                print("CACHE: Found sufficient data in CoreData")
+                DebugLogger.debug("Found sufficient data in CoreData", component: .widgetCache)
                 updateCache(rates: localRates, tariffCode: tariffCode)
                 return localRates
             }
             
-            print("CACHE: CoreData data insufficient, fetching from API")
+            DebugLogger.debug("CoreData data insufficient, fetching from API", component: .widgetCache)
         } catch {
-            print("CACHE: Failed to fetch from CoreData: \(error)")
-            print("CACHE: Will try API fetch")
+            DebugLogger.debug("Failed to fetch from CoreData: \(error)", component: .widgetCache)
+            DebugLogger.debug("Will try API fetch", component: .widgetCache)
         }
         
         // Fetch from API as last resort
         do {
-            print("CACHE: Fetching fresh data from API")
+            DebugLogger.debug("Fetching fresh data from API", component: .widgetCache)
             try await repository.fetchAndStoreRates(tariffCode: tariffCode)
             
-            print("CACHE: Fetching updated data from CoreData")
+            DebugLogger.debug("Fetching updated data from CoreData", component: .widgetCache)
             let rates = try await repository.fetchRatesByTariffCode(
                 tariffCode,
                 pastHours: pastHours
             )
             
             if !rates.isEmpty && isCacheDataSufficient(rates: rates, now: now) {
-                print("CACHE: Caching \(rates.count) fresh rates")
+                DebugLogger.debug("Caching \(rates.count) fresh rates", component: .widgetCache)
                 updateCache(rates: rates, tariffCode: tariffCode)
                 return rates
             }
             
-            print("CACHE: Fresh data insufficient")
+            DebugLogger.debug("Fresh data insufficient", component: .widgetCache)
             throw AgileRateWidgetCacheError.noDataAvailable
             
         } catch {
-            print("CACHE: Failed to fetch fresh data: \(error)")
+            DebugLogger.debug("Failed to fetch fresh data: \(error)", component: .widgetCache)
             throw AgileRateWidgetCacheError.fetchFailed(error)
         }
     }
@@ -335,15 +335,15 @@ public class AgileRateWidgetCache {
         tariffCode: String,
         pastHours: Int = 21  // Default to 21 hours (42 rates × 30min)
     ) async throws -> [NSManagedObject] {
-        print("CACHE: Checking rates for tariff: \(tariffCode)")
+        DebugLogger.debug("Checking rates for tariff: \(tariffCode)", component: .widgetCache)
         
         // If there's an existing fetch task, wait for it
         if let existingTask = currentFetchTask {
-            print("CACHE: Waiting for existing fetch task")
+            DebugLogger.debug("Waiting for existing fetch task", component: .widgetCache)
             do {
                 return try await existingTask.value
             } catch {
-                print("CACHE: Existing task failed: \(error)")
+                DebugLogger.debug("Existing task failed: \(error)", component: .widgetCache)
                 // Let it fall through to start a new task
             }
         }
@@ -368,10 +368,10 @@ public class AgileRateWidgetCache {
         do {
             // Wait for the task and get result
             let result = try await task.value
-            print("CACHE: Fetch task completed successfully")
+            DebugLogger.debug("Fetch task completed successfully", component: .widgetCache)
             return result
         } catch {
-            print("CACHE: Fetch task failed: \(error)")
+            DebugLogger.debug("Fetch task failed: \(error)", component: .widgetCache)
             throw error
         }
     }

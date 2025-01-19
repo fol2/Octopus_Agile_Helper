@@ -12,6 +12,15 @@ import WidgetKit
 import Charts
 import CoreData
 
+/// Set to true to enable debug logging in the widget
+// fileprivate let isDebugLoggingEnabled = false
+
+/// Helper function for debug logging
+// fileprivate func debugLog(_ message: String, function: String = #function) {
+//     guard isDebugLoggingEnabled else { return }
+//     print("WIDGET DEBUG [\(function)]: \(message)")
+// }
+
 // Provide a stable string ID for each NSManagedObject (RateEntity).
 extension NSManagedObject {
     /// Returns the existing `id` attribute, or a fallback UUID string if missing.
@@ -53,14 +62,14 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         
         // Initialize cache with current tariff code
         let userSettings = readSettings()
-        print("WIDGET: Initializing with tariff code: \(userSettings.agileCode)")
+        DebugLogger.debug("Initializing with tariff code: \(userSettings.agileCode)", component: .widget)
         Task {
             try? await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
         }
     }
 
     func placeholder(in context: Context) -> SimpleEntry {
-        print("WIDGET: Creating placeholder entry")
+        DebugLogger.debug("Creating placeholder entry", component: .widget)
         let userSettings = readSettings()
         
         return SimpleEntry(
@@ -73,14 +82,14 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        print("WIDGET: Creating snapshot")
+        DebugLogger.debug("Creating snapshot", component: .widget)
         let userSettings = readSettings()
         
         // Use widgetFetchAndCacheRates to get data (will use cache if sufficient)
         do {
-            print("WIDGET: Fetching rates for snapshot with tariff: \(userSettings.agileCode)")
+            DebugLogger.debug("Fetching rates for snapshot with tariff: \(userSettings.agileCode)", component: .widget)
             let rates = try await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
-            print("WIDGET: Got \(rates.count) rates for snapshot")
+            DebugLogger.debug("Got \(rates.count) rates for snapshot", component: .widget)
             return SimpleEntry(
                 date: .now,
                 configuration: configuration,
@@ -89,7 +98,7 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 chartSettings: chartSettings
             )
         } catch {
-            print("WIDGET: Error fetching rates for snapshot: \(error)")
+            DebugLogger.debug("Error fetching rates for snapshot: \(error)", component: .widget)
             return SimpleEntry(
                 date: .now,
                 configuration: configuration,
@@ -101,14 +110,14 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        print("WIDGET: Building timeline")
+        DebugLogger.debug("Building timeline", component: .widget)
         do {
             let userSettings = readSettings()
-            print("WIDGET: Fetching rates for timeline with tariff: \(userSettings.agileCode)")
+            DebugLogger.debug("Fetching rates for timeline with tariff: \(userSettings.agileCode)", component: .widget)
             
             // Use widgetFetchAndCacheRates to get data (will use cache if sufficient)
             let rates = try await cache.widgetFetchAndCacheRates(tariffCode: userSettings.agileCode)
-            print("WIDGET: Got \(rates.count) rates for timeline")
+            DebugLogger.debug("Got \(rates.count) rates for timeline", component: .widget)
             
             // Build timeline entries using the rate data
             let now = Date()
@@ -118,15 +127,15 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
                 now: now,
                 agileCode: userSettings.agileCode
             )
-            print("WIDGET: Built \(entries.count) timeline entries")
+            DebugLogger.debug("Built \(entries.count) timeline entries", component: .widget)
             
             // Refresh at the next half-hour boundary
             let nextRefresh = nextHalfHour(from: now)
-            print("WIDGET: Next refresh at \(nextRefresh.formatted())")
+            DebugLogger.debug("Next refresh at \(nextRefresh.formatted())", component: .widget)
             return Timeline(entries: entries, policy: .after(nextRefresh))
         } catch {
-            print("WIDGET: Error building timeline: \(error)")
-            print("WIDGET: Will retry in 15 minutes")
+            DebugLogger.debug("Error building timeline: \(error)", component: .widget)
+            DebugLogger.debug("Will retry in 15 minutes", component: .widget)
             // For all errors, retry in 15 minutes
             return Timeline(
                 entries: [buildErrorEntry(configuration: configuration)],
@@ -341,7 +350,7 @@ struct CurrentRateWidget: View {
         let prices = filteredRatesForChart.map { ($0.value(forKey: "value_including_vat") as? Double) ?? 0 }
         guard !prices.isEmpty else { return (0, 10) }
         let minVal = min(0, (prices.min() ?? 0) - 2)
-        let maxVal = (prices.max() ?? 0) + 10
+        let maxVal = (prices.max() ?? 0) + 2
         return (minVal, maxVal)
     }
 
@@ -593,8 +602,8 @@ struct CurrentRateWidget: View {
             RectangleMark(
                 xStart: .value("Window Start", window.0),
                 xEnd: .value("Window End", window.1),
-                yStart: .value("Min", minVal),
-                yEnd: .value("Max", maxVal)
+                yStart: .value("Min", minVal - 50),
+                yEnd: .value("Max", maxVal + 50)
             )
             .foregroundStyle(Theme.mainColor.opacity(0.2))
         }
