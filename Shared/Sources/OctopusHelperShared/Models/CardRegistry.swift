@@ -45,6 +45,7 @@ public enum CardType: String, Codable, CaseIterable, Equatable {
     case averageUpcoming
     case interactiveChart
     case electricityConsumption
+    case accountTariff
 }
 
 /// Identifies a single card's metadata and how to produce its SwiftUI view
@@ -101,16 +102,16 @@ public final class CardRegistry: ObservableObject {
     // A dictionary mapping CardType -> CardDefinition
     private var definitions: [CardType: CardDefinition] = [:]
     private var timer: GlobalTimer?
-    
+
     @Published public private(set) var isReady: Bool = false
-    
+
     private init() {
         // Register all cards automatically on initialization
         registerAllCards()
         // Set ready state after initialization
         self.isReady = true
     }
-    
+
     public func updateTimer(_ timer: GlobalTimer) {
         self.timer = timer
     }
@@ -193,7 +194,8 @@ public final class CardRegistry: ObservableObject {
             CardDefinition(
                 id: .averageUpcoming,
                 displayNameKey: "Average Upcoming Rates",
-                descriptionKey: "Shows the average cost over selected periods or the next 10 lowest windows.",
+                descriptionKey:
+                    "Shows the average cost over selected periods or the next 10 lowest windows.",
                 isPremium: true,
                 makeView: { [self] vm in makeRatesView(vm, .averageUpcoming) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
@@ -206,7 +208,8 @@ public final class CardRegistry: ObservableObject {
                     ),
                     MediaItem(
                         localName: "imgAvgRateInfo2",
-                        caption: LocalizedStringKey("You can choose length of period to average and how many rates to show")
+                        caption: LocalizedStringKey(
+                            "You can choose length of period to average and how many rates to show")
                     ),
                 ],
                 supportedPlans: [.agile]
@@ -226,11 +229,15 @@ public final class CardRegistry: ObservableObject {
                 mediaItems: [
                     MediaItem(
                         localName: "imgChartRateInfo",
-                        caption: LocalizedStringKey("An interactive chart to see rates over time, also shows best time ranges")
+                        caption: LocalizedStringKey(
+                            "An interactive chart to see rates over time, also shows best time ranges"
+                        )
                     ),
                     MediaItem(
                         localName: "imgChartRateInfo2",
-                        caption: LocalizedStringKey("You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards")
+                        caption: LocalizedStringKey(
+                            "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards"
+                        )
                     ),
                 ],
                 supportedPlans: [.agile]
@@ -253,6 +260,24 @@ public final class CardRegistry: ObservableObject {
                 supportedPlans: [.any]
             )
         )
+
+        register(
+            CardDefinition(
+                id: .accountTariff,
+                displayNameKey: "Account Tariff",
+                descriptionKey:
+                    "View your account's tariff costs with daily, weekly, and monthly breakdowns.",
+                isPremium: true,
+                makeView: { [self] vm in makeRatesView(vm, .accountTariff) },
+                makeWidgetView: { _ in AnyView(EmptyView()) },
+                iconName: "chart.bar.doc.horizontal",
+                defaultIsEnabled: false,
+                defaultIsPurchased: false,
+                defaultSortOrder: 7,
+                mediaItems: [],
+                supportedPlans: [.any]
+            )
+        )
     }
 
     public func register(_ definition: CardDefinition) {
@@ -267,27 +292,29 @@ public final class CardRegistry: ObservableObject {
     // Helper function for safe view model casting
     private func makeRatesView(_ vm: Any, _ viewType: CardType) -> AnyView {
         switch viewType {
-            case .electricityConsumption:
-                if let viewModel = vm as? ConsumptionViewModel {
-                    return AnyView(ElectricityConsumptionCardView(viewModel: viewModel))
+        case .electricityConsumption:
+            if let viewModel = vm as? ConsumptionViewModel {
+                return AnyView(ElectricityConsumptionCardView(viewModel: viewModel))
+            }
+        default:
+            if let viewModel = vm as? RatesViewModel {
+                switch viewType {
+                case .currentRate:
+                    return AnyView(CurrentRateCardView(viewModel: viewModel))
+                case .lowestUpcoming:
+                    return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
+                case .highestUpcoming:
+                    return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
+                case .averageUpcoming:
+                    return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
+                case .interactiveChart:
+                    return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
+                case .accountTariff:
+                    return AnyView(AccountTariffCardView(viewModel: viewModel))
+                case .electricityConsumption:
+                    break
                 }
-            default:
-                if let viewModel = vm as? RatesViewModel {
-                    switch viewType {
-                        case .currentRate:
-                            return AnyView(CurrentRateCardView(viewModel: viewModel))
-                        case .lowestUpcoming:
-                            return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
-                        case .highestUpcoming:
-                            return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
-                        case .averageUpcoming:
-                            return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
-                        case .interactiveChart:
-                            return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
-                        case .electricityConsumption:
-                            break
-                    }
-                }
+            }
         }
         return AnyView(
             Text("Error: Invalid view model type")
@@ -300,10 +327,10 @@ public final class CardRegistry: ObservableObject {
     @MainActor
     public func createViewModel(for type: CardType) -> Any {
         switch type {
-            case .electricityConsumption:
-                return ConsumptionViewModel()
-            default:
-                return RatesViewModel(globalTimer: timer ?? GlobalTimer())
+        case .electricityConsumption:
+            return ConsumptionViewModel()
+        default:
+            return RatesViewModel(globalTimer: timer ?? GlobalTimer())
         }
     }
 }

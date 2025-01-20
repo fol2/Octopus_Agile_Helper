@@ -82,7 +82,13 @@ public struct ContentView: View {
                             if let definition = CardRegistry.shared.definition(for: config.cardType)
                             {
                                 if config.isPurchased || !definition.isPremium {
-                                    if config.cardType == .currentRate || config.cardType == .lowestUpcoming || config.cardType == .highestUpcoming || config.cardType == .averageUpcoming || config.cardType == .interactiveChart {
+                                    if config.cardType == .currentRate
+                                        || config.cardType == .lowestUpcoming
+                                        || config.cardType == .highestUpcoming
+                                        || config.cardType == .averageUpcoming
+                                        || config.cardType == .interactiveChart
+                                        || config.cardType == .accountTariff
+                                    {
                                         // Use the same ratesVM for all rate-related cards
                                         definition.makeView(ratesVM)
                                     } else if let vm = cardViewModels[config.cardType] {
@@ -126,7 +132,8 @@ public struct ContentView: View {
                         NavigationLink {
                             SettingsView(didFinishEditing: {
                                 Task {
-                                    await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                                    await ratesVM.setAgileProductFromAccountOrFallback(
+                                        globalSettings: globalSettings)
                                     if !ratesVM.currentAgileCode.isEmpty {
                                         await ratesVM.initializeProducts()
                                     }
@@ -152,7 +159,10 @@ public struct ContentView: View {
             }
             .refreshable {
                 await withTaskGroup(of: Void.self) { group in
-                    group.addTask { await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true) }
+                    group.addTask {
+                        await ratesVM.refreshRates(
+                            productCode: ratesVM.currentAgileCode, force: true)
+                    }
                     group.addTask { await consumptionVM.refreshDataFromAPI(force: true) }
                 }
             }
@@ -187,7 +197,7 @@ public struct ContentView: View {
                         }
                     }
                 }
-                
+
                 // Check consumption at 12:00 (noon)
                 // This is when we start expecting previous day's data
                 if hour == 12, minute == 0, second == 0 {
@@ -214,19 +224,20 @@ public struct ContentView: View {
     // MARK: - Helper Methods
     private var aggregateColor: Color {
         // If no API key/account info, only consider rates state
-        let hasAccountInfo = !globalSettings.settings.apiKey.isEmpty && 
-                           globalSettings.settings.electricityMPAN != nil && 
-                           globalSettings.settings.electricityMeterSerialNumber != nil
+        let hasAccountInfo =
+            !globalSettings.settings.apiKey.isEmpty
+            && globalSettings.settings.electricityMPAN != nil
+            && globalSettings.settings.electricityMeterSerialNumber != nil
 
         switch (ratesVM.fetchState, consumptionVM.fetchState) {
         case (.failure(_), _),
-             (_, .failure(_)) where hasAccountInfo:
+            (_, .failure(_)) where hasAccountInfo:
             return .red
         case (.loading, _),
-             (_, .loading) where hasAccountInfo:
+            (_, .loading) where hasAccountInfo:
             return .blue
         case (.partial, _),
-             (_, .partial) where hasAccountInfo:
+            (_, .partial) where hasAccountInfo:
             return .orange
         case (.success, _) where !hasAccountInfo:
             // Only check rates success if no account info

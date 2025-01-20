@@ -11,7 +11,7 @@ public protocol ConsumptionViewModeling: ObservableObject {
     var maxInterval: Date? { get }
     var fetchState: DataFetchState { get }
     var error: Error? { get }
-    
+
     func loadData() async
     func refreshDataFromAPI(force: Bool) async
 }
@@ -25,58 +25,79 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     @Published public private(set) var maxInterval: Date?
     @Published public private(set) var fetchState: DataFetchState = .idle
     @Published public private(set) var error: Error?
-    
+
     private let repository: ElectricityConsumptionRepository
     private let globalSettingsManager = GlobalSettingsManager()
-    
+
     public init() {
         self.repository = ElectricityConsumptionRepository.shared
     }
-    
+
     /// Checks if we have the necessary account information to fetch consumption data
     private var hasValidAccountInfo: Bool {
         let settings = globalSettingsManager.settings
-        return !settings.apiKey.isEmpty && 
-               !(settings.electricityMPAN ?? "").isEmpty && 
-               !(settings.electricityMeterSerialNumber ?? "").isEmpty
+        return !settings.apiKey.isEmpty && !(settings.electricityMPAN ?? "").isEmpty
+            && !(settings.electricityMeterSerialNumber ?? "").isEmpty
     }
-    
+
     /// Loads existing data from Core Data
     public func loadData() async {
         self.error = nil
-        
+
         // Skip if we don't have account info
         guard hasValidAccountInfo else {
             fetchState = .idle
             return
         }
-        
-        fetchState = .loading
-        
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            fetchState = .loading
+            isLoading = true
+        }
+
         do {
             let allData = try await repository.fetchAllRecords()
             consumptionRecords = allData
             minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
-            if self.fetchState.isFailure {
-                fetchState = .loading
-            }
             maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
-            
+
+            // If we have no data but have account info, immediately try to fetch
+            if allData.isEmpty {
+                print("DEBUG: No consumption records found, initiating fetch")
+                await refreshDataFromAPI(force: true)
+                return
+            }
+
             let calendar = Calendar.current
             let hour = calendar.component(.hour, from: Date())
-            
+
             // If after noon AND missing data, immediately try to fetch
             if hour >= 12 && !repository.hasDataThroughExpectedTime() {
-                // Directly call refreshDataFromAPI instead of just setting partial
-                await refreshDataFromAPI(force: true)  // Force fetch immediately
+                print("DEBUG: Missing expected data, initiating fetch")
+                await refreshDataFromAPI(force: true)
             } else {
-                fetchState = .success
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    fetchState = .success
+                    isLoading = false
+                }
+
+                // After success, return to idle after delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    if case .success = self.fetchState {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            self.fetchState = .idle
+                        }
+                    }
+                }
             }
         } catch {
             self.error = error
             print("DEBUG: Error loading consumption data: \(error)")
-            fetchState = .failure(error)
-            
+            withAnimation(.easeInOut(duration: 0.2)) {
+                fetchState = .failure(error)
+                isLoading = false
+            }
+
             // If we fail to load data, set to partial after delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 if self.fetchState.isFailure {
@@ -87,7 +108,7 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             }
         }
     }
-    
+
     /// Manually triggers an update from the Octopus API
     public func refreshDataFromAPI(force: Bool = false) async {
         let calendar = Calendar.current
@@ -109,18 +130,19 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 isLoading = true
             }
             error = nil
-            
+
             do {
                 try await repository.updateConsumptionData()
                 let allData = try await repository.fetchAllRecords()
                 consumptionRecords = allData
-                minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
+                minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }
+                    .min()
                 maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
-                
+
                 withAnimation(.easeInOut(duration: 0.2)) {
                     fetchState = .success
                 }
-                
+
                 // After success, return to idle after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if case .success = self.fetchState {
@@ -134,7 +156,7 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 withAnimation(.easeInOut(duration: 0.2)) {
                     fetchState = .failure(error)
                 }
-                
+
                 // If fetch fails, set to idle after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     if self.fetchState.isFailure {
@@ -144,13 +166,13 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                     }
                 }
             }
-            
+
             withAnimation(.easeInOut(duration: 0.2)) {
                 isLoading = false
             }
         }
     }
-    
+
     public var hasData: Bool {
         !consumptionRecords.isEmpty
     }

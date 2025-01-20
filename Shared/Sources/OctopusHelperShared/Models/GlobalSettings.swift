@@ -136,6 +136,10 @@ public struct GlobalSettings: Codable, Equatable {
     /// Optionally store the entire account JSON (raw) for reference or debugging
     public var accountData: Data?
 
+    // New fields for tariff view preferences
+    public var selectedTariffInterval: String
+    public var lastViewedTariffDates: [String: Date]
+
     /// The effective region to use for API calls - returns "H" if regionInput is empty
     public var effectiveRegion: String {
         let cleaned = regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -171,7 +175,9 @@ public struct GlobalSettings: Codable, Equatable {
         electricityMPAN: String? = nil,
         electricityMeterSerialNumber: String? = nil,
         accountNumber: String? = nil,
-        accountData: Data? = nil
+        accountData: Data? = nil,
+        selectedTariffInterval: String = "DAILY",
+        lastViewedTariffDates: [String: Date] = [:]
     ) {
         self.regionInput = regionInput
         self.apiKey = apiKey
@@ -184,6 +190,8 @@ public struct GlobalSettings: Codable, Equatable {
         self.electricityMeterSerialNumber = electricityMeterSerialNumber
         self.accountNumber = accountNumber
         self.accountData = accountData
+        self.selectedTariffInterval = selectedTariffInterval
+        self.lastViewedTariffDates = lastViewedTariffDates
     }
 
     // MARK: - Equatable
@@ -196,6 +204,8 @@ public struct GlobalSettings: Codable, Equatable {
             && lhs.electricityMPAN == rhs.electricityMPAN
             && lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber
             && lhs.accountNumber == rhs.accountNumber && lhs.accountData == rhs.accountData
+            && lhs.selectedTariffInterval == rhs.selectedTariffInterval
+            && lhs.lastViewedTariffDates == rhs.lastViewedTariffDates
     }
 }
 
@@ -212,7 +222,9 @@ extension GlobalSettings {
         electricityMPAN: nil,
         electricityMeterSerialNumber: nil,
         accountNumber: nil,
-        accountData: nil
+        accountData: nil,
+        selectedTariffInterval: "DAILY",
+        lastViewedTariffDates: [:]
     )
 }
 
@@ -274,7 +286,9 @@ public class GlobalSettingsManager: ObservableObject {
                 electricityMPAN: nil,
                 electricityMeterSerialNumber: nil,
                 accountNumber: nil,
-                accountData: nil
+                accountData: nil,
+                selectedTariffInterval: "DAILY",
+                lastViewedTariffDates: [:]
             )
             self.locale = matchedLanguage.locale
         }
@@ -353,6 +367,8 @@ public class GlobalSettingsManager: ObservableObject {
                 settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
             sharedDefaults?.set(settings.accountNumber, forKey: "account_number")
             sharedDefaults?.set(settings.accountData, forKey: "account_data")
+            sharedDefaults?.set(settings.selectedTariffInterval, forKey: "selected_tariff_interval")
+            sharedDefaults?.set(settings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
 
             // Notify widget of changes
             #if !WIDGET

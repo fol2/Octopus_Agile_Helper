@@ -143,7 +143,6 @@ public final class TariffCalculationRepository: ObservableObject {
         endDate: Date,
         intervalType: String
     ) async throws -> NSManagedObject {
-
         // 1) Gather all relevant consumption in EConsumAgile
         let consumptionRecords = try await fetchConsumption(start: startDate, end: endDate)
 
@@ -166,17 +165,53 @@ public final class TariffCalculationRepository: ObservableObject {
                 let firstStart = firstRecord.value(forKey: "interval_start") as? Date,
                 let lastEnd = lastRecord.value(forKey: "interval_end") as? Date
             {
-
-                // For daily, if we don't have complete coverage, throw insufficientData
-                if firstStart > startDate || lastEnd < endDate {
+                // For daily, if we don't have any overlap with the requested period, throw insufficientData
+                if firstStart > endDate || lastEnd < startDate {
                     throw TariffCalculationError.insufficientData(
                         available: firstStart...lastEnd,
                         requested: startDate...endDate
                     )
                 }
+
+                // Filter records to only include those within our available data range
+                let adjustedStartDate = max(startDate, firstStart)
+                let adjustedEndDate = min(endDate, lastEnd)
+                let filteredRecords = consumptionRecords.filter { record in
+                    guard let recordStart = record.value(forKey: "interval_start") as? Date,
+                        let recordEnd = record.value(forKey: "interval_end") as? Date
+                    else { return false }
+                    return recordStart >= adjustedStartDate && recordEnd <= adjustedEndDate
+                }
+
+                // Continue with the filtered records
+                return try await computeAndStoreCost(
+                    tariffCode: tariffCode,
+                    startDate: adjustedStartDate,
+                    endDate: adjustedEndDate,
+                    intervalType: intervalType,
+                    consumptionRecords: filteredRecords
+                )
             }
         }
 
+        // For non-daily intervals or if we don't have any records to filter
+        return try await computeAndStoreCost(
+            tariffCode: tariffCode,
+            startDate: startDate,
+            endDate: endDate,
+            intervalType: intervalType,
+            consumptionRecords: consumptionRecords
+        )
+    }
+
+    /// Helper function to compute and store cost calculation
+    private func computeAndStoreCost(
+        tariffCode: String,
+        startDate: Date,
+        endDate: Date,
+        intervalType: String,
+        consumptionRecords: [NSManagedObject]
+    ) async throws -> NSManagedObject {
         // 2) Gather all rates for the same tariff code
         let rateEntities = try await fetchRates(
             tariffCode: tariffCode, start: startDate, end: endDate)
@@ -227,10 +262,10 @@ public final class TariffCalculationRepository: ObservableObject {
             entity.setValue(standingIncVAT, forKey: "standing_charge_cost_inc_vat")
 
             // Calculate average unit rates
-            let netRateExc = totalKWh > 0.0 ? (totalCostExcVAT - standingExcVAT) / totalKWh : 0.0
-            let netRateInc = totalKWh > 0.0 ? (totalCostIncVAT - standingIncVAT) / totalKWh : 0.0
-            entity.setValue(netRateExc, forKey: "average_unit_rate_exc_vat")
-            entity.setValue(netRateInc, forKey: "average_unit_rate_inc_vat")
+            let avgRateExc = totalKWh > 0.0 ? (totalCostExcVAT - standingExcVAT) / totalKWh : 0.0
+            let avgRateInc = totalKWh > 0.0 ? (totalCostIncVAT - standingIncVAT) / totalKWh : 0.0
+            entity.setValue(avgRateExc, forKey: "average_unit_rate_exc_vat")
+            entity.setValue(avgRateInc, forKey: "average_unit_rate_inc_vat")
 
             let now = Date()
             entity.setValue(now, forKey: "updated_at")
