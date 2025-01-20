@@ -6,6 +6,7 @@ public enum LogComponent: String {
     case widgetCache = "WIDGET CACHE"
     case ratesViewModel = "RATES VM"
     case ratesRepository = "RATES REPO"
+    case stateChanges = "STATE CHANGES"
     
     var isEnabled: Bool {
         switch self {
@@ -13,6 +14,7 @@ public enum LogComponent: String {
         case .widgetCache: return DebugLogger.isWidgetCacheLoggingEnabled
         case .ratesViewModel: return DebugLogger.isRatesVMLoggingEnabled
         case .ratesRepository: return DebugLogger.isRatesRepoLoggingEnabled
+        case .stateChanges: return DebugLogger.isStateChangesLoggingEnabled
         }
     }
 }
@@ -29,6 +31,7 @@ public final class DebugLogger {
     public static var isWidgetCacheLoggingEnabled = false
     public static var isRatesVMLoggingEnabled = false
     public static var isRatesRepoLoggingEnabled = false
+    public static var isStateChangesLoggingEnabled = false
     
     // MARK: - Logging Methods
     
@@ -69,6 +72,8 @@ public final class DebugLogger {
                 isRatesVMLoggingEnabled = true
             case .ratesRepository:
                 isRatesRepoLoggingEnabled = true
+            case .stateChanges:
+                isStateChangesLoggingEnabled = true
             }
         }
     }
@@ -86,6 +91,8 @@ public final class DebugLogger {
                 isRatesVMLoggingEnabled = false
             case .ratesRepository:
                 isRatesRepoLoggingEnabled = false
+            case .stateChanges:
+                isStateChangesLoggingEnabled = false
             }
         }
         
@@ -93,7 +100,8 @@ public final class DebugLogger {
         if !isWidgetLoggingEnabled && 
            !isWidgetCacheLoggingEnabled && 
            !isRatesVMLoggingEnabled && 
-           !isRatesRepoLoggingEnabled {
+           !isRatesRepoLoggingEnabled &&
+           !isStateChangesLoggingEnabled {
             isDebugLoggingEnabled = false
         }
     }
