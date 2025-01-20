@@ -139,22 +139,23 @@ public struct GlobalSettings: Codable, Equatable {
     /// The effective region to use for API calls - returns "H" if regionInput is empty
     public var effectiveRegion: String {
         let cleaned = regionInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        
+
         // If empty, return default region "H"
         guard !cleaned.isEmpty else { return "H" }
-        
+
         // If it's a single letter A-P, it's already a valid region code
         if cleaned.count == 1 && cleaned >= "A" && cleaned <= "P" {
             return cleaned
         }
-        
+
         // For postcodes, check the cache
         if let cacheData = UserDefaults.standard.data(forKey: "postcode_region_cache"),
-           let cache = try? JSONDecoder().decode([String: String].self, from: cacheData),
-           let region = cache[cleaned] {
+            let cache = try? JSONDecoder().decode([String: String].self, from: cacheData),
+            let region = cache[cleaned]
+        {
             return region
         }
-        
+
         // If no cached result, return "H" as fallback
         return "H"
     }
@@ -187,17 +188,14 @@ public struct GlobalSettings: Codable, Equatable {
 
     // MARK: - Equatable
     public static func == (lhs: GlobalSettings, rhs: GlobalSettings) -> Bool {
-        lhs.regionInput == rhs.regionInput &&
-        lhs.apiKey == rhs.apiKey &&
-        lhs.selectedLanguage == rhs.selectedLanguage &&
-        lhs.showRatesInPounds == rhs.showRatesInPounds &&
-        lhs.showRatesWithVAT == rhs.showRatesWithVAT &&
-        lhs.cardSettings == rhs.cardSettings &&
-        lhs.currentAgileCode == rhs.currentAgileCode &&
-        lhs.electricityMPAN == rhs.electricityMPAN &&
-        lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber &&
-        lhs.accountNumber == rhs.accountNumber &&
-        lhs.accountData == rhs.accountData
+        lhs.regionInput == rhs.regionInput && lhs.apiKey == rhs.apiKey
+            && lhs.selectedLanguage == rhs.selectedLanguage
+            && lhs.showRatesInPounds == rhs.showRatesInPounds
+            && lhs.showRatesWithVAT == rhs.showRatesWithVAT && lhs.cardSettings == rhs.cardSettings
+            && lhs.currentAgileCode == rhs.currentAgileCode
+            && lhs.electricityMPAN == rhs.electricityMPAN
+            && lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber
+            && lhs.accountNumber == rhs.accountNumber && lhs.accountData == rhs.accountData
     }
 }
 
@@ -221,12 +219,22 @@ extension GlobalSettings {
 // MARK: - Manager (ObservableObject)
 public class GlobalSettingsManager: ObservableObject {
     private var isSaving = false
-    
+    private var isLoading = false  // New flag to track loading state
+
     @Published public var settings: GlobalSettings {
         didSet {
-            guard !isSaving else { return }
+            // Skip saving if we're loading or already saving
+            guard !isLoading && !isSaving else { return }
+
             isSaving = true
-            print("GlobalSettingsManager: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)")
+
+            // Only log when regionInput changes
+            if oldValue.regionInput != settings.regionInput {
+                print(
+                    "GlobalSettingsManager: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)"
+                )
+            }
+
             saveSettings()
             if oldValue.selectedLanguage != settings.selectedLanguage {
                 locale = settings.selectedLanguage.locale
@@ -242,6 +250,8 @@ public class GlobalSettingsManager: ObservableObject {
     // MARK: - Initialization
     // -------------------------------------------
     public init() {
+        isLoading = true  // Set loading flag
+
         // 1. Attempt to load from UserDefaults
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
             let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
@@ -269,8 +279,16 @@ public class GlobalSettingsManager: ObservableObject {
             self.locale = matchedLanguage.locale
         }
 
-        // 3. Merge any missing cards
+        // 3. Merge any missing cards without triggering saves
+        let oldSettings = self.settings
         mergeMissingCards()
+
+        // Only save if cards were actually added
+        if oldSettings != self.settings {
+            saveSettings()
+        }
+
+        isLoading = false  // Clear loading flag
     }
 
     // -------------------------------------------
@@ -295,7 +313,6 @@ public class GlobalSettingsManager: ObservableObject {
             if let definition = registry.definition(for: cardType),
                 !existingTypes.contains(cardType)
             {
-
                 let newConfig = CardConfig(
                     id: UUID(),
                     cardType: definition.id,  // or cardType if you prefer
@@ -310,10 +327,6 @@ public class GlobalSettingsManager: ObservableObject {
         }
 
         settings.cardSettings.sort { $0.sortOrder < $1.sortOrder }
-
-        if changed {
-            saveSettings()
-        }
     }
 
     // -------------------------------------------
@@ -323,11 +336,11 @@ public class GlobalSettingsManager: ObservableObject {
         if let encoded = try? JSONEncoder().encode(settings) {
             // Save to standard UserDefaults
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            
+
             // Also save to shared UserDefaults for widget access
             let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
             sharedDefaults?.set(encoded, forKey: "user_settings")
-            
+
             // Also save individual values for easier widget access
             sharedDefaults?.set(settings.regionInput, forKey: "selected_postcode")
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
@@ -336,18 +349,19 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.showRatesWithVAT, forKey: "show_rates_with_vat")
             sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")
             sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
-            sharedDefaults?.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
+            sharedDefaults?.set(
+                settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
             sharedDefaults?.set(settings.accountNumber, forKey: "account_number")
             sharedDefaults?.set(settings.accountData, forKey: "account_data")
-            
+
             // Notify widget of changes
             #if !WIDGET
-            if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
-                let selector = NSSelectorFromString("reloadAllTimelines")
-                if widgetCenter.responds(to: selector) {
-                    widgetCenter.perform(selector)
+                if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
+                    let selector = NSSelectorFromString("reloadAllTimelines")
+                    if widgetCenter.responds(to: selector) {
+                        widgetCenter.perform(selector)
+                    }
                 }
-            }
             #endif
         }
     }
