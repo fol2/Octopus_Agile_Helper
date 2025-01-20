@@ -399,20 +399,10 @@ public struct AccountTariffCardView: View {
         .sheet(isPresented: $showingDetails) {
             NavigationView {
                 AccountTariffDetailView(
-                    tariffVM: tariffVM,
+                    tariffVM: TariffViewModel(),
                     selectedInterval: $selectedInterval,
                     currentDate: $currentDate
                 )
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showingDetails = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(Theme.secondaryTextColor)
-                        }
-                    }
-                }
             }
             .environmentObject(globalSettings)
         }
@@ -582,84 +572,386 @@ public struct AccountTariffCardView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.bottom, 6)
         }
     }
 }
 
 // MARK: - Detail View
 struct AccountTariffDetailView: View {
+    // MARK: - Dependencies
     @ObservedObject var tariffVM: TariffViewModel
     @Binding var selectedInterval: AccountTariffCardView.IntervalType
     @Binding var currentDate: Date
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @Environment(\.dismiss) var dismiss
 
-    var body: some View {
-        List {
+    // MARK: - State
+    @State private var displayedRatesByDate: [(String, TariffViewModel.TariffCalculation)] = []
+    @State private var hasInitiallyLoaded = false
+    @State private var loadedDays: [Date] = []
+    @State private var refreshTrigger = UUID()
+    @State private var forceReRenderToggle = false
+
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM yyyy"  // UK format
+        return formatter
+    }()
+
+    private let monthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter
+    }()
+
+    private var dynamicViewID: String {
+        "account-tariff-detail-\(refreshTrigger)-\(forceReRenderToggle ? 1 : 0)-\(selectedInterval.rawValue)"
+    }
+
+    private func iconName(for interval: AccountTariffCardView.IntervalType) -> String {
+        switch interval {
+        case .daily: return "calendar.day.timeline.left"
+        case .weekly: return "calendar.badge.clock"
+        case .monthly: return "calendar"
+        }
+    }
+
+    // MARK: - Loading Methods
+    private func loadInitialData() async {
+        guard !hasInitiallyLoaded else { return }
+
+        await MainActor.run {
+            hasInitiallyLoaded = true
+        }
+
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfToday = calendar.startOfDay(for: now)
+
+        switch selectedInterval {
+        case .daily:
+            // Load today and last 30 days in descending order
+            var daysToLoad: [Date] = []
+            daysToLoad.append(startOfToday)  // Today first
+            for dayOffset in 1...30 {  // Then past days
+                if let date = calendar.date(byAdding: .day, value: -dayOffset, to: startOfToday) {
+                    daysToLoad.append(date)
+                }
+            }
+            await loadDates(daysToLoad, interval: .daily)
+
+        case .weekly:
+            // Load current week and last 12 weeks in descending order
+            var weeksToLoad: [Date] = []
+            // Current week first
+            let currentWeekStart = calendar.date(
+                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
+            weeksToLoad.append(currentWeekStart)
+
+            // Then past weeks
+            for weekOffset in 1...12 {
+                if let date = calendar.date(
+                    byAdding: .weekOfYear, value: -weekOffset, to: startOfToday)
+                {
+                    let weekStart = calendar.date(
+                        from: calendar.dateComponents(
+                            [.yearForWeekOfYear, .weekOfYear], from: date))!
+                    weeksToLoad.append(weekStart)
+                }
+            }
+            await loadDates(weeksToLoad, interval: .weekly)
+
+        case .monthly:
+            // Load current month and last 6 months in descending order
+            var monthsToLoad: [Date] = []
+            // Current month first
+            let currentMonthStart = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: now))!
+            monthsToLoad.append(currentMonthStart)
+
+            // Then past months
+            for monthOffset in 1...6 {
+                if let date = calendar.date(byAdding: .month, value: -monthOffset, to: startOfToday)
+                {
+                    let monthStart = calendar.date(
+                        from: calendar.dateComponents([.year, .month], from: date))!
+                    monthsToLoad.append(monthStart)
+                }
+            }
+            await loadDates(monthsToLoad, interval: .monthly)
+        }
+    }
+
+    private func loadDates(_ dates: [Date], interval: AccountTariffCardView.IntervalType) async {
+        // Clear existing data when changing intervals
+        await MainActor.run {
+            displayedRatesByDate = []
+            loadedDays = []
+        }
+
+        // Load dates sequentially in descending order (they're already sorted)
+        for date in dates {
+            await loadPeriod(date, interval: interval)
+        }
+
+        // No need to sort as data is already in descending order
+    }
+
+    private func loadPeriod(_ date: Date, interval: AccountTariffCardView.IntervalType) async {
+        let calendar = Calendar.current
+        let periodStart = calendar.startOfDay(for: date)
+
+        // Skip if already loaded
+        if loadedDays.contains(where: { calendar.isDate($0, inSameDayAs: periodStart) }) {
+            return
+        }
+
+        if let accountData = globalSettings.settings.accountData,
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+        {
+            await tariffVM.calculateCosts(
+                for: periodStart,
+                tariffCode: "savedAccount",
+                intervalType: interval.viewModelInterval,
+                accountData: decoded
+            )
+
             if let calculation = tariffVM.currentCalculation {
-                Section("Cost Breakdown") {
-                    DetailRow(
-                        title: "Total Cost (exc. VAT)",
-                        value: "£\(String(format: "%.2f", calculation.costExcVAT/100))"
-                    )
-                    DetailRow(
-                        title: "Total Cost (inc. VAT)",
-                        value: "£\(String(format: "%.2f", calculation.costIncVAT/100))"
-                    )
-                    DetailRow(
-                        title: "Standing Charge (exc. VAT)",
-                        value: "£\(String(format: "%.2f", calculation.standingChargeExcVAT/100))"
-                    )
-                    DetailRow(
-                        title: "Standing Charge (inc. VAT)",
-                        value: "£\(String(format: "%.2f", calculation.standingChargeIncVAT/100))"
-                    )
-                }
+                await MainActor.run {
+                    let dateString: String
+                    switch interval {
+                    case .daily:
+                        dateString = dateFormatter.string(from: periodStart)
+                    case .weekly:
+                        let weekEnd = calendar.date(byAdding: .day, value: 6, to: periodStart)!
+                        dateString =
+                            "\(dateFormatter.string(from: periodStart)) - \(dateFormatter.string(from: weekEnd))"
+                    case .monthly:
+                        dateString = monthFormatter.string(from: periodStart)
+                    }
 
-                Section("Usage") {
-                    DetailRow(
-                        title: "Total Consumption",
-                        value: "\(String(format: "%.1f kWh", calculation.totalKWh))"
-                    )
-                    DetailRow(
-                        title: "Average Rate (exc. VAT)",
-                        value: "\(String(format: "%.2f p/kWh", calculation.averageUnitRateExcVAT))"
-                    )
-                    DetailRow(
-                        title: "Average Rate (inc. VAT)",
-                        value: "\(String(format: "%.2f p/kWh", calculation.averageUnitRateIncVAT))"
-                    )
-                }
-
-                Section("Period") {
-                    DetailRow(
-                        title: "Start",
-                        value: calculation.periodStart.formatted(date: .long, time: .omitted)
-                    )
-                    DetailRow(
-                        title: "End",
-                        value: calculation.periodEnd.formatted(date: .long, time: .omitted)
-                    )
+                    if let existingIndex = displayedRatesByDate.firstIndex(where: {
+                        $0.0 == dateString
+                    }) {
+                        displayedRatesByDate[existingIndex] = (dateString, calculation)
+                    } else {
+                        displayedRatesByDate.append((dateString, calculation))
+                    }
+                    loadedDays.append(periodStart)
                 }
             }
         }
-        .navigationTitle("Account Tariff Details")
+    }
+
+    // MARK: - View Body
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with title and close button
+            HStack {
+                Text("Account Tariff Details")
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.mainTextColor)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .imageScale(.large)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Theme.mainBackground)
+
+            Divider()
+                .padding(.horizontal)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+            // Interval Picker
+            HStack(spacing: 16) {
+                ForEach(AccountTariffCardView.IntervalType.allCases, id: \.self) { interval in
+                    Button(action: {
+                        withAnimation {
+                            selectedInterval = interval
+                            Task {
+                                hasInitiallyLoaded = false
+                                await loadInitialData()
+                            }
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: iconName(for: interval))
+                                .imageScale(.small)
+                            Text(interval.displayName)
+                                .font(Theme.subFont())
+                        }
+                        .foregroundColor(
+                            selectedInterval == interval
+                                ? Theme.mainTextColor : Theme.secondaryTextColor
+                        )
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    selectedInterval == interval
+                                        ? Theme.mainColor.opacity(0.2) : Color.clear)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Theme.mainBackground)
+
+            if displayedRatesByDate.isEmpty {
+                ProgressView("Loading rates...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ratesListView
+            }
+        }
+        .background(Theme.mainBackground)
+        .onAppear {
+            Task {
+                await loadInitialData()
+            }
+        }
+    }
+
+    // MARK: - Subviews
+    private var ratesListView: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(displayedRatesByDate, id: \.0) { dateString, calculation in
+                    Section {
+                        DailyStatsView(calculation: calculation)
+                    } header: {
+                        Text(dateString)
+                            .font(Theme.titleFont())
+                            .foregroundStyle(Theme.mainTextColor)
+                            .listRowInsets(EdgeInsets())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                            .background(Theme.mainBackground)
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .background(Theme.mainBackground)
+            .onAppear {
+                // Scroll to the most recent date
+                if let firstDate = displayedRatesByDate.first?.0 {
+                    withAnimation {
+                        proxy.scrollTo(firstDate, anchor: .top)
+                    }
+                }
+            }
+        }
     }
 }
 
 // MARK: - Helper Views
-private struct DetailRow: View {
-    let title: String
-    let value: String
+private struct DailyCostView: View {
+    let calculation: TariffViewModel.TariffCalculation
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
 
     var body: some View {
         HStack {
-            Text(LocalizedStringKey(title))
-                .font(Theme.secondaryFont())
-                .foregroundColor(Theme.secondaryTextColor)
+            Text("Total Cost")
+                .font(Theme.titleFont())
             Spacer()
-            Text(value)
-                .font(Theme.secondaryFont())
+            let cost =
+                globalSettings.settings.showRatesWithVAT
+                ? calculation.costIncVAT : calculation.costExcVAT
+            Text("£\(String(format: "%.2f", cost/100))")
+                .font(Theme.mainFont())
                 .foregroundColor(Theme.mainTextColor)
         }
+    }
+}
+
+private struct ConsumptionStatsView: View {
+    let calculation: TariffViewModel.TariffCalculation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.fill")
+                    .foregroundColor(Theme.icon)
+                Text("\(String(format: "%.1f", calculation.totalKWh)) kWh")
+                    .font(Theme.secondaryFont())
+            }
+            Text("Consumption")
+                .font(Theme.captionFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+    }
+}
+
+private struct AverageRateView: View {
+    let calculation: TariffViewModel.TariffCalculation
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .foregroundColor(Theme.icon)
+                let avgRate =
+                    globalSettings.settings.showRatesWithVAT
+                    ? calculation.averageUnitRateIncVAT : calculation.averageUnitRateExcVAT
+                Text("\(String(format: "%.1f", avgRate))p/kWh")
+                    .font(Theme.secondaryFont())
+            }
+            Text("Average Rate")
+                .font(Theme.captionFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+    }
+}
+
+private struct StandingChargeView: View {
+    let calculation: TariffViewModel.TariffCalculation
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "clock.fill")
+                    .foregroundColor(Theme.icon)
+                let charge =
+                    globalSettings.settings.showRatesWithVAT
+                    ? calculation.standingChargeIncVAT : calculation.standingChargeExcVAT
+                Text("£\(String(format: "%.2f", charge/100))")
+                    .font(Theme.secondaryFont())
+            }
+            Text("Standing Charge")
+                .font(Theme.captionFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+    }
+}
+
+private struct DailyStatsView: View {
+    let calculation: TariffViewModel.TariffCalculation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DailyCostView(calculation: calculation)
+
+            Divider()
+
+            HStack(spacing: 16) {
+                ConsumptionStatsView(calculation: calculation)
+                AverageRateView(calculation: calculation)
+                StandingChargeView(calculation: calculation)
+            }
+        }
+        .padding(.vertical, 8)
     }
 }
