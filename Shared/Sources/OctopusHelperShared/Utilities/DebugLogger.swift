@@ -7,7 +7,8 @@ public enum LogComponent: String {
     case ratesViewModel = "RATES VM"
     case ratesRepository = "RATES REPO"
     case stateChanges = "STATE CHANGES"
-    
+    case tariffViewModel = "TARIFF VM"
+
     var isEnabled: Bool {
         switch self {
         case .widget: return DebugLogger.isWidgetLoggingEnabled
@@ -15,6 +16,7 @@ public enum LogComponent: String {
         case .ratesViewModel: return DebugLogger.isRatesVMLoggingEnabled
         case .ratesRepository: return DebugLogger.isRatesRepoLoggingEnabled
         case .stateChanges: return DebugLogger.isStateChangesLoggingEnabled
+        case .tariffViewModel: return DebugLogger.isTariffVMLoggingEnabled
         }
     }
 }
@@ -22,19 +24,20 @@ public enum LogComponent: String {
 /// Central debug logging facility for the Octopus Helper app and its widget
 public final class DebugLogger {
     // MARK: - Debug Flags
-    
+
     /// Master switch for all debug logging
-    public static var isDebugLoggingEnabled = false
-    
+    public static var isDebugLoggingEnabled = true
+
     /// Component-specific switches
     public static var isWidgetLoggingEnabled = false
     public static var isWidgetCacheLoggingEnabled = false
     public static var isRatesVMLoggingEnabled = false
     public static var isRatesRepoLoggingEnabled = false
     public static var isStateChangesLoggingEnabled = false
-    
+    public static var isTariffVMLoggingEnabled = true
+
     // MARK: - Logging Methods
-    
+
     /// Log a debug message for a specific component
     /// - Parameters:
     ///   - message: The message to log
@@ -48,16 +51,16 @@ public final class DebugLogger {
         line: Int = #line
     ) {
         guard isDebugLoggingEnabled && component.isEnabled else { return }
-        
+
         let timestamp = DateFormatter.localizedString(
             from: Date(),
             dateStyle: .none,
             timeStyle: .medium
         )
-        
+
         print("[\(timestamp)] \(component.rawValue) [\(function):\(line)]: \(message)")
     }
-    
+
     /// Enable logging for specific components
     /// - Parameter components: The components to enable
     public static func enableLogging(for components: LogComponent...) {
@@ -74,10 +77,12 @@ public final class DebugLogger {
                 isRatesRepoLoggingEnabled = true
             case .stateChanges:
                 isStateChangesLoggingEnabled = true
+            case .tariffViewModel:
+                isTariffVMLoggingEnabled = true
             }
         }
     }
-    
+
     /// Disable logging for specific components
     /// - Parameter components: The components to disable
     public static func disableLogging(for components: LogComponent...) {
@@ -93,16 +98,17 @@ public final class DebugLogger {
                 isRatesRepoLoggingEnabled = false
             case .stateChanges:
                 isStateChangesLoggingEnabled = false
+            case .tariffViewModel:
+                isTariffVMLoggingEnabled = false
             }
         }
-        
+
         // If all components are disabled, disable master switch
-        if !isWidgetLoggingEnabled && 
-           !isWidgetCacheLoggingEnabled && 
-           !isRatesVMLoggingEnabled && 
-           !isRatesRepoLoggingEnabled &&
-           !isStateChangesLoggingEnabled {
+        if !isWidgetLoggingEnabled && !isWidgetCacheLoggingEnabled && !isRatesVMLoggingEnabled
+            && !isRatesRepoLoggingEnabled && !isStateChangesLoggingEnabled
+            && !isTariffVMLoggingEnabled
+        {
             isDebugLoggingEnabled = false
         }
     }
-} 
+}
