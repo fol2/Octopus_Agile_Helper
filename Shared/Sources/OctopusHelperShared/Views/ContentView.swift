@@ -7,7 +7,6 @@
 
 import Combine
 import CoreData
-import OctopusHelperShared
 import SwiftUI
 
 /// A preference key to track the vertical offset in a ScrollView.
@@ -41,12 +40,9 @@ public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var ratesVM: RatesViewModel
-    @StateObject private var consumptionVM: ConsumptionViewModel  // Keep this for AccountTariffCardView
+    @StateObject private var consumptionVM: ConsumptionViewModel
     @StateObject private var viewModel = ContentViewModel()
-    let hasAgileCards: Bool  // Now passed in from AppMain
-
-    // Store each card's VM in a dictionary keyed by `CardType`
-    @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
+    let hasAgileCards: Bool
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -79,34 +75,22 @@ public struct ContentView: View {
             ScrollView(.vertical, showsIndicators: true) {
                 // The main content (cards)
                 VStack(spacing: 0) {
+                    let deps = CardRegistry.shared.createDependencies(
+                        ratesViewModel: ratesVM,
+                        consumptionViewModel: consumptionVM,
+                        globalTimer: globalTimer,
+                        globalSettings: globalSettings
+                    )
+
                     ForEach(sortedCardConfigs()) { config in
-                        if config.isEnabled {
-                            if let definition = CardRegistry.shared.definition(for: config.cardType)
-                            {
-                                if config.isPurchased || !definition.isPremium {
-                                    if config.cardType == .currentRate
-                                        || config.cardType == .lowestUpcoming
-                                        || config.cardType == .highestUpcoming
-                                        || config.cardType == .averageUpcoming
-                                        || config.cardType == .interactiveChart
-                                    {
-                                        // Use the same ratesVM for all rate-related cards
-                                        definition.makeView(ratesVM)
-                                    } else if config.cardType == .accountTariff {
-                                        // Pass both view models for account tariff card
-                                        AnyView(
-                                            AccountTariffCardView(
-                                                viewModel: ratesVM, consumptionVM: consumptionVM))
-                                    } else if let vm = cardViewModels[config.cardType] {
-                                        definition.makeView(vm)
-                                    } else {
-                                        Text("No VM found")
-                                            .foregroundColor(.red)
-                                    }
-                                } else {
-                                    CardLockedView(definition: definition, config: config)
-                                        .environment(\.locale, globalSettings.locale)
-                                }
+                        if config.isEnabled,
+                            let definition = CardRegistry.shared.definition(for: config.cardType)
+                        {
+                            if config.isPurchased || !definition.isPremium {
+                                definition.makeView(deps)
+                            } else {
+                                CardLockedView(definition: definition, config: config)
+                                    .environment(\.locale, globalSettings.locale)
                             }
                         }
                     }

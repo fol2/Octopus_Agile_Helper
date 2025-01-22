@@ -53,8 +53,8 @@ public final class CardDefinition {
     public let displayNameKey: String
     public let descriptionKey: String
     public let isPremium: Bool
-    public let makeView: (Any) -> AnyView
-    public let makeWidgetView: (Any) -> AnyView
+    public let makeView: (CardDependencies) -> AnyView
+    public let makeWidgetView: (Any) -> AnyView  // Keep this as Any for now since widgets aren't affected
     public let iconName: String
     public let defaultIsEnabled: Bool
     public let defaultIsPurchased: Bool
@@ -68,7 +68,7 @@ public final class CardDefinition {
         displayNameKey: String,
         descriptionKey: String,
         isPremium: Bool,
-        makeView: @escaping (Any) -> AnyView,
+        makeView: @escaping (CardDependencies) -> AnyView,
         makeWidgetView: @escaping (Any) -> AnyView,
         iconName: String,
         defaultIsEnabled: Bool = true,
@@ -123,8 +123,10 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Current Rate",
                 descriptionKey: "Shows the current electricity rate and when it changes.",
                 isPremium: false,
-                makeView: { [self] vm in makeRatesView(vm, .currentRate) },
-                makeWidgetView: { [self] vm in makeRatesView(vm, .currentRate) },
+                makeView: { deps in
+                    AnyView(CurrentRateCardView(viewModel: deps.ratesViewModel))
+                },
+                makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "clock",
                 defaultSortOrder: 1,
                 mediaItems: [
@@ -147,7 +149,9 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Lowest Upcoming Rates",
                 descriptionKey: "Shows upcoming times with the cheapest electricity rates.",
                 isPremium: false,
-                makeView: { [self] vm in makeRatesView(vm, .lowestUpcoming) },
+                makeView: { deps in
+                    AnyView(LowestUpcomingRateCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.down",
                 defaultSortOrder: 2,
@@ -171,7 +175,9 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Highest Upcoming Rates",
                 descriptionKey: "Warns you of upcoming peak pricing times.",
                 isPremium: false,
-                makeView: { [self] vm in makeRatesView(vm, .highestUpcoming) },
+                makeView: { deps in
+                    AnyView(HighestUpcomingRateCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.up",
                 defaultSortOrder: 3,
@@ -196,7 +202,9 @@ public final class CardRegistry: ObservableObject {
                 descriptionKey:
                     "Shows the average cost over selected periods or the next 10 lowest windows.",
                 isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .averageUpcoming) },
+                makeView: { deps in
+                    AnyView(AverageUpcomingRateCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.fill",
                 defaultSortOrder: 4,
@@ -221,7 +229,9 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Interactive Rates",
                 descriptionKey: "A dynamic line chart showing rates, best time ranges, and more.",
                 isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .interactiveChart) },
+                makeView: { deps in
+                    AnyView(InteractiveLineChartCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.xyaxis.line",
                 defaultSortOrder: 5,
@@ -250,7 +260,12 @@ public final class CardRegistry: ObservableObject {
                 descriptionKey:
                     "View your account's tariff costs with daily, weekly, and monthly breakdowns.",
                 isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .accountTariff) },
+                makeView: { deps in
+                    AnyView(
+                        AccountTariffCardView(
+                            viewModel: deps.ratesViewModel, consumptionVM: deps.consumptionViewModel
+                        ))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.doc.horizontal",
                 defaultSortOrder: 6,
@@ -269,39 +284,19 @@ public final class CardRegistry: ObservableObject {
         definitions[type]
     }
 
-    // Helper function for safe view model casting
-    private func makeRatesView(_ vm: Any, _ viewType: CardType) -> AnyView {
-        if let viewModel = vm as? RatesViewModel {
-            switch viewType {
-            case .currentRate:
-                return AnyView(CurrentRateCardView(viewModel: viewModel))
-            case .lowestUpcoming:
-                return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
-            case .highestUpcoming:
-                return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
-            case .averageUpcoming:
-                return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
-            case .interactiveChart:
-                return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
-            case .accountTariff:
-                // This case is handled directly in ContentView
-                return AnyView(
-                    Text("AccountTariffCardView should be created by ContentView")
-                        .foregroundColor(.red)
-                        .font(Theme.secondaryFont())
-                )
-            }
-        }
-        return AnyView(
-            Text("Error: Invalid view model type")
-                .foregroundColor(.red)
-                .font(Theme.secondaryFont())
-        )
-    }
-
     // MARK: - Public API
     @MainActor
-    public func createViewModel(for type: CardType) -> Any {
-        return RatesViewModel(globalTimer: timer ?? GlobalTimer())
+    public func createDependencies(
+        ratesViewModel: RatesViewModel,
+        consumptionViewModel: ConsumptionViewModel,
+        globalTimer: GlobalTimer,
+        globalSettings: GlobalSettingsManager
+    ) -> CardDependencies {
+        CardDependencies(
+            ratesViewModel: ratesViewModel,
+            consumptionViewModel: consumptionViewModel,
+            globalTimer: globalTimer,
+            globalSettings: globalSettings
+        )
     }
 }
