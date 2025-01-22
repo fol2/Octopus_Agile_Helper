@@ -61,6 +61,7 @@ private enum CompareIntervalType: String, CaseIterable {
     case daily = "DAILY"
     case weekly = "WEEKLY"
     case monthly = "MONTHLY"
+    case quarterly = "QUARTERLY"
 
     var displayName: String { rawValue.capitalized }
 
@@ -70,6 +71,7 @@ private enum CompareIntervalType: String, CaseIterable {
         case .daily: return .daily
         case .weekly: return .weekly
         case .monthly: return .monthly
+        case .quarterly: return .quarterly
         }
     }
 }
@@ -167,6 +169,10 @@ public struct TariffComparisonCardView: View {
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
 
+    @State private var productMinDate: Date?  // product.available_from
+    @State private var productMaxDate: Date?  // product.available_to
+    @State private var hasDateOverlap: Bool = true  // Track overlap status
+
     // Settings manager for selected plan & manual plan input
     @StateObject private var compareSettings = ComparisonCardSettingsManager()
 
@@ -181,33 +187,6 @@ public struct TariffComparisonCardView: View {
     @ObservedObject private var refreshManager = CardRefreshManager.shared
 
     @State private var isFlipped = false  // New state for flip animation
-
-    // Add after ComparisonCardSettingsManager class
-
-    // Track loaded intervals and calculations
-    private struct LoadedInterval: Hashable {
-        let date: Date
-        let intervalType: CompareIntervalType
-
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(date)
-            hasher.combine(intervalType)
-        }
-    }
-
-    private struct ComparisonCalculation: Identifiable {
-        let id = UUID()
-        let date: Date
-        let intervalType: CompareIntervalType
-        let accountCalculation: TariffViewModel.TariffCalculation?
-        let compareCalculation: TariffViewModel.TariffCalculation?
-    }
-
-    // Add inside TariffComparisonCardView struct, after existing state variables
-    @State private var hasInitiallyLoaded = false
-    @State private var loadedIntervals: Set<LoadedInterval> = []
-    @State private var displayedCalculations: [ComparisonCalculation] = []
-    @State private var isLoadingMore = false
 
     public init(
         consumptionVM: ConsumptionViewModel,
@@ -265,7 +244,8 @@ public struct TariffComparisonCardView: View {
                 await loadComparisonPlansIfNeeded()
 
                 // do initial calculations
-                await recalcBothTariffs()
+                await recalcAccountTariff()
+                await recalcCompareTariff()
             }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
@@ -273,6 +253,12 @@ public struct TariffComparisonCardView: View {
         }
         .onChange(of: consumptionVM.maxInterval) { _, _ in
             updateAllowedDateRange()
+        }
+        .onChange(of: compareSettings.settings.selectedPlanCode) { _ in
+            // If user picks a new plan, re-check product's available_from/available_to
+            loadProductAvailability()
+            updateAllowedDateRange()
+            Task { await recalcCompareTariff() }
         }
         .onChange(of: consumptionVM.fetchState) { oldState, newState in
             DebugLogger.debug(
@@ -456,7 +442,7 @@ public struct TariffComparisonCardView: View {
                                 // Clear selectedPlanCode if any
                                 compareSettings.settings.selectedPlanCode = ""
                                 Task {
-                                    await recalcBothTariffs()
+                                    await recalcCompareTariff()
                                 }
                             } else {
                                 // If we have a leftover code, use it, else do nothing
@@ -468,12 +454,12 @@ public struct TariffComparisonCardView: View {
                                     if let code = firstPlan.value(forKey: "code") as? String {
                                         compareSettings.settings.selectedPlanCode = code
                                         Task {
-                                            await recalcBothTariffs()
+                                            await recalcCompareTariff()
                                         }
                                     }
                                 } else {
                                     Task {
-                                        await recalcBothTariffs()
+                                        await recalcCompareTariff()
                                     }
                                 }
                             }
@@ -580,7 +566,8 @@ public struct TariffComparisonCardView: View {
             }
             Button {
                 Task {
-                    await recalcBothTariffs()
+                    await recalcAccountTariff()
+                    await recalcCompareTariff()
                 }
             } label: {
                 Text("Retry")
@@ -681,212 +668,169 @@ public struct TariffComparisonCardView: View {
     private var comparisonView: some View {
         VStack(alignment: .leading, spacing: 12) {
             // First check if a plan is selected or manual mode is enabled
-            if !compareSettings.settings.isManualPlan && compareSettings.settings.selectedPlanCode.isEmpty {
+            if !compareSettings.settings.isManualPlan
+                && compareSettings.settings.selectedPlanCode.isEmpty
+            {
                 noPlanSelectedView
-            } else if !hasInitiallyLoaded {
-                // Show initial loading state
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Loading comparison data...")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
+            } else if !hasDateOverlap {
+                // Show no overlap message
+                VStack(spacing: 16) {
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .font(.system(size: 32))
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
+
+                    VStack(spacing: 8) {
+                        Text("No Date Overlap")
+                            .font(Theme.mainFont())
+                            .foregroundColor(Theme.mainTextColor)
+
+                        Text("The selected plan is not available for this time period")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .frame(minHeight: 120)
+                .padding(.vertical, 16)
             } else {
-                // Show loaded calculations
-                VStack(spacing: 16) {
-                    // Current interval calculation
-                    if let currentCalc = displayedCalculations.first(where: { calc in
-                        let calendar = Calendar.current
-                        return calendar.isDate(calc.date, inSameDayAs: currentDate)
-                    }) {
-                        currentIntervalView(calculation: currentCalc)
-                    } else {
-                        // Loading or error state for current interval
-                        if accountTariffVM.isCalculating || compareTariffVM.isCalculating {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("Calculating...")
+                // Obtain the two calculations
+                let accountCalc = accountTariffVM.currentCalculation
+                let compareCalc = compareTariffVM.currentCalculation
+
+                // If either is missing, show placeholders
+                if accountCalc == nil || compareCalc == nil {
+                    HStack {
+                        Spacer()
+                        Text("Loading calculations...")
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                } else if let acct = accountCalc, let cmp = compareCalc {
+                    let accountCost = userSelectedVAT ? acct.costIncVAT : acct.costExcVAT
+                    let compareCost = userSelectedVAT ? cmp.costIncVAT : cmp.costExcVAT
+                    let diff = compareCost - accountCost
+                    let accountCostStr = String(format: "£%.2f", accountCost / 100.0)
+                    let compareCostStr = String(format: "£%.2f", compareCost / 100.0)
+
+                    // Difference first
+                    let diffStr = String(format: "£%.2f", abs(diff) / 100.0)
+                    let diffColor: Color =
+                        diff > 0 ? .red : (diff < 0 ? .green : Theme.secondaryTextColor)
+                    let sign = diff > 0 ? "+" : (diff < 0 ? "−" : "")
+
+                    HStack(alignment: .top, spacing: 16) {
+                        // Left side: Difference and costs
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Difference row
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("\(sign)\(diffStr)")
+                                    .font(Theme.mainFont())
+                                    .foregroundColor(diffColor)
+                                Text("difference")
                                     .font(Theme.subFont())
                                     .foregroundColor(Theme.secondaryTextColor)
                                 Spacer()
                             }
-                            .padding(.vertical, 12)
-                        } else if accountTariffVM.error != nil || compareTariffVM.error != nil {
-                            errorStateView
-                        } else {
-                            Text("No data available for this interval")
-                                .font(Theme.subFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                        }
-                    }
-                    
-                    // Loading more indicator
-                    if isLoadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .scaleEffect(0.7)
-                            Text("Loading more...")
-                                .font(Theme.captionFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                            Spacer()
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-            }
-        }
-    }
 
-    // Add helper view for current interval calculation
-    private func currentIntervalView(calculation: ComparisonCalculation) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let acct = calculation.accountCalculation,
-               let cmp = calculation.compareCalculation {
-                let accountCost = userSelectedVAT ? acct.costIncVAT : acct.costExcVAT
-                let compareCost = userSelectedVAT ? cmp.costIncVAT : cmp.costExcVAT
-                let diff = compareCost - accountCost
-                let accountCostStr = String(format: "£%.2f", accountCost / 100.0)
-                let compareCostStr = String(format: "£%.2f", compareCost / 100.0)
-                
-                // Difference first
-                let diffStr = String(format: "£%.2f", abs(diff) / 100.0)
-                let diffColor: Color = diff > 0 ? .red : (diff < 0 ? .green : Theme.secondaryTextColor)
-                let sign = diff > 0 ? "+" : (diff < 0 ? "−" : "")
-                
-                HStack(alignment: .top, spacing: 16) {
-                    // Left side: Difference and costs
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Difference row
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("\(sign)\(diffStr)")
-                                .font(Theme.mainFont())
-                                .foregroundColor(diffColor)
-                            Text("difference")
-                                .font(Theme.subFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                            Spacer()
-                        }
-                        
-                        Divider()
-                            .padding(.horizontal)
-                        
-                        // Costs stacked vertically
-                        VStack(alignment: .leading, spacing: 8) {
-                            // My Account cost
-                            HStack(spacing: 8) {
-                                Image(systemName: "creditcard.fill")
-                                    .foregroundColor(Theme.icon)
-                                    .imageScale(.small)
-                                HStack(spacing: 4) {
-                                    Text("My Account:")
-                                        .font(Theme.subFont())
-                                        .foregroundColor(Theme.secondaryTextColor)
-                                    Text(accountCostStr)
-                                        .font(Theme.subFont())
-                                        .foregroundColor(Theme.mainTextColor)
-                                }
-                            }
-                            
-                            // Compare plan cost
-                            HStack(spacing: 8) {
-                                Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .foregroundColor(Theme.icon)
-                                    .imageScale(.small)
-                                HStack(spacing: 4) {
-                                    Text("\(comparePlanLabel):")
-                                        .font(Theme.subFont())
-                                        .foregroundColor(Theme.secondaryTextColor)
-                                    Text(compareCostStr)
-                                        .font(Theme.subFont())
-                                        .foregroundColor(Theme.mainTextColor)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Right side: Interval selector
-                    VStack(spacing: 6) {
-                        ForEach(CompareIntervalType.allCases, id: \.self) { interval in
-                            Button {
-                                selectedInterval = interval
-                                hasInitiallyLoaded = false  // Reset for new interval type
-                                Task {
-                                    await recalcBothTariffs()
-                                }
-                            } label: {
-                                HStack {
-                                    Image(systemName: iconName(for: interval))
+                            Divider()
+                                .padding(.horizontal)
+
+                            // Costs stacked vertically
+                            VStack(alignment: .leading, spacing: 8) {
+                                // My Account cost
+                                HStack(spacing: 8) {
+                                    Image(systemName: "creditcard.fill")
+                                        .foregroundColor(Theme.icon)
                                         .imageScale(.small)
-                                        .frame(width: 24, alignment: .leading)
-                                    
-                                    Spacer(minLength: 16)
-                                    
-                                    Text(interval.displayName)
-                                        .font(.callout)
-                                        .frame(alignment: .trailing)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        HStack(spacing: 4) {
+                                            Text("My Account:")
+                                                .font(Theme.subFont())
+                                                .foregroundColor(Theme.secondaryTextColor)
+                                            Text(accountCostStr)
+                                                .font(Theme.subFont())
+                                                .foregroundColor(Theme.mainTextColor)
+                                        }
+                                        if let avgRate = calculateAverageRate(calculation: acct) {
+                                            Text("Avg: \(avgRate)p/kWh")
+                                                .font(Theme.captionFont())
+                                                .foregroundColor(Theme.secondaryTextColor)
+                                        }
+                                    }
                                 }
-                                .font(Theme.subFont())
-                                .foregroundColor(
-                                    selectedInterval == interval
-                                    ? Theme.mainTextColor : Theme.secondaryTextColor
-                                )
-                                .frame(height: 32)
-                                .frame(width: 110, alignment: .leading)
-                                .padding(.horizontal, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(
-                                            selectedInterval == interval
-                                            ? Theme.mainColor.opacity(0.2) : Color.clear
-                                        )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(.vertical, 6)
-    }
 
-    // Add error state view
-    private var errorStateView: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle")
-                .foregroundColor(.red)
-                .imageScale(.large)
-            
-            if let error = accountTariffVM.error ?? compareTariffVM.error {
-                Text(error.localizedDescription)
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-                    .multilineTextAlignment(.center)
-            } else {
-                Text("Error calculating comparison")
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-            }
-            
-            Button {
-                Task {
-                    await recalcBothTariffs()
+                                // Compare plan cost
+                                HStack(spacing: 8) {
+                                    Image(systemName: "chart.line.uptrend.xyaxis")
+                                        .foregroundColor(Theme.icon)
+                                        .imageScale(.small)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        HStack(spacing: 4) {
+                                            Text("\(comparePlanLabel):")
+                                                .font(Theme.subFont())
+                                                .foregroundColor(Theme.secondaryTextColor)
+                                            Text(compareCostStr)
+                                                .font(Theme.subFont())
+                                                .foregroundColor(Theme.mainTextColor)
+                                        }
+                                        if let avgRate = calculateAverageRate(calculation: cmp) {
+                                            Text("Avg: \(avgRate)p/kWh")
+                                                .font(Theme.captionFont())
+                                                .foregroundColor(Theme.secondaryTextColor)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Right side: Interval selector
+                        VStack(spacing: 6) {
+                            ForEach(CompareIntervalType.allCases, id: \.self) { interval in
+                                Button {
+                                    selectedInterval = interval
+                                    Task {
+                                        await recalcBothTariffs()
+                                    }
+                                } label: {
+                                    HStack {
+                                        // Icon based on interval type
+                                        Image(systemName: iconName(for: interval))
+                                            .imageScale(.small)
+                                            .frame(width: 24, alignment: .leading)
+
+                                        Spacer(minLength: 16)
+
+                                        Text(interval.displayName)
+                                            .font(.callout)
+                                            .frame(alignment: .trailing)
+                                    }
+                                    .font(Theme.subFont())
+                                    .foregroundColor(
+                                        selectedInterval == interval
+                                            ? Theme.mainTextColor : Theme.secondaryTextColor
+                                    )
+                                    .frame(height: 28)  // Add fixed height
+                                    .frame(width: 110, alignment: .leading)
+                                    .padding(.horizontal, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(
+                                                selectedInterval == interval
+                                                    ? Theme.mainColor.opacity(0.2) : Color.clear)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 6)  // Add vertical padding to the VStack containing buttons
+                    }
+                    .padding(.vertical, 6)
                 }
-            } label: {
-                Text("Retry")
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.mainColor)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
     }
 
     private func iconName(for interval: CompareIntervalType) -> String {
@@ -894,6 +838,7 @@ public struct TariffComparisonCardView: View {
         case .daily: return "calendar.day.timeline.left"
         case .weekly: return "calendar.badge.clock"
         case .monthly: return "calendar"
+        case .quarterly: return "calendar.badge.plus"
         }
     }
 
@@ -1056,7 +1001,7 @@ public struct TariffComparisonCardView: View {
             {
                 if let code = productsWithRegionDetails[0].value(forKey: "code") as? String {
                     compareSettings.settings.selectedPlanCode = code
-                    await recalcBothTariffs()
+                    await recalcCompareTariff()
                 }
             }
         } catch {
@@ -1065,167 +1010,98 @@ public struct TariffComparisonCardView: View {
         }
     }
 
-    /// For date range bounding, we use consumptionVM's minInterval & maxInterval
-    private func updateAllowedDateRange() {
-        minAllowedDate = consumptionVM.minInterval
-        maxAllowedDate = consumptionVM.maxInterval
-        guard let minD = minAllowedDate, let maxD = maxAllowedDate else { return }
-
-        // Find the last complete day (yesterday)
-        let calendar = Calendar.current
-        let now = Date()
-        let lastCompleteDay = calendar.startOfDay(
-            for: calendar.date(byAdding: .day, value: -1, to: now) ?? now)
-
-        // Use the earlier of maxD and lastCompleteDay
-        let effectiveMax = min(maxD, lastCompleteDay)
-
-        // If currentDate is not set or is beyond effectiveMax, set it to effectiveMax
-        if currentDate > effectiveMax {
-            currentDate = effectiveMax
+    /// Fetch product availability (available_from, available_to) for the currently selected plan.
+    /// If manual plan is chosen, we can treat this as "unbounded" or some default you prefer.
+    private func loadProductAvailability() {
+        guard !compareSettings.settings.isManualPlan else {
+            // Manual plan => no real limit
+            productMinDate = nil
+            productMaxDate = nil
+            return
         }
-
-        // Ensure we're not before the earliest data
-        if currentDate < minD {
-            currentDate = minD
-        }
-
-        // Ensure we're at the start of the day
-        currentDate = calendar.startOfDay(for: currentDate)
-    }
-
-    /// Replace recalcBothTariffs with new implementation
-    @MainActor
-    private func recalcBothTariffs() async {
-        guard !hasInitiallyLoaded else {
-            // If we've already loaded initial data, just recalc the current interval
-            await loadSingleInterval(currentDate, intervalType: selectedInterval)
+        // If we have a selected plan code, find the ProductEntity or details
+        guard
+            let productObj = availablePlans.first(where: {
+                ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
+            })
+        else {
+            productMinDate = nil
+            productMaxDate = nil
             return
         }
 
-        // First time loading - do two-phase loading
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfToday = calendar.startOfDay(for: now)
+        // In your posted code, "available_from" and "available_to" are properties on ProductEntity
+        let minD = productObj.value(forKey: "available_from") as? Date
+        let maxD = productObj.value(forKey: "available_to") as? Date
 
-        // Clear any existing data
-        displayedCalculations = []
-        loadedIntervals = []
-
-        // Phase 1: Load recent intervals first
-        var intervalsToLoad: [Date] = []
-        switch selectedInterval {
-        case .daily:
-            // Load last 5 days
-            for dayOffset in 0..<5 {
-                if let date = calendar.date(byAdding: .day, value: -dayOffset, to: startOfToday) {
-                    intervalsToLoad.append(date)
-                }
-            }
-        case .weekly:
-            // Load last 3 weeks
-            let currentWeekStart = calendar.date(
-                from: calendar.dateComponents(
-                    [.yearForWeekOfYear, .weekOfYear], from: startOfToday))!
-            for weekOffset in 0..<3 {
-                if let date = calendar.date(
-                    byAdding: .weekOfYear, value: -weekOffset, to: currentWeekStart)
-                {
-                    intervalsToLoad.append(date)
-                }
-            }
-        case .monthly:
-            // Load last 2 months
-            let currentMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: startOfToday))!
-            for monthOffset in 0..<2 {
-                if let date = calendar.date(
-                    byAdding: .month, value: -monthOffset, to: currentMonthStart)
-                {
-                    intervalsToLoad.append(date)
-                }
-            }
-        }
-
-        // Load initial intervals
-        for date in intervalsToLoad {
-            await loadSingleInterval(date, intervalType: selectedInterval)
-        }
-
-        hasInitiallyLoaded = true
-
-        // Phase 2: Load remaining intervals in background
-        Task {
-            await loadRemainingIntervals()
-        }
+        productMinDate = minD == Date.distantPast ? nil : minD
+        productMaxDate = maxD == Date.distantFuture ? nil : maxD
     }
 
-    /// Load a single interval's calculations
-    @MainActor
-    private func loadSingleInterval(_ date: Date, intervalType: CompareIntervalType) async {
-        let interval = LoadedInterval(date: date, intervalType: intervalType)
-        guard !loadedIntervals.contains(interval) else { return }
+    /// Called whenever the user changes plan or we reload consumption. Merges
+    /// the account's [minAllowedDate, maxAllowedDate] with the product's [productMinDate, productMaxDate].
+    /// The final effective range is:
+    ///
+    ///   effectiveMin = max(accountMinDate, productMinDate)
+    ///   effectiveMax = min(accountMaxDate, productMaxDate)
+    ///
+    private func updateAllowedDateRange() {
+        // Original code used:
+        //   minAllowedDate = consumptionVM.minInterval
+        //   maxAllowedDate = consumptionVM.maxInterval
+        // Let's keep that as our base for "account min/max":
+        let accountMin = consumptionVM.minInterval
+        let accountMax = consumptionVM.maxInterval
 
-        // Calculate both tariffs
-        await recalcAccountTariff(for: date)
-        await recalcCompareTariff(for: date)
-
-        // Create calculation object
-        let calculation = ComparisonCalculation(
-            date: date,
-            intervalType: intervalType,
-            accountCalculation: accountTariffVM.currentCalculation,
-            compareCalculation: compareTariffVM.currentCalculation
-        )
-
-        // Add to loaded intervals and calculations
-        loadedIntervals.insert(interval)
-
-        // Insert maintaining date order (newest first)
-        if let index = displayedCalculations.firstIndex(where: { $0.date < date }) {
-            displayedCalculations.insert(calculation, at: index)
-        } else {
-            displayedCalculations.append(calculation)
-        }
-    }
-
-    /// Load remaining intervals in background
-    @MainActor
-    private func loadRemainingIntervals() async {
-        guard let minDate = minAllowedDate,
-            let maxDate = maxAllowedDate
-        else { return }
-
-        isLoadingMore = true
-        defer { isLoadingMore = false }
-
-        let calendar = Calendar.current
-        var currentDate = maxDate
-
-        while currentDate >= minDate {
-            // Check if we already have this interval
-            let interval = LoadedInterval(date: currentDate, intervalType: selectedInterval)
-            if !loadedIntervals.contains(interval) {
-                await loadSingleInterval(currentDate, intervalType: selectedInterval)
+        // Then incorporate product's min/max:
+        var combinedMin = accountMin
+        if let productStart = productMinDate {
+            if let accMin = combinedMin {
+                combinedMin = max(accMin, productStart)
+            } else {
+                // If for some reason accountMin was nil but productMin not
+                combinedMin = productStart
             }
-
-            // Move to next interval
-            guard
-                let nextDate = calendar.date(
-                    byAdding: selectedInterval == .daily
-                        ? .day : selectedInterval == .weekly ? .weekOfYear : .month,
-                    value: -1,
-                    to: currentDate
-                )
-            else { break }
-
-            currentDate = nextDate
         }
+
+        var combinedMax = accountMax
+        if let productEnd = productMaxDate {
+            if let accMax = combinedMax {
+                combinedMax = min(accMax, productEnd)
+            } else {
+                combinedMax = productEnd
+            }
+        }
+
+        minAllowedDate = combinedMin
+        maxAllowedDate = combinedMax
+
+        // Log the merged ranges
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .short
+
+        DebugLogger.debug(
+            """
+            Merged date range:
+            - Account: [\(accountMin.map { dateFormatter.string(from: $0) } ?? "nil"), \(accountMax.map { dateFormatter.string(from: $0) } ?? "nil")]
+            - Product: [\(productMinDate.map { dateFormatter.string(from: $0) } ?? "nil"), \(productMaxDate.map { dateFormatter.string(from: $0) } ?? "nil")]
+            => Final:   [\(combinedMin.map { dateFormatter.string(from: $0) } ?? "nil"), \(combinedMax.map { dateFormatter.string(from: $0) } ?? "nil")]
+            """, component: .tariffViewModel)
+
+        // Now clamp currentDate to this new range:
+        clampCurrentDateToAllowedRange()
     }
 
-    /// Modified recalcAccountTariff to take a specific date
+    /// Helper to clamp `currentDate` within [minAllowedDate, maxAllowedDate].
+    private func clampCurrentDateToAllowedRange() {
+        if let minD = minAllowedDate, currentDate < minD { currentDate = minD }
+        if let maxD = maxAllowedDate, currentDate > maxD { currentDate = maxD }
+    }
+
+    /// Recalculate the user's actual account cost for the chosen interval & date
     @MainActor
-    private func recalcAccountTariff(for date: Date) async {
+    private func recalcAccountTariff() async {
         if !hasAccountInfo { return }
 
         // Ensure we have consumption data
@@ -1235,7 +1111,7 @@ public struct TariffComparisonCardView: View {
         }
 
         // Get the date range for the selected interval
-        let (startDate, endDate) = getDateRange(for: date, intervalType: selectedInterval)
+        let (startDate, endDate) = getDateRange(for: currentDate, intervalType: selectedInterval)
 
         // Check if we have complete data for this range
         let calendar = Calendar.current
@@ -1253,8 +1129,8 @@ public struct TariffComparisonCardView: View {
                     "Cannot calculate costs for incomplete day", component: .tariffViewModel)
                 return
             }
-        case .weekly, .monthly:
-            // For weekly/monthly, the start date must be before today
+        case .weekly, .monthly, .quarterly:
+            // For weekly/monthly/quarterly, the start date must be before today
             guard startDate < yesterdayStart else {
                 DebugLogger.debug(
                     "Cannot calculate costs for incomplete \(selectedInterval.rawValue)",
@@ -1265,7 +1141,7 @@ public struct TariffComparisonCardView: View {
 
         do {
             await accountTariffVM.calculateCosts(
-                for: date,
+                for: currentDate,
                 tariffCode: "savedAccount",
                 intervalType: selectedInterval.vmInterval,
                 accountData: getAccountResponse()
@@ -1276,57 +1152,176 @@ public struct TariffComparisonCardView: View {
         }
     }
 
-    /// Modified recalcCompareTariff to take a specific date
+    /// Get the date range for a given date and interval type
+    private func getDateRange(for date: Date, intervalType: CompareIntervalType) -> (
+        start: Date, end: Date
+    ) {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+
+        switch intervalType {
+        case .daily:
+            let endDate = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? startOfDay
+            return (startOfDay, endDate)
+
+        case .weekly:
+            let weekStart =
+                calendar.date(
+                    from: calendar.dateComponents(
+                        [.yearForWeekOfYear, .weekOfYear], from: startOfDay)) ?? startOfDay
+            let weekEnd = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? weekStart
+            return (weekStart, weekEnd)
+
+        case .monthly:
+            let monthStart =
+                calendar.date(from: calendar.dateComponents([.year, .month], from: startOfDay))
+                ?? startOfDay
+            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? monthStart
+            return (monthStart, monthEnd)
+        case .quarterly:
+            let month = calendar.component(.month, from: startOfDay)
+            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
+
+            var startComponents = calendar.dateComponents([.year], from: startOfDay)
+            startComponents.month = quarterStartMonth
+            startComponents.day = 1
+
+            let quarterStart = calendar.date(from: startComponents)!
+            let quarterEnd = calendar.date(byAdding: .month, value: 2, to: quarterStart)!
+
+            return (quarterStart, quarterEnd)
+        }
+    }
+
+    /// Overridden version of getDateRange that further clamps to productMinDate if needed.
+    /// If the resulting interval has no overlap, we can return (nil, nil) or handle it upstream.
+    private func getCombinedDateRange(for baseDate: Date, intervalType: CompareIntervalType) -> (
+        Date, Date
+    )? {
+        // Normal monthly/weekly/daily boundaries:
+        let (baseStart, baseEnd) = getDateRange(for: baseDate, intervalType: intervalType)
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .short
+
+        DebugLogger.debug(
+            """
+            Computing combined date range:
+            - Base interval: [\(dateFormatter.string(from: baseStart)), \(dateFormatter.string(from: baseEnd))]
+            - Product bounds: [\(productMinDate.map { dateFormatter.string(from: $0) } ?? "nil"), \(productMaxDate.map { dateFormatter.string(from: $0) } ?? "nil")]
+            - Account bounds: [\(minAllowedDate.map { dateFormatter.string(from: $0) } ?? "nil"), \(maxAllowedDate.map { dateFormatter.string(from: $0) } ?? "nil")]
+            """, component: .tariffViewModel)
+
+        // Now clamp to [productMinDate, productMaxDate] if present
+        //   i.e. start = max(baseStart, productMinDate)
+        //        end   = min(baseEnd, productMaxDate)
+        // And also clamp to [accountMinDate, accountMaxDate] which we have in minAllowedDate / maxAllowedDate
+        var finalStart = baseStart
+        var finalEnd = baseEnd
+
+        // clamp to productMin if available
+        if let pMin = productMinDate {
+            if finalEnd < pMin {
+                // no overlap at all
+                DebugLogger.debug(
+                    "No overlap: interval ends before product start", component: .tariffViewModel)
+                return nil
+            }
+            finalStart = max(finalStart, pMin)
+        }
+        // if you have productMaxDate
+        if let pMax = productMaxDate {
+            if finalStart > pMax {
+                DebugLogger.debug(
+                    "No overlap: interval starts after product end", component: .tariffViewModel)
+                return nil
+            }
+            finalEnd = min(finalEnd, pMax)
+        }
+
+        // Also clamp to account min/max
+        if let aMin = minAllowedDate {
+            if finalEnd < aMin {
+                DebugLogger.debug(
+                    "No overlap: interval ends before account data start",
+                    component: .tariffViewModel)
+                return nil
+            }
+            finalStart = max(finalStart, aMin)
+        }
+        if let aMax = maxAllowedDate {
+            if finalStart > aMax {
+                DebugLogger.debug(
+                    "No overlap: interval starts after account data end",
+                    component: .tariffViewModel)
+                return nil
+            }
+            finalEnd = min(finalEnd, aMax)
+        }
+
+        // If after all that we have finalEnd <= finalStart, no overlap
+        if finalEnd <= finalStart {
+            DebugLogger.debug("No overlap: final end <= final start", component: .tariffViewModel)
+            return nil
+        }
+
+        DebugLogger.debug(
+            """
+            Final clamped range: [\(dateFormatter.string(from: finalStart)), \(dateFormatter.string(from: finalEnd))]
+            """, component: .tariffViewModel)
+
+        return (finalStart, finalEnd)
+    }
+
+    /// Recalculate the alternative plan cost
     @MainActor
-    private func recalcCompareTariff(for date: Date) async {
+    private func recalcCompareTariff() async {
         // Ensure we have consumption data
         guard !consumptionVM.consumptionRecords.isEmpty else {
             DebugLogger.debug("No consumption records available", component: .tariffViewModel)
+            hasDateOverlap = false
             return
         }
 
-        // Get the date range for the selected interval
-        let (startDate, endDate) = getDateRange(for: date, intervalType: selectedInterval)
-
-        // Check if we have complete data for this range
-        let calendar = Calendar.current
-        let now = Date()
-        let todayStart = calendar.startOfDay(for: now)
-        let yesterdayStart = calendar.date(byAdding: .day, value: -1, to: todayStart) ?? todayStart
-
-        // For weekly/monthly intervals, we need to check if the START date of the interval
-        // is before today, since we can only calculate complete intervals
-        switch selectedInterval {
-        case .daily:
-            // For daily, the entire day must be complete
-            guard endDate <= todayStart else {
-                DebugLogger.debug(
-                    "Cannot calculate costs for incomplete day", component: .tariffViewModel)
-                return
-            }
-        case .weekly, .monthly:
-            // For weekly/monthly, the start date must be before today
-            guard startDate < yesterdayStart else {
-                DebugLogger.debug(
-                    "Cannot calculate costs for incomplete \(selectedInterval.rawValue)",
-                    component: .tariffViewModel)
-                return
-            }
+        // Use the new combined approach
+        guard
+            let (start, end) = getCombinedDateRange(
+                for: currentDate, intervalType: selectedInterval)
+        else {
+            // If there's no overlap, skip calculation but use calculateCosts with empty tariff
+            // to properly reset the state
+            DebugLogger.debug(
+                "No date overlap for compare plan vs. account data.", component: .tariffViewModel)
+            hasDateOverlap = false
+            await compareTariffVM.calculateCosts(
+                for: currentDate,
+                tariffCode: "",  // empty tariff code indicates no calculation needed
+                intervalType: selectedInterval.vmInterval
+            )
+            return
         }
+
+        // We have overlap
+        hasDateOverlap = true
 
         do {
             if compareSettings.settings.isManualPlan {
+                // If manual, we do a "mock" approach:
+                // We'll create an in-memory "Manual Plan" object each time:
                 await compareTariffVM.calculateCosts(
-                    for: date,
+                    for: currentDate,
                     tariffCode: "manualPlan",
                     intervalType: selectedInterval.vmInterval,
                     accountData: buildMockAccountResponseForManual()
                 )
             } else {
+                // If user has selected an actual product code, we find the region-based tariff code:
                 let code = compareSettings.settings.selectedPlanCode
                 if code.isEmpty {
+                    // nothing selected
                     await compareTariffVM.calculateCosts(
-                        for: date,
+                        for: currentDate,
                         tariffCode: "",
                         intervalType: selectedInterval.vmInterval
                     )
@@ -1334,9 +1329,11 @@ public struct TariffComparisonCardView: View {
                 }
                 let region = globalSettings.settings.effectiveRegion
 
+                // 1) Try to find tariff code from local data first
                 var tariffCode = try await ProductDetailRepository.shared.findTariffCode(
                     productCode: code, region: region)
 
+                // 2) If not found locally, fetch from API and try again
                 if tariffCode == nil {
                     DebugLogger.debug(
                         "No local product details found for \(code), fetching from API...",
@@ -1347,12 +1344,14 @@ public struct TariffComparisonCardView: View {
                         productCode: code, region: region)
                 }
 
+                // 3) If still not found after API fetch, throw error
                 guard let finalTariffCode = tariffCode else {
                     throw TariffError.productDetailNotFound(code: code, region: region)
                 }
 
+                // 4) Call standard calculation with found tariff code
                 await compareTariffVM.calculateCosts(
-                    for: date,
+                    for: currentDate,
                     tariffCode: finalTariffCode,
                     intervalType: selectedInterval.vmInterval
                 )
@@ -1360,12 +1359,20 @@ public struct TariffComparisonCardView: View {
         } catch {
             DebugLogger.debug(
                 "Error in tariff comparison flow: \(error)", component: .tariffViewModel)
+            // Let TariffViewModel handle the error through its calculateCosts method
             await compareTariffVM.calculateCosts(
-                for: date,
-                tariffCode: "",
+                for: currentDate,
+                tariffCode: "",  // empty tariff code to indicate error
                 intervalType: selectedInterval.vmInterval
             )
         }
+    }
+
+    /// Recalculate both tariffs
+    @MainActor
+    private func recalcBothTariffs() async {
+        await recalcAccountTariff()
+        await recalcCompareTariff()
     }
 
     /// Step date by one interval in either direction
@@ -1387,12 +1394,24 @@ public struct TariffComparisonCardView: View {
             guard let mo = calendar.date(byAdding: .month, value: forward ? 1 : -1, to: currentDate)
             else { return }
             nextDate = mo
+        case .quarterly:
+            // For quarterly, we move by 3 months and ensure proper quarter boundaries
+            let month = calendar.component(.month, from: currentDate)
+            let currentQuarterStartMonth = ((month - 1) / 3) * 3 + 1
+
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: currentDate)
+            dateComponents.month = currentQuarterStartMonth + (forward ? 3 : -3)
+            dateComponents.day = 1
+
+            guard let qtr = calendar.date(from: dateComponents) else { return }
+            nextDate = qtr
         }
 
         // clamp
         if let minD = minAllowedDate, nextDate < minD { return }
         if let maxD = maxAllowedDate, nextDate > maxD { return }
 
+        // Update the date and trigger recalculation
         currentDate = nextDate
         Task {
             await recalcBothTariffs()
@@ -1435,6 +1454,27 @@ public struct TariffComparisonCardView: View {
             df.locale = globalSettings.locale
             df.dateFormat = "LLLL yyyy"  // e.g. "July 2025"
             return df.string(from: monthStart)
+        case .quarterly:
+            let month = cal.component(.month, from: startOfDay)
+            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
+
+            var startComponents = cal.dateComponents([.year], from: startOfDay)
+            startComponents.month = quarterStartMonth
+            startComponents.day = 1
+
+            let quarterStart = cal.date(from: startComponents)!
+            let quarterEnd = cal.date(byAdding: .month, value: 2, to: quarterStart)!
+
+            let df = DateFormatter()
+            df.locale = globalSettings.locale
+            df.dateFormat = "LLLL"  // Month name only
+            let startMonth = df.string(from: quarterStart)
+            let endMonth = df.string(from: quarterEnd)
+
+            df.dateFormat = "yyyy"
+            let year = df.string(from: quarterStart)
+
+            return "\(startMonth) - \(endMonth) \(year)"
         }
     }
 
@@ -1524,33 +1564,19 @@ public struct TariffComparisonCardView: View {
         return formatter.string(from: date)
     }
 
-    /// Get the date range for a given date and interval type
-    private func getDateRange(for date: Date, intervalType: CompareIntervalType) -> (
-        start: Date, end: Date
-    ) {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: date)
+    private func calculateAverageRate(calculation: TariffViewModel.TariffCalculation) -> String? {
+        // Get total consumption in kWh
+        let totalConsumption = calculation.totalKWh
+        guard totalConsumption > 0 else { return nil }
 
-        switch intervalType {
-        case .daily:
-            let endDate = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? startOfDay
-            return (startOfDay, endDate)
+        // Get total cost in pence (already in pence)
+        let totalCost = userSelectedVAT ? calculation.costIncVAT : calculation.costExcVAT
 
-        case .weekly:
-            let weekStart =
-                calendar.date(
-                    from: calendar.dateComponents(
-                        [.yearForWeekOfYear, .weekOfYear], from: startOfDay)) ?? startOfDay
-            let weekEnd = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? weekStart
-            return (weekStart, weekEnd)
+        // Calculate average rate (pence per kWh)
+        let avgRate = Double(totalCost) / totalConsumption
 
-        case .monthly:
-            let monthStart =
-                calendar.date(from: calendar.dateComponents([.year, .month], from: startOfDay))
-                ?? startOfDay
-            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? monthStart
-            return (monthStart, monthEnd)
-        }
+        // Format to 2 decimal places
+        return String(format: "%.2f", avgRate)
     }
 }
 
@@ -1858,17 +1884,10 @@ private struct PlanSelectionView: View {
                         .background(Theme.mainBackground.opacity(0.3))
                         .cornerRadius(8)
                     }
-                } else if let singleDate = selectedGroup.availableDates.first {
-                    // Single version - show as static text
-                    HStack {
-                        Text("Available from: \(selectedGroup.formatDate(singleDate))")
-                            .foregroundColor(Theme.mainTextColor)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Theme.mainBackground.opacity(0.3))
-                    .cornerRadius(8)
                 }
+            } else {
+                Text("No plan selected")
+                    .foregroundColor(Theme.secondaryTextColor)
             }
         }
         .padding(.horizontal)

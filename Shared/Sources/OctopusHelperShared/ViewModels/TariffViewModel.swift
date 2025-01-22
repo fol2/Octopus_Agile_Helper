@@ -9,6 +9,7 @@ public final class TariffViewModel: ObservableObject {
         case daily = "Daily"
         case weekly = "Weekly"
         case monthly = "Monthly"
+        case quarterly = "Quarterly"
     }
 
     public struct TariffCalculation {
@@ -101,6 +102,12 @@ public final class TariffViewModel: ObservableObject {
 
     // MARK: - Public Methods
 
+    /// Reset the calculation state
+    @MainActor
+    public func resetCalculationState() async {
+        isCalculating = false
+    }
+
     /// Calculate tariff costs for a specific date and interval type
     /// - Parameters:
     ///   - date: The reference date for calculation
@@ -121,11 +128,20 @@ public final class TariffViewModel: ObservableObject {
             - Interval: \(intervalType.rawValue)
             """, component: .tariffViewModel)
 
-        isCalculating = true
+        // Reset state at the start
         error = nil
+        isCalculating = true
+        currentCalculation = nil  // Clear current calculation while loading
 
         do {
-            if tariffCode == "savedAccount" {
+            // For quarterly, we'll calculate three monthly intervals and sum them
+            if intervalType == .quarterly {
+                try await calculateQuarterlyCosts(
+                    for: date,
+                    tariffCode: tariffCode,
+                    accountData: accountData
+                )
+            } else if tariffCode == "savedAccount" {
                 guard let accountData = accountData else {
                     throw TariffCalculationError.noDataAvailable(period: date...date)
                 }
@@ -144,6 +160,90 @@ public final class TariffViewModel: ObservableObject {
 
         isCalculating = false
         cleanupCache()  // Cleanup after calculation
+    }
+
+    /// Calculate costs for a quarterly interval by summing three monthly intervals
+    private func calculateQuarterlyCosts(
+        for date: Date,
+        tariffCode: String,
+        accountData: OctopusAccountResponse?
+    ) async throws {
+        let calendar = Calendar.current
+        let (quarterStart, quarterEnd) = calculateDateRange(for: date, intervalType: .quarterly)
+
+        DebugLogger.debug(
+            """
+            🔄 Starting quarterly calculation:
+            - Quarter: \(quarterStart.formatted()) to \(quarterEnd.formatted())
+            - Tariff: \(tariffCode)
+            """, component: .tariffViewModel)
+
+        var totalKWh = 0.0
+        var totalCostExcVAT = 0.0
+        var totalCostIncVAT = 0.0
+        var totalStandingChargeExcVAT = 0.0
+        var totalStandingChargeIncVAT = 0.0
+
+        // Calculate for each month in the quarter
+        var currentMonth = quarterStart
+        while currentMonth < quarterEnd {
+            // Calculate costs for this month
+            if tariffCode == "savedAccount" {
+                guard let accountData = accountData else {
+                    throw TariffCalculationError.noDataAvailable(period: date...date)
+                }
+                try await calculateAccountCosts(
+                    for: currentMonth,
+                    intervalType: .monthly,
+                    accountData: accountData
+                )
+            } else {
+                try await calculateSingleTariffCosts(
+                    for: currentMonth,
+                    tariffCode: tariffCode,
+                    intervalType: .monthly
+                )
+            }
+
+            // Add this month's results to the totals
+            if let monthCalc = currentCalculation {
+                totalKWh += monthCalc.totalKWh
+                totalCostExcVAT += monthCalc.costExcVAT
+                totalCostIncVAT += monthCalc.costIncVAT
+                totalStandingChargeExcVAT += monthCalc.standingChargeExcVAT
+                totalStandingChargeIncVAT += monthCalc.standingChargeIncVAT
+            }
+
+            // Move to next month
+            currentMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) ?? quarterEnd
+        }
+
+        // Calculate average rates
+        let avgRateExcVAT =
+            totalKWh > 0 ? (totalCostExcVAT - totalStandingChargeExcVAT) / totalKWh : 0.0
+        let avgRateIncVAT =
+            totalKWh > 0 ? (totalCostIncVAT - totalStandingChargeIncVAT) / totalKWh : 0.0
+
+        // Create the quarterly calculation
+        currentCalculation = TariffCalculation(
+            periodStart: quarterStart,
+            periodEnd: quarterEnd,
+            totalKWh: totalKWh,
+            costExcVAT: totalCostExcVAT,
+            costIncVAT: totalCostIncVAT,
+            averageUnitRateExcVAT: avgRateExcVAT,
+            averageUnitRateIncVAT: avgRateIncVAT,
+            standingChargeExcVAT: totalStandingChargeExcVAT,
+            standingChargeIncVAT: totalStandingChargeIncVAT
+        )
+
+        DebugLogger.debug(
+            """
+            ✅ Quarterly calculation complete:
+            - Total kWh: \(totalKWh)
+            - Total cost (inc VAT): \(String(format: "£%.2f", totalCostIncVAT / 100))
+            - Avg rate (inc VAT): \(String(format: "%.2fp/kWh", avgRateIncVAT))
+            """, component: .tariffViewModel)
     }
 
     // MARK: - Private Methods
@@ -422,6 +522,21 @@ public final class TariffViewModel: ObservableObject {
                 calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
             // Start of next month (1st 00:00)
             let end = calendar.date(byAdding: .month, value: 1, to: start) ?? date
+            return (start, end)
+
+        case .quarterly:
+            // Get the current quarter's start month (1-based)
+            let month = calendar.component(.month, from: date)
+            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
+
+            // Create date components for start of quarter
+            var components = calendar.dateComponents([.year], from: date)
+            components.month = quarterStartMonth
+            components.day = 1
+
+            // Get start and end dates
+            let start = calendar.date(from: components) ?? date
+            let end = calendar.date(byAdding: .month, value: 3, to: start) ?? date
             return (start, end)
         }
     }
