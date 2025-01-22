@@ -1,8 +1,8 @@
 import Combine
+import CoreData
 import Foundation
 import OctopusHelperShared
 import SwiftUI
-import CoreData
 
 // MARK: - Local settings
 private struct AverageCardLocalSettings: Codable {
@@ -125,12 +125,13 @@ public struct AverageUpcomingRateCardView: View {
 
             // Content
             if viewModel.isLoading(for: productCode)
-               && viewModel.allRates(for: productCode).isEmpty {
+                && viewModel.allRates(for: productCode).isEmpty
+            {
                 // Show big spinner if we have no data yet
                 ProgressView("Loading...").padding(.vertical, 12)
             } else if viewModel.allRates(for: productCode).isEmpty {
                 Text(
-                  "No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages"
+                    "No upcoming data for \(String(format: "%.1f", localSettings.settings.customAverageHours))-hour averages"
                 )
                 .foregroundColor(Theme.secondaryTextColor)
             } else {
@@ -148,7 +149,8 @@ public struct AverageUpcomingRateCardView: View {
                     .foregroundColor(Theme.secondaryTextColor)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(averages.prefix(localSettings.settings.maxListCount), id: \.start) { entry in
+                        ForEach(averages.prefix(localSettings.settings.maxListCount), id: \.start) {
+                            entry in
                             HStack(alignment: .firstTextBaseline) {
                                 let parts = viewModel.formatRate(
                                     entry.average,
@@ -269,14 +271,16 @@ public struct AverageUpcomingRateCardView: View {
     private func getAverageColor(for average: Double, allAverages: [Double]) -> Color {
         // Get all rates for comparison
         let rates = viewModel.allRates(for: productCode)
-        
+
         // If we have actual rates, use them for color context
         if !rates.isEmpty {
             // Find rates that match our average value
             // Otherwise, find the rates within our time period
             let now = Date()
             let relevantRates = rates.filter { rate in
-                guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
+                guard let validFrom = rate.value(forKey: "valid_from") as? Date else {
+                    return false
+                }
                 return validFrom >= now
             }
             // Instead of exact match, find the nearest rate by absolute difference
@@ -288,7 +292,7 @@ public struct AverageUpcomingRateCardView: View {
                 return RateColor.getColor(for: nearestRate, allRates: relevantRates)
             }
         }
-        
+
         // Fallback to basic coloring if no rates available
         return .white
     }

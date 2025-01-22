@@ -75,7 +75,7 @@ public struct ContentView: View {
             ScrollView(.vertical, showsIndicators: true) {
                 // The main content (cards)
                 VStack(spacing: 0) {
-                    let deps = CardRegistry.shared.createDependencies(
+                    let deps = CardDependencies.createDependencies(
                         ratesViewModel: ratesVM,
                         consumptionViewModel: consumptionVM,
                         globalTimer: globalTimer,

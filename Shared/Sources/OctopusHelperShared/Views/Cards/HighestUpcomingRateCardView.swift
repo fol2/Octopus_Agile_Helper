@@ -114,7 +114,7 @@ public struct HighestUpcomingRateCardView: View {
 
             if viewModel.isLoading(for: productCode) && viewModel.fetchState == .loading {
                 // Show a progress spinner if no data is available yet
-                if (viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true) {
+                if viewModel.productStates[productCode]?.upcomingRates.isEmpty ?? true {
                     ProgressView("Loading...").padding(.vertical, 12)
                 } else {
                     // If we do have some rates loaded, show partial content below
@@ -122,7 +122,8 @@ public struct HighestUpcomingRateCardView: View {
                     ProgressView().scaleEffect(0.8)
                 }
             } else if let highestRate = viewModel.highestUpcomingRate(productCode: productCode),
-                      let value = highestRate.value(forKey: "value_including_vat") as? Double {
+                let value = highestRate.value(forKey: "value_including_vat") as? Double
+            {
                 VStack(alignment: .leading, spacing: 8) {
                     let parts = viewModel.formatRate(
                         excVAT: highestRate.value(forKey: "value_excluding_vat") as? Double ?? 0,
@@ -151,7 +152,8 @@ public struct HighestUpcomingRateCardView: View {
                         Spacer()
 
                         if let fromDate = highestRate.value(forKey: "valid_from") as? Date,
-                           let toDate = highestRate.value(forKey: "valid_to") as? Date {
+                            let toDate = highestRate.value(forKey: "valid_to") as? Date
+                        {
                             Text(
                                 formatTimeRange(
                                     fromDate, toDate,
@@ -165,10 +167,13 @@ public struct HighestUpcomingRateCardView: View {
 
                     if localSettings.settings.additionalRatesCount > 0 {
                         // We'll use upcomingRates directly
-                        let upcomingRates = viewModel.productStates[productCode]?.upcomingRates ?? []
-                        let sortedRates = upcomingRates
+                        let upcomingRates =
+                            viewModel.productStates[productCode]?.upcomingRates ?? []
+                        let sortedRates =
+                            upcomingRates
                             .sorted { r1, r2 in
-                                (r1.value(forKey: "value_including_vat") as? Double ?? 0) > (r2.value(forKey: "value_including_vat") as? Double ?? 0)
+                                (r1.value(forKey: "value_including_vat") as? Double ?? 0)
+                                    > (r2.value(forKey: "value_including_vat") as? Double ?? 0)
                             }
 
                         if sortedRates.count > 1 {
@@ -180,9 +185,12 @@ public struct HighestUpcomingRateCardView: View {
                             ) { rate in
                                 HStack(alignment: .firstTextBaseline) {
                                     let valStr = viewModel.formatRate(
-                                        excVAT: rate.value(forKey: "value_excluding_vat") as? Double ?? 0,
-                                        incVAT: rate.value(forKey: "value_including_vat") as? Double ?? 0,
-                                        showRatesInPounds: globalSettings.settings.showRatesInPounds,
+                                        excVAT: rate.value(forKey: "value_excluding_vat") as? Double
+                                            ?? 0,
+                                        incVAT: rate.value(forKey: "value_including_vat") as? Double
+                                            ?? 0,
+                                        showRatesInPounds: globalSettings.settings
+                                            .showRatesInPounds,
                                         showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                                     )
                                     let subParts = valStr.split(separator: " ")
@@ -204,9 +212,11 @@ public struct HighestUpcomingRateCardView: View {
                                     Spacer()
 
                                     if let fromD = rate.value(forKey: "valid_from") as? Date,
-                                       let toD = rate.value(forKey: "valid_to") as? Date {
+                                        let toD = rate.value(forKey: "valid_to") as? Date
+                                    {
                                         Text(
-                                            formatTimeRange(fromD, toD, locale: globalSettings.locale)
+                                            formatTimeRange(
+                                                fromD, toD, locale: globalSettings.locale)
                                         )
                                         .font(Theme.subFont())
                                         .foregroundColor(Theme.secondaryTextColor)

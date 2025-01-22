@@ -1,122 +1,106 @@
 import SwiftUI
 
-/// Identifies which plan(s) a given card supports.
-public enum SupportedPlan: String, Codable {
-    case agile
-    case flux
-    case any
-}
-
-public struct MediaItem {
-    public let localName: String?
-    public let remoteURL: URL?
-    public let youtubeID: String?
-    public let caption: LocalizedStringKey?
-
-    public var isVideo: Bool {
-        if youtubeID != nil { return true }
-        if let localName = localName {
-            return Bundle.main.url(forResource: localName, withExtension: "mp4") != nil
-        }
-        if let remoteURL = remoteURL {
-            let pathExtension = remoteURL.pathExtension.lowercased()
-            return ["mp4", "mov", "m4v"].contains(pathExtension)
-        }
-        return false
-    }
-
-    public init(
-        localName: String? = nil,
-        remoteURL: URL? = nil,
-        youtubeID: String? = nil,
-        caption: LocalizedStringKey? = nil
-    ) {
-        self.localName = localName
-        self.remoteURL = remoteURL
-        self.youtubeID = youtubeID
-        self.caption = caption
-    }
-}
-
+/// Card Type Registration Guide
+///
+/// When adding a new card type to the system, follow these guidelines:
+///
+/// 1. Naming Convention:
+/// - Use camelCase
+/// - Be descriptive but concise
+/// - Focus on the card's primary function
+/// - Examples: currentRate, lowestUpcoming, dailyUsage
+///
+/// 2. Organization:
+/// - Group related cards together
+/// - Keep rate-related cards together
+/// - Keep usage-related cards together
+/// - Keep analysis cards together
+///
+/// 3. Implementation Steps:
+/// - Add new case here in CardType enum
+/// - Create corresponding view file in Cards directory
+/// - Register card in registerAllCards() function
+/// - Follow CardDefinition template for registration
+///
+/// 4. Best Practices:
+/// - Ensure unique, descriptive names
+/// - Consider future extensibility
+/// - Document any special requirements
+/// - Maintain logical grouping
+///
+/// Example:
+///     case dailyUsage     // Shows daily electricity usage
+///     case weeklyAnalysis // Provides weekly usage analysis
+///     case costComparison // Compares costs between tariffs
+///
+/// Identifies which card type is being used
 public enum CardType: String, Codable, CaseIterable, Equatable {
+    case interactiveChart
     case currentRate
     case lowestUpcoming
     case highestUpcoming
     case averageUpcoming
-    case interactiveChart
     case accountTariff
 }
 
-/// Identifies a single card's metadata and how to produce its SwiftUI view
-public final class CardDefinition {
-    public let id: CardType
-    public let displayNameKey: String
-    public let descriptionKey: String
-    public let isPremium: Bool
-    public let makeView: (CardDependencies) -> AnyView
-    public let makeWidgetView: (Any) -> AnyView  // Keep this as Any for now since widgets aren't affected
-    public let iconName: String
-    public let defaultIsEnabled: Bool
-    public let defaultIsPurchased: Bool
-    public let defaultSortOrder: Int
-    public let mediaItems: [MediaItem]
-    public let learnMoreURL: URL?
-    public let supportedPlans: [SupportedPlan]
-
-    public init(
-        id: CardType,
-        displayNameKey: String,
-        descriptionKey: String,
-        isPremium: Bool,
-        makeView: @escaping (CardDependencies) -> AnyView,
-        makeWidgetView: @escaping (Any) -> AnyView,
-        iconName: String,
-        defaultIsEnabled: Bool = true,
-        defaultIsPurchased: Bool = true,
-        defaultSortOrder: Int,
-        mediaItems: [MediaItem] = [],
-        learnMoreURL: URL? = nil,
-        supportedPlans: [SupportedPlan] = [.any]
-    ) {
-        self.id = id
-        self.displayNameKey = displayNameKey
-        self.descriptionKey = descriptionKey
-        self.isPremium = isPremium
-        self.makeView = makeView
-        self.makeWidgetView = makeWidgetView
-        self.iconName = iconName
-        self.defaultIsEnabled = defaultIsEnabled
-        self.defaultIsPurchased = defaultIsPurchased
-        self.defaultSortOrder = defaultSortOrder
-        self.mediaItems = mediaItems
-        self.learnMoreURL = learnMoreURL
-        self.supportedPlans = supportedPlans
-    }
-}
-
-/// Central registry for all card definitions and metadata
-public final class CardRegistry: ObservableObject {
-    public static let shared = CardRegistry()
-
-    // A dictionary mapping CardType -> CardDefinition
-    private var definitions: [CardType: CardDefinition] = [:]
-    private var timer: GlobalTimer?
-
-    @Published public private(set) var isReady: Bool = false
-
-    private init() {
-        // Register all cards automatically on initialization
-        registerAllCards()
-        // Set ready state after initialization
-        self.isReady = true
-    }
-
-    public func updateTimer(_ timer: GlobalTimer) {
-        self.timer = timer
-    }
-
-    /// Register all standard cards automatically
-    private func registerAllCards() {
+extension CardRegistry {
+    /// Card Registration Guide
+    ///
+    /// This function registers all standard cards in the application. Follow this template when adding new cards:
+    ///
+    /// register(
+    ///     CardDefinition(
+    ///         // REQUIRED: Unique identifier for the card
+    ///         id: .cardIdentifier,
+    ///
+    ///         // REQUIRED: Display name shown to users (localized)
+    ///         displayNameKey: "Card Name",
+    ///
+    ///         // REQUIRED: Detailed description of card functionality (localized)
+    ///         descriptionKey: "Description of what this card does and its value to users.",
+    ///
+    ///         // REQUIRED: Whether this is a premium feature
+    ///         isPremium: false,
+    ///
+    ///         // REQUIRED: Main view builder - must return AnyView
+    ///         makeView: { deps in
+    ///             AnyView(YourCardView(viewModel: deps.requiredViewModel))
+    ///         },
+    ///
+    ///         // REQUIRED: Widget view builder - use EmptyView if no widget
+    ///         makeWidgetView: { _ in AnyView(EmptyView()) },
+    ///
+    ///         // REQUIRED: SF Symbol name for card icon
+    ///         iconName: "symbol.name",
+    ///
+    ///         // REQUIRED: Default position in card list (1-based)
+    ///         defaultSortOrder: nextAvailableOrder,
+    ///
+    ///         // OPTIONAL: Help/documentation images
+    ///         mediaItems: [
+    ///             MediaItem(
+    ///                 localName: "imgCardInfo",
+    ///                 caption: LocalizedStringKey("Main feature description")
+    ///             ),
+    ///             MediaItem(
+    ///                 localName: "imgCardInfo2",
+    ///                 caption: LocalizedStringKey("Additional feature or setting description")
+    ///             ),
+    ///         ],
+    ///
+    ///         // REQUIRED: Compatible tariff plans ([.agile], [.any], etc.)
+    ///         supportedPlans: [.agile]
+    ///     )
+    /// )
+    ///
+    /// Best Practices:
+    /// - Use descriptive IDs that reflect the card's primary function
+    /// - Provide clear, user-focused descriptions
+    /// - Include helpful media items for premium features
+    /// - Maintain logical sort order with existing cards
+    /// - Ensure view models are properly injected through dependencies
+    ///
+    internal func registerAllCards() {
         register(
             CardDefinition(
                 id: .currentRate,
@@ -273,30 +257,5 @@ public final class CardRegistry: ObservableObject {
                 supportedPlans: [.any]
             )
         )
-    }
-
-    public func register(_ definition: CardDefinition) {
-        definitions[definition.id] = definition
-    }
-
-    /// Public accessor to fetch a card definition (if it exists)
-    public func definition(for type: CardType) -> CardDefinition? {
-        definitions[type]
-    }
-
-    // MARK: - Public API
-    @MainActor
-    public func createDependencies(
-        ratesViewModel: RatesViewModel,
-        consumptionViewModel: ConsumptionViewModel,
-        globalTimer: GlobalTimer,
-        globalSettings: GlobalSettingsManager
-    ) -> CardDependencies {
-        let dependencies = CardDependencies()
-        dependencies.register(ratesViewModel)
-        dependencies.register(consumptionViewModel)
-        dependencies.register(globalTimer)
-        dependencies.register(globalSettings)
-        return dependencies
     }
 }
