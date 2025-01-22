@@ -30,10 +30,10 @@ struct Octopus_Agile_HelperApp: App {
 
         // 2) Configure the NavBar appearance (Dark style, etc.)
         configureNavigationBarAppearance()
+    }
 
-        // 3) Check if we have any Agile cards
-        let settings = globalSettings.settings
-        let activeCards = settings.cardSettings.filter { $0.isEnabled }
+    private func updateHasAgileCards() {
+        let activeCards = globalSettings.settings.cardSettings.filter { $0.isEnabled }
         hasAgileCards = activeCards.contains {
             if let def = CardRegistry.shared.definition(for: $0.cardType) {
                 return def.supportedPlans.contains(.agile)
@@ -48,6 +48,13 @@ struct Octopus_Agile_HelperApp: App {
             ZStack {
                 if isAppInitialized {
                     ContentView(hasAgileCards: hasAgileCards)
+                        .onAppear {
+                            updateHasAgileCards()
+                        }
+                        .onChange(of: globalSettings.settings.cardSettings) {
+                            oldSettings, newSettings in
+                            updateHasAgileCards()
+                        }
                         .environment(
                             \.managedObjectContext, persistenceController.container.viewContext
                         )
