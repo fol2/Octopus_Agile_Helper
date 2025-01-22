@@ -9,6 +9,7 @@ struct Octopus_Agile_HelperApp: App {
     // MARK: - Dependencies that must exist before StateObjects
     private let globalTimer = GlobalTimer()
     private let persistenceController = PersistenceController.shared
+    private let cardRegistry = CardRegistry.shared
 
     // MARK: - StateObjects
     @StateObject private var globalSettings = GlobalSettingsManager()
@@ -106,6 +107,10 @@ struct Octopus_Agile_HelperApp: App {
 extension Octopus_Agile_HelperApp {
     private func initializeAppData() async {
         do {
+            // 1. Sync products first
+            await ratesVM.syncProducts()
+
+            // 2. Set Agile product
             await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
 
             var productsToInit: [String] = []

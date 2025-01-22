@@ -41,6 +41,7 @@ public enum CardType: String, Codable, CaseIterable, Equatable {
     case highestUpcoming
     case averageUpcoming
     case accountTariff
+    case tariffComparison
 }
 
 extension CardRegistry {
@@ -255,6 +256,32 @@ extension CardRegistry {
                 defaultSortOrder: 6,
                 mediaItems: [],
                 supportedPlans: [.any]
+            )
+        )
+
+        register(
+            CardDefinition(
+                id: .tariffComparison,
+                displayNameKey: "Comparison Card",
+                descriptionKey:
+                    "Compare your current account cost with another plan or a manual rate.",
+                isPremium: true,  // or false if you prefer
+                makeView: { deps in
+                    AnyView(
+                        TariffComparisonCardView(
+                            consumptionVM: deps.consumptionViewModel,  // We'll need consumption data
+                            ratesVM: deps.ratesViewModel,  // If we want fallback or custom logic
+                            globalSettings: deps.globalSettings
+                        )
+                    )
+                },
+                makeWidgetView: { _ in AnyView(EmptyView()) },
+                iconName: "rectangle.split.3x1.fill",
+                defaultIsEnabled: true,  // Make sure it's enabled by default
+                defaultIsPurchased: true,  // Make sure it's purchased by default
+                defaultSortOrder: 7,  // after your existing cards
+                mediaItems: [],
+                supportedPlans: [.any]  // or [.agile], .any is fine if we allow any plan
             )
         )
     }

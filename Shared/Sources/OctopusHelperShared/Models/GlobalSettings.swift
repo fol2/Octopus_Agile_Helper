@@ -317,19 +317,22 @@ public class GlobalSettingsManager: ObservableObject {
     // MARK: - Merge Missing Cards Example
     // -------------------------------------------
     private func mergeMissingCards() {
-        // This is just sample logic. If you don't have a CardRegistry, remove or adapt.
+        // Get the shared registry instance
         let registry = CardRegistry.shared
         var changed = false
 
+        // Get existing card types
         let existingTypes = Set(settings.cardSettings.map { $0.cardType })
 
+        // Add any missing cards from the registry
         for cardType in CardType.allCases {
             if let definition = registry.definition(for: cardType),
                 !existingTypes.contains(cardType)
             {
+                // Create new card config with registry defaults
                 let newConfig = CardConfig(
                     id: UUID(),
-                    cardType: definition.id,  // or cardType if you prefer
+                    cardType: cardType,  // Use cardType directly
                     isEnabled: definition.defaultIsEnabled,
                     isPurchased: definition.defaultIsPurchased,
                     sortOrder: definition.defaultSortOrder
@@ -337,10 +340,19 @@ public class GlobalSettingsManager: ObservableObject {
 
                 settings.cardSettings.append(newConfig)
                 changed = true
+
+                DebugLogger.debug(
+                    "Added missing card: \(cardType.rawValue)", component: .stateChanges)
             }
         }
 
+        // Sort cards by their sort order
         settings.cardSettings.sort { $0.sortOrder < $1.sortOrder }
+
+        if changed {
+            DebugLogger.debug(
+                "Updated card settings after merging missing cards", component: .stateChanges)
+        }
     }
 
     // -------------------------------------------
