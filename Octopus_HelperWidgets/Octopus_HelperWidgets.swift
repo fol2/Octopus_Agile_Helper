@@ -329,15 +329,24 @@ struct CurrentRateWidget: View {
         let raw = windows.map { ($0.start, $0.end) }
         let merged = mergeWindows(raw)
 
-        // Filter to only show ranges that overlap with our chart's visible range
+        // Filter and clip ranges to chart's visible range
         guard let chartStart = filteredRatesForChart.first?.value(forKey: "valid_from") as? Date,
             let chartEnd = filteredRatesForChart.last?.value(forKey: "valid_to") as? Date
         else {
             return []
         }
 
-        return merged.filter { window in
-            window.0 <= chartEnd && window.1 >= chartStart
+        return merged.compactMap { window -> (Date, Date)? in
+            // Skip windows completely outside chart range
+            guard window.0 <= chartEnd && window.1 >= chartStart else {
+                return nil
+            }
+
+            // Clip window to chart range
+            let clippedStart = max(window.0, chartStart)
+            let clippedEnd = min(window.1, chartEnd)
+
+            return (clippedStart, clippedEnd)
         }
     }
 
