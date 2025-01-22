@@ -67,15 +67,15 @@ public struct OctopusSingleProductDetail: Decodable {
     public let available_from: Date?
     public let available_to: Date?
     public let brand: String?
-    
+
     public let tariffs_active_at: Date?
     public let links: [OctopusLinkItem]?
-    
+
     public let single_register_electricity_tariffs: [String: OctopusRegionData]?
     public let dual_register_electricity_tariffs: [String: OctopusRegionData]?
     public let single_register_gas_tariffs: [String: OctopusRegionData]?
     public let dual_register_gas_tariffs: [String: OctopusRegionData]?
-    
+
     enum CodingKeys: String, CodingKey {
         case code
         case direction
@@ -135,7 +135,7 @@ public struct OctopusStandingCharge: Decodable {
     public let value_including_vat: Double
     public let valid_from: Date
     public let valid_to: Date?
-    
+
     enum CodingKeys: String, CodingKey {
         case value_excluding_vat = "value_exc_vat"
         case value_including_vat = "value_inc_vat"
@@ -219,7 +219,7 @@ public final class OctopusAPIClient {
     // MARK: - Internal Config
     private let baseURL = "https://api.octopus.energy/v1"
     private let session: URLSession
-    
+
     /// Public getter for base URL
     public var apiBaseURL: String { baseURL }
 
@@ -246,7 +246,8 @@ extension OctopusAPIClient {
             throw OctopusAPIError.invalidAPIKey
         }
 
-        let urlString = "\(baseURL)/electricity-meter-points/\(mpan)/meters/\(serialNumber)/consumption/?page=\(page)"
+        let urlString =
+            "\(baseURL)/electricity-meter-points/\(mpan)/meters/\(serialNumber)/consumption/?page=\(page)"
         guard let url = URL(string: urlString) else {
             throw OctopusAPIError.invalidURL
         }
@@ -280,13 +281,16 @@ extension OctopusAPIClient {
             throw OctopusAPIError.invalidURL
         }
 
-        let productListResponse = try await fetchDecodable(OctopusProductListResponse.self, from: url)
+        let productListResponse = try await fetchDecodable(
+            OctopusProductListResponse.self, from: url)
         return productListResponse.results
     }
 
     /// Fetch detailed info about a single product (code).
     /// e.g. GET /products/AGILE-24-10-01/
-    public func fetchSingleProductDetail(_ productCode: String) async throws -> OctopusSingleProductDetail {
+    public func fetchSingleProductDetail(_ productCode: String) async throws
+        -> OctopusSingleProductDetail
+    {
         let urlString = "\(baseURL)/products/\(productCode)/"
         guard let url = URL(string: urlString) else {
             throw OctopusAPIError.invalidURL
@@ -295,29 +299,37 @@ extension OctopusAPIClient {
     }
 
     /// Fetches tariff rates from a specific URL.
-    public func fetchTariffRates(url: String) async throws -> (totalCount: Int, results: [OctopusTariffRate]) {
+    public func fetchTariffRates(url: String) async throws -> (
+        totalCount: Int, results: [OctopusTariffRate]
+    ) {
         print("🔍 Fetching tariff rates from URL: \(url)")
         guard let url = URL(string: url) else {
             print("❌ Invalid URL: \(url)")
             throw OctopusAPIError.invalidURL
         }
-        
-        let response: OctopusPagedResponse<OctopusTariffRate> = try await fetchDecodable(OctopusPagedResponse<OctopusTariffRate>.self, from: url)
-        print("✅ Successfully fetched \(response.results.count) rates (Total available: \(response.count))")
+
+        let response: OctopusPagedResponse<OctopusTariffRate> = try await fetchDecodable(
+            OctopusPagedResponse<OctopusTariffRate>.self, from: url)
+        print(
+            "✅ Successfully fetched \(response.results.count) rates (Total available: \(response.count))"
+        )
         return (totalCount: response.count, results: response.results)
     }
-    
+
     /// Fetches standing charges from a specific URL.
     public func fetchStandingCharges(url: String) async throws -> [OctopusStandingCharge] {
         guard let url = URL(string: url) else {
             throw OctopusAPIError.invalidURL
         }
-        
+
         do {
-            let response: OctopusPagedResponse<OctopusStandingCharge> = try await fetchDecodable(OctopusPagedResponse<OctopusStandingCharge>.self, from: url)
+            let response: OctopusPagedResponse<OctopusStandingCharge> = try await fetchDecodable(
+                OctopusPagedResponse<OctopusStandingCharge>.self, from: url)
             print("📊 Standing Charges Response: count=\(response.results.count)")
             if let first = response.results.first {
-                print("First charge: \(first.value_excluding_vat)p exc VAT, \(first.value_including_vat)p inc VAT, from \(first.valid_from) to \(first.valid_to ?? Date.distantPast)")
+                print(
+                    "First charge: \(first.value_excluding_vat)p exc VAT, \(first.value_including_vat)p inc VAT, from \(first.valid_from) to \(first.valid_to ?? Date.distantPast)"
+                )
             }
             return response.results
         } catch {
@@ -327,7 +339,9 @@ extension OctopusAPIClient {
     }
 
     /// Fetch the user's account data by account number.
-    public func fetchAccountData(accountNumber: String, apiKey: String) async throws -> OctopusAccountResponse {
+    public func fetchAccountData(accountNumber: String, apiKey: String) async throws
+        -> OctopusAccountResponse
+    {
         guard !accountNumber.isEmpty, !apiKey.isEmpty else {
             throw OctopusAPIError.invalidAPIKey
         }
@@ -343,25 +357,25 @@ extension OctopusAPIClient {
 
         return try await fetchDecodable(OctopusAccountResponse.self, from: request)
     }
-    
+
     /// Information about rate pages for AGILE products
     private struct RatesPageInfo {
         let totalCount: Int
         let recordsPerPage: Int = 100  // Octopus API standard
-        let hoursPerPage: Int = 50     // Each page contains 50 hours (100 half-hour records)
-        let firstRecordDate: Date      // From first result's valid_from
-        
+        let hoursPerPage: Int = 50  // Each page contains 50 hours (100 half-hour records)
+        let firstRecordDate: Date  // From first result's valid_from
+
         var totalPages: Int {
             Int(ceil(Double(totalCount) / Double(recordsPerPage)))
         }
-        
+
         /// Calculate which pages we need to fetch based on what's in CoreData
         func determinePagesToFetch(existingRates: [OctopusTariffRate]) -> [Int] {
             var pagesToFetch: [Int] = []
-            
+
             // Create a set of dates we already have
             let existingDates = Set(existingRates.map { $0.valid_from })
-            
+
             // For each page, check if we have all its dates
             for pageNum in 1...totalPages {
                 let pageStartDate = Calendar.current.date(
@@ -369,67 +383,73 @@ extension OctopusAPIClient {
                     value: -((pageNum - 1) * hoursPerPage),
                     to: firstRecordDate
                 )!
-                
+
                 let pageEndDate = Calendar.current.date(
                     byAdding: .hour,
                     value: -(pageNum * hoursPerPage),
                     to: firstRecordDate
                 )!
-                
+
                 // Generate expected dates for this page (every 30 minutes)
                 var currentDate = pageStartDate
                 var hasAllDates = true
-                
+
                 while currentDate > pageEndDate {
                     if !existingDates.contains(currentDate) {
                         hasAllDates = false
                         break
                     }
-                    currentDate = Calendar.current.date(byAdding: .minute, value: -30, to: currentDate)!
+                    currentDate = Calendar.current.date(
+                        byAdding: .minute, value: -30, to: currentDate)!
                 }
-                
+
                 if !hasAllDates {
                     pagesToFetch.append(pageNum)
                 }
             }
-            
+
             return pagesToFetch
         }
     }
 
     /// Fetches all rates from a given URL, handling pagination if needed
-    public func fetchAllRatesPaginated(baseURL: String, isAgile: Bool = false) async throws -> [OctopusTariffRate] {
+    public func fetchAllRatesPaginated(baseURL: String, isAgile: Bool = false) async throws
+        -> [OctopusTariffRate]
+    {
         print("🔄 Starting paginated rate fetch from \(baseURL)")
-        
+
         // Fetch first page to get metadata
         guard let url = URL(string: baseURL) else {
             print("❌ Invalid URL: \(baseURL)")
             throw OctopusAPIError.invalidURL
         }
-        
+
         let firstPageResponse = try await fetchDecodable(OctopusRatesResponse.self, from: url)
         var allRates = firstPageResponse.results
-        
+
         if isAgile {
             // AGILE optimization: Only fetch pages we need
             guard let firstRate = firstPageResponse.results.first,
-                  let totalCount = firstPageResponse.count else {
+                let totalCount = firstPageResponse.count
+            else {
                 return allRates
             }
-            
+
             let pageInfo = RatesPageInfo(
                 totalCount: totalCount,
                 firstRecordDate: firstRate.valid_from
             )
-            
+
             let pagesToFetch = pageInfo.determinePagesToFetch(existingRates: allRates)
-            print("📊 Need to fetch \(pagesToFetch.count) pages out of \(pageInfo.totalPages) total pages")
-            
+            print(
+                "📊 Need to fetch \(pagesToFetch.count) pages out of \(pageInfo.totalPages) total pages"
+            )
+
             for pageNum in pagesToFetch where pageNum > 1 {
                 // Fix URL construction for pagination
                 let pageUrl = baseURL + (baseURL.contains("?") ? "&" : "?") + "page=\(pageNum)"
                 guard let url = URL(string: pageUrl) else { continue }
-                
+
                 print("📥 Fetching AGILE rates page \(pageNum)")
                 let response = try await fetchDecodable(OctopusRatesResponse.self, from: url)
                 allRates.append(contentsOf: response.results)
@@ -437,17 +457,17 @@ extension OctopusAPIClient {
         } else {
             // Non-AGILE: Simple fetch all pages
             var nextURL = firstPageResponse.next
-            
+
             while let next = nextURL {
                 guard let url = URL(string: next) else { break }
-                
+
                 print("📥 Fetching rates page: \(next)")
                 let response = try await fetchDecodable(OctopusRatesResponse.self, from: url)
                 allRates.append(contentsOf: response.results)
                 nextURL = response.next
             }
         }
-        
+
         print("✅ Fetch complete, total rates: \(allRates.count)")
         return allRates
     }
@@ -461,18 +481,20 @@ extension OctopusAPIClient {
     }
 
     /// Overload for fetchDecodable with a custom URLRequest (auth headers, etc.).
-    private func fetchDecodable<T: Decodable>(_ type: T.Type, from request: URLRequest) async throws -> T {
+    private func fetchDecodable<T: Decodable>(_ type: T.Type, from request: URLRequest) async throws
+        -> T
+    {
         let decoder = JSONDecoder()
-        
+
         // Custom date decoding strategy that handles both ISO8601 and null values
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             if container.decodeNil() {
-                return Date.distantPast // Return a default date for null values
+                return Date.distantPast  // Return a default date for null values
             }
-            
+
             let dateStr = try container.decode(String.self)
-            
+
             // Try formatters in order of most to least precise
             let formatters = [
                 { () -> ISO8601DateFormatter in
@@ -484,25 +506,25 @@ extension OctopusAPIClient {
                     let formatter = ISO8601DateFormatter()
                     formatter.formatOptions = [.withInternetDateTime]
                     return formatter
-                }()
+                }(),
             ]
-            
+
             for formatter in formatters {
                 if let date = formatter.date(from: dateStr) {
                     return date
                 }
             }
-            
+
             throw DecodingError.dataCorruptedError(
                 in: container,
                 debugDescription: "Could not parse date string: \(dateStr)"
             )
         }
-        
+
         do {
             let (data, response) = try await session.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200
+                httpResponse.statusCode == 200
             else {
                 throw OctopusAPIError.invalidResponse
             }
@@ -534,7 +556,7 @@ extension OctopusAPIClient {
         let previous: String?
         let results: [OctopusTariffRate]
     }
-    
+
     /// The "GET /...-unit-rates/" or "...standing-charges/" pagination wrapper
     private struct OctopusRatesResponse: Decodable {
         let count: Int?

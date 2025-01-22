@@ -476,13 +476,10 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
             if totalPages > 1 {
                 // Phase 2: Background fetch (ORANGE state)
                 withAnimation {
-                    self.fetchState = .partial
                     state.isLoading = true
+                    self.fetchState = .partial
                 }
                 productStates[productCode] = state
-
-                // Wait for background fetch to complete
-                try await repository.waitForBackgroundFetch()
 
                 // After background fetch completes, get all rates
                 let allRates = try await repository.fetchRatesByTariffCode(tCode, pastHours: 48)
@@ -608,9 +605,6 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
                         self.fetchState = .partial
                     }
                     productStates[productCode] = state
-
-                    // Wait for background fetch to complete
-                    try await repository.waitForBackgroundFetch()
 
                     // After background fetch completes, get all rates
                     let allRates = try await repository.fetchRatesByTariffCode(productCode)

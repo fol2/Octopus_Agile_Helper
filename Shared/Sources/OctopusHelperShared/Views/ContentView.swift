@@ -41,7 +41,7 @@ public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var ratesVM: RatesViewModel
-    @StateObject private var consumptionVM = ConsumptionViewModel()
+    @StateObject private var consumptionVM: ConsumptionViewModel  // Keep this for AccountTariffCardView
     @StateObject private var viewModel = ContentViewModel()
     let hasAgileCards: Bool  // Now passed in from AppMain
 
@@ -67,8 +67,10 @@ public struct ContentView: View {
 
     public init(hasAgileCards: Bool) {
         self.hasAgileCards = hasAgileCards
-        // Initialize view models
-        _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
+        // Initialize view models with a temporary GlobalSettingsManager
+        // This will be replaced by the environment object when the view appears
+        _consumptionVM = StateObject(
+            wrappedValue: ConsumptionViewModel(globalSettingsManager: GlobalSettingsManager()))
         _viewModel = StateObject(wrappedValue: ContentViewModel())
     }
 
@@ -87,10 +89,14 @@ public struct ContentView: View {
                                         || config.cardType == .highestUpcoming
                                         || config.cardType == .averageUpcoming
                                         || config.cardType == .interactiveChart
-                                        || config.cardType == .accountTariff
                                     {
                                         // Use the same ratesVM for all rate-related cards
                                         definition.makeView(ratesVM)
+                                    } else if config.cardType == .accountTariff {
+                                        // Pass both view models for account tariff card
+                                        AnyView(
+                                            AccountTariffCardView(
+                                                viewModel: ratesVM, consumptionVM: consumptionVM))
                                     } else if let vm = cardViewModels[config.cardType] {
                                         definition.makeView(vm)
                                     } else {
@@ -132,6 +138,7 @@ public struct ContentView: View {
                         NavigationLink {
                             SettingsView(didFinishEditing: {
                                 Task {
+                                    // Refresh rates data
                                     await ratesVM.setAgileProductFromAccountOrFallback(
                                         globalSettings: globalSettings)
                                     if !ratesVM.currentAgileCode.isEmpty {
@@ -207,16 +214,34 @@ public struct ContentView: View {
                 }
             }
             .onAppear {
-                // Create VMs for non-rate cards only
-                for cardType in CardType.allCases {
-                    if cardType == .electricityConsumption {  // Only create VM for non-rate cards
-                        if cardViewModels[cardType] == nil {
-                            let newVM = CardRegistry.shared.createViewModel(for: cardType)
-                            cardViewModels[cardType] = newVM
-                        }
+                // Update ConsumptionViewModel with the environment GlobalSettingsManager
+                consumptionVM.updateGlobalSettingsManager(globalSettings)
+                Task { await consumptionVM.loadData() }
+            }
+            // Track all settings changes that affect consumption data loading
+            .onChange(of: [
+                globalSettings.settings.accountData != nil,
+                globalSettings.settings.apiKey.isEmpty,
+                globalSettings.settings.electricityMPAN != nil,
+                globalSettings.settings.electricityMeterSerialNumber != nil,
+            ]) { oldValue, newValue in
+                print("🔄 ContentView: Settings changed that affect consumption")
+                print("  - API Key present: \(!globalSettings.settings.apiKey.isEmpty)")
+                print("  - MPAN present: \(globalSettings.settings.electricityMPAN != nil)")
+                print(
+                    "  - Serial present: \(globalSettings.settings.electricityMeterSerialNumber != nil)"
+                )
+                print("  - Account data present: \(globalSettings.settings.accountData != nil)")
+
+                // Only load data if we have all required settings
+                if !globalSettings.settings.apiKey.isEmpty
+                    && globalSettings.settings.electricityMPAN != nil
+                    && globalSettings.settings.electricityMeterSerialNumber != nil
+                {
+                    Task {
+                        await consumptionVM.loadData()
                     }
                 }
-                Task { await consumptionVM.loadData() }
             }
         }
     }

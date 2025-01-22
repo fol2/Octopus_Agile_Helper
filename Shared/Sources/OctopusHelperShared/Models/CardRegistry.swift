@@ -44,7 +44,6 @@ public enum CardType: String, Codable, CaseIterable, Equatable {
     case highestUpcoming
     case averageUpcoming
     case interactiveChart
-    case electricityConsumption
     case accountTariff
 }
 
@@ -246,23 +245,6 @@ public final class CardRegistry: ObservableObject {
 
         register(
             CardDefinition(
-                id: .electricityConsumption,
-                displayNameKey: "Electricity Consumption",
-                descriptionKey: "View recent electricity usage from Octopus API.",
-                isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .electricityConsumption) },
-                makeWidgetView: { _ in AnyView(EmptyView()) },
-                iconName: "bolt.fill",
-                defaultIsEnabled: false,
-                defaultIsPurchased: false,
-                defaultSortOrder: 6,
-                mediaItems: [],
-                supportedPlans: [.any]
-            )
-        )
-
-        register(
-            CardDefinition(
                 id: .accountTariff,
                 displayNameKey: "Account Tariff",
                 descriptionKey:
@@ -271,9 +253,7 @@ public final class CardRegistry: ObservableObject {
                 makeView: { [self] vm in makeRatesView(vm, .accountTariff) },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.doc.horizontal",
-                defaultIsEnabled: false,
-                defaultIsPurchased: false,
-                defaultSortOrder: 7,
+                defaultSortOrder: 6,
                 mediaItems: [],
                 supportedPlans: [.any]
             )
@@ -291,29 +271,25 @@ public final class CardRegistry: ObservableObject {
 
     // Helper function for safe view model casting
     private func makeRatesView(_ vm: Any, _ viewType: CardType) -> AnyView {
-        switch viewType {
-        case .electricityConsumption:
-            if let viewModel = vm as? ConsumptionViewModel {
-                return AnyView(ElectricityConsumptionCardView(viewModel: viewModel))
-            }
-        default:
-            if let viewModel = vm as? RatesViewModel {
-                switch viewType {
-                case .currentRate:
-                    return AnyView(CurrentRateCardView(viewModel: viewModel))
-                case .lowestUpcoming:
-                    return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
-                case .highestUpcoming:
-                    return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
-                case .averageUpcoming:
-                    return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
-                case .interactiveChart:
-                    return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
-                case .accountTariff:
-                    return AnyView(AccountTariffCardView(viewModel: viewModel))
-                case .electricityConsumption:
-                    break
-                }
+        if let viewModel = vm as? RatesViewModel {
+            switch viewType {
+            case .currentRate:
+                return AnyView(CurrentRateCardView(viewModel: viewModel))
+            case .lowestUpcoming:
+                return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
+            case .highestUpcoming:
+                return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
+            case .averageUpcoming:
+                return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
+            case .interactiveChart:
+                return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
+            case .accountTariff:
+                // This case is handled directly in ContentView
+                return AnyView(
+                    Text("AccountTariffCardView should be created by ContentView")
+                        .foregroundColor(.red)
+                        .font(Theme.secondaryFont())
+                )
             }
         }
         return AnyView(
@@ -326,11 +302,6 @@ public final class CardRegistry: ObservableObject {
     // MARK: - Public API
     @MainActor
     public func createViewModel(for type: CardType) -> Any {
-        switch type {
-        case .electricityConsumption:
-            return ConsumptionViewModel()
-        default:
-            return RatesViewModel(globalTimer: timer ?? GlobalTimer())
-        }
+        return RatesViewModel(globalTimer: timer ?? GlobalTimer())
     }
 }

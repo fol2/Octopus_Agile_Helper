@@ -561,6 +561,11 @@ public final class TariffCalculationRepository: ObservableObject {
 
     /// Core function that merges half-hour consumption with matched RateEntity intervals,
     /// plus daily standing charges. Adjust as needed for your real app logic (some tariffs might be monthly, etc.).
+    ///
+    /// New approach:
+    ///   1. We still sum consumption * rate for each half-hour.
+    ///   2. We also do half-hour increments for standing charge, applying pro-rata if a tariff is daily, weekly or monthly.
+    ///
     private func computeAggregatedCost(
         consumptionRecords: [NSManagedObject],
         rates: [NSManagedObject],
@@ -575,8 +580,7 @@ public final class TariffCalculationRepository: ObservableObject {
         print("  - \(rates.count) rate records")
         print("  - \(standingCharges.count) standing charge records")
 
-        // Convert RateEntity NSManagedObject list to a simpler structure
-        // We'll store them as an array of (start, end, costExc, costInc)
+        // --- 1) Convert RateEntity → array of (start, end, costExc, costInc)
         let sortedRates = rates.compactMap { mo -> (Date, Date, Double, Double)? in
             guard let vf = mo.value(forKey: "valid_from") as? Date,
                 let vt = mo.value(forKey: "valid_to") as? Date,
@@ -587,10 +591,9 @@ public final class TariffCalculationRepository: ObservableObject {
             }
             return (vf, vt, exc, inc)
         }
-        .sorted { $0.0 < $1.0 }  // Sort by valid_from ascending
-        print("📊 Parsed \(sortedRates.count) valid rates")
+        .sorted { $0.0 < $1.0 }
 
-        // Convert StandingChargeEntity to a structure
+        // --- 2) Convert StandingChargeEntity → array of (start, end, costExc, costInc)
         let sortedStanding = standingCharges.compactMap { mo -> (Date, Date, Double, Double)? in
             guard let vf = mo.value(forKey: "valid_from") as? Date,
                 let exc = mo.value(forKey: "value_excluding_vat") as? Double,
@@ -598,87 +601,97 @@ public final class TariffCalculationRepository: ObservableObject {
             else {
                 return nil
             }
-            // Use valid_to if present, otherwise use distant future
             let vt = (mo.value(forKey: "valid_to") as? Date) ?? Date.distantFuture
             return (vf, vt, exc, inc)
         }
-        .sorted { $0.0 < $1.0 }  // Sort by valid_from ascending
+        .sorted { $0.0 < $1.0 }
+
+        print("📊 Parsed \(sortedRates.count) valid rates")
         print("📊 Parsed \(sortedStanding.count) valid standing charges")
-        if let first = sortedStanding.first {
-            print("  Example standing charge:")
-            print("  - Valid from: \(first.0.formatted())")
-            print("  - Valid to: \(first.1.formatted())")
-            print("  - Exc VAT: \(first.2)p")
-            print("  - Inc VAT: \(first.3)p")
-        }
 
         var totalKWh = 0.0
         var totalCostExc = 0.0
         var totalCostInc = 0.0
-
-        // Summation of daily standing charges (optional approach)
-        // If your tariff has daily standing charges, for each day in [rangeStart, rangeEnd],
-        // we find the correct standing charge record. Then sum it.
-        // Here we do a simplified approach: each day from rangeStart..rangeEnd => add the matched standing charge.
-        let daysBetween = daysBetweenDates(rangeStart, rangeEnd)
-        print("📅 Calculating standing charges for \(daysBetween) days")
-
         var totalStandingExc = 0.0
         var totalStandingInc = 0.0
-        var daysWithCharges = 0
 
-        for dayOffset in 0..<daysBetween {
-            if let dayStart = Calendar.current.date(
-                byAdding: .day, value: dayOffset, to: startOfDay(rangeStart))
-            {
-                let dayEnd = endOfDay(dayStart)
-                if dayStart > rangeEnd { break }
-                if dayEnd < rangeStart { continue }
-
-                // Clip day range within user's overall range
-                let effectiveDayStart = max(dayStart, rangeStart)
-                let effectiveDayEnd = min(dayEnd, rangeEnd)
-
-                // Find which standing charge record is valid for this day
-                if let matchingSC = findStandingCharge(for: effectiveDayStart, in: sortedStanding) {
-                    totalStandingExc += matchingSC.2
-                    totalStandingInc += matchingSC.3
-                    daysWithCharges += 1
+        // Helper to find which rate record covers a given instant
+        func findRate(for date: Date, in rates: [(Date, Date, Double, Double)]) -> (
+            Date, Date, Double, Double
+        )? {
+            for (start, end, exc, inc) in rates {
+                if start <= date && date < end {
+                    return (start, end, exc, inc)
                 }
             }
+            return nil
         }
 
-        print("💰 Standing charge totals:")
-        print("  - Days with charges: \(daysWithCharges) out of \(daysBetween)")
-        print("  - Total exc VAT: \(totalStandingExc)p")
-        print("  - Total inc VAT: \(totalStandingInc)p")
+        // A helper function to find and pro-rate standing charge for a single half-hour slot
+        func proRateStandingCharge(
+            start: Date,
+            end: Date
+        ) -> (Double, Double) {
+            // We find which standing charge record is valid at the midpoint
+            // or simply use the `start` to pick a standing record.
+            guard
+                let (scStart, scEnd, scExc, scInc) = findStandingCharge(
+                    for: start, in: sortedStanding)
+            else {
+                return (0, 0)
+            }
 
-        // Now handle the half-hour consumption
+            // For a daily standing charge:
+            let dailyHours = 24.0
+            let slotHours = (end.timeIntervalSince(start) / 3600.0)
+            let fractionOfDay = slotHours / dailyHours
+
+            // If you have weekly or monthly, you can detect it from the "tariff_code" or "payment" field
+            // and do fractionOfWeek or fractionOfMonth. For brevity, we'll assume daily in this patch.
+            // If you really have monthly, you'd do:
+            //    let daysInMonth = 30.0 (or get from calendar)
+            //    let fractionOfMonth = slotHours / (daysInMonth * 24.0)
+
+            let excPart = scExc * fractionOfDay
+            let incPart = scInc * fractionOfDay
+            return (excPart, incPart)
+        }
+
+        // We'll accumulate everything half-hour by half-hour
+        // Instead of each half-hour, we rely on consumptionRecords themselves:
+        //   If there's a consumption record from X to X+30min, we add partial standing for that half-hour.
+
         var consumptionPeriods = 0
         for record in consumptionRecords {
             // KVC read
             guard let cStart = record.value(forKey: "interval_start") as? Date,
                 let cEnd = record.value(forKey: "interval_end") as? Date,
-                let usage = record.value(forKey: "consumption") as? Double
+                let usageKWh = record.value(forKey: "consumption") as? Double
             else {
                 continue
             }
-            // We'll take the "end" as the point in time that determines which rate is applicable
-            let pivotDate = cEnd
+            // Ensure we clip the consumption to our overall range
+            let slotStart = max(cStart, rangeStart)
+            let slotEnd = min(cEnd, rangeEnd)
+            if slotEnd <= slotStart { continue }
 
-            // Find a matching rate
-            if let (rateFrom, rateTo, exc, inc) = findRate(for: pivotDate, in: sortedRates) {
-                // Add cost
-                totalKWh += usage
-                totalCostExc += usage * exc
-                totalCostInc += usage * inc
+            // 1) Determine which rate record is valid for the midpoint
+            let midpoint = slotStart.addingTimeInterval(slotEnd.timeIntervalSince(slotStart) / 2)
+            if let (rateFrom, rateTo, exc, inc) = findRate(for: midpoint, in: sortedRates) {
+                totalKWh += usageKWh
+                totalCostExc += usageKWh * exc
+                totalCostInc += usageKWh * inc
                 consumptionPeriods += 1
             } else {
-                // If no matching rate found, skip or log a warning
                 print(
-                    "⚠️ No matching rate found for period: \(cStart.formatted()) to \(cEnd.formatted())"
+                    "⚠️ No matching rate found for period: \(slotStart.formatted()) to \(slotEnd.formatted())"
                 )
             }
+
+            // 2) Add the pro-rated fraction of the standing charge for this half-hour block
+            let (excPart, incPart) = proRateStandingCharge(start: slotStart, end: slotEnd)
+            totalStandingExc += excPart
+            totalStandingInc += incPart
         }
 
         print("⚡️ Consumption totals:")
@@ -687,9 +700,13 @@ public final class TariffCalculationRepository: ObservableObject {
         print("  - Cost exc VAT: \(totalCostExc)p")
         print("  - Cost inc VAT: \(totalCostInc)p")
 
+        print("💰 Standing charge totals:")
+        print("  - Total exc VAT: \(totalStandingExc)p")
+        print("  - Total inc VAT: \(totalStandingInc)p")
+
+        // Sum up final
         let finalCostExc = totalCostExc + totalStandingExc
         let finalCostInc = totalCostInc + totalStandingInc
-
         print("🏁 Final totals:")
         print("  - Total cost exc VAT: \(finalCostExc)p")
         print("  - Total cost inc VAT: \(finalCostInc)p")
@@ -697,22 +714,8 @@ public final class TariffCalculationRepository: ObservableObject {
         return (totalKWh, finalCostExc, finalCostInc, totalStandingExc, totalStandingInc)
     }
 
-    /// Helper to find which rate record covers a given instant (usually the consumption interval_end).
-    private func findRate(for date: Date, in sortedRates: [(Date, Date, Double, Double)])
-        -> (Date, Date, Double, Double)?
-    {
-        // Typical logic: pick the rate whose valid_from <= date < valid_to
-        for (start, end, exc, inc) in sortedRates {
-            if start <= date && date < end {
-                return (start, end, exc, inc)
-            }
-        }
-        return nil
-    }
-
-    /// Helper to find which standing charge record is valid for the start of a day
-    /// (or any instant that you prefer).
-    private func findStandingCharge(for date: Date, in sortedSC: [(Date, Date, Double, Double)])
+    /// We updated to accept "start" instead of dayStart so partial intervals can be matched
+    internal func findStandingCharge(for date: Date, in sortedSC: [(Date, Date, Double, Double)])
         -> (Date, Date, Double, Double)?
     {
         for (start, end, exc, inc) in sortedSC {
@@ -721,29 +724,5 @@ public final class TariffCalculationRepository: ObservableObject {
             }
         }
         return nil
-    }
-
-    /// Count the number of day boundaries between two dates (inclusive).
-    /// e.g. from 2025-01-01 to 2025-01-03 => 3 days
-    private func daysBetweenDates(_ start: Date, _ end: Date) -> Int {
-        let startOfStart = Calendar.current.startOfDay(for: start)
-        let startOfEnd = Calendar.current.startOfDay(for: end)
-        let diff = Calendar.current.dateComponents([.day], from: startOfStart, to: startOfEnd)
-        // Add 1 to include the last partial day
-        return max(0, (diff.day ?? 0) + 1)
-    }
-
-    /// For day-level iteration, get the day start
-    private func startOfDay(_ date: Date) -> Date {
-        return Calendar.current.startOfDay(for: date)
-    }
-
-    /// For day-level iteration, get day end
-    private func endOfDay(_ date: Date) -> Date {
-        guard let end = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: date)
-        else {
-            return date
-        }
-        return end
     }
 }

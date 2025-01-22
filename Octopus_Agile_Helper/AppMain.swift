@@ -13,10 +13,10 @@ struct Octopus_Agile_HelperApp: App {
     // MARK: - StateObjects
     @StateObject private var globalSettings = GlobalSettingsManager()
     @StateObject private var ratesVM: RatesViewModel
-    
+
     // MARK: - ScenePhase
     @Environment(\.scenePhase) private var scenePhase
-    
+
     // MARK: - UI States
     @State private var isAppInitialized = false
     @State private var showDebugView = false
@@ -41,38 +41,43 @@ struct Octopus_Agile_HelperApp: App {
             return false
         }
     }
-    
+
     // MARK: - Body
     var body: some Scene {
         WindowGroup {
             ZStack {
                 if isAppInitialized {
                     ContentView(hasAgileCards: hasAgileCards)
-                        .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                        .environment(
+                            \.managedObjectContext, persistenceController.container.viewContext
+                        )
                         .environmentObject(globalSettings)
                         .environmentObject(ratesVM)
                         .environmentObject(globalTimer)
                         .preferredColorScheme(.dark)
                         #if DEBUG
-                        // Debug button overlay
-                        .overlay(alignment: .bottom) {
-                            Button("Debug") {
-                                showDebugView.toggle()
+                            // Debug button overlay
+                            .overlay(alignment: .bottom) {
+                                Button("Debug") {
+                                    showDebugView.toggle()
+                                }
+                                .font(.caption)
+                                .foregroundColor(Theme.secondaryTextColor.opacity(0.6))
+                                .padding(.bottom, 8)
                             }
-                            .font(.caption)
-                            .foregroundColor(Theme.secondaryTextColor.opacity(0.6))
-                            .padding(.bottom, 8)
-                        }
-                        .sheet(isPresented: $showDebugView) {
-                            NavigationStack {
-                                TestView(ratesViewModel: ratesVM)
+                            .sheet(isPresented: $showDebugView) {
+                                NavigationStack {
+                                    TestView(ratesViewModel: ratesVM)
                                     .environmentObject(globalSettings)
                                     .environmentObject(globalTimer)
                                     .environmentObject(ratesVM)
-                                    .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                                    .environment(
+                                        \.managedObjectContext,
+                                        persistenceController.container.viewContext
+                                    )
                                     .preferredColorScheme(.dark)
+                                }
                             }
-                        }
                         #endif
                 } else {
                     // While loading => show Splash
@@ -95,15 +100,15 @@ extension Octopus_Agile_HelperApp {
     private func initializeAppData() async {
         do {
             await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
-            
+
             var productsToInit: [String] = []
-            
+
             if !ratesVM.currentAgileCode.isEmpty {
                 productsToInit.append(ratesVM.currentAgileCode)
             }
-            
+
             ratesVM.productsToInitialize = productsToInit
-            
+
             if !productsToInit.isEmpty {
                 await ratesVM.initializeProducts()
             }
@@ -133,7 +138,7 @@ extension Octopus_Agile_HelperApp {
         appearance.backgroundColor = UIColor(Theme.mainBackground)
         appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
         appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
-        
+
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
@@ -144,7 +149,7 @@ extension Octopus_Agile_HelperApp {
 #Preview {
     struct PreviewWrapper: View {
         @State private var isInitialized = false
-        
+
         let globalTimer = GlobalTimer()
         let globalSettings = GlobalSettingsManager()
         let ratesVM = RatesViewModel(globalTimer: GlobalTimer())
@@ -163,7 +168,8 @@ extension Octopus_Agile_HelperApp {
             }
             .task {
                 do {
-                    await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                    await ratesVM.setAgileProductFromAccountOrFallback(
+                        globalSettings: globalSettings)
                     if !ratesVM.currentAgileCode.isEmpty {
                         await ratesVM.initializeProducts()
                     }
@@ -174,6 +180,6 @@ extension Octopus_Agile_HelperApp {
             }
         }
     }
-    
+
     return PreviewWrapper()
 }

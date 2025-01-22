@@ -11,15 +11,21 @@ public final class ElectricityConsumptionRepository: ObservableObject {
 
     // MARK: - Dependencies
     private let apiClient = OctopusAPIClient.shared
-    private let globalSettingsManager = GlobalSettingsManager()
+    private var globalSettingsManager: GlobalSettingsManager
     private let context: NSManagedObjectContext
 
     // For pagination, each page typically has 100 records from Octopus.
     private let recordsPerPage = 100
 
     // MARK: - Initializer
-    private init() {
+    private init(globalSettingsManager: GlobalSettingsManager = GlobalSettingsManager()) {
+        self.globalSettingsManager = globalSettingsManager
         context = PersistenceController.shared.container.viewContext
+    }
+
+    /// Updates the GlobalSettingsManager instance
+    public func updateGlobalSettingsManager(_ newManager: GlobalSettingsManager) {
+        self.globalSettingsManager = newManager
     }
 
     // MARK: - Public Methods

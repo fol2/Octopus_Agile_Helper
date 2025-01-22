@@ -32,6 +32,25 @@ public final class AccountRepository: ObservableObject {
             print("  - Address: \(firstProperty.address_line_1 ?? "N/A")")
             print("  - Postcode: \(firstProperty.postcode ?? "N/A")")
             print("  - Moved in at: \(firstProperty.moved_in_at ?? "N/A")")
+
+            // Debug electricity meter points
+            if let elecPoints = firstProperty.electricity_meter_points {
+                print("  - Found \(elecPoints.count) electricity meter points")
+                for (index, point) in elecPoints.enumerated() {
+                    print("    Point \(index + 1):")
+                    print("    - MPAN: \(point.mpan)")
+                    if let meters = point.meters {
+                        print("    - Found \(meters.count) meters")
+                        for (mIndex, meter) in meters.enumerated() {
+                            print("      Meter \(mIndex + 1) Serial: \(meter.serial_number)")
+                        }
+                    } else {
+                        print("    - No meters found")
+                    }
+                }
+            } else {
+                print("  - No electricity meter points found")
+            }
         }
 
         // 1) Convert to raw JSON for safe-keeping (if desired)
@@ -43,14 +62,19 @@ public final class AccountRepository: ObservableObject {
             print("fetchAndStoreAccount: 💾 Storing account data in settings...")
             globalSettings.settings.accountData = rawData
             globalSettings.settings.accountNumber = accountNumber
-            
+            globalSettings.settings.apiKey = apiKey  // Store API key
+            print("fetchAndStoreAccount: 🔑 Stored API key in settings")
+
             // Store postcode if available from first property
             if let firstProperty = accountData.properties.first,
-               let postcode = firstProperty.postcode {
+                let postcode = firstProperty.postcode
+            {
                 print("fetchAndStoreAccount: 📍 Found postcode: \(postcode)")
                 globalSettings.settings.regionInput = postcode
-                print("fetchAndStoreAccount: 📍 Updated regionInput to: \(globalSettings.settings.regionInput)")
-                
+                print(
+                    "fetchAndStoreAccount: 📍 Updated regionInput to: \(globalSettings.settings.regionInput)"
+                )
+
                 // Lookup region code from postcode
                 Task {
                     do {
@@ -58,7 +82,9 @@ public final class AccountRepository: ObservableObject {
                         print("fetchAndStoreAccount: 🌍 Found region code: \(region)")
                         await MainActor.run {
                             globalSettings.settings.regionInput = region
-                            print("fetchAndStoreAccount: 🌍 Updated regionInput to region code: \(region)")
+                            print(
+                                "fetchAndStoreAccount: 🌍 Updated regionInput to region code: \(region)"
+                            )
                         }
                     } catch {
                         print("fetchAndStoreAccount: ⚠️ Failed to lookup region code: \(error)")
@@ -67,21 +93,45 @@ public final class AccountRepository: ObservableObject {
             } else {
                 print("fetchAndStoreAccount: ⚠️ No postcode found in account data")
             }
-            
+
             print("fetchAndStoreAccount: ✅ Account data stored in settings")
             print("fetchAndStoreAccount: 📊 Account data size: \(rawData.count) bytes")
         }
 
         // 2) For simplicity, parse the first property + first electricity_meter_points
-        if let firstProperty = accountData.properties.first,
-            let elecPoints = firstProperty.electricity_meter_points?.first,
-            let firstMeter = elecPoints.meters?.first
-        {
-            // store them in settings on main thread
-            await MainActor.run {
-                globalSettings.settings.electricityMPAN = elecPoints.mpan
-                globalSettings.settings.electricityMeterSerialNumber = firstMeter.serial_number
+        if let firstProperty = accountData.properties.first {
+            if let elecPoints = firstProperty.electricity_meter_points?.first {
+                print(
+                    "fetchAndStoreAccount: ⚡️ Found electricity meter point with MPAN: \(elecPoints.mpan)"
+                )
+
+                if let firstMeter = elecPoints.meters?.first {
+                    print(
+                        "fetchAndStoreAccount: 📟 Found meter with serial number: \(firstMeter.serial_number)"
+                    )
+
+                    // Store them in settings on main thread
+                    await MainActor.run {
+                        globalSettings.settings.electricityMPAN = elecPoints.mpan
+                        globalSettings.settings.electricityMeterSerialNumber =
+                            firstMeter.serial_number
+                        print(
+                            "fetchAndStoreAccount: ✅ Stored MPAN and meter serial number in settings"
+                        )
+                        print("  - MPAN: \(elecPoints.mpan)")
+                        print("  - Serial: \(firstMeter.serial_number)")
+                    }
+                } else {
+                    print("fetchAndStoreAccount: ⚠️ No meter found for electricity point")
+                    throw OctopusAPIError.invalidResponse
+                }
+            } else {
+                print("fetchAndStoreAccount: ⚠️ No electricity meter points found")
+                throw OctopusAPIError.invalidResponse
             }
+        } else {
+            print("fetchAndStoreAccount: ⚠️ No properties found in account data")
+            throw OctopusAPIError.invalidResponse
         }
 
         // 3) Process all properties and their meter points to store products
@@ -96,18 +146,23 @@ public final class AccountRepository: ObservableObject {
                             if let productCode = extractProductCode(from: agreement.tariff_code) {
                                 // Ensure the product exists in our database
                                 try await productsRepo.ensureProductExists(productCode: productCode)
-                                
+
                                 // If this is an active Agile agreement, store its code
                                 if agreement.tariff_code.contains("AGILE") {
                                     let now = Date()
                                     let dateFormatter = ISO8601DateFormatter()
-                                    dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                                    
-                                    let isActive = (agreement.valid_from == nil || 
-                                                  (dateFormatter.date(from: agreement.valid_from!) ?? .distantFuture) <= now) &&
-                                                 (agreement.valid_to == nil || 
-                                                  (dateFormatter.date(from: agreement.valid_to!) ?? .distantPast) >= now)
-                                    
+                                    dateFormatter.formatOptions = [
+                                        .withInternetDateTime, .withFractionalSeconds,
+                                    ]
+
+                                    let isActive =
+                                        (agreement.valid_from == nil
+                                            || (dateFormatter.date(from: agreement.valid_from!)
+                                                ?? .distantFuture) <= now)
+                                        && (agreement.valid_to == nil
+                                            || (dateFormatter.date(from: agreement.valid_to!)
+                                                ?? .distantPast) >= now)
+
                                     if isActive {
                                         activeAgileCode = productCode
                                     }

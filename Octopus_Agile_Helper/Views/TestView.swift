@@ -49,7 +49,7 @@ struct TestView: View {
     // Global states and models
     @StateObject private var globalTimer = GlobalTimer()
     @StateObject private var ratesViewModel: RatesViewModel
-    @StateObject private var consumptionVM = ConsumptionViewModel()
+    @StateObject private var consumptionVM: ConsumptionViewModel
     @StateObject private var productsFetcher: ProductsFetcher
     @EnvironmentObject private var globalSettings: GlobalSettingsManager
 
@@ -94,7 +94,8 @@ struct TestView: View {
     // MARK: - Initializer
     init(ratesViewModel: RatesViewModel) {
         self._ratesViewModel = StateObject(wrappedValue: ratesViewModel)
-        self._consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
+        self._consumptionVM = StateObject(
+            wrappedValue: ConsumptionViewModel(globalSettingsManager: GlobalSettingsManager()))
         self._productsFetcher = StateObject(
             wrappedValue: ProductsFetcher(
                 context: PersistenceController.shared.container.viewContext)
@@ -168,6 +169,9 @@ struct TestView: View {
                 globalTimer.startTimer()
                 Task {
                     print("Debug - Starting initialization")
+                    // Update ConsumptionViewModel with the environment GlobalSettingsManager
+                    consumptionVM.updateGlobalSettingsManager(globalSettings)
+
                     // Only set AGILE plan, don't sync products
                     print("Debug - Setting AGILE plan")
                     await ratesViewModel.setAgileProductFromAccountOrFallback(

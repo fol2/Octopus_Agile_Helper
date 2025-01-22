@@ -7,7 +7,7 @@ public struct AccountTariffCardView: View {
     @ObservedObject var viewModel: RatesViewModel
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @StateObject private var tariffVM = TariffViewModel()
-    @StateObject private var consumptionVM = ConsumptionViewModel()
+    @ObservedObject var consumptionVM: ConsumptionViewModel
 
     // MARK: - State
     @State private var selectedInterval: IntervalType
@@ -41,8 +41,9 @@ public struct AccountTariffCardView: View {
     }
 
     // MARK: - Initialization
-    public init(viewModel: RatesViewModel) {
+    public init(viewModel: RatesViewModel, consumptionVM: ConsumptionViewModel) {
         self.viewModel = viewModel
+        self.consumptionVM = consumptionVM
         // Initialize state properties with default values
         // They will be updated in onAppear with the actual values from globalSettings
         _selectedInterval = State(initialValue: .daily)
@@ -194,28 +195,95 @@ public struct AccountTariffCardView: View {
         }
     }
 
+    /// For daily intervals, returns the next valid date that has actual consumption data
+    /// (based on `consumptionVM.consumptionRecords`). If none found (or goes out of [minDate, maxDate]),
+    /// returns `nil`.
+    private func nextDailyDateWithData(from date: Date, forward: Bool) -> Date? {
+        // Gather all available start-of-day dates from consumptionRecords
+        // so that if a day has no records, we won't let the user navigate to it.
+        let dailySet: Set<Date> = {
+            let calendar = Calendar.current
+            return Set(
+                consumptionVM.consumptionRecords.compactMap { record in
+                    guard let intervalStart = record.value(forKey: "interval_start") as? Date else {
+                        return nil
+                    }
+                    // Normalise to start of day
+                    return calendar.startOfDay(for: intervalStart)
+                }
+            )
+        }()
+
+        guard !dailySet.isEmpty else {
+            // If we have no daily data at all, no navigation possible
+            return nil
+        }
+
+        let calendar = Calendar.current
+        // Start from the *current* day boundary
+        var candidate = calendar.startOfDay(for: date)
+
+        while true {
+            // Step by 1 day forward or backward
+            guard
+                let nextDay = calendar.date(byAdding: .day, value: forward ? 1 : -1, to: candidate)
+            else {
+                return nil
+            }
+            candidate = calendar.startOfDay(for: nextDay)
+
+            // Bounds-check against minAllowedDate/maxAllowedDate
+            if let minDate = minAllowedDate, candidate < calendar.startOfDay(for: minDate) {
+                return nil
+            }
+            if let maxDate = maxAllowedDate, candidate > calendar.startOfDay(for: maxDate) {
+                return nil
+            }
+
+            // If the candidate day is in the set of days we have data for, we can navigate to it
+            if dailySet.contains(candidate) {
+                return candidate
+            }
+        }
+    }
+
     private func navigateDate(forward: Bool) {
         let calendar = Calendar.current
         var newDate: Date?
 
         switch selectedInterval {
         case .daily:
-            newDate = calendar.date(byAdding: .day, value: forward ? 1 : -1, to: currentDate)
+            // Instead of blindly stepping ±1 day, we jump to the next day for which
+            // consumption data actually exists.
+            newDate = nextDailyDateWithData(from: currentDate, forward: forward)
+
         case .weekly:
             newDate = calendar.date(byAdding: .weekOfYear, value: forward ? 1 : -1, to: currentDate)
+
         case .monthly:
             newDate = calendar.date(byAdding: .month, value: forward ? 1 : -1, to: currentDate)
         }
 
-        if let newDate = newDate,
-            let maxDate = maxAllowedDate,
-            let minDate = minAllowedDate,
-            newDate <= maxDate && newDate >= minDate
-        {
-            currentDate = newDate
-            savePreferences()
-            calculateCosts()
+        // If newDate is `nil`, that means:
+        //  - We either fell out of [minDate, maxDate], or
+        //  - We have no consumption data for the next day
+        guard let newDate = newDate else {
+            return
         }
+
+        // Final safety check, though we already do min/max checks in daily mode
+        // but let's be safe for weekly/monthly steps:
+        if let minDate = minAllowedDate, newDate < minDate {
+            return
+        }
+        if let maxDate = maxAllowedDate, newDate > maxDate {
+            return
+        }
+
+        // If the new date is valid and within range, accept it
+        currentDate = newDate
+        savePreferences()
+        calculateCosts()
     }
 
     private func calculateCosts() {
@@ -337,7 +405,6 @@ public struct AccountTariffCardView: View {
                         showingDetails = true
                     }) {
                         Image(systemName: "chevron.right.circle.fill")
-                            .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                     }
                     .buttonStyle(.plain)
@@ -364,16 +431,27 @@ public struct AccountTariffCardView: View {
                 switch consumptionVM.fetchState {
                 case .idle:
                     if consumptionVM.consumptionRecords.isEmpty {
-                        initiatingView
+                        // If we have tried to fetch once but still no records,
+                        // show partial or a "No data yet" placeholder, rather than infinite spinner
+                        if consumptionVM.error != nil {
+                            errorView
+                        } else {
+                            initiatingView
+                        }
                     } else {
                         mainContentView
                     }
-                case .loading:
-                    loadingView
                 case .partial:
                     mainContentView
                 case .success:
                     mainContentView
+                case .loading:
+                    if consumptionVM.consumptionRecords.isEmpty {
+                        loadingView
+                    } else {
+                        // We do have some records => treat it like partial success
+                        mainContentView
+                    }
                 case .failure:
                     errorView
                 }
@@ -384,13 +462,40 @@ public struct AccountTariffCardView: View {
         .onAppear {
             Task {
                 initializeFromSettings()
-                await loadConsumptionIfNeeded()
+                updateAllowedDateRange()
+                calculateCosts()
+            }
+        }
+        .onChange(of: globalSettings.settings.accountData) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+
+            print("🔄 AccountTariffCardView: Detected new accountData, forcing consumption reload.")
+            Task {
+                // Force a complete refresh from the API when account changes
+                await consumptionVM.refreshDataFromAPI(force: true)
                 updateAllowedDateRange()
                 calculateCosts()
             }
         }
         .onChange(of: globalSettings.locale) { _, _ in
+            // Force a re-render if user changes language
             refreshTrigger.toggle()
+        }
+        .onChange(of: consumptionVM.fetchState) { oldVal, newVal in
+            // If we remain at .loading for too long with no data, try loading again
+            if newVal == .loading && consumptionVM.consumptionRecords.isEmpty {
+                DispatchQueue.main.asyncAfter(wallDeadline: .now() + 8) { [weak consumptionVM] in
+                    guard let consumptionVM else { return }
+                    if consumptionVM.fetchState == .loading
+                        && consumptionVM.consumptionRecords.isEmpty
+                    {
+                        // Instead of manually setting state, trigger a new load which has proper state management
+                        Task { @MainActor in
+                            await consumptionVM.loadData()
+                        }
+                    }
+                }
+            }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
             updateAllowedDateRange()
@@ -425,45 +530,55 @@ public struct AccountTariffCardView: View {
                         .buttonStyle(.borderless)
                     }
                 }
-                .frame(width: 40, alignment: .leading)
+                .frame(width: 44, alignment: .center)
                 .id("left-nav-\(isAtMinDate)-\(tariffVM.isCalculating)")
 
-                // Center content - flexible width
-                VStack(alignment: .center, spacing: 2) {
+                Spacer(minLength: 0)
+
+                // Center content - using HStack for better vertical alignment
+                HStack {
+                    Spacer()
                     Text(formatDateRange())
                         .font(Theme.secondaryFont())
                         .foregroundColor(Theme.mainTextColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                    // Use a fixed height container for the loading indicator
-                    ZStack {
-                        if tariffVM.isCalculating {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(0.7)
+                        .overlay(alignment: .bottom) {
+                            if tariffVM.isCalculating {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .scaleEffect(0.7)
+                                    .offset(y: 14)  // Position below the text
+                            }
                         }
-                    }
-                    .frame(height: 16)  // Fixed height for the loading indicator area
+                    Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 44)  // Fixed minimum height for the entire navigation area
-                .padding(.horizontal, 8)
+                .frame(height: 44)
+
+                Spacer(minLength: 0)
 
                 // Right navigation area - fixed width
                 HStack {
                     if !isAtMaxDate && !tariffVM.isCalculating {
-                        Button(action: { navigateDate(forward: true) }) {
-                            Image(systemName: "chevron.right")
-                                .imageScale(.large)
-                                .foregroundColor(Theme.mainColor)
-                                .contentShape(Rectangle())
+                        // For daily mode, check if we can navigate to the next day
+                        if selectedInterval != .daily
+                            || nextDailyDateWithData(from: currentDate, forward: true) != nil
+                        {
+                            Button(action: { navigateDate(forward: true) }) {
+                                Image(systemName: "chevron.right")
+                                    .imageScale(.large)
+                                    .foregroundColor(Theme.mainColor)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.borderless)
                         }
-                        .buttonStyle(.borderless)
                     }
                 }
-                .frame(width: 40, alignment: .trailing)
+                .frame(width: 44, alignment: .center)
                 .id("right-nav-\(isAtMaxDate)-\(tariffVM.isCalculating)")
             }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
 
             // Content and Interval Switcher
@@ -619,9 +734,17 @@ struct AccountTariffDetailView: View {
 
     // MARK: - Loading Methods
     private func loadInitialData() async {
+        // Each interval fetch is done in date-descending order for daily/weekly/monthly.
+        // We'll do two-phase fetching:
+        //  1) Phase 1: Load a small subset of intervals (e.g. 5 days/weeks/months).
+        //  2) Phase 2: Background fetch the rest, appending them in descending order once done.
+
         guard !hasInitiallyLoaded else { return }
 
+        // Clear displayed data only once here when we start loading
         await MainActor.run {
+            displayedRatesByDate = []
+            loadedDays = []
             hasInitiallyLoaded = true
         }
 
@@ -631,25 +754,29 @@ struct AccountTariffDetailView: View {
 
         switch selectedInterval {
         case .daily:
-            // Load today and last 30 days in descending order
             var daysToLoad: [Date] = []
-            daysToLoad.append(startOfToday)  // Today first
-            for dayOffset in 1...30 {  // Then past days
-                if let date = calendar.date(byAdding: .day, value: -dayOffset, to: startOfToday) {
-                    daysToLoad.append(date)
+            // We'll store everything in descending order:
+            daysToLoad.append(startOfToday)  // newest first
+            for dayOffset in 1...30 {
+                if let d = calendar.date(byAdding: .day, value: -dayOffset, to: startOfToday) {
+                    daysToLoad.append(d)
                 }
             }
-            await loadDates(daysToLoad, interval: .daily)
+            // PHASE 1: Take the first 5 days only (or fewer if less available).
+            let phase1Count = min(daysToLoad.count, 5)
+            let phase1Dates = Array(daysToLoad.prefix(phase1Count))
+
+            // Load only the newest 5 days first
+            await loadDates(phase1Dates, interval: .daily)
+            // Then fetch the REST in a background task
+            await fetchRemainingDays(Array(daysToLoad.dropFirst(phase1Count)), interval: .daily)
 
         case .weekly:
-            // Load current week and last 12 weeks in descending order
             var weeksToLoad: [Date] = []
-            // Current week first
             let currentWeekStart = calendar.date(
                 from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
             weeksToLoad.append(currentWeekStart)
 
-            // Then past weeks
             for weekOffset in 1...12 {
                 if let date = calendar.date(
                     byAdding: .weekOfYear, value: -weekOffset, to: startOfToday)
@@ -660,17 +787,18 @@ struct AccountTariffDetailView: View {
                     weeksToLoad.append(weekStart)
                 }
             }
-            await loadDates(weeksToLoad, interval: .weekly)
+
+            let phase1Count = min(weeksToLoad.count, 3)
+            let phase1Weeks = Array(weeksToLoad.prefix(phase1Count))
+            await loadDates(phase1Weeks, interval: .weekly)
+            await fetchRemainingDays(Array(weeksToLoad.dropFirst(phase1Count)), interval: .weekly)
 
         case .monthly:
-            // Load current month and last 6 months in descending order
             var monthsToLoad: [Date] = []
-            // Current month first
             let currentMonthStart = calendar.date(
                 from: calendar.dateComponents([.year, .month], from: now))!
             monthsToLoad.append(currentMonthStart)
 
-            // Then past months
             for monthOffset in 1...6 {
                 if let date = calendar.date(byAdding: .month, value: -monthOffset, to: startOfToday)
                 {
@@ -679,16 +807,33 @@ struct AccountTariffDetailView: View {
                     monthsToLoad.append(monthStart)
                 }
             }
-            await loadDates(monthsToLoad, interval: .monthly)
+            let phase1Count = min(monthsToLoad.count, 2)
+            let phase1Months = Array(monthsToLoad.prefix(phase1Count))
+            await loadDates(phase1Months, interval: .monthly)
+            await fetchRemainingDays(Array(monthsToLoad.dropFirst(phase1Count)), interval: .monthly)
         }
     }
 
+    /// Background fetch: loads the remaining intervals after the user sees partial results.
+    private func fetchRemainingDays(
+        _ remaining: [Date], interval: AccountTariffCardView.IntervalType
+    ) async {
+        guard !remaining.isEmpty else { return }
+        // This can run in the background so user sees partial results quickly.
+        await loadDates(remaining, interval: interval)
+    }
+
+    /// Instead of rewriting loadDates, we keep it the same. We just call it in two stages.
+    /// The rest of your loadDates(...) remains unchanged, but now it's effectively "two-phase."
+    ///
+    /// IMPORTANT: Because we call loadDates for the second chunk in the background,
+    /// the user sees partial results (Phase 1) and then sees the older entries appended.
+    /// We'll maintain the order so that the newest intervals remain at the top
+    /// of displayedRatesByDate, with older appended at the bottom.
+
     private func loadDates(_ dates: [Date], interval: AccountTariffCardView.IntervalType) async {
-        // Clear existing data when changing intervals
-        await MainActor.run {
-            displayedRatesByDate = []
-            loadedDays = []
-        }
+        // Remove the data clearing since it's now done in loadInitialData
+        // This allows accumulation of data from both phases
 
         // Load dates sequentially in descending order (they're already sorted)
         for date in dates {
@@ -700,11 +845,9 @@ struct AccountTariffDetailView: View {
 
     private func loadPeriod(_ date: Date, interval: AccountTariffCardView.IntervalType) async {
         let calendar = Calendar.current
-        let periodStart = calendar.startOfDay(for: date)
-
-        // Skip if already loaded
+        let periodStart = calendar.startOfDay(for: date)  // daily/weekly/monthly pivot
         if loadedDays.contains(where: { calendar.isDate($0, inSameDayAs: periodStart) }) {
-            return
+            return  // skip duplicates
         }
 
         if let accountData = globalSettings.settings.accountData,
@@ -747,18 +890,21 @@ struct AccountTariffDetailView: View {
     // MARK: - View Body
     var body: some View {
         VStack(spacing: 0) {
-            // Header with title and close button
-            HStack {
+            // Header with centered title and close button
+            ZStack {
                 Text("Account Tariff Details")
                     .font(Theme.titleFont())
                     .foregroundColor(Theme.mainTextColor)
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .imageScale(.large)
+
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
+                            .imageScale(.large)
+                    }
                 }
             }
             .padding(.horizontal)
