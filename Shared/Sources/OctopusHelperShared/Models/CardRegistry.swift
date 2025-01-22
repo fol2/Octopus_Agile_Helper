@@ -292,11 +292,11 @@ public final class CardRegistry: ObservableObject {
         globalTimer: GlobalTimer,
         globalSettings: GlobalSettingsManager
     ) -> CardDependencies {
-        CardDependencies(
-            ratesViewModel: ratesViewModel,
-            consumptionViewModel: consumptionViewModel,
-            globalTimer: globalTimer,
-            globalSettings: globalSettings
-        )
+        let dependencies = CardDependencies()
+        dependencies.register(ratesViewModel)
+        dependencies.register(consumptionViewModel)
+        dependencies.register(globalTimer)
+        dependencies.register(globalSettings)
+        return dependencies
     }
 }
