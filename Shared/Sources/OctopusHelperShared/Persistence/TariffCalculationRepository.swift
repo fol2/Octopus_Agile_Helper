@@ -143,6 +143,41 @@ public final class TariffCalculationRepository: ObservableObject {
         endDate: Date,
         intervalType: String
     ) async throws -> NSManagedObject {
+        // First try to fetch from CoreData
+        let existing = try await context.perform {
+            let fetchRequest = NSFetchRequest<NSManagedObject>(
+                entityName: "TariffCalculationEntity")
+
+            // Match by period and interval type for single tariff calculations
+            fetchRequest.predicate = NSPredicate(
+                format:
+                    "tariff_code == %@ AND interval_type == %@ AND period_start == %@ AND period_end == %@",
+                tariffCode, intervalType, startDate as CVarArg, endDate as CVarArg
+            )
+
+            fetchRequest.fetchLimit = 1
+            let results = try self.context.fetch(fetchRequest)
+            return results.first
+        }
+
+        // If we found an existing calculation, check if we have new data
+        if let existing = existing {
+            if try await hasNewDataAvailable(
+                existingCalculation: existing,
+                start: startDate,
+                end: endDate
+            ) {
+                print(
+                    "💡 CoreData cache invalid for tariff \(tariffCode), calculating fresh values..."
+                )
+            } else {
+                print("✅ USING COREDATA CACHE for tariff \(tariffCode)")
+                return existing
+            }
+        } else {
+            print("🔍 No CoreData cache found for tariff \(tariffCode), calculating fresh values...")
+        }
+
         // 1) Gather all relevant consumption in EConsumAgile
         let consumptionRecords = try await fetchConsumption(start: startDate, end: endDate)
 

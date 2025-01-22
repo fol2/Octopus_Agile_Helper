@@ -125,7 +125,7 @@ public struct OctopusTariffRate: Decodable {
     public let value_exc_vat: Double
     public let value_inc_vat: Double
     public let valid_from: Date
-    public let valid_to: Date
+    public let valid_to: Date?
     public let payment_method: String?
 }
 

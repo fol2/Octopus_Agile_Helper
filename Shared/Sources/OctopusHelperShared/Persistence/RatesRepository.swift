@@ -48,12 +48,16 @@ public final class RatesRepository: ObservableObject {
 
     // MARK: - Public API
 
-    /// Extracts a product code from a tariff code
-    /// e.g. "E-2R-OE-FIX-14M-25-01-08-H" -> "OE-FIX-14M-25"
+    /// Extracts a short code from a tariff code by removing 2 parts from front and 1 from end
+    /// e.g. "E-1R-OE-FIX-14M-25-01-08-H" -> "OE-FIX-14M-25-01-08"
     private func productCodeFromTariff(_ tariffCode: String) -> String? {
         let parts = tariffCode.components(separatedBy: "-")
-        guard parts.count >= 6 else { return nil }
-        return parts[2...5].joined(separator: "-")
+        // Need at least 4 parts (2 prefix + 1 main + 1 suffix)
+        guard parts.count >= 4 else { return nil }
+
+        // Remove first 2 parts and last part
+        let productParts = parts[2...(parts.count - 2)]
+        return productParts.joined(separator: "-")
     }
 
     /// New approach: we accept a tariffCode and use getBaseRateURL to construct the URL, with pagination support
@@ -122,13 +126,17 @@ public final class RatesRepository: ObservableObject {
             return ([], totalPages)
         }
 
+        let serverNewestDate = serverNewestRate.valid_to ?? Date.distantFuture
+        let serverOldestDate = serverOldestRate.valid_from
+
         print("fetchAndStoreRates: 📅 Server data range:")
-        print("fetchAndStoreRates: 📅 Newest rate: \(serverNewestRate.valid_to.formatted())")
-        print("fetchAndStoreRates: 📅 Oldest rate: \(serverOldestRate.valid_from.formatted())")
+        print("fetchAndStoreRates: 📅 Newest rate: \(serverNewestDate.formatted())")
+        print("fetchAndStoreRates: 📅 Oldest rate: \(serverOldestDate.formatted())")
 
         // 3. Determine what data we need to fetch
-        var needNewerData = localMaxDate == nil || serverNewestRate.valid_to > localMaxDate!
-        var needOlderData = localMinDate == nil || serverOldestRate.valid_from < localMinDate!
+        var needNewerData = localMaxDate == nil  // If no local max date, we need newer data
+        var needOlderData =
+            localMinDate == nil || serverOldestDate < (localMinDate ?? Date.distantFuture)
 
         print("fetchAndStoreRates: 🔍 Analyzing data requirements:")
         if localCount == 0 {
@@ -138,28 +146,31 @@ public final class RatesRepository: ObservableObject {
         } else {
             if needNewerData {
                 print(
-                    "fetchAndStoreRates: 📥 Need newer data: Server has newer rates until \(serverNewestRate.valid_to.formatted())"
+                    "fetchAndStoreRates: 📥 Need newer data: Server has newer rates until \(serverNewestDate.formatted())"
                 )
             }
             if needOlderData {
                 print(
-                    "fetchAndStoreRates: 📥 Need older data: Server has older rates from \(serverOldestRate.valid_from.formatted())"
+                    "fetchAndStoreRates: 📥 Need older data: Server has older rates from \(serverOldestDate.formatted())"
                 )
             }
             if !needNewerData && !needOlderData {
                 print(
                     "fetchAndStoreRates: 🔍 Local data covers the entire server range, checking for gaps"
                 )
-                if let localMin = localMinDate,
-                    let localMax = localMaxDate,
-                    hasMissingRecords(from: localMin, to: localMax, localData: localData)
-                {
-                    print("fetchAndStoreRates: 🕳️ Found gaps in local data, will fetch full range")
-                    needNewerData = true
-                    needOlderData = true
-                } else {
-                    print("fetchAndStoreRates: ✅ No gaps found, data is complete")
-                    return (localData, totalPages)
+                if let localMin = localMinDate {
+                    // If localMaxDate is nil, it means we have an indefinite rate
+                    // Use serverNewestDate as the end date for gap checking
+                    if hasMissingRecords(from: localMin, to: serverNewestDate, localData: localData)
+                    {
+                        print(
+                            "fetchAndStoreRates: 🕳️ Found gaps in local data, will fetch full range")
+                        needNewerData = true
+                        needOlderData = true
+                    } else {
+                        print("fetchAndStoreRates: ✅ No gaps found, data is complete")
+                        return (localData, totalPages)
+                    }
                 }
             }
         }
@@ -204,10 +215,17 @@ public final class RatesRepository: ObservableObject {
                         // Stop if we hit existing data
                         if let oldestInPage = pageResponse.results.last,
                             let localMax = localMaxDate,
-                            oldestInPage.valid_to <= localMax
+                            let oldestValidTo = oldestInPage.valid_to,
+                            oldestValidTo <= localMax
                         {
                             // Only store records newer than our local max
-                            let newRecords = pageResponse.results.filter { $0.valid_to > localMax }
+                            let newRecords = pageResponse.results.filter { rate in
+                                if let validTo = rate.valid_to {
+                                    return validTo > localMax
+                                }
+                                // If valid_to is nil (ongoing), include it
+                                return true
+                            }
                             print(
                                 "fetchAndStoreRates: 📥 Found \(newRecords.count) new rates in page \(currentPage)"
                             )
@@ -269,13 +287,17 @@ public final class RatesRepository: ObservableObject {
 
                 print("fetchAndStoreRates: ✅ Phase 2 complete")
                 print("fetchAndStoreRates: 📊 Final record count: \(finalData.count)")
+
+                // Get the date range of the data
                 if let minDate = finalData.compactMap({ $0.value(forKey: "valid_from") as? Date })
-                    .min(),
-                    let maxDate = finalData.compactMap({ $0.value(forKey: "valid_to") as? Date })
-                        .max()
+                    .min()
                 {
+                    // For maxDate, if all valid_to dates are null, use "ongoing" in the log
+                    let maxDates = finalData.compactMap({ $0.value(forKey: "valid_to") as? Date })
+                    let maxDateStr =
+                        maxDates.isEmpty ? "ongoing" : (maxDates.max()?.formatted() ?? "ongoing")
                     print(
-                        "fetchAndStoreRates: 📅 Final date range: \(minDate.formatted()) to \(maxDate.formatted())"
+                        "fetchAndStoreRates: 📅 Final date range: \(minDate.formatted()) to \(maxDateStr)"
                     )
                 }
             } catch {
@@ -301,12 +323,16 @@ public final class RatesRepository: ObservableObject {
 
         // Filter records within this date range
         let recordsInRange = localData.filter { record in
-            guard let recordStart = record.value(forKey: "valid_from") as? Date,
-                let recordEnd = record.value(forKey: "valid_to") as? Date
-            else {
+            guard let recordStart = record.value(forKey: "valid_from") as? Date else {
                 return false
             }
-            return recordStart >= startDate && recordEnd <= endDate
+            // For valid_to, if it's nil it means the rate is valid indefinitely
+            if let recordEnd = record.value(forKey: "valid_to") as? Date {
+                return recordStart >= startDate && recordEnd <= endDate
+            } else {
+                // If valid_to is nil, the rate is valid indefinitely
+                return recordStart >= startDate
+            }
         }
 
         print("Debug - Date range check:")
@@ -379,7 +405,6 @@ public final class RatesRepository: ObservableObject {
                     newCharge.setValue(tariffCode, forKey: "tariff_code")
                 }
             }
-
             try self.context.save()
         }
     }
@@ -407,9 +432,12 @@ public final class RatesRepository: ObservableObject {
                 let validFrom = apiRate.valid_from
                 let key = "\(tariffCode)_\(validFrom.timeIntervalSince1970)"
 
+                // Use Date.distantFuture if valid_to is nil (ongoing rate)
+                let validTo = apiRate.valid_to ?? Date.distantFuture
+
                 if let found = mapByKey[key] {
                     // update existing rate
-                    found.setValue(apiRate.valid_to, forKey: "valid_to")
+                    found.setValue(validTo, forKey: "valid_to")
                     found.setValue(apiRate.value_exc_vat, forKey: "value_excluding_vat")
                     found.setValue(apiRate.value_inc_vat, forKey: "value_including_vat")
                 } else {
@@ -418,7 +446,7 @@ public final class RatesRepository: ObservableObject {
                         forEntityName: "RateEntity", into: self.context)
                     newRate.setValue(UUID().uuidString, forKey: "id")
                     newRate.setValue(apiRate.valid_from, forKey: "valid_from")
-                    newRate.setValue(apiRate.valid_to, forKey: "valid_to")
+                    newRate.setValue(validTo, forKey: "valid_to")
                     newRate.setValue(apiRate.value_exc_vat, forKey: "value_excluding_vat")
                     newRate.setValue(apiRate.value_inc_vat, forKey: "value_including_vat")
                     newRate.setValue(tariffCode, forKey: "tariff_code")

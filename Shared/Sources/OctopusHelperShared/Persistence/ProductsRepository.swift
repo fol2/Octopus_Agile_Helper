@@ -274,13 +274,16 @@ public final class ProductsRepository: ObservableObject {
         }
     }
 
-    /// Extracts a short code from a tariff code, e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03".
-    /// If it doesn't contain "AGILE" or a known pattern, you can adjust your logic as needed.
+    /// Extracts a short code from a tariff code by removing 2 parts from front and 1 from end
+    /// e.g. "E-1R-OE-FIX-14M-25-01-08-H" -> "OE-FIX-14M-25-01-08"
     private func productCodeFromTariff(_ tariffCode: String) -> String? {
-        // e.g. "E-1R-AGILE-24-04-03-H"
         let parts = tariffCode.components(separatedBy: "-")
-        guard parts.count >= 6 else { return nil }
-        return parts[2...5].joined(separator: "-")  // e.g. "AGILE-24-04-03"
+        // Need at least 4 parts (2 prefix + 1 main + 1 suffix)
+        guard parts.count >= 4 else { return nil }
+
+        // Remove first 2 parts and last part
+        let productParts = parts[2...(parts.count - 2)]
+        return productParts.joined(separator: "-")
     }
 
     /// Fetch local product rows by the exact product code (case-sensitive match).
