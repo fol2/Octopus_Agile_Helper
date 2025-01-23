@@ -128,7 +128,7 @@ private struct ProductGroup: Identifiable, Hashable {
     /// Format available date for display
     func formatDate(_ date: Date) -> String {
         let df = DateFormatter()
-        df.dateStyle = .medium
+        df.dateFormat = "d MMMM yyyy"  // UK format: e.g. "15 January 2024"
         return df.string(from: date)
     }
 }
@@ -196,6 +196,10 @@ public struct TariffComparisonCardView: View {
         self.consumptionVM = consumptionVM
         self.ratesVM = ratesVM
         self.globalSettings = globalSettings
+        // Initialize state properties with default values
+        // They will be updated in onAppear with the actual values from globalSettings
+        _selectedInterval = State(initialValue: .daily)
+        _currentDate = State(initialValue: Date())
     }
 
     // MARK: - Body
@@ -240,12 +244,14 @@ public struct TariffComparisonCardView: View {
                     - Selected plan: \(compareSettings.settings.selectedPlanCode)
                     """, component: .tariffViewModel)
 
+                initializeFromSettings()  // Initialize from saved settings
                 updateAllowedDateRange()
                 await loadComparisonPlansIfNeeded()
 
-                // do initial calculations
-                await recalcAccountTariff()
-                await recalcCompareTariff()
+                // do initial calculations in parallel
+                async let accountCalc = recalcAccountTariff()
+                async let compareCalc = recalcCompareTariff()
+                await (_, _) = (accountCalc, compareCalc)
             }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
@@ -726,9 +732,14 @@ public struct TariffComparisonCardView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             // Difference row
                             HStack(alignment: .firstTextBaseline) {
-                                Text("\(sign)\(diffStr)")
-                                    .font(Theme.mainFont())
-                                    .foregroundColor(diffColor)
+                                if accountTariffVM.isCalculating || compareTariffVM.isCalculating {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Text("\(sign)\(diffStr)")
+                                        .font(Theme.mainFont())
+                                        .foregroundColor(diffColor)
+                                }
                                 Text("difference")
                                     .font(Theme.subFont())
                                     .foregroundColor(Theme.secondaryTextColor)
@@ -750,14 +761,24 @@ public struct TariffComparisonCardView: View {
                                             Text("My Account:")
                                                 .font(Theme.subFont())
                                                 .foregroundColor(Theme.secondaryTextColor)
-                                            Text(accountCostStr)
-                                                .font(Theme.subFont())
-                                                .foregroundColor(Theme.mainTextColor)
+                                            if accountTariffVM.isCalculating {
+                                                ProgressView()
+                                                    .scaleEffect(0.8)
+                                            } else {
+                                                Text(accountCostStr)
+                                                    .font(Theme.subFont())
+                                                    .foregroundColor(Theme.mainTextColor)
+                                            }
                                         }
                                         if let avgRate = calculateAverageRate(calculation: acct) {
-                                            Text("Avg: \(avgRate)p/kWh")
-                                                .font(Theme.captionFont())
-                                                .foregroundColor(Theme.secondaryTextColor)
+                                            if accountTariffVM.isCalculating {
+                                                ProgressView()
+                                                    .scaleEffect(0.8)
+                                            } else {
+                                                Text("Avg: \(avgRate)p/kWh")
+                                                    .font(Theme.captionFont())
+                                                    .foregroundColor(Theme.secondaryTextColor)
+                                            }
                                         }
                                     }
                                 }
@@ -772,14 +793,24 @@ public struct TariffComparisonCardView: View {
                                             Text("\(comparePlanLabel):")
                                                 .font(Theme.subFont())
                                                 .foregroundColor(Theme.secondaryTextColor)
-                                            Text(compareCostStr)
-                                                .font(Theme.subFont())
-                                                .foregroundColor(Theme.mainTextColor)
+                                            if compareTariffVM.isCalculating {
+                                                ProgressView()
+                                                    .scaleEffect(0.8)
+                                            } else {
+                                                Text(compareCostStr)
+                                                    .font(Theme.subFont())
+                                                    .foregroundColor(Theme.mainTextColor)
+                                            }
                                         }
                                         if let avgRate = calculateAverageRate(calculation: cmp) {
-                                            Text("Avg: \(avgRate)p/kWh")
-                                                .font(Theme.captionFont())
-                                                .foregroundColor(Theme.secondaryTextColor)
+                                            if compareTariffVM.isCalculating {
+                                                ProgressView()
+                                                    .scaleEffect(0.8)
+                                            } else {
+                                                Text("Avg: \(avgRate)p/kWh")
+                                                    .font(Theme.captionFont())
+                                                    .foregroundColor(Theme.secondaryTextColor)
+                                            }
                                         }
                                     }
                                 }
@@ -789,12 +820,22 @@ public struct TariffComparisonCardView: View {
                         // Right side: Interval selector
                         VStack(spacing: 6) {
                             ForEach(CompareIntervalType.allCases, id: \.self) { interval in
-                                Button {
-                                    selectedInterval = interval
-                                    Task {
-                                        await recalcBothTariffs()
+                                Button(action: {
+                                    withAnimation {
+                                        selectedInterval = interval
+                                        // Restore last viewed date for this interval if available
+                                        if let savedDate = globalSettings.settings
+                                            .lastViewedComparisonDates[interval.rawValue]
+                                        {
+                                            currentDate = savedDate
+                                        }
+                                        updateAllowedDateRange()
+                                        savePreferences()  // Save the new interval and date
+                                        Task {
+                                            await recalcBothTariffs()
+                                        }
                                     }
-                                } label: {
+                                }) {
                                     HStack {
                                         // Icon based on interval type
                                         Image(systemName: iconName(for: interval))
@@ -1368,11 +1409,13 @@ public struct TariffComparisonCardView: View {
         }
     }
 
-    /// Recalculate both tariffs
+    /// Recalculate both tariffs in parallel
     @MainActor
     private func recalcBothTariffs() async {
-        await recalcAccountTariff()
-        await recalcCompareTariff()
+        async let accountCalc = recalcAccountTariff()
+        async let compareCalc = recalcCompareTariff()
+        // Wait for both to complete
+        await (_, _) = (accountCalc, compareCalc)
     }
 
     /// Step date by one interval in either direction
@@ -1413,6 +1456,7 @@ public struct TariffComparisonCardView: View {
 
         // Update the date and trigger recalculation
         currentDate = nextDate
+        savePreferences()  // Save the new date
         Task {
             await recalcBothTariffs()
         }
@@ -1436,7 +1480,7 @@ public struct TariffComparisonCardView: View {
         case .daily:
             let df = DateFormatter()
             df.locale = globalSettings.locale
-            df.dateStyle = .medium
+            df.dateFormat = "d MMMM yyyy"  // UK format: e.g. "15 January 2024"
             return df.string(from: startOfDay)
         case .weekly:
             let weekStart = cal.date(
@@ -1444,7 +1488,7 @@ public struct TariffComparisonCardView: View {
             let weekEnd = cal.date(byAdding: .day, value: 6, to: weekStart)!
             let df = DateFormatter()
             df.locale = globalSettings.locale
-            df.dateStyle = .medium
+            df.dateFormat = "d MMMM yyyy"  // UK format
             let s1 = df.string(from: weekStart)
             let s2 = df.string(from: weekEnd)
             return "\(s1) - \(s2)"
@@ -1452,7 +1496,7 @@ public struct TariffComparisonCardView: View {
             let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: startOfDay))!
             let df = DateFormatter()
             df.locale = globalSettings.locale
-            df.dateFormat = "LLLL yyyy"  // e.g. "July 2025"
+            df.dateFormat = "MMMM yyyy"  // UK format: e.g. "January 2024"
             return df.string(from: monthStart)
         case .quarterly:
             let month = cal.component(.month, from: startOfDay)
@@ -1467,7 +1511,7 @@ public struct TariffComparisonCardView: View {
 
             let df = DateFormatter()
             df.locale = globalSettings.locale
-            df.dateFormat = "LLLL"  // Month name only
+            df.dateFormat = "MMMM"  // Month name only
             let startMonth = df.string(from: quarterStart)
             let endMonth = df.string(from: quarterEnd)
 
@@ -1577,6 +1621,23 @@ public struct TariffComparisonCardView: View {
 
         // Format to 2 decimal places
         return String(format: "%.2f", avgRate)
+    }
+
+    // MARK: - Settings Management
+    private func initializeFromSettings() {
+        // Update interval and date from settings
+        selectedInterval =
+            CompareIntervalType(rawValue: globalSettings.settings.selectedComparisonInterval)
+            ?? .daily
+        currentDate =
+            globalSettings.settings.lastViewedComparisonDates[
+                globalSettings.settings.selectedComparisonInterval] ?? Date()
+    }
+
+    private func savePreferences() {
+        // Save current interval and date
+        globalSettings.settings.selectedComparisonInterval = selectedInterval.rawValue
+        globalSettings.settings.lastViewedComparisonDates[selectedInterval.rawValue] = currentDate
     }
 }
 

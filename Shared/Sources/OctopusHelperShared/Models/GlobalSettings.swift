@@ -136,9 +136,13 @@ public struct GlobalSettings: Codable, Equatable {
     /// Optionally store the entire account JSON (raw) for reference or debugging
     public var accountData: Data?
 
-    // New fields for tariff view preferences
+    // Fields for tariff view preferences
     public var selectedTariffInterval: String
     public var lastViewedTariffDates: [String: Date]
+
+    // New fields for comparison tariff view preferences
+    public var selectedComparisonInterval: String
+    public var lastViewedComparisonDates: [String: Date]
 
     /// The effective region to use for API calls - returns "H" if regionInput is empty
     public var effectiveRegion: String {
@@ -177,7 +181,9 @@ public struct GlobalSettings: Codable, Equatable {
         accountNumber: String? = nil,
         accountData: Data? = nil,
         selectedTariffInterval: String = "DAILY",
-        lastViewedTariffDates: [String: Date] = [:]
+        lastViewedTariffDates: [String: Date] = [:],
+        selectedComparisonInterval: String = "DAILY",
+        lastViewedComparisonDates: [String: Date] = [:]
     ) {
         self.regionInput = regionInput
         self.apiKey = apiKey
@@ -192,6 +198,8 @@ public struct GlobalSettings: Codable, Equatable {
         self.accountData = accountData
         self.selectedTariffInterval = selectedTariffInterval
         self.lastViewedTariffDates = lastViewedTariffDates
+        self.selectedComparisonInterval = selectedComparisonInterval
+        self.lastViewedComparisonDates = lastViewedComparisonDates
     }
 
     // MARK: - Equatable
@@ -206,6 +214,8 @@ public struct GlobalSettings: Codable, Equatable {
             && lhs.accountNumber == rhs.accountNumber && lhs.accountData == rhs.accountData
             && lhs.selectedTariffInterval == rhs.selectedTariffInterval
             && lhs.lastViewedTariffDates == rhs.lastViewedTariffDates
+            && lhs.selectedComparisonInterval == rhs.selectedComparisonInterval
+            && lhs.lastViewedComparisonDates == rhs.lastViewedComparisonDates
     }
 }
 
@@ -224,7 +234,9 @@ extension GlobalSettings {
         accountNumber: nil,
         accountData: nil,
         selectedTariffInterval: "DAILY",
-        lastViewedTariffDates: [:]
+        lastViewedTariffDates: [:],
+        selectedComparisonInterval: "DAILY",
+        lastViewedComparisonDates: [:]
     )
 }
 
@@ -288,7 +300,9 @@ public class GlobalSettingsManager: ObservableObject {
                 accountNumber: nil,
                 accountData: nil,
                 selectedTariffInterval: "DAILY",
-                lastViewedTariffDates: [:]
+                lastViewedTariffDates: [:],
+                selectedComparisonInterval: "DAILY",
+                lastViewedComparisonDates: [:]
             )
             self.locale = matchedLanguage.locale
         }
@@ -381,6 +395,10 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.accountData, forKey: "account_data")
             sharedDefaults?.set(settings.selectedTariffInterval, forKey: "selected_tariff_interval")
             sharedDefaults?.set(settings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
+            sharedDefaults?.set(
+                settings.selectedComparisonInterval, forKey: "selected_comparison_interval")
+            sharedDefaults?.set(
+                settings.lastViewedComparisonDates, forKey: "last_viewed_comparison_dates")
 
             // Notify widget of changes
             #if !WIDGET

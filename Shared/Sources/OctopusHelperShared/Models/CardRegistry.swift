@@ -262,7 +262,7 @@ extension CardRegistry {
         register(
             CardDefinition(
                 id: .tariffComparison,
-                displayNameKey: "Comparison Card",
+                displayNameKey: "Tariff Comparison",
                 descriptionKey:
                     "Compare your current account cost with another plan or a manual rate.",
                 isPremium: true,  // or false if you prefer

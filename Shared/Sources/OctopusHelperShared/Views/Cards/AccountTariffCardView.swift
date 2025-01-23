@@ -22,7 +22,6 @@ public struct AccountTariffCardView: View {
         case daily = "DAILY"
         case weekly = "WEEKLY"
         case monthly = "MONTHLY"
-        case quarterly = "QUARTERLY"
 
         var displayName: String {
             rawValue.capitalized
@@ -33,7 +32,6 @@ public struct AccountTariffCardView: View {
             case .daily: return .daily
             case .weekly: return .weekly
             case .monthly: return .monthly
-            case .quarterly: return .quarterly
             }
         }
 
@@ -80,22 +78,6 @@ public struct AccountTariffCardView: View {
             let minMonthStart = calendar.date(
                 from: calendar.dateComponents([.year, .month], from: minDate))!
             return currentMonthStart <= minMonthStart
-        case .quarterly:
-            let currentMonth = calendar.component(.month, from: currentDate)
-            let currentQuarterStartMonth = ((currentMonth - 1) / 3) * 3 + 1
-            var currentComponents = calendar.dateComponents([.year], from: currentDate)
-            currentComponents.month = currentQuarterStartMonth
-            currentComponents.day = 1
-            let currentQuarterStart = calendar.date(from: currentComponents)!
-
-            let minMonth = calendar.component(.month, from: minDate)
-            let minQuarterStartMonth = ((minMonth - 1) / 3) * 3 + 1
-            var minComponents = calendar.dateComponents([.year], from: minDate)
-            minComponents.month = minQuarterStartMonth
-            minComponents.day = 1
-            let minQuarterStart = calendar.date(from: minComponents)!
-
-            return currentQuarterStart <= minQuarterStart
         }
     }
 
@@ -118,22 +100,6 @@ public struct AccountTariffCardView: View {
             let maxMonthStart = calendar.date(
                 from: calendar.dateComponents([.year, .month], from: maxDate))!
             return currentMonthStart >= maxMonthStart
-        case .quarterly:
-            let currentMonth = calendar.component(.month, from: currentDate)
-            let currentQuarterStartMonth = ((currentMonth - 1) / 3) * 3 + 1
-            var currentComponents = calendar.dateComponents([.year], from: currentDate)
-            currentComponents.month = currentQuarterStartMonth
-            currentComponents.day = 1
-            let currentQuarterStart = calendar.date(from: currentComponents)!
-
-            let maxMonth = calendar.component(.month, from: maxDate)
-            let maxQuarterStartMonth = ((maxMonth - 1) / 3) * 3 + 1
-            var maxComponents = calendar.dateComponents([.year], from: maxDate)
-            maxComponents.month = maxQuarterStartMonth
-            maxComponents.day = 1
-            let maxQuarterStart = calendar.date(from: maxComponents)!
-
-            return currentQuarterStart >= maxQuarterStart
         }
     }
 
@@ -157,18 +123,6 @@ public struct AccountTariffCardView: View {
                 calendar.date(from: calendar.dateComponents([.year, .month], from: startOfDay))!
             let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart)!
             return (start: monthStart, end: monthEnd)
-
-        case .quarterly:
-            let month = calendar.component(.month, from: startOfDay)
-            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
-
-            var startComponents = calendar.dateComponents([.year], from: startOfDay)
-            startComponents.month = quarterStartMonth
-            startComponents.day = 1
-
-            let quarterStart = calendar.date(from: startComponents)!
-            let quarterEnd = calendar.date(byAdding: .month, value: 3, to: quarterStart)!
-            return (start: quarterStart, end: quarterEnd)
         }
     }
 
@@ -186,7 +140,6 @@ public struct AccountTariffCardView: View {
         case .daily: return "calendar.day.timeline.left"
         case .weekly: return "calendar.badge.clock"
         case .monthly: return "calendar"
-        case .quarterly: return "calendar.badge.plus"
         }
     }
 
@@ -218,8 +171,6 @@ public struct AccountTariffCardView: View {
         case .monthly:
             maxAllowedDate = calendar.date(
                 from: calendar.dateComponents([.year, .month], from: latestDailyDate))
-        case .quarterly:
-            maxAllowedDate = latestDailyDate
         }
 
         // Set min date from consumption data
@@ -310,9 +261,6 @@ public struct AccountTariffCardView: View {
 
         case .monthly:
             newDate = calendar.date(byAdding: .month, value: forward ? 1 : -1, to: currentDate)
-
-        case .quarterly:
-            newDate = calendar.date(byAdding: .month, value: forward ? 1 : -1, to: currentDate)
         }
 
         // If newDate is `nil`, that means:
@@ -366,17 +314,6 @@ public struct AccountTariffCardView: View {
         case .monthly:
             formatter.dateFormat = "LLLL yyyy"  // e.g. "July 2025"
             return formatter.string(from: dateRange.start)
-        case .quarterly:
-            let quarterEnd = Calendar.current.date(byAdding: .month, value: 2, to: dateRange.start)!
-
-            formatter.dateFormat = "LLLL"  // Month name only
-            let startMonth = formatter.string(from: dateRange.start)
-            let endMonth = formatter.string(from: quarterEnd)
-
-            formatter.dateFormat = "yyyy"
-            let year = formatter.string(from: dateRange.start)
-
-            return "\(startMonth) - \(endMonth) \(year)"
         }
     }
 
@@ -765,13 +702,13 @@ struct AccountTariffDetailView: View {
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "d MMM yyyy"  // UK format
+        formatter.dateFormat = "d MMMM yyyy"  // UK format: e.g. "15 January 2024"
         return formatter
     }()
 
     private let monthFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
+        formatter.dateFormat = "MMMM yyyy"  // UK format: e.g. "January 2024"
         return formatter
     }()
 
@@ -784,7 +721,6 @@ struct AccountTariffDetailView: View {
         case .daily: return "calendar.day.timeline.left"
         case .weekly: return "calendar.badge.clock"
         case .monthly: return "calendar"
-        case .quarterly: return "calendar.badge.plus"
         }
     }
 
@@ -867,26 +803,6 @@ struct AccountTariffDetailView: View {
             let phase1Months = Array(monthsToLoad.prefix(phase1Count))
             await loadDates(phase1Months, interval: .monthly)
             await fetchRemainingDays(Array(monthsToLoad.dropFirst(phase1Count)), interval: .monthly)
-        case .quarterly:
-            var quartersToLoad: [Date] = []
-            let currentQuarterStart = calendar.date(
-                from: calendar.dateComponents([.year], from: now))!
-            quartersToLoad.append(currentQuarterStart)
-
-            for quarterOffset in 1...4 {
-                if let date = calendar.date(
-                    byAdding: .month, value: -quarterOffset, to: startOfToday)
-                {
-                    let quarterStart = calendar.date(
-                        from: calendar.dateComponents([.year], from: date))!
-                    quartersToLoad.append(quarterStart)
-                }
-            }
-            let phase1Count = min(quartersToLoad.count, 2)
-            let phase1Quarters = Array(quartersToLoad.prefix(phase1Count))
-            await loadDates(phase1Quarters, interval: .quarterly)
-            await fetchRemainingDays(
-                Array(quartersToLoad.dropFirst(phase1Count)), interval: .quarterly)
         }
     }
 
@@ -947,8 +863,6 @@ struct AccountTariffDetailView: View {
                         dateString =
                             "\(dateFormatter.string(from: periodStart)) - \(dateFormatter.string(from: weekEnd))"
                     case .monthly:
-                        dateString = monthFormatter.string(from: periodStart)
-                    case .quarterly:
                         dateString = monthFormatter.string(from: periodStart)
                     }
 
