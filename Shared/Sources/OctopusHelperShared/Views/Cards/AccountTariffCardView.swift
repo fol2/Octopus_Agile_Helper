@@ -198,6 +198,14 @@ public struct AccountTariffCardView: View {
     /// (based on `consumptionVM.consumptionRecords`). If none found (or goes out of [minDate, maxDate]),
     /// returns `nil`.
     private func nextDailyDateWithData(from date: Date, forward: Bool) -> Date? {
+        // Check if we have valid min/max dates
+        guard let minDate = minAllowedDate,
+            let maxDate = maxAllowedDate
+        else {
+            // If we have no valid min/max date, we cannot safely navigate
+            return nil
+        }
+
         // Gather all available start-of-day dates from consumptionRecords
         // so that if a day has no records, we won't let the user navigate to it.
         let dailySet: Set<Date> = {
@@ -207,6 +215,10 @@ public struct AccountTariffCardView: View {
                     guard let intervalStart = record.value(forKey: "interval_start") as? Date else {
                         return nil
                     }
+                    // If the record is outside min/max, ignore it.
+                    // This way we don't accidentally loop forever if there's no valid range.
+                    guard intervalStart >= minDate && intervalStart <= maxDate else { return nil }
+
                     // Normalise to start of day
                     return calendar.startOfDay(for: intervalStart)
                 }
@@ -214,7 +226,9 @@ public struct AccountTariffCardView: View {
         }()
 
         guard !dailySet.isEmpty else {
-            // If we have no daily data at all, no navigation possible
+            // If there's no daily record at all, we can't navigate forward/backward.
+            // Returning nil ensures we don't enter the while loop below.
+            // This prevents infinite looping when forward/backward is tapped.
             return nil
         }
 
@@ -232,10 +246,10 @@ public struct AccountTariffCardView: View {
             candidate = calendar.startOfDay(for: nextDay)
 
             // Bounds-check against minAllowedDate/maxAllowedDate
-            if let minDate = minAllowedDate, candidate < calendar.startOfDay(for: minDate) {
+            if candidate < calendar.startOfDay(for: minDate) {
                 return nil
             }
-            if let maxDate = maxAllowedDate, candidate > calendar.startOfDay(for: maxDate) {
+            if candidate > calendar.startOfDay(for: maxDate) {
                 return nil
             }
 
