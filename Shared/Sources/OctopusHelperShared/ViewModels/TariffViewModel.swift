@@ -242,27 +242,116 @@ public final class TariffViewModel: ObservableObject {
     // MARK: - Private Methods
 
     /// Calculates the start and end dates for a given reference date and interval type
-    public func calculateDateRange(for date: Date, intervalType: IntervalType) -> (Date, Date) {
+    public func calculateDateRange(
+        for date: Date,
+        intervalType: IntervalType,
+        billingDay: Int = 1
+    ) -> (Date, Date) {
         let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
 
-        guard let start = calendar.date(from: components) else {
-            return (date, date)
-        }
-
+        var start: Date
         var end: Date
+
+        // For daily/weekly, we preserve original logic
         switch intervalType {
         case .daily:
+            // Start is midnight of `date`, end is +1 day
+            start = calendar.startOfDay(for: date)
             end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
+
         case .weekly:
+            // Start is the beginning of the ISO week, end is +7 days
+            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+            start = calendar.date(from: comps) ?? date
             end = calendar.date(byAdding: .day, value: 7, to: start) ?? date
+
         case .monthly:
-            end = calendar.date(byAdding: .month, value: 1, to: start) ?? date
+            // NEW: we interpret date as somewhere inside a "billing month" that starts on `billingDay`
+            // and ends the day before the next cycle.
+
+            // 1) Extract year, month, and day from the reference
+            let dayOfDate = calendar.component(.day, from: date)
+            let yearOfDate = calendar.component(.year, from: date)
+            let monthOfDate = calendar.component(.month, from: date)
+
+            // 2) Determine the actual "start month" and "start year"
+            //    If dayOfDate >= billingDay, the cycle started this month;
+            //    else it started last month.
+            var cycleMonth = monthOfDate
+            var cycleYear = yearOfDate
+
+            if dayOfDate < billingDay {
+                // Move one month back
+                cycleMonth -= 1
+                if cycleMonth < 1 {
+                    cycleMonth = 12
+                    cycleYear -= 1
+                }
+            }
+
+            // 3) Build the start date from the user's chosen billingDay
+            //    then clamp if that day > number of days in the target month
+            let daysInMonth = daysIn(cycleYear, cycleMonth, calendar: calendar)
+            let safeDay = min(billingDay, daysInMonth)  // clamp to last valid day
+            var startComps = DateComponents(year: cycleYear, month: cycleMonth, day: safeDay)
+            start = calendar.date(from: startComps) ?? date
+
+            // 4) End date is exactly one month after `start` day, minus 1 day
+            //    We'll do "start + 1 month" then subtract 1 day
+            if let plusOneMonth = calendar.date(byAdding: .month, value: 1, to: start) {
+                end = calendar.date(byAdding: .day, value: -1, to: plusOneMonth) ?? plusOneMonth
+            } else {
+                // fallback if date logic fails
+                end = date
+            }
+
         case .quarterly:
-            end = calendar.date(byAdding: .month, value: 3, to: start) ?? date
+            // Similar approach but we add 3 months to the start, then minus 1 day.
+
+            let dayOfDate = calendar.component(.day, from: date)
+            let yearOfDate = calendar.component(.year, from: date)
+            let monthOfDate = calendar.component(.month, from: date)
+
+            var cycleMonth = monthOfDate
+            var cycleYear = yearOfDate
+            if dayOfDate < billingDay {
+                cycleMonth -= 1
+                if cycleMonth < 1 {
+                    cycleMonth = 12
+                    cycleYear -= 1
+                }
+            }
+
+            let daysInMonth = daysIn(cycleYear, cycleMonth, calendar: calendar)
+            let safeDay = min(billingDay, daysInMonth)
+            var startComps = DateComponents(year: cycleYear, month: cycleMonth, day: safeDay)
+            start = calendar.date(from: startComps) ?? date
+
+            if let plusThreeMonths = calendar.date(byAdding: .month, value: 3, to: start) {
+                end =
+                    calendar.date(byAdding: .day, value: -1, to: plusThreeMonths) ?? plusThreeMonths
+            } else {
+                end = date
+            }
         }
 
         return (start, end)
+    }
+
+    /// Helper to get number of days in a given (year, month)
+    private func daysIn(_ year: Int, _ month: Int, calendar: Calendar) -> Int {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        // If we ask for day=1, then add 1 month minus 1 day, we can see how many days
+        comps.day = 1
+        guard let firstOfMonth = calendar.date(from: comps),
+            let nextMonth = calendar.date(byAdding: .month, value: 1, to: firstOfMonth),
+            let lastDayOfMonth = calendar.date(byAdding: .day, value: -1, to: nextMonth)
+        else {
+            return 30  // fallback
+        }
+        return calendar.component(.day, from: lastDayOfMonth)
     }
 
     /// Converts NSManagedObject to TariffCalculation struct
@@ -343,7 +432,8 @@ extension TariffViewModel {
     public func isDateAtMinimum(
         _ date: Date,
         intervalType: IntervalType,
-        minDate: Date?
+        minDate: Date?,
+        billingDay: Int = 1
     ) -> Bool {
         guard let minDate = minDate else { return false }
         let calendar = Calendar.current
@@ -358,15 +448,22 @@ extension TariffViewModel {
                 from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: minDate))!
             return currentWeekStart <= minWeekStart
         case .monthly:
-            let currentMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: date))!
-            let minMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: minDate))!
-            return currentMonthStart <= minMonthStart
+            let (curStart, _) = self.calculateDateRange(
+                for: date,
+                intervalType: .monthly,
+                billingDay: billingDay
+            )
+            let (minStart, _) = self.calculateDateRange(
+                for: minDate,
+                intervalType: .monthly,
+                billingDay: billingDay
+            )
+            return curStart <= minStart
         case .quarterly:
-            // For now, treat "quarterly" like monthly but in 3-month increments
-            let currentRange = self.calculateDateRange(for: date, intervalType: .quarterly)
-            let minRange = self.calculateDateRange(for: minDate, intervalType: .quarterly)
+            let currentRange = self.calculateDateRange(
+                for: date, intervalType: .quarterly, billingDay: billingDay)
+            let minRange = self.calculateDateRange(
+                for: minDate, intervalType: .quarterly, billingDay: billingDay)
             return currentRange.0 <= minRange.0
         }
     }
@@ -376,7 +473,8 @@ extension TariffViewModel {
     public func isDateAtMaximum(
         _ date: Date,
         intervalType: IntervalType,
-        maxDate: Date?
+        maxDate: Date?,
+        billingDay: Int = 1
     ) -> Bool {
         guard let maxDate = maxDate else { return false }
         let calendar = Calendar.current
@@ -391,14 +489,22 @@ extension TariffViewModel {
                 from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: maxDate))!
             return currentWeekStart >= maxWeekStart
         case .monthly:
-            let currentMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: date))!
-            let maxMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: maxDate))!
-            return currentMonthStart >= maxMonthStart
+            let (curStart, _) = self.calculateDateRange(
+                for: date,
+                intervalType: .monthly,
+                billingDay: billingDay
+            )
+            let (maxStart, _) = self.calculateDateRange(
+                for: maxDate,
+                intervalType: .monthly,
+                billingDay: billingDay
+            )
+            return curStart >= maxStart
         case .quarterly:
-            let currentRange = self.calculateDateRange(for: date, intervalType: .quarterly)
-            let maxRange = self.calculateDateRange(for: maxDate, intervalType: .quarterly)
+            let currentRange = self.calculateDateRange(
+                for: date, intervalType: .quarterly, billingDay: billingDay)
+            let maxRange = self.calculateDateRange(
+                for: maxDate, intervalType: .quarterly, billingDay: billingDay)
             return currentRange.0 >= maxRange.0
         }
     }
@@ -417,7 +523,8 @@ extension TariffViewModel {
         intervalType: IntervalType,
         minDate: Date?,
         maxDate: Date?,
-        dailyAvailableDates: Set<Date>? = nil
+        dailyAvailableDates: Set<Date>? = nil,
+        billingDay: Int = 1
     ) -> Date? {
         let calendar = Calendar.current
 
@@ -473,26 +580,45 @@ extension TariffViewModel {
             return clampDate(newDate, minDate: minDate, maxDate: maxDate)
 
         case .monthly:
+            // We'll move from the current cycle start date by ±1 billing month
+            // 1) Find current cycle range
+            let (startOfCycle, _) = self.calculateDateRange(
+                for: currentDate,
+                intervalType: .monthly,
+                billingDay: billingDay
+            )
+
+            // 2) Add ±1 month to that startOfCycle
             guard
-                let newDate = calendar.date(
-                    byAdding: .month, value: forward ? 1 : -1, to: currentDate)
-            else {
-                return nil
-            }
-            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+                let shifted = calendar.date(
+                    byAdding: .month, value: forward ? 1 : -1, to: startOfCycle)
+            else { return nil }
+
+            // 3) Now calculate the new cycle for `shifted`
+            let (newStart, _) = self.calculateDateRange(
+                for: shifted,
+                intervalType: .monthly,
+                billingDay: billingDay
+            )
+
+            return clampDate(newStart, minDate: minDate, maxDate: maxDate)
 
         case .quarterly:
-            // move by 3 months
-            let month = calendar.component(.month, from: currentDate)
-            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
-            var components = calendar.dateComponents([.year], from: currentDate)
-            components.month = quarterStartMonth + (forward ? 3 : -3)
-            components.day = 1
-
-            guard let newDate = calendar.date(from: components) else {
-                return nil
-            }
-            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+            let (startOfCycle, _) = self.calculateDateRange(
+                for: currentDate,
+                intervalType: .quarterly,
+                billingDay: billingDay
+            )
+            guard
+                let shifted = calendar.date(
+                    byAdding: .month, value: forward ? 3 : -3, to: startOfCycle)
+            else { return nil }
+            let (newStart, _) = self.calculateDateRange(
+                for: shifted,
+                intervalType: .quarterly,
+                billingDay: billingDay
+            )
+            return clampDate(newStart, minDate: minDate, maxDate: maxDate)
         }
     }
 

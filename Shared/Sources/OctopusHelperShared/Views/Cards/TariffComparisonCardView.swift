@@ -277,12 +277,14 @@ public struct TariffComparisonCardView: View {
                     selectedInterval: $selectedInterval,
                     minDate: minAllowedDate,
                     maxDate: maxAllowedDate,
-                    isCalculating: (accountTariffVM.isCalculating || compareTariffVM.isCalculating)
-                ) { newDate in
-                    currentDate = newDate
-                    savePreferences()
-                    Task { await recalcBothTariffs(partialOverlap: true) }
-                }
+                    isCalculating: (accountTariffVM.isCalculating || compareTariffVM.isCalculating),
+                    onDateChanged: { newDate in
+                        currentDate = newDate
+                        savePreferences()
+                        Task { await recalcBothTariffs(partialOverlap: true) }
+                    },
+                    globalSettings: globalSettings
+                )
                 .padding(.horizontal)
                 Divider().padding(.horizontal).padding(.vertical, 2)
 
@@ -611,7 +613,9 @@ public struct TariffComparisonCardView: View {
 
         do {
             let (start, end) = TariffViewModel().calculateDateRange(
-                for: currentDate, intervalType: selectedInterval.vmInterval
+                for: currentDate,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
             )
 
             // For account tariff, we use consumption data range as validity period
@@ -644,7 +648,9 @@ public struct TariffComparisonCardView: View {
 
         do {
             let (start, end) = TariffViewModel().calculateDateRange(
-                for: currentDate, intervalType: selectedInterval.vmInterval
+                for: currentDate,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
             )
             var (overlapStart, overlapEnd) = (start, end)
 
@@ -808,6 +814,7 @@ private struct ComparisonDateNavView: View {
     let maxDate: Date?
     let isCalculating: Bool
     let onDateChanged: (Date) -> Void
+    @ObservedObject var globalSettings: GlobalSettingsManager
 
     var body: some View {
         HStack(spacing: 0) {
@@ -860,12 +867,20 @@ private struct ComparisonDateNavView: View {
 
     private var atMin: Bool {
         TariffViewModel().isDateAtMinimum(
-            currentDate, intervalType: selectedInterval.vmInterval, minDate: minDate)
+            currentDate,
+            intervalType: selectedInterval.vmInterval,
+            minDate: minDate,
+            billingDay: globalSettings.settings.billingDay
+        )
     }
 
     private var atMax: Bool {
         TariffViewModel().isDateAtMaximum(
-            currentDate, intervalType: selectedInterval.vmInterval, maxDate: maxDate)
+            currentDate,
+            intervalType: selectedInterval.vmInterval,
+            maxDate: maxDate,
+            billingDay: globalSettings.settings.billingDay
+        )
     }
 
     private func moveDate(forward: Bool) {
@@ -874,7 +889,8 @@ private struct ComparisonDateNavView: View {
             forward: forward,
             intervalType: selectedInterval.vmInterval,
             minDate: minDate,
-            maxDate: maxDate
+            maxDate: maxDate,
+            billingDay: globalSettings.settings.billingDay
         ) {
             onDateChanged(newDate)
         }
@@ -882,7 +898,10 @@ private struct ComparisonDateNavView: View {
 
     private func dateRangeText() -> String {
         let (start, end) = TariffViewModel().calculateDateRange(
-            for: currentDate, intervalType: selectedInterval.vmInterval)
+            for: currentDate,
+            intervalType: selectedInterval.vmInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_GB")
 

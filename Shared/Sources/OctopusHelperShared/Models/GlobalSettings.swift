@@ -122,6 +122,7 @@ public struct GlobalSettings: Codable, Equatable {
     public var regionInput: String  // Can be either postcode or region code
     public var apiKey: String
     public var selectedLanguage: Language
+    public var billingDay: Int
     public var showRatesInPounds: Bool
     public var showRatesWithVAT: Bool
     public var cardSettings: [CardConfig]
@@ -172,6 +173,7 @@ public struct GlobalSettings: Codable, Equatable {
         regionInput: String,
         apiKey: String,
         selectedLanguage: Language,
+        billingDay: Int = 1,
         showRatesInPounds: Bool,
         showRatesWithVAT: Bool,
         cardSettings: [CardConfig],
@@ -188,6 +190,7 @@ public struct GlobalSettings: Codable, Equatable {
         self.regionInput = regionInput
         self.apiKey = apiKey
         self.selectedLanguage = selectedLanguage
+        self.billingDay = billingDay
         self.showRatesInPounds = showRatesInPounds
         self.showRatesWithVAT = showRatesWithVAT
         self.cardSettings = cardSettings
@@ -206,6 +209,7 @@ public struct GlobalSettings: Codable, Equatable {
     public static func == (lhs: GlobalSettings, rhs: GlobalSettings) -> Bool {
         lhs.regionInput == rhs.regionInput && lhs.apiKey == rhs.apiKey
             && lhs.selectedLanguage == rhs.selectedLanguage
+            && lhs.billingDay == rhs.billingDay
             && lhs.showRatesInPounds == rhs.showRatesInPounds
             && lhs.showRatesWithVAT == rhs.showRatesWithVAT && lhs.cardSettings == rhs.cardSettings
             && lhs.currentAgileCode == rhs.currentAgileCode
@@ -225,6 +229,7 @@ extension GlobalSettings {
         regionInput: "",
         apiKey: "",
         selectedLanguage: .english,
+        billingDay: 1,
         showRatesInPounds: false,
         showRatesWithVAT: true,
         cardSettings: [],
@@ -291,6 +296,7 @@ public class GlobalSettingsManager: ObservableObject {
                 regionInput: "",
                 apiKey: "",
                 selectedLanguage: matchedLanguage,
+                billingDay: 1,
                 showRatesInPounds: false,
                 showRatesWithVAT: true,
                 cardSettings: [],
@@ -385,6 +391,7 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.regionInput, forKey: "selected_postcode")
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
             sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
+            sharedDefaults?.set(settings.billingDay, forKey: "billing_day")
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
             sharedDefaults?.set(settings.showRatesWithVAT, forKey: "show_rates_with_vat")
             sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")

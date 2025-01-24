@@ -1566,6 +1566,36 @@ public struct SettingsView: View {
                 .tint(Theme.secondaryColor)
                 .customListRow()
             }
+
+            // ----------------------------------
+            // NEW Billing Cycle Day Section
+            // ----------------------------------
+            Section(
+                header: HStack {
+                    Text("Billing Cycle")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .textCase(.none)
+                    Spacer()
+                    InfoButton(
+                        message: LocalizedStringKey(
+                            "Set your billing cycle start day to match your Octopus Energy bill. This helps in accurately tracking your energy costs across billing periods."
+                        ),
+                        title: LocalizedStringKey("Billing Cycle"),
+                        mediaItems: []
+                    )
+                }
+            ) {
+                Stepper(value: $globalSettings.settings.billingDay, in: 1...31) {
+                    Text(
+                        LocalizedStringKey(
+                            "Billing Start Day: \(globalSettings.settings.billingDay)")
+                    )
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                }
+                .customListRow()
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Theme.mainBackground)

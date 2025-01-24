@@ -343,7 +343,8 @@ private struct AccountTariffDateNavView: View {
                 let atMin = tariffVM.isDateAtMinimum(
                     currentDate,
                     intervalType: selectedInterval.viewModelInterval,
-                    minDate: minAllowedDate
+                    minDate: minAllowedDate,
+                    billingDay: globalSettings.settings.billingDay
                 )
                 if !atMin && !tariffVM.isCalculating {
                     Button {
@@ -386,7 +387,8 @@ private struct AccountTariffDateNavView: View {
                 let atMax = tariffVM.isDateAtMaximum(
                     currentDate,
                     intervalType: selectedInterval.viewModelInterval,
-                    maxDate: maxAllowedDate
+                    maxDate: maxAllowedDate,
+                    billingDay: globalSettings.settings.billingDay
                 )
                 if !atMax && !tariffVM.isCalculating {
                     // For daily, check if we have a next daily date with data
@@ -435,7 +437,8 @@ private struct AccountTariffDateNavView: View {
             intervalType: selectedInterval.viewModelInterval,
             minDate: minAllowedDate,
             maxDate: maxAllowedDate,
-            dailyAvailableDates: dailySet
+            dailyAvailableDates: dailySet,
+            billingDay: globalSettings.settings.billingDay
         ) {
             currentDate = newDate
             onDateChanged()
@@ -451,7 +454,8 @@ private struct AccountTariffDateNavView: View {
             intervalType: selectedInterval.viewModelInterval,
             minDate: minAllowedDate,
             maxDate: maxAllowedDate,
-            dailyAvailableDates: buildDailySet()
+            dailyAvailableDates: buildDailySet(),
+            billingDay: globalSettings.settings.billingDay
         )
         return (result != nil)
     }
@@ -476,7 +480,8 @@ private struct AccountTariffDateNavView: View {
     private func dateRangeText() -> String {
         let (start, end) = tariffVM.calculateDateRange(
             for: currentDate,
-            intervalType: selectedInterval.viewModelInterval
+            intervalType: selectedInterval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
         )
         let formatter = DateFormatter()
         formatter.locale = globalSettings.locale
@@ -856,7 +861,12 @@ struct AccountTariffDetailView: View {
                         dateString =
                             "\(dateFormatter.string(from: periodStart)) - \(dateFormatter.string(from: weekEnd))"
                     case .monthly:
-                        dateString = monthFormatter.string(from: periodStart)
+                        let (start, end) = tariffVM.calculateDateRange(
+                            for: periodStart,
+                            intervalType: interval.viewModelInterval,
+                            billingDay: globalSettings.settings.billingDay
+                        )
+                        dateString = monthFormatter.string(from: start)
                     }
 
                     if let existingIndex = displayedRatesByDate.firstIndex(where: {
