@@ -136,6 +136,8 @@ public struct TariffComparisonCardView: View {
     @State private var maxAllowedDate: Date?
     @State private var hasDateOverlap = true
     @State private var hasInitiallyLoaded = false  // Track if view has loaded initially
+    @State private var overlapStart: Date?
+    @State private var overlapEnd: Date?
 
     // Manage compare plan settings
     @StateObject private var compareSettings = ComparisonCardSettingsManager()
@@ -160,7 +162,6 @@ public struct TariffComparisonCardView: View {
         self.globalSettings = globalSettings
     }
 
-    // MARK: - Body
     public var body: some View {
         Group {
             if isFlipped {
@@ -173,18 +174,6 @@ public struct TariffComparisonCardView: View {
         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .animation(.spring(duration: 0.6), value: isFlipped)
         .environment(\.locale, globalSettings.locale)
-        .onChange(of: globalSettings.locale) { _, _ in
-            refreshTrigger.toggle()
-        }
-        // Re-render on half-hour
-        .onReceive(refreshManager.$halfHourTick) { tickTime in
-            guard tickTime != nil else { return }
-            refreshTrigger.toggle()
-        }
-        // Re-render if app becomes active
-        .onReceive(refreshManager.$sceneActiveTick) { _ in
-            refreshTrigger.toggle()
-        }
         .onAppear {
             Task {
                 guard !hasInitiallyLoaded else { return }
@@ -206,6 +195,21 @@ public struct TariffComparisonCardView: View {
                 await recalcBothTariffs(partialOverlap: true)
             }
         }
+        .onChange(of: compareSettings.settings.manualRatePencePerKWh) { _ in
+            if compareSettings.settings.isManualPlan {
+                Task { await recalcBothTariffs(partialOverlap: true) }
+            }
+        }
+        .onChange(of: compareSettings.settings.manualStandingChargePencePerDay) { _ in
+            if compareSettings.settings.isManualPlan {
+                Task { await recalcBothTariffs(partialOverlap: true) }
+            }
+        }
+        .onChange(of: compareSettings.settings.isManualPlan) { _ in
+            Task {
+                await recalcBothTariffs(partialOverlap: true)
+            }
+        }
         .onChange(of: consumptionVM.fetchState) { oldState, newState in
             if case .success = newState {
                 Task {
@@ -215,7 +219,7 @@ public struct TariffComparisonCardView: View {
         }
     }
 
-    // MARK: - FRONT VIEW (Main UI)
+    // MARK: - Front View
     private var frontView: some View {
         VStack(spacing: 0) {
             // Header with flip button
@@ -234,11 +238,11 @@ public struct TariffComparisonCardView: View {
                     if compareTariffVM.isCalculating || accountTariffVM.isCalculating {
                         ProgressView().scaleEffect(0.8)
                     } else {
-                        Button {
+                        Button(action: {
                             withAnimation {
                                 isFlipped.toggle()
                             }
-                        } label: {
+                        }) {
                             Image(systemName: "info.circle.fill")
                                 .foregroundColor(Theme.secondaryTextColor)
                         }
@@ -266,11 +270,17 @@ public struct TariffComparisonCardView: View {
                         ComparisonPlanSelectionView(
                             compareSettings: compareSettings,
                             availablePlans: $availablePlans,
-                            globalSettings: globalSettings
+                            globalSettings: globalSettings,
+                            compareTariffVM: compareTariffVM,
+                            currentDate: $currentDate,
+                            selectedInterval: $selectedInterval,
+                            overlapStart: $overlapStart,
+                            overlapEnd: $overlapEnd
                         )
                     }
                 )
                 .padding(.horizontal)
+
                 Divider().padding(.horizontal).padding(.vertical, 2)
 
                 // Date navigation sub-view
@@ -288,6 +298,7 @@ public struct TariffComparisonCardView: View {
                     globalSettings: globalSettings
                 )
                 .padding(.horizontal)
+
                 Divider().padding(.horizontal).padding(.vertical, 2)
 
                 // Comparison results
@@ -296,7 +307,7 @@ public struct TariffComparisonCardView: View {
         }
     }
 
-    // MARK: - BACK VIEW (Plan Info)
+    // MARK: - Back View
     private var backView: some View {
         VStack(spacing: 0) {
             HStack {
@@ -325,15 +336,13 @@ public struct TariffComparisonCardView: View {
                     .environmentObject(globalSettings)
             } else {
                 VStack(spacing: 16) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: 40))
-                        .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
-                    Text("Select a plan to view details")
-                        .font(Theme.subFont())
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 36))
+                        .foregroundColor(.orange)
+                    Text("No product details available.")
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                .padding(.vertical, 20)
             }
         }
         .padding(.horizontal)
@@ -1009,6 +1018,11 @@ private struct ComparisonPlanSelectionView: View {
     @ObservedObject var compareSettings: ComparisonCardSettingsManager
     @Binding var availablePlans: [NSManagedObject]
     @ObservedObject var globalSettings: GlobalSettingsManager
+    @ObservedObject var compareTariffVM: TariffViewModel
+    @Binding var currentDate: Date
+    @Binding var selectedInterval: CompareIntervalType
+    @Binding var overlapStart: Date?
+    @Binding var overlapEnd: Date?
 
     var body: some View {
         VStack(spacing: 12) {
@@ -1020,7 +1034,14 @@ private struct ComparisonPlanSelectionView: View {
             .padding(.horizontal)
 
             if compareSettings.settings.isManualPlan {
-                ManualInputView(settings: $compareSettings.settings)
+                ManualInputView(
+                    settings: $compareSettings.settings,
+                    compareTariffVM: compareTariffVM,
+                    currentDate: $currentDate,
+                    selectedInterval: $selectedInterval,
+                    overlapStart: $overlapStart,
+                    overlapEnd: $overlapEnd
+                )
             } else {
                 PlanSelectionView(
                     groups: groupProducts(availablePlans),
@@ -1122,7 +1143,6 @@ private struct ComparisonCostSummaryView: View {
                         HStack {
                             Image(systemName: iconName(for: interval))
                                 .imageScale(.small)
-                                .frame(width: 24, alignment: .leading)
                             Spacer(minLength: 16)
                             Text(interval.displayName)
                                 .font(.callout)
@@ -1375,21 +1395,67 @@ private struct PlanSelectionView: View {
 
 private struct ManualInputView: View {
     @Binding var settings: ComparisonCardSettings
+    @ObservedObject var compareTariffVM: TariffViewModel
+    @Binding var currentDate: Date
+    @Binding var selectedInterval: CompareIntervalType
+    @Binding var overlapStart: Date?
+    @Binding var overlapEnd: Date?
+
+    private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
+        // Create a mock account response for manual plan calculations
+        let mockAgreement = OctopusAgreement(
+            tariff_code: "manualPlan",
+            valid_from: nil,
+            valid_to: nil
+        )
+        let mockMeter = OctopusElecMeter(serial_number: "MANUAL")
+        let mockMeterPoint = OctopusElectricityMP(
+            mpan: "0000000000000",
+            meters: [mockMeter],
+            agreements: [mockAgreement]
+        )
+        let mockProperty = OctopusProperty(
+            id: 0,
+            electricity_meter_points: [mockMeterPoint],
+            gas_meter_points: nil,
+            address_line_1: nil,
+            moved_in_at: nil,
+            postcode: nil
+        )
+        return OctopusAccountResponse(number: "manualAccount", properties: [mockProperty])
+    }
+
+    private func recalculateWithNewRates() {
+        Task {
+            await compareTariffVM.resetCalculationState()
+            let mockAccount = buildMockAccountResponseForManual()
+            await compareTariffVM.calculateCosts(
+                for: currentDate,
+                tariffCode: "manualPlan",
+                intervalType: selectedInterval.vmInterval,
+                accountData: mockAccount,
+                partialStart: overlapStart,
+                partialEnd: overlapEnd
+            )
+        }
+    }
 
     var body: some View {
         VStack(spacing: 12) {
             HStack {
                 Text("Energy Rate").foregroundColor(Theme.secondaryTextColor)
                 Spacer()
-                TextField(
-                    "p/kWh",
-                    value: $settings.manualRatePencePerKWh,
-                    format: .number.precision(.fractionLength(2))
+                NumberTextField(
+                    placeholder: "p/kWh",
+                    value: Binding(
+                        get: { settings.manualRatePencePerKWh },
+                        set: { newValue in
+                            settings.manualRatePencePerKWh = newValue
+                            recalculateWithNewRates()
+                        }
+                    )
                 )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
                 .frame(width: 80)
-                .textFieldStyle(.roundedBorder)
                 Text("p/kWh")
                     .foregroundColor(Theme.secondaryTextColor)
                     .font(Theme.captionFont())
@@ -1397,21 +1463,136 @@ private struct ManualInputView: View {
             HStack {
                 Text("Daily Charge").foregroundColor(Theme.secondaryTextColor)
                 Spacer()
-                TextField(
-                    "p/day",
-                    value: $settings.manualStandingChargePencePerDay,
-                    format: .number.precision(.fractionLength(2))
+                NumberTextField(
+                    placeholder: "p/day",
+                    value: Binding(
+                        get: { settings.manualStandingChargePencePerDay },
+                        set: { newValue in
+                            settings.manualStandingChargePencePerDay = newValue
+                            recalculateWithNewRates()
+                        }
+                    )
                 )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
                 .frame(width: 80)
-                .textFieldStyle(.roundedBorder)
                 Text("p/day")
                     .foregroundColor(Theme.secondaryTextColor)
                     .font(Theme.captionFont())
             }
         }
         .padding(.horizontal)
+    }
+}
+
+// Custom TextField with Done button
+private struct NumberTextField: UIViewRepresentable {
+    let placeholder: String
+    @Binding var value: Double
+
+    func makeUIView(context: Context) -> UITextField {
+        let textField = UITextField()
+        textField.placeholder = placeholder
+        textField.keyboardType = .decimalPad
+        textField.textAlignment = .right
+        textField.borderStyle = .roundedRect
+        textField.delegate = context.coordinator
+
+        // Create toolbar
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+        let flexSpace = UIBarButtonItem(
+            barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let doneButton = UIBarButtonItem(
+            title: "Done", style: .done, target: context.coordinator,
+            action: #selector(Coordinator.doneButtonTapped))
+        toolbar.items = [flexSpace, doneButton]
+        textField.inputAccessoryView = toolbar
+
+        // Set initial value
+        textField.text = String(format: "%.2f", value)
+
+        return textField
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        // Only update if the value has changed significantly to avoid formatting during typing
+        if let currentText = uiView.text, let currentValue = Double(currentText) {
+            if abs(currentValue - value) > 0.001 {  // Small threshold to avoid floating point comparison issues
+                uiView.text = String(format: "%.2f", value)
+            }
+        } else {
+            uiView.text = String(format: "%.2f", value)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: NumberTextField
+        weak var activeTextField: UITextField?
+
+        init(_ textField: NumberTextField) {
+            self.parent = textField
+        }
+
+        @objc func doneButtonTapped() {
+            if let textField = activeTextField,
+                let text = textField.text,
+                let value = Double(text)
+            {
+                // Format with two decimal places when done
+                let formattedValue = Double(String(format: "%.2f", value)) ?? value
+                DispatchQueue.main.async {
+                    self.parent.value = formattedValue
+                    textField.text = String(format: "%.2f", formattedValue)
+                }
+            }
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil, from: nil, for: nil)
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            activeTextField = textField
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            if let text = textField.text,
+                let value = Double(text)
+            {
+                // Format with two decimal places when ending
+                let formattedValue = Double(String(format: "%.2f", value)) ?? value
+                DispatchQueue.main.async {
+                    self.parent.value = formattedValue
+                    textField.text = String(format: "%.2f", formattedValue)
+                }
+            }
+            activeTextField = nil
+        }
+
+        func textField(
+            _ textField: UITextField, shouldChangeCharactersIn range: NSRange,
+            replacementString string: String
+        ) -> Bool {
+            // Allow only numbers and decimal point
+            let allowedCharacters = CharacterSet(charactersIn: "0123456789.")
+            let characterSet = CharacterSet(charactersIn: string)
+
+            // Prevent multiple decimal points
+            if string == "." {
+                let currentText = textField.text ?? ""
+                if currentText.contains(".") {
+                    return false
+                }
+            }
+
+            return allowedCharacters.isSuperset(of: characterSet)
+        }
+
+        func textFieldDidChangeSelection(_ textField: UITextField) {
+            // Don't update the value while typing to avoid premature recalculation
+        }
     }
 }
 
@@ -1479,7 +1660,7 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
     }
 }
 
-// ProductDetailView from existing code
+// MARK: - Product Detail View
 private struct ProductDetailView: View {
     let product: NSManagedObject
     @EnvironmentObject var globalSettings: GlobalSettingsManager
@@ -1571,28 +1752,20 @@ private struct ProductDetailView: View {
 
     private var productMeta: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let code = product.value(forKey: "code") as? String {
-                Text("Product Code: \(code)")
+            if let term = product.value(forKey: "term") as? Int {
+                Text("Contract Term: \(term) months")
                     .font(Theme.captionFont())
                     .foregroundColor(Theme.secondaryTextColor)
-            } else {
-                Text("Product Code Not Available")
+            }
+            if let brand = product.value(forKey: "brand") as? String {
+                Text("Brand: \(brand)")
                     .font(Theme.captionFont())
-                    .foregroundColor(.red)
+                    .foregroundColor(Theme.secondaryTextColor)
             }
             if isLoading {
-                HStack(spacing: 8) {
-                    ProgressView().scaleEffect(0.8)
-                    Text("Loading tariff details...")
-                        .font(Theme.captionFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-            } else if let tc = tariffCode {
-                Text("Tariff Code: \(tc)")
-                    .font(Theme.captionFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-            } else {
-                Text("No tariff code available for your region")
+                ProgressView()
+            } else if let code = tariffCode {
+                Text("Tariff Code: \(code)")
                     .font(Theme.captionFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -1600,32 +1773,30 @@ private struct ProductDetailView: View {
         .padding(.top, 8)
     }
 
-    private func loadTariffCode() async {
-        guard let code = product.value(forKey: "code") as? String else {
-            self.loadError = TariffError.productDetailNotFound(code: "unknown", region: "n/a")
-            self.isLoading = false
-            return
-        }
-        do {
-            let details = try await ProductDetailRepository.shared.loadLocalProductDetail(
-                code: code)
-            let region = (product.value(forKey: "region") as? String) ?? "A"
-            if let detail = details.first(where: { $0.value(forKey: "region") as? String == region }
-            ) {
-                tariffCode = detail.value(forKey: "tariff_code") as? String
-            }
-            isLoading = false
-        } catch {
-            self.loadError = error
-            self.isLoading = false
-        }
-    }
-
     private func formatDate(_ date: Date) -> String {
         let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
+        df.dateFormat = "d MMMM yyyy"
         return df.string(from: date)
+    }
+
+    private func loadTariffCode() async {
+        isLoading = true
+        do {
+            if let code = product.value(forKey: "code") as? String {
+                let region = globalSettings.settings.effectiveRegion
+                let tariffCode = try await ProductDetailRepository.shared.findTariffCode(
+                    productCode: code, region: region)
+                await MainActor.run {
+                    self.tariffCode = tariffCode
+                    self.isLoading = false
+                }
+            }
+        } catch {
+            await MainActor.run {
+                self.loadError = error
+                self.isLoading = false
+            }
+        }
     }
 }
 

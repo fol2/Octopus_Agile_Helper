@@ -54,6 +54,64 @@ public final class TariffViewModel: ObservableObject {
     private let maxCacheSize = 200  // Increased to 200 entries
     private let cacheCleanupThreshold = 180  // Clean when reaching 180 entries
 
+    // MARK: - Manual Plan Rate Tracking
+    private struct ComparisonCardSettings: Codable {
+        var selectedPlanCode: String
+        var isManualPlan: Bool
+        var manualRatePencePerKWh: Double
+        var manualStandingChargePencePerDay: Double
+    }
+
+    private struct ManualRates {
+        let kwhRate: Double
+        let standingCharge: Double
+        let timestamp: Date
+
+        var isStale: Bool {
+            // Consider rates stale after 1 second to ensure rate changes are always picked up
+            Date().timeIntervalSince(timestamp) > 1
+        }
+    }
+
+    private var lastUsedManualRates: ManualRates?
+
+    private func haveManualRatesChanged() -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: "TariffComparisonCardSettings"),
+            let settings = try? JSONDecoder().decode(ComparisonCardSettings.self, from: data)
+        else {
+            // If we can't read settings, consider it as changed to force recalculation
+            DebugLogger.debug(
+                "⚠️ Could not read manual rates from settings", component: .tariffViewModel)
+            return true
+        }
+
+        // Check if rates have changed or are stale
+        let ratesChanged =
+            lastUsedManualRates?.kwhRate != settings.manualRatePencePerKWh
+            || lastUsedManualRates?.standingCharge != settings.manualStandingChargePencePerDay
+            || lastUsedManualRates?.isStale == true
+
+        if ratesChanged {
+            DebugLogger.debug(
+                """
+                🔄 Manual rates changed:
+                - Old: \(String(describing: lastUsedManualRates))
+                - New: kWh=\(settings.manualRatePencePerKWh)p, standing=\(settings.manualStandingChargePencePerDay)p
+                """,
+                component: .tariffViewModel
+            )
+        }
+
+        // Update tracking
+        lastUsedManualRates = ManualRates(
+            kwhRate: settings.manualRatePencePerKWh,
+            standingCharge: settings.manualStandingChargePencePerDay,
+            timestamp: Date()
+        )
+
+        return ratesChanged
+    }
+
     // MARK: - Initialization
     public init(skipCoreDataStorage: Bool = false) {
         self.calculationRepository = TariffCalculationRepository()
@@ -104,10 +162,17 @@ public final class TariffViewModel: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// Reset the calculation state
+    /// Reset the calculation state and invalidate manual plan cache
     @MainActor
     public func resetCalculationState() async {
         isCalculating = false
+        error = nil
+        currentCalculation = nil
+        // Invalidate cache for manual plan calculations only
+        calculationCache = calculationCache.filter { $0.key.tariffCode != "manualPlan" }
+        DebugLogger.debug(
+            "🔄 Reset calculation state and invalidated manual plan cache",
+            component: .tariffViewModel)
     }
 
     /// Calculate tariff costs for a specific date and interval type
@@ -197,10 +262,17 @@ public final class TariffViewModel: ObservableObject {
 
         // 2) Check memory cache first
         if let cached = calculationCache[cKey] {
-            DebugLogger.debug(
-                "✅ USING MEMORY CACHE: \(cKey.debugDescription)",
-                component: .tariffViewModel)
-            return cached.calculation
+            // For manual plan, check if rates have changed
+            if tariffCode == "manualPlan" && haveManualRatesChanged() {
+                DebugLogger.debug(
+                    "🔄 Manual rates changed, skipping cache for \(cKey.debugDescription)",
+                    component: .tariffViewModel)
+            } else {
+                DebugLogger.debug(
+                    "✅ USING MEMORY CACHE: \(cKey.debugDescription)",
+                    component: .tariffViewModel)
+                return cached.calculation
+            }
         }
 
         // 3) Calculate based on tariff type

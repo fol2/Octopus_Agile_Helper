@@ -17,6 +17,14 @@ import CoreData
 import Foundation
 import SwiftUI
 
+// MARK: - Support Types
+private struct ComparisonCardSettings: Codable {
+    var selectedPlanCode: String
+    var isManualPlan: Bool
+    var manualRatePencePerKWh: Double
+    var manualStandingChargePencePerDay: Double
+}
+
 public enum TariffCalculationError: Error {
     case noDataAvailable(period: ClosedRange<Date>)
     case insufficientData(available: ClosedRange<Date>, requested: ClosedRange<Date>)
@@ -185,6 +193,24 @@ public final class TariffCalculationRepository: ObservableObject {
 
         // 1) Gather all relevant consumption in EConsumAgile
         let consumptionRecords = try await fetchConsumption(start: startDate, end: endDate)
+
+        // ----------------------------------------------------------------
+        // Handle "manual" or "manualPlan" specifically
+        // ----------------------------------------------------------------
+        if tariffCode == "MANUAL" || tariffCode == "manualPlan" {
+            print("⚙️ Manual Plan: skipping normal rate fetch, using user-defined rates.")
+            guard !consumptionRecords.isEmpty else {
+                throw TariffCalculationError.noDataAvailable(period: startDate...endDate)
+            }
+            let (totalKWh, costExc, costInc, standExc, standInc) = computeManualPlanCost(
+                consumptionRecords: consumptionRecords,
+                startDate: startDate, endDate: endDate
+            )
+            return makeEphemeralCalculation(
+                tariffCode: tariffCode, startDate: startDate, endDate: endDate,
+                intervalType: intervalType, totalKWh: totalKWh, costExcVAT: costExc,
+                costIncVAT: costInc, standingExcVAT: standExc, standingIncVAT: standInc)
+        }
 
         // Validate based on interval type
         if consumptionRecords.isEmpty {
@@ -774,5 +800,89 @@ public final class TariffCalculationRepository: ObservableObject {
             }
         }
         return nil
+    }
+
+    // ----------------------------------------------------------------------
+    //  MANUAL PLAN: Helper Functions
+    // ----------------------------------------------------------------------
+    private func computeManualPlanCost(
+        consumptionRecords: [NSManagedObject],
+        startDate: Date,
+        endDate: Date
+    ) -> (Double, Double, Double, Double, Double) {
+        // Get manual rates from UserDefaults where ComparisonCardSettings stores them
+        var manualRatePence = 30.0  // Default values
+        var manualStandingPence = 45.0
+
+        if let data = UserDefaults.standard.data(forKey: "TariffComparisonCardSettings"),
+            let settings = try? JSONDecoder().decode(ComparisonCardSettings.self, from: data)
+        {
+            manualRatePence = settings.manualRatePencePerKWh
+            manualStandingPence = settings.manualStandingChargePencePerDay
+        }
+
+        var totalKWh = 0.0
+        var totalCostExcVAT = 0.0
+        var totalCostIncVAT = 0.0
+        var totalStandingExcVAT = 0.0
+        var totalStandingIncVAT = 0.0
+
+        // For simplicity, treat manualRatePence as excVAT and add 20% for incVAT
+        let manualRateIncVAT = manualRatePence * 1.2
+        let standingIncVAT = manualStandingPence * 1.2
+
+        // Summation over half-hour blocks:
+        // usage (kWh) * manualRate + partial daily standing
+        for record in consumptionRecords {
+            let usage = record.value(forKey: "consumption") as? Double ?? 0
+            totalKWh += usage
+            totalCostExcVAT += usage * manualRatePence
+            totalCostIncVAT += usage * manualRateIncVAT
+
+            // For a half-hour slot, pro-rate the daily standing:
+            // each 30-min is 1/48 of a day
+            totalStandingExcVAT += (manualStandingPence / 48.0)
+            totalStandingIncVAT += (standingIncVAT / 48.0)
+        }
+
+        // Return summaries
+        let finalExc = totalCostExcVAT + totalStandingExcVAT
+        let finalInc = totalCostIncVAT + totalStandingIncVAT
+        return (totalKWh, finalExc, finalInc, totalStandingExcVAT, totalStandingIncVAT)
+    }
+
+    private func makeEphemeralCalculation(
+        tariffCode: String,
+        startDate: Date,
+        endDate: Date,
+        intervalType: String,
+        totalKWh: Double,
+        costExcVAT: Double,
+        costIncVAT: Double,
+        standingExcVAT: Double,
+        standingIncVAT: Double
+    ) -> NSManagedObject {
+        // Return an "in-memory" TariffCalculationEntity
+        // so the TariffViewModel can handle it. We do not insert into self.context.
+        let desc = NSEntityDescription.entity(
+            forEntityName: "TariffCalculationEntity", in: self.context)!
+        let calc = NSManagedObject(entity: desc, insertInto: nil)  // no context => ephemeral
+        calc.setValue(UUID(), forKey: "id")
+        calc.setValue(tariffCode, forKey: "tariff_code")
+        calc.setValue(startDate, forKey: "period_start")
+        calc.setValue(endDate, forKey: "period_end")
+        calc.setValue(intervalType, forKey: "interval_type")
+        calc.setValue(totalKWh, forKey: "total_consumption_kwh")
+        calc.setValue(costExcVAT, forKey: "total_cost_exc_vat")
+        calc.setValue(costIncVAT, forKey: "total_cost_inc_vat")
+        calc.setValue(standingExcVAT, forKey: "standing_charge_cost_exc_vat")
+        calc.setValue(standingIncVAT, forKey: "standing_charge_cost_inc_vat")
+        let avgRateExc = totalKWh > 0 ? (costExcVAT - standingExcVAT) / totalKWh : 0.0
+        let avgRateInc = totalKWh > 0 ? (costIncVAT - standingIncVAT) / totalKWh : 0.0
+        calc.setValue(avgRateExc, forKey: "average_unit_rate_exc_vat")
+        calc.setValue(avgRateInc, forKey: "average_unit_rate_inc_vat")
+        calc.setValue(Date(), forKey: "updated_at")
+        // create_at is optional for ephemeral
+        return calc
     }
 }
