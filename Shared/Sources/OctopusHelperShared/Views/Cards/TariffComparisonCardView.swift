@@ -135,6 +135,7 @@ public struct TariffComparisonCardView: View {
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
     @State private var hasDateOverlap = true
+    @State private var hasInitiallyLoaded = false  // Track if view has loaded initially
 
     // Manage compare plan settings
     @StateObject private var compareSettings = ComparisonCardSettingsManager()
@@ -172,7 +173,6 @@ public struct TariffComparisonCardView: View {
         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .animation(.spring(duration: 0.6), value: isFlipped)
         .environment(\.locale, globalSettings.locale)
-        .id("tariff-compare-card-\(refreshTrigger)")
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
@@ -187,10 +187,12 @@ public struct TariffComparisonCardView: View {
         }
         .onAppear {
             Task {
+                guard !hasInitiallyLoaded else { return }
                 initializeFromSettings()
                 updateAllowedDateRange()
                 await loadComparisonPlansIfNeeded()
                 await recalcBothTariffs(partialOverlap: true)
+                hasInitiallyLoaded = true
             }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
@@ -320,7 +322,7 @@ public struct TariffComparisonCardView: View {
                 ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
             }) {
                 ProductDetailView(product: product)
-                    .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                    .environmentObject(globalSettings)
             } else {
                 VStack(spacing: 16) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
@@ -347,6 +349,9 @@ public struct TariffComparisonCardView: View {
             compareSettings.settings.selectedPlanCode.isEmpty
         {
             noPlanSelectedView
+        } else if selectedInterval == .daily && !hasOverlapInDaily {
+            // Show no overlap view if there's no data for the selected day
+            noOverlapView
         } else if !hasDateOverlap {
             noOverlapView
         } else {
@@ -500,7 +505,24 @@ public struct TariffComparisonCardView: View {
 
     private func updateAllowedDateRange() {
         minAllowedDate = consumptionVM.minInterval
-        maxAllowedDate = consumptionVM.maxInterval
+        let calendar = Calendar.current
+        let today = Date()
+        let startOfToday = calendar.startOfDay(for: today)
+        let latestDailyDate = calendar.date(byAdding: .day, value: -1, to: startOfToday) ?? today
+
+        switch selectedInterval {
+        case .daily:
+            // Same logic as AccountTariffCardView: clamp to yesterday if data ends earlier
+            let rawMax = consumptionVM.maxInterval ?? .distantFuture
+            maxAllowedDate = min(rawMax, latestDailyDate)
+        case .weekly:
+            // Keep existing logic
+            maxAllowedDate = consumptionVM.maxInterval
+        case .monthly:
+            maxAllowedDate = consumptionVM.maxInterval
+        case .quarterly:
+            maxAllowedDate = consumptionVM.maxInterval
+        }
 
         if let mn = minAllowedDate, currentDate < mn {
             currentDate = mn
@@ -803,6 +825,20 @@ public struct TariffComparisonCardView: View {
             moved_in_at: nil, postcode: nil)
         return OctopusAccountResponse(number: "manualAccount", properties: [prop])
     }
+
+    // Add helper property to check for daily data overlap
+    private var hasOverlapInDaily: Bool {
+        guard selectedInterval == .daily else { return true }
+        // Check if there's any consumption data for the selected day
+        let cal = Calendar.current
+        let dayStart = cal.startOfDay(for: currentDate)
+        let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart)!
+
+        return consumptionVM.consumptionRecords.contains { record in
+            guard let start = record.value(forKey: "interval_start") as? Date else { return false }
+            return start >= dayStart && start < dayEnd
+        }
+    }
 }
 
 // MARK: - Subviews: Date Navigation
@@ -902,38 +938,67 @@ private struct ComparisonDateNavView: View {
             intervalType: selectedInterval.vmInterval,
             billingDay: globalSettings.settings.billingDay
         )
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_GB")
+
+        // Format dates according to requirements:
+        // - Daily: "23 Jan 2025"
+        // - Weekly: "20 Jan - 26 Jan 2025" (or "30 Dec 2024 - 5 Jan 2025")
+        // - Monthly: "4 Jan - 3 Feb 2025" (or "4 Dec 2024 - 3 Jan 2025")
+        // - Quarterly: "4 Jan - 3 Mar 2025" (or "4 Dec 2024 - 3 Jan 2025")
+
+        let cal = Calendar.current
+
+        // Shared formatters
+        let dayMonthFmt = DateFormatter()
+        dayMonthFmt.locale = globalSettings.locale
+        dayMonthFmt.dateFormat = "d MMM"
+
+        let dayMonthYearFmt = DateFormatter()
+        dayMonthYearFmt.locale = globalSettings.locale
+        dayMonthYearFmt.dateFormat = "d MMM yyyy"
 
         switch selectedInterval {
         case .daily:
-            formatter.dateFormat = "d MMMM yyyy"
-            return formatter.string(from: start)
+            // "23 Jan 2025"
+            return dayMonthYearFmt.string(from: start)
+
         case .weekly:
-            formatter.dateFormat = "d MMMM yyyy"
-            let endDate = Calendar.current.date(byAdding: .day, value: 6, to: start) ?? end
-            return "\(formatter.string(from: start)) - \(formatter.string(from: endDate))"
+            // "20 Jan - 26 Jan 2025" or crossing year => "30 Dec 2024 - 5 Jan 2025"
+            let startYear = cal.component(.year, from: start)
+            let endYear = cal.component(.year, from: end)
+
+            if startYear == endYear {
+                return
+                    "\(dayMonthFmt.string(from: start)) - \(dayMonthFmt.string(from: end)) \(startYear)"
+            } else {
+                return
+                    "\(dayMonthFmt.string(from: start)) \(startYear) - \(dayMonthFmt.string(from: end)) \(endYear)"
+            }
+
         case .monthly:
-            formatter.dateFormat = "LLLL yyyy"
-            return formatter.string(from: start)
+            // "4 Jan - 3 Feb 2025" or crossing year => "4 Dec 2024 - 3 Jan 2025"
+            let startYear = cal.component(.year, from: start)
+            let endYear = cal.component(.year, from: end)
+
+            if startYear == endYear {
+                return
+                    "\(dayMonthFmt.string(from: start)) - \(dayMonthFmt.string(from: end)) \(startYear)"
+            } else {
+                return
+                    "\(dayMonthFmt.string(from: start)) \(startYear) - \(dayMonthFmt.string(from: end)) \(endYear)"
+            }
+
         case .quarterly:
-            let cal = Calendar.current
-            let month = cal.component(.month, from: start)
-            let qStartMonth = ((month - 1) / 3) * 3 + 1
-            var comps = cal.dateComponents([.year], from: start)
-            comps.month = qStartMonth
-            comps.day = 1
-            let qStart = cal.date(from: comps) ?? start
-            let qEnd = cal.date(byAdding: .month, value: 2, to: qStart) ?? end
+            // "4 Jan - 3 Mar 2025" or crossing year => "4 Dec 2024 - 3 Jan 2025"
+            let startYear = cal.component(.year, from: start)
+            let endYear = cal.component(.year, from: end)
 
-            let df2 = DateFormatter()
-            df2.dateFormat = "LLLL"
-            let startName = df2.string(from: qStart)
-            let endName = df2.string(from: qEnd)
-
-            df2.dateFormat = "yyyy"
-            let year = df2.string(from: qStart)
-            return "\(startName) - \(endName) \(year)"
+            if startYear == endYear {
+                return
+                    "\(dayMonthFmt.string(from: start)) - \(dayMonthFmt.string(from: end)) \(startYear)"
+            } else {
+                return
+                    "\(dayMonthFmt.string(from: start)) \(startYear) - \(dayMonthFmt.string(from: end)) \(endYear)"
+            }
         }
     }
 }
@@ -1087,10 +1152,18 @@ private struct ComparisonCostSummaryView: View {
 
     private func costRow(label: String, cost: Double, averageRate: String?) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "bolt.fill")
-                .foregroundColor(Theme.icon)
-                .imageScale(.small)
-                .opacity(0)  // placeholder for alignment
+            // Use specific icons for different types
+            if label.lowercased().contains("my account") {
+                Image(systemName: "person.crop.circle")
+                    .foregroundColor(Theme.icon)
+                    .imageScale(.small)
+            } else {
+                // For selected plan
+                Image(systemName: "shippingbox.fill")
+                    .foregroundColor(Theme.icon)
+                    .imageScale(.small)
+            }
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text("\(label):")
@@ -1247,27 +1320,27 @@ private struct PlanSelectionView: View {
 
             // If multiple versions, show separate menu
             if let group = groups.first(where: { isCurrentlySelected($0) }) {
-                if group.availableDates.count > 1 {
-                    Menu {
-                        ForEach(group.availableDates, id: \.self) { date in
-                            if let code = group.productCode(for: date) {
-                                Button {
-                                    selectedPlanCode = code
-                                } label: {
-                                    HStack {
-                                        Text(group.formatDate(date))
-                                        Spacer()
-                                        if selectedPlanCode == code {
-                                            Image(systemName: "checkmark")
+                if let date = group.availableDates.first(where: {
+                    group.productCode(for: $0) == selectedPlanCode
+                }) {
+                    if group.availableDates.count > 1 {
+                        Menu {
+                            ForEach(group.availableDates, id: \.self) { date in
+                                if let code = group.productCode(for: date) {
+                                    Button {
+                                        selectedPlanCode = code
+                                    } label: {
+                                        HStack {
+                                            Text(group.formatDate(date))
+                                            Spacer()
+                                            if selectedPlanCode == code {
+                                                Image(systemName: "checkmark")
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    } label: {
-                        if let date = group.availableDates.first(where: {
-                            group.productCode(for: $0) == selectedPlanCode
-                        }) {
+                        } label: {
                             HStack {
                                 Text("Available from: \(group.formatDate(date))")
                                 Spacer()
@@ -1276,9 +1349,16 @@ private struct PlanSelectionView: View {
                             .padding()
                             .background(Theme.mainBackground.opacity(0.3))
                             .cornerRadius(8)
-                        } else {
-                            Text("No specific date selected")
                         }
+                    } else {
+                        // Single date case - show as plain text
+                        HStack {
+                            Text("Available from: \(group.formatDate(date))")
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Theme.mainBackground.opacity(0.3))
+                        .cornerRadius(8)
                     }
                 }
             }

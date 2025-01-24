@@ -312,7 +312,8 @@ public final class TariffViewModel: ObservableObject {
             }
 
         case .quarterly:
-            // Similar approach but we add 3 months to the start, then minus 1 day.
+            // Similar approach but we add 2 months to the start (instead of 3)
+            // to match the requirement of "4 Jan - 3 Mar 2025"
             let dayOfDate = calendar.component(.day, from: date)
             let yearOfDate = calendar.component(.year, from: date)
             let monthOfDate = calendar.component(.month, from: date)
@@ -332,9 +333,8 @@ public final class TariffViewModel: ObservableObject {
             var startComps = DateComponents(year: cycleYear, month: cycleMonth, day: safeDay)
             start = calendar.date(from: startComps) ?? date
 
-            if let plusThreeMonths = calendar.date(byAdding: .month, value: 3, to: start) {
-                end =
-                    calendar.date(byAdding: .day, value: -1, to: plusThreeMonths) ?? plusThreeMonths
+            if let plusTwoMonths = calendar.date(byAdding: .month, value: 2, to: start) {
+                end = calendar.date(byAdding: .day, value: -1, to: plusTwoMonths) ?? plusTwoMonths
             } else {
                 end = date
             }
@@ -615,7 +615,7 @@ extension TariffViewModel {
             )
             guard
                 let shifted = calendar.date(
-                    byAdding: .month, value: forward ? 3 : -3, to: startOfCycle)
+                    byAdding: .month, value: forward ? 2 : -2, to: startOfCycle)
             else { return nil }
             let (newStart, _) = self.calculateDateRange(
                 for: shifted,
