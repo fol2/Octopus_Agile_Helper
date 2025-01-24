@@ -827,22 +827,21 @@ public final class TariffCalculationRepository: ObservableObject {
         var totalStandingExcVAT = 0.0
         var totalStandingIncVAT = 0.0
 
-        // For simplicity, treat manualRatePence as excVAT and add 20% for incVAT
-        let manualRateIncVAT = manualRatePence * 1.2
-        let standingIncVAT = manualStandingPence * 1.2
-
+        // Rates are already in the correct format (inc or exc VAT) based on user settings
         // Summation over half-hour blocks:
         // usage (kWh) * manualRate + partial daily standing
         for record in consumptionRecords {
             let usage = record.value(forKey: "consumption") as? Double ?? 0
             totalKWh += usage
+
+            // Use the rates directly as they are already in correct format
             totalCostExcVAT += usage * manualRatePence
-            totalCostIncVAT += usage * manualRateIncVAT
+            totalCostIncVAT += usage * manualRatePence  // Same rate as it's already in correct format
 
             // For a half-hour slot, pro-rate the daily standing:
             // each 30-min is 1/48 of a day
             totalStandingExcVAT += (manualStandingPence / 48.0)
-            totalStandingIncVAT += (standingIncVAT / 48.0)
+            totalStandingIncVAT += (manualStandingPence / 48.0)  // Same rate as it's already in correct format
         }
 
         // Return summaries

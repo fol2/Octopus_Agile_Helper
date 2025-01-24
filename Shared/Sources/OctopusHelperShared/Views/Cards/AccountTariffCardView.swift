@@ -320,6 +320,9 @@ public struct AccountTariffCardView: View {
         let startOfToday = calendar.startOfDay(for: today)
         let latestDailyDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
 
+        // Set minAllowedDate first as it's used in maxAllowedDate calculations
+        minAllowedDate = consumptionVM.minInterval
+
         switch selectedInterval {
         case .daily:
             // For daily, we still use yesterday as max
@@ -344,14 +347,11 @@ public struct AccountTariffCardView: View {
             maxAllowedDate = currentMonthEnd
         }
 
-        minAllowedDate = consumptionVM.minInterval
-
-        // Only keep the min clamp to avoid going before we have data
-        if let mn = minAllowedDate, currentDate < mn {
-            currentDate = mn
+        // Only clamp against maxAllowedDate to prevent going beyond today
+        if let mx = maxAllowedDate, currentDate > mx {
+            currentDate = mx
         }
-        // We do NOT clamp currentDate against maxAllowedDate here; we let the user see partial coverage
-        // if partial coverage goes beyond the last known consumption date.
+        // We do NOT clamp against minAllowedDate anymore to allow partial earliest intervals
     }
 }
 
@@ -370,13 +370,16 @@ private struct AccountTariffDateNavView: View {
         HStack(spacing: 0) {
             // Left
             HStack {
-                let atMin = tariffVM.isDateAtMinimum(
-                    currentDate,
+                let canGoBack = tariffVM.canNavigate(
+                    from: currentDate,
+                    direction: .backward,
                     intervalType: selectedInterval.viewModelInterval,
                     minDate: minAllowedDate,
-                    billingDay: globalSettings.settings.billingDay
+                    maxDate: maxAllowedDate,
+                    billingDay: globalSettings.settings.billingDay,
+                    dailyAvailableDates: selectedInterval == .daily ? buildDailySet() : nil
                 )
-                if !atMin && !tariffVM.isCalculating {
+                if canGoBack {
                     Button {
                         moveDate(forward: false)
                     } label: {
@@ -414,27 +417,25 @@ private struct AccountTariffDateNavView: View {
 
             // Right
             HStack {
-                let atMax = tariffVM.isDateAtMaximum(
-                    currentDate,
+                let canGoForward = tariffVM.canNavigate(
+                    from: currentDate,
+                    direction: .forward,
                     intervalType: selectedInterval.viewModelInterval,
+                    minDate: minAllowedDate,
                     maxDate: maxAllowedDate,
-                    billingDay: globalSettings.settings.billingDay
+                    billingDay: globalSettings.settings.billingDay,
+                    dailyAvailableDates: selectedInterval == .daily ? buildDailySet() : nil
                 )
-                if !atMax && !tariffVM.isCalculating {
-                    // For daily, check if we have a next daily date with data
-                    if selectedInterval != .daily
-                        || nextDailyAvailableDateExists(forward: true)
-                    {
-                        Button {
-                            moveDate(forward: true)
-                        } label: {
-                            Image(systemName: "chevron.right")
-                                .imageScale(.large)
-                                .foregroundColor(Theme.mainColor)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.borderless)
+                if canGoForward {
+                    Button {
+                        moveDate(forward: true)
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .imageScale(.large)
+                            .foregroundColor(Theme.mainColor)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.borderless)
                 }
             }
             .frame(width: 44)

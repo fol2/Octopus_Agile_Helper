@@ -295,7 +295,9 @@ public struct TariffComparisonCardView: View {
                         savePreferences()
                         Task { await recalcBothTariffs(partialOverlap: true) }
                     },
-                    globalSettings: globalSettings
+                    globalSettings: globalSettings,
+                    accountTariffVM: accountTariffVM,
+                    compareTariffVM: compareTariffVM
                 )
                 .padding(.horizontal)
 
@@ -368,14 +370,11 @@ public struct TariffComparisonCardView: View {
             let cmpCalc = compareTariffVM.currentCalculation
 
             if acctCalc == nil || cmpCalc == nil {
-                HStack {
-                    Spacer()
-                    Text("Loading calculations...")
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Spacer()
-                }
-                .padding(.vertical, 12)
+                // Replace simple loading text with a placeholder that matches the structure
+                ComparisonCostPlaceholderView(
+                    selectedInterval: selectedInterval,
+                    comparePlanLabel: comparePlanLabel
+                )
             } else {
                 // Show cost comparison
                 ComparisonCostSummaryView(
@@ -796,13 +795,13 @@ public struct TariffComparisonCardView: View {
                 -365 * 24 * 3600)...now.addingTimeInterval(365 * 24 * 3600)
         }
 
-        // For actual plans, find the product and get its validity range
+        // For actual plans, only check when the plan became available for signup
         if let product = availablePlans.first(where: {
             ($0.value(forKey: "code") as? String) == planCode
         }) {
             let from = (product.value(forKey: "available_from") as? Date) ?? Date.distantPast
-            let to = (product.value(forKey: "available_to") as? Date) ?? Date.distantFuture
-            return from...to
+            // Once a customer can join a plan, they can use it indefinitely
+            return from...Date.distantFuture
         }
 
         // Default to a wide range if we can't determine
@@ -860,11 +859,22 @@ private struct ComparisonDateNavView: View {
     let isCalculating: Bool
     let onDateChanged: (Date) -> Void
     @ObservedObject var globalSettings: GlobalSettingsManager
+    @ObservedObject var accountTariffVM: TariffViewModel
+    @ObservedObject var compareTariffVM: TariffViewModel
 
     var body: some View {
         HStack(spacing: 0) {
+            // Left
             HStack {
-                if !atMin && !isCalculating {
+                let canGoBack = accountTariffVM.canNavigate(
+                    from: currentDate,
+                    direction: .backward,
+                    intervalType: selectedInterval.vmInterval,
+                    minDate: minDate,
+                    maxDate: maxDate,
+                    billingDay: globalSettings.settings.billingDay
+                )
+                if canGoBack && !isCalculating {
                     Button {
                         moveDate(forward: false)
                     } label: {
@@ -877,26 +887,24 @@ private struct ComparisonDateNavView: View {
 
             Spacer(minLength: 0)
 
-            HStack {
-                Spacer()
-                Text(dateRangeText())
-                    .font(Theme.secondaryFont())
-                    .foregroundColor(Theme.mainTextColor)
-                    .overlay(alignment: .bottom) {
-                        if isCalculating {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .offset(y: 14)
-                        }
-                    }
-                Spacer()
-            }
-            .frame(height: 44)
+            // Center
+            Text(dateRangeText())
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
 
             Spacer(minLength: 0)
 
+            // Right
             HStack {
-                if !atMax && !isCalculating {
+                let canGoForward = accountTariffVM.canNavigate(
+                    from: currentDate,
+                    direction: .forward,
+                    intervalType: selectedInterval.vmInterval,
+                    minDate: minDate,
+                    maxDate: maxDate,
+                    billingDay: globalSettings.settings.billingDay
+                )
+                if canGoForward && !isCalculating {
                     Button {
                         moveDate(forward: true)
                     } label: {
@@ -910,26 +918,8 @@ private struct ComparisonDateNavView: View {
         .padding(.vertical, 4)
     }
 
-    private var atMin: Bool {
-        TariffViewModel().isDateAtMinimum(
-            currentDate,
-            intervalType: selectedInterval.vmInterval,
-            minDate: minDate,
-            billingDay: globalSettings.settings.billingDay
-        )
-    }
-
-    private var atMax: Bool {
-        TariffViewModel().isDateAtMaximum(
-            currentDate,
-            intervalType: selectedInterval.vmInterval,
-            maxDate: maxDate,
-            billingDay: globalSettings.settings.billingDay
-        )
-    }
-
     private func moveDate(forward: Bool) {
-        if let newDate = TariffViewModel().nextDate(
+        if let newDate = accountTariffVM.nextDate(
             from: currentDate,
             forward: forward,
             intervalType: selectedInterval.vmInterval,
@@ -942,7 +932,7 @@ private struct ComparisonDateNavView: View {
     }
 
     private func dateRangeText() -> String {
-        let (start, end) = TariffViewModel().calculateDateRange(
+        let (start, end) = accountTariffVM.calculateDateRange(
             for: currentDate,
             intervalType: selectedInterval.vmInterval,
             billingDay: globalSettings.settings.billingDay
@@ -1220,6 +1210,113 @@ private struct ComparisonCostSummaryView: View {
     }
 }
 
+// Add the placeholder view after ComparisonCostSummaryView
+private struct ComparisonCostPlaceholderView: View {
+    let selectedInterval: CompareIntervalType
+    let comparePlanLabel: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            // Left difference & cost block with shimmer effect
+            VStack(alignment: .leading, spacing: 8) {
+                // Diff row
+                HStack(alignment: .firstTextBaseline) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.secondaryTextColor.opacity(0.2))
+                        .frame(width: 80, height: 20)
+                    Text("difference")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Spacer()
+                }
+
+                Divider().padding(.horizontal)
+
+                // Cost rows placeholder
+                VStack(alignment: .leading, spacing: 8) {
+                    // My Account row
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.crop.circle")
+                            .foregroundColor(Theme.icon.opacity(0.5))
+                            .imageScale(.small)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text("My Account:")
+                                    .font(Theme.subFont())
+                                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.secondaryTextColor.opacity(0.2))
+                                    .frame(width: 60, height: 16)
+                            }
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Theme.secondaryTextColor.opacity(0.2))
+                                .frame(width: 80, height: 14)
+                        }
+                    }
+
+                    // Compare plan row
+                    HStack(spacing: 8) {
+                        Image(systemName: "shippingbox.fill")
+                            .foregroundColor(Theme.icon.opacity(0.5))
+                            .imageScale(.small)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text("\(comparePlanLabel):")
+                                    .font(Theme.subFont())
+                                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.secondaryTextColor.opacity(0.2))
+                                    .frame(width: 60, height: 16)
+                            }
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Theme.secondaryTextColor.opacity(0.2))
+                                .frame(width: 80, height: 14)
+                        }
+                    }
+                }
+            }
+
+            // Right side interval switcher (keep the same as actual view)
+            VStack(spacing: 6) {
+                ForEach(CompareIntervalType.allCases, id: \.self) { interval in
+                    HStack {
+                        Image(systemName: iconName(for: interval))
+                            .imageScale(.small)
+                        Spacer(minLength: 16)
+                        Text(interval.displayName)
+                            .font(.callout)
+                    }
+                    .font(Theme.subFont())
+                    .foregroundColor(
+                        selectedInterval == interval
+                            ? Theme.mainTextColor : Theme.secondaryTextColor
+                    )
+                    .frame(height: 28)
+                    .frame(width: 110, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(
+                                selectedInterval == interval
+                                    ? Theme.mainColor.opacity(0.2) : .clear)
+                    )
+                }
+            }
+            .padding(.vertical, 6)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func iconName(for interval: CompareIntervalType) -> String {
+        switch interval {
+        case .daily: return "calendar.day.timeline.left"
+        case .weekly: return "calendar.badge.clock"
+        case .monthly: return "calendar"
+        case .quarterly: return "calendar.badge.plus"
+        }
+    }
+}
+
 // MARK: - Additional Sub-views
 
 private struct ManualPlanDetailView: View {
@@ -1400,29 +1497,34 @@ private struct ManualInputView: View {
     @Binding var selectedInterval: CompareIntervalType
     @Binding var overlapStart: Date?
     @Binding var overlapEnd: Date?
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+
+    private let VAT_RATE = 0.05  // 5% VAT for electricity
 
     private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
-        // Create a mock account response for manual plan calculations
-        let mockAgreement = OctopusAgreement(
-            tariff_code: "manualPlan",
-            valid_from: nil,
-            valid_to: nil
-        )
-        let mockMeter = OctopusElecMeter(serial_number: "MANUAL")
-        let mockMeterPoint = OctopusElectricityMP(
+        let now = Date()
+        let dateFormatter = ISO8601DateFormatter()
+        let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
+        let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
+        let manualAgreement = OctopusAgreement(
+            tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
+        let mp = OctopusElectricityMP(
             mpan: "0000000000000",
-            meters: [mockMeter],
-            agreements: [mockAgreement]
+            meters: [OctopusElecMeter(serial_number: "MANUAL")],
+            agreements: [manualAgreement]
         )
-        let mockProperty = OctopusProperty(
-            id: 0,
-            electricity_meter_points: [mockMeterPoint],
-            gas_meter_points: nil,
-            address_line_1: nil,
-            moved_in_at: nil,
-            postcode: nil
-        )
-        return OctopusAccountResponse(number: "manualAccount", properties: [mockProperty])
+        let prop = OctopusProperty(
+            id: 0, electricity_meter_points: [mp], gas_meter_points: nil, address_line_1: nil,
+            moved_in_at: nil, postcode: nil)
+        return OctopusAccountResponse(number: "manualAccount", properties: [prop])
+    }
+
+    private func convertRateForVATChange(rate: Double, toIncludeVAT: Bool) -> Double {
+        if toIncludeVAT {
+            return rate * (1 + VAT_RATE)
+        } else {
+            return rate / (1 + VAT_RATE)
+        }
     }
 
     private func recalculateWithNewRates() {
@@ -1443,7 +1545,11 @@ private struct ManualInputView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Energy Rate").foregroundColor(Theme.secondaryTextColor)
+                Text(
+                    globalSettings.settings.showRatesWithVAT
+                        ? "Energy Rate (inc. VAT)" : "Energy Rate (exc. VAT)"
+                )
+                .foregroundColor(Theme.secondaryTextColor)
                 Spacer()
                 NumberTextField(
                     placeholder: "p/kWh",
@@ -1461,7 +1567,11 @@ private struct ManualInputView: View {
                     .font(Theme.captionFont())
             }
             HStack {
-                Text("Daily Charge").foregroundColor(Theme.secondaryTextColor)
+                Text(
+                    globalSettings.settings.showRatesWithVAT
+                        ? "Daily Charge (inc. VAT)" : "Daily Charge (exc. VAT)"
+                )
+                .foregroundColor(Theme.secondaryTextColor)
                 Spacer()
                 NumberTextField(
                     placeholder: "p/day",
@@ -1480,6 +1590,18 @@ private struct ManualInputView: View {
             }
         }
         .padding(.horizontal)
+        .onChange(of: globalSettings.settings.showRatesWithVAT) { _, newValue in
+            // Convert rates when VAT setting changes
+            settings.manualRatePencePerKWh = convertRateForVATChange(
+                rate: settings.manualRatePencePerKWh,
+                toIncludeVAT: newValue
+            )
+            settings.manualStandingChargePencePerDay = convertRateForVATChange(
+                rate: settings.manualStandingChargePencePerDay,
+                toIncludeVAT: newValue
+            )
+            recalculateWithNewRates()
+        }
     }
 }
 
@@ -1729,20 +1851,20 @@ private struct ProductDetailView: View {
 
     private var availability: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Availability")
+            Text("Signup Window")
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
             if let availableFrom = product.value(forKey: "available_from") as? Date,
                 availableFrom != Date.distantPast
             {
-                Text("From: \(formatDate(availableFrom))")
+                Text("Sign up available from: \(formatDate(availableFrom))")
                     .font(Theme.captionFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
             if let availableTo = product.value(forKey: "available_to") as? Date,
                 availableTo != Date.distantFuture
             {
-                Text("To: \(formatDate(availableTo))")
+                Text("Last day to sign up: \(formatDate(availableTo))")
                     .font(Theme.captionFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }

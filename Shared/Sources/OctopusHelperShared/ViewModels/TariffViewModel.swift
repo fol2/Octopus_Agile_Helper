@@ -12,6 +12,14 @@ public final class TariffViewModel: ObservableObject {
         case quarterly = "Quarterly"
     }
 
+    // Fixed calendar for weekly calculations
+    private let fixedWeeklyCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2  // 2 represents Monday
+        calendar.minimumDaysInFirstWeek = 4  // ISO-8601 standard
+        return calendar
+    }()
+
     public struct TariffCalculation {
         public let periodStart: Date
         public let periodEnd: Date
@@ -329,19 +337,16 @@ public final class TariffViewModel: ObservableObject {
             // Start is midnight of `date`, end is +1 day
             start = calendar.startOfDay(for: date)
             // end is +1 day (exclusive)
-            end =
-                calendar.date(byAdding: .day, value: 1, to: start)
-                ?? date
+            end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
 
         case .weekly:
-            // Start is the beginning of the ISO week, end is +6 days (inclusive)
-            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-            start = calendar.date(from: comps) ?? date
+            // Use fixed calendar for weekly calculations to ensure Monday start
+            let comps = fixedWeeklyCalendar.dateComponents(
+                [.yearForWeekOfYear, .weekOfYear], from: date)
+            start = fixedWeeklyCalendar.date(from: comps) ?? date
             // Instead of +7 days, do +6 for the inclusive 7-day display
             // This fixes "20–27 Jan" => "20–26 Jan"
-            end =
-                calendar.date(byAdding: .day, value: 6, to: start)
-                ?? date
+            end = fixedWeeklyCalendar.date(byAdding: .day, value: 6, to: start) ?? date
 
         case .monthly:
             // (unchanged) interpret date as somewhere inside a "billing month" that starts on `billingDay`
@@ -377,15 +382,18 @@ public final class TariffViewModel: ObservableObject {
             // 4) End date is exactly one month after `start` day, minus 1 day
             //    We'll do "start + 1 month" then subtract 1 day
             if let plusOneMonth = calendar.date(byAdding: .month, value: 1, to: start) {
+                // Get end of day before next month
                 end = calendar.date(byAdding: .day, value: -1, to: plusOneMonth) ?? plusOneMonth
+                // Add 1 second to include the last interval
+                end = calendar.date(byAdding: .second, value: 1, to: end) ?? end
             } else {
                 // fallback if date logic fails
                 end = date
             }
 
         case .quarterly:
-            // Similar approach but we add 2 months to the start (instead of 3)
-            // to match the requirement of "4 Jan - 3 Mar 2025"
+            // Similar approach but we add 3 months to the start (instead of 2)
+            // to match the requirement of "4 Jan - 3 Apr 2025"
             let dayOfDate = calendar.component(.day, from: date)
             let yearOfDate = calendar.component(.year, from: date)
             let monthOfDate = calendar.component(.month, from: date)
@@ -400,14 +408,24 @@ public final class TariffViewModel: ObservableObject {
                 }
             }
 
-            let daysInMonth = daysIn(cycleYear, cycleMonth, calendar: calendar)
-            let safeDay = min(billingDay, daysInMonth)
-            var startComps = DateComponents(year: cycleYear, month: cycleMonth, day: safeDay)
+            // Create start date components
+            var startComps = DateComponents()
+            startComps.year = cycleYear
+            startComps.month = cycleMonth
+            startComps.day = billingDay
+            startComps.hour = 0
+            startComps.minute = 0
+            startComps.second = 0
+
+            // Get the start date
             start = calendar.date(from: startComps) ?? date
 
-            if let plusTwoMonths = calendar.date(byAdding: .month, value: 2, to: start) {
-                end = calendar.date(byAdding: .day, value: -1, to: plusTwoMonths) ?? plusTwoMonths
+            // End date is exactly three months after `start` day, minus 1 day
+            if let plusThreeMonths = calendar.date(byAdding: .month, value: 3, to: start) {
+                end =
+                    calendar.date(byAdding: .day, value: -1, to: plusThreeMonths) ?? plusThreeMonths
             } else {
+                // fallback if date logic fails
                 end = date
             }
         }
@@ -502,6 +520,79 @@ public final class TariffViewModel: ObservableObject {
     }
 }
 
+// MARK: - Interval Boundary
+extension TariffViewModel {
+    enum NavigationDirection {
+        case backward
+        case forward
+    }
+
+    struct IntervalBoundary {
+        let start: Date
+        let end: Date
+
+        func overlapsWithData(minDate: Date?, maxDate: Date?) -> Bool {
+            guard let minDate = minDate else { return true }
+            // Allow if there's any overlap with the data range
+            // i.e., only block if the entire interval is outside the data range
+            return !(start < minDate && end < minDate)
+        }
+
+        func isAfterData(maxDate: Date?) -> Bool {
+            guard let maxDate = maxDate else { return false }
+            return start > maxDate
+        }
+    }
+
+    func getBoundary(for date: Date, intervalType: IntervalType, billingDay: Int = 1)
+        -> IntervalBoundary
+    {
+        let (start, end) = calculateDateRange(
+            for: date, intervalType: intervalType, billingDay: billingDay)
+        return IntervalBoundary(start: start, end: end)
+    }
+
+    /// Returns whether navigation in a direction is allowed
+    func canNavigate(
+        from date: Date,
+        direction: NavigationDirection,
+        intervalType: IntervalType,
+        minDate: Date?,
+        maxDate: Date?,
+        billingDay: Int = 1,
+        dailyAvailableDates: Set<Date>? = nil
+    ) -> Bool {
+        // Don't allow navigation while calculating
+        if isCalculating { return false }
+
+        // For daily intervals with available dates, check if next date exists
+        if intervalType == .daily, let dailySet = dailyAvailableDates {
+            // Use nextDate to peek if a valid date exists
+            let hasNext =
+                nextDate(
+                    from: date,
+                    forward: direction == .forward,
+                    intervalType: intervalType,
+                    minDate: minDate,
+                    maxDate: maxDate,
+                    dailyAvailableDates: dailySet,
+                    billingDay: billingDay
+                ) != nil
+            return hasNext
+        }
+
+        // For other intervals, use boundary checking
+        let boundary = getBoundary(for: date, intervalType: intervalType, billingDay: billingDay)
+
+        switch direction {
+        case .backward:
+            return boundary.overlapsWithData(minDate: minDate, maxDate: nil)
+        case .forward:
+            return !boundary.isAfterData(maxDate: maxDate)
+        }
+    }
+}
+
 // MARK: - Date Navigation & Bounds
 extension TariffViewModel {
     /// Returns `true` if `date` is at or before the min boundary (for the given interval type).
@@ -512,37 +603,8 @@ extension TariffViewModel {
         minDate: Date?,
         billingDay: Int = 1
     ) -> Bool {
-        guard let minDate = minDate else { return false }
-        let calendar = Calendar.current
-
-        switch intervalType {
-        case .daily:
-            return calendar.isDate(date, inSameDayAs: minDate)
-        case .weekly:
-            let currentWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
-            let minWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: minDate))!
-            return currentWeekStart <= minWeekStart
-        case .monthly:
-            let (curStart, _) = self.calculateDateRange(
-                for: date,
-                intervalType: .monthly,
-                billingDay: billingDay
-            )
-            let (minStart, _) = self.calculateDateRange(
-                for: minDate,
-                intervalType: .monthly,
-                billingDay: billingDay
-            )
-            return curStart <= minStart
-        case .quarterly:
-            let currentRange = self.calculateDateRange(
-                for: date, intervalType: .quarterly, billingDay: billingDay)
-            let minRange = self.calculateDateRange(
-                for: minDate, intervalType: .quarterly, billingDay: billingDay)
-            return currentRange.0 <= minRange.0
-        }
+        let boundary = getBoundary(for: date, intervalType: intervalType, billingDay: billingDay)
+        return !boundary.overlapsWithData(minDate: minDate, maxDate: nil)
     }
 
     /// Returns `true` if `date` is at or after the max boundary (for the given interval type).
@@ -553,37 +615,8 @@ extension TariffViewModel {
         maxDate: Date?,
         billingDay: Int = 1
     ) -> Bool {
-        guard let maxDate = maxDate else { return false }
-        let calendar = Calendar.current
-
-        switch intervalType {
-        case .daily:
-            return calendar.isDate(date, inSameDayAs: maxDate)
-        case .weekly:
-            let currentWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
-            let maxWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: maxDate))!
-            return currentWeekStart >= maxWeekStart
-        case .monthly:
-            let (curStart, _) = self.calculateDateRange(
-                for: date,
-                intervalType: .monthly,
-                billingDay: billingDay
-            )
-            let (maxStart, _) = self.calculateDateRange(
-                for: maxDate,
-                intervalType: .monthly,
-                billingDay: billingDay
-            )
-            return curStart >= maxStart
-        case .quarterly:
-            let currentRange = self.calculateDateRange(
-                for: date, intervalType: .quarterly, billingDay: billingDay)
-            let maxRange = self.calculateDateRange(
-                for: maxDate, intervalType: .quarterly, billingDay: billingDay)
-            return currentRange.0 >= maxRange.0
-        }
+        let boundary = getBoundary(for: date, intervalType: intervalType, billingDay: billingDay)
+        return boundary.isAfterData(maxDate: maxDate)
     }
 
     /// Returns the next valid date for navigation, or nil if at boundary.
@@ -641,11 +674,13 @@ extension TariffViewModel {
             else {
                 return nil
             }
-            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+            return clampDate(
+                newDate, minDate: minDate, maxDate: maxDate, intervalType: intervalType,
+                billingDay: billingDay)
 
         case .weekly:
             guard
-                let newDate = calendar.date(
+                let newDate = fixedWeeklyCalendar.date(
                     // still move ±1 "weekOfYear" so the next navigation step lands
                     // on the next ISO week start, which is consistent with the new range fix
                     byAdding: .weekOfYear,
@@ -653,7 +688,9 @@ extension TariffViewModel {
             else {
                 return nil
             }
-            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+            return clampDate(
+                newDate, minDate: minDate, maxDate: maxDate, intervalType: intervalType,
+                billingDay: billingDay)
 
         case .monthly:
             // We'll move from the current cycle start date by ±1 billing month
@@ -677,7 +714,9 @@ extension TariffViewModel {
                 billingDay: billingDay
             )
 
-            return clampDate(newStart, minDate: minDate, maxDate: maxDate)
+            return clampDate(
+                newStart, minDate: minDate, maxDate: maxDate, intervalType: intervalType,
+                billingDay: billingDay)
 
         case .quarterly:
             let (startOfCycle, _) = self.calculateDateRange(
@@ -687,14 +726,16 @@ extension TariffViewModel {
             )
             guard
                 let shifted = calendar.date(
-                    byAdding: .month, value: forward ? 2 : -2, to: startOfCycle)
+                    byAdding: .month, value: forward ? 3 : -3, to: startOfCycle)
             else { return nil }
             let (newStart, _) = self.calculateDateRange(
                 for: shifted,
                 intervalType: .quarterly,
                 billingDay: billingDay
             )
-            return clampDate(newStart, minDate: minDate, maxDate: maxDate)
+            return clampDate(
+                newStart, minDate: minDate, maxDate: maxDate, intervalType: intervalType,
+                billingDay: billingDay)
         }
     }
 
@@ -702,12 +743,14 @@ extension TariffViewModel {
     private func clampDate(
         _ date: Date,
         minDate: Date?,
-        maxDate: Date?
+        maxDate: Date?,
+        intervalType: IntervalType,
+        billingDay: Int = 1
     ) -> Date? {
-        if let minDate = minDate, date < minDate {
-            return nil
-        }
-        if let maxDate = maxDate, date > maxDate {
+        let boundary = getBoundary(for: date, intervalType: intervalType, billingDay: billingDay)
+        if !boundary.overlapsWithData(minDate: minDate, maxDate: nil)
+            || boundary.isAfterData(maxDate: maxDate)
+        {
             return nil
         }
         return date
