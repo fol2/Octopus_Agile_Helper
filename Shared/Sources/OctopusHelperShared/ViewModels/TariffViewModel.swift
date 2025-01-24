@@ -252,21 +252,27 @@ public final class TariffViewModel: ObservableObject {
         var start: Date
         var end: Date
 
-        // For daily/weekly, we preserve original logic
         switch intervalType {
         case .daily:
             // Start is midnight of `date`, end is +1 day
             start = calendar.startOfDay(for: date)
-            end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
+            // end is +1 day (exclusive)
+            end =
+                calendar.date(byAdding: .day, value: 1, to: start)
+                ?? date
 
         case .weekly:
-            // Start is the beginning of the ISO week, end is +7 days
+            // Start is the beginning of the ISO week, end is +6 days (inclusive)
             let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
             start = calendar.date(from: comps) ?? date
-            end = calendar.date(byAdding: .day, value: 7, to: start) ?? date
+            // Instead of +7 days, do +6 for the inclusive 7-day display
+            // This fixes "20–27 Jan" => "20–26 Jan"
+            end =
+                calendar.date(byAdding: .day, value: 6, to: start)
+                ?? date
 
         case .monthly:
-            // NEW: we interpret date as somewhere inside a "billing month" that starts on `billingDay`
+            // (unchanged) interpret date as somewhere inside a "billing month" that starts on `billingDay`
             // and ends the day before the next cycle.
 
             // 1) Extract year, month, and day from the reference
@@ -307,7 +313,6 @@ public final class TariffViewModel: ObservableObject {
 
         case .quarterly:
             // Similar approach but we add 3 months to the start, then minus 1 day.
-
             let dayOfDate = calendar.component(.day, from: date)
             let yearOfDate = calendar.component(.year, from: date)
             let monthOfDate = calendar.component(.month, from: date)
@@ -509,20 +514,15 @@ extension TariffViewModel {
         }
     }
 
-    /// Advances `currentDate` forward/backward by one unit of the given interval type,
-    /// clamping to [minDate, maxDate].
-    ///
-    /// If `intervalType == .daily` and `dailyAvailableDates` is provided, it tries to find
-    /// the next valid day in `dailyAvailableDates`.
-    /// Otherwise it simply increments by 1 day/week/month/quarter.
-    ///
-    /// Returns `nil` if we cannot move further in that direction.
+    /// Returns the next valid date for navigation, or nil if at boundary.
+    /// For daily intervals with a dailySet, it will find the next available day with data.
+    /// For other intervals, it moves by the standard interval step.
     public func nextDate(
         from currentDate: Date,
         forward: Bool,
         intervalType: IntervalType,
-        minDate: Date?,
-        maxDate: Date?,
+        minDate: Date? = nil,
+        maxDate: Date? = nil,
         dailyAvailableDates: Set<Date>? = nil,
         billingDay: Int = 1
     ) -> Date? {
@@ -564,7 +564,8 @@ extension TariffViewModel {
             // No daily set => normal ±1 day
             guard
                 let newDate = calendar.date(
-                    byAdding: .day, value: forward ? 1 : -1, to: currentDate)
+                    byAdding: .day,
+                    value: forward ? 1 : -1, to: currentDate)
             else {
                 return nil
             }
@@ -573,7 +574,10 @@ extension TariffViewModel {
         case .weekly:
             guard
                 let newDate = calendar.date(
-                    byAdding: .weekOfYear, value: forward ? 1 : -1, to: currentDate)
+                    // still move ±1 "weekOfYear" so the next navigation step lands
+                    // on the next ISO week start, which is consistent with the new range fix
+                    byAdding: .weekOfYear,
+                    value: forward ? 1 : -1, to: currentDate)
             else {
                 return nil
             }

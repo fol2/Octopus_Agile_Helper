@@ -200,6 +200,7 @@ public struct AccountTariffCardView: View {
             NavigationView {
                 AccountTariffDetailView(
                     tariffVM: TariffViewModel(),
+                    consumptionVM: consumptionVM,
                     initialInterval: selectedInterval,
                     initialDate: currentDate
                 )
@@ -263,12 +264,28 @@ public struct AccountTariffCardView: View {
 
     private func calculateCostsIfPossible() {
         guard let accountData = accountResponse else { return }
+
+        // Restore partial coverage so we can see incomplete intervals
+        let (stdStart, stdEnd) = tariffVM.calculateDateRange(
+            for: currentDate,
+            intervalType: selectedInterval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+
+        // If the consumption doesn't extend that far, we do partial coverage up to maxInterval
+        let lastKnown = consumptionVM.maxInterval ?? Date()
+        let partialEnd = min(stdEnd, lastKnown)
+
+        // Always compute partial coverage, even if partialEnd < now
+        // (This ensures we can see e.g. 20 Jan - 23 Jan if data ended on the 23rd)
         Task {
             await tariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "savedAccount",
                 intervalType: selectedInterval.viewModelInterval,
-                accountData: accountData
+                accountData: accountData,
+                partialStart: stdStart,
+                partialEnd: partialEnd
             )
         }
     }
@@ -297,31 +314,44 @@ public struct AccountTariffCardView: View {
 
     private func updateAllowedDateRange() {
         let calendar = Calendar.current
-        let now = Date()
-        let startOfToday = calendar.startOfDay(for: now)
+        // We want to allow navigating to the "current" cycle, even if partial.
+        // That means for weekly/monthly, we derive the cycle containing 'today'.
+        let today = Date()
+        let startOfToday = calendar.startOfDay(for: today)
         let latestDailyDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
 
         switch selectedInterval {
         case .daily:
+            // For daily, we still use yesterday as max
             maxAllowedDate = latestDailyDate
+
         case .weekly:
-            let latestWeekStart = calendar.date(
-                from: calendar.dateComponents(
-                    [.yearForWeekOfYear, .weekOfYear], from: latestDailyDate))!
-            maxAllowedDate = latestWeekStart
+            // For the current week containing "today," set maxAllowedDate to the end of that week
+            let (currentWeekStart, currentWeekEnd) = tariffVM.calculateDateRange(
+                for: today,
+                intervalType: selectedInterval.viewModelInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            maxAllowedDate = currentWeekEnd
+
         case .monthly:
-            maxAllowedDate = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: latestDailyDate))
+            // For monthly, set the maxAllowedDate to the end of the current billing cycle
+            let (currentMonthStart, currentMonthEnd) = tariffVM.calculateDateRange(
+                for: today,
+                intervalType: selectedInterval.viewModelInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            maxAllowedDate = currentMonthEnd
         }
 
         minAllowedDate = consumptionVM.minInterval
 
-        if let mx = maxAllowedDate, currentDate > mx {
-            currentDate = mx
-        }
+        // Only keep the min clamp to avoid going before we have data
         if let mn = minAllowedDate, currentDate < mn {
             currentDate = mn
         }
+        // We do NOT clamp currentDate against maxAllowedDate here; we let the user see partial coverage
+        // if partial coverage goes beyond the last known consumption date.
     }
 }
 
@@ -478,26 +508,59 @@ private struct AccountTariffDateNavView: View {
     }
 
     private func dateRangeText() -> String {
-        let (start, end) = tariffVM.calculateDateRange(
+        let (startOfInterval, nominalEnd) = tariffVM.calculateDateRange(
             for: currentDate,
             intervalType: selectedInterval.viewModelInterval,
             billingDay: globalSettings.settings.billingDay
         )
-        let formatter = DateFormatter()
-        formatter.locale = globalSettings.locale
+
+        let cal = Calendar.current
+
+        // Shared formatters
+        let dayMonthFmt = DateFormatter()
+        dayMonthFmt.locale = globalSettings.locale
+        dayMonthFmt.dateFormat = "d MMM"
+
+        let dayMonthYearFmt = DateFormatter()
+        dayMonthYearFmt.locale = globalSettings.locale
+        dayMonthYearFmt.dateFormat = "d MMM yyyy"
+
         switch selectedInterval {
         case .daily:
-            formatter.dateStyle = .medium
-            return formatter.string(from: start)
+            // Keep it simple: "24 Jan 2025"
+            return dayMonthYearFmt.string(from: startOfInterval)
+
         case .weekly:
-            formatter.dateStyle = .medium
-            let endDate = Calendar.current.date(byAdding: .day, value: 6, to: start) ?? end
-            let s1 = formatter.string(from: start)
-            let s2 = formatter.string(from: endDate)
-            return "\(s1) - \(s2)"
+            // Example: "13 Jan - 19 Jan 2025" or cross-year "30 Dec 2024 - 5 Jan 2025"
+            let endDate = cal.date(byAdding: .day, value: 6, to: startOfInterval) ?? nominalEnd
+
+            let startYr = cal.component(.year, from: startOfInterval)
+            let endYr = cal.component(.year, from: endDate)
+
+            let s1 = dayMonthFmt.string(from: startOfInterval)
+            if startYr == endYr {
+                // same year
+                let s2 = dayMonthFmt.string(from: endDate) + " \(startYr)"
+                return "\(s1) - \(s2)"
+            } else {
+                // crossing year boundary
+                let s2 = dayMonthYearFmt.string(from: endDate)
+                return "\(s1) \(startYr) - \(s2)"
+            }
+
         case .monthly:
-            formatter.dateFormat = "LLLL yyyy"
-            return formatter.string(from: start)
+            // Show something like "4 Dec 2024 - 3 Jan 2025"
+            let startYr = cal.component(.year, from: startOfInterval)
+            let endYr = cal.component(.year, from: nominalEnd)
+
+            let s1 = dayMonthFmt.string(from: startOfInterval)
+            if startYr == endYr {
+                let s2 = dayMonthFmt.string(from: nominalEnd) + " \(endYr)"
+                return "\(s1) - \(s2)"
+            } else {
+                let s2 = dayMonthYearFmt.string(from: nominalEnd)
+                return "\(s1) \(startYr) - \(s2)"
+            }
         }
     }
 }
@@ -671,6 +734,7 @@ private struct TariffCalculationPlaceholderView: View {
 struct AccountTariffDetailView: View {
     // MARK: - Dependencies
     @ObservedObject var tariffVM: TariffViewModel
+    @ObservedObject var consumptionVM: ConsumptionViewModel
     let initialInterval: AccountTariffCardView.IntervalType
     let initialDate: Date
     @EnvironmentObject var globalSettings: GlobalSettingsManager
@@ -687,10 +751,13 @@ struct AccountTariffDetailView: View {
 
     // Add initializer
     init(
-        tariffVM: TariffViewModel, initialInterval: AccountTariffCardView.IntervalType,
+        tariffVM: TariffViewModel,
+        consumptionVM: ConsumptionViewModel,
+        initialInterval: AccountTariffCardView.IntervalType,
         initialDate: Date
     ) {
         self.tariffVM = tariffVM
+        self.consumptionVM = consumptionVM
         self.initialInterval = initialInterval
         self.initialDate = initialDate
         // Initialize state with initial values
@@ -763,18 +830,19 @@ struct AccountTariffDetailView: View {
 
         case .weekly:
             var weeksToLoad: [Date] = []
-            let currentWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
+            // For weekly, we want to include the current week even if partial
+            let (currentWeekStart, _) = tariffVM.calculateDateRange(
+                for: now,
+                intervalType: .weekly,
+                billingDay: globalSettings.settings.billingDay
+            )
             weeksToLoad.append(currentWeekStart)
 
             for weekOffset in 1...12 {
                 if let date = calendar.date(
-                    byAdding: .weekOfYear, value: -weekOffset, to: startOfToday)
+                    byAdding: .weekOfYear, value: -weekOffset, to: currentWeekStart)
                 {
-                    let weekStart = calendar.date(
-                        from: calendar.dateComponents(
-                            [.yearForWeekOfYear, .weekOfYear], from: date))!
-                    weeksToLoad.append(weekStart)
+                    weeksToLoad.append(date)
                 }
             }
 
@@ -785,16 +853,19 @@ struct AccountTariffDetailView: View {
 
         case .monthly:
             var monthsToLoad: [Date] = []
-            let currentMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: now))!
+            // For monthly, we want to include the current billing cycle even if partial
+            let (currentMonthStart, _) = tariffVM.calculateDateRange(
+                for: now,
+                intervalType: .monthly,
+                billingDay: globalSettings.settings.billingDay
+            )
             monthsToLoad.append(currentMonthStart)
 
             for monthOffset in 1...6 {
-                if let date = calendar.date(byAdding: .month, value: -monthOffset, to: startOfToday)
+                if let date = calendar.date(
+                    byAdding: .month, value: -monthOffset, to: currentMonthStart)
                 {
-                    let monthStart = calendar.date(
-                        from: calendar.dateComponents([.year, .month], from: date))!
-                    monthsToLoad.append(monthStart)
+                    monthsToLoad.append(date)
                 }
             }
             let phase1Count = min(monthsToLoad.count, 2)
@@ -840,44 +911,113 @@ struct AccountTariffDetailView: View {
             return  // skip duplicates
         }
 
+        // For display, we want the nominal range (not the partial coverage).
+        // So let's fetch the nominal start/end from TariffViewModel:
+        let (nominalStart, nominalEnd) = tariffVM.calculateDateRange(
+            for: periodStart,
+            intervalType: interval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+
         if let accountData = globalSettings.settings.accountData,
             let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
         {
+            // Get the standard interval range
+            let (stdStart, stdEnd) = tariffVM.calculateDateRange(
+                for: periodStart,
+                intervalType: interval.viewModelInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+
+            // If the consumption doesn't extend that far, we do partial coverage up to maxInterval
+            let lastKnown = consumptionVM.maxInterval ?? Date()
+            let partialEnd = min(stdEnd, lastKnown)
+
+            // Skip if no overlap with consumption data
+            if partialEnd <= stdStart { return }
+
             await tariffVM.calculateCosts(
                 for: periodStart,
                 tariffCode: "savedAccount",
                 intervalType: interval.viewModelInterval,
-                accountData: decoded
+                accountData: decoded,
+                partialStart: stdStart,
+                partialEnd: partialEnd
             )
 
-            if let calculation = tariffVM.currentCalculation {
+            // For the row label, always use the nominal cycle
+            if tariffVM.currentCalculation != nil {
+                let dateString = shortRangeLabel(
+                    for: nominalStart,
+                    to: nominalEnd,
+                    interval
+                )
                 await MainActor.run {
-                    let dateString: String
-                    switch interval {
-                    case .daily:
-                        dateString = dateFormatter.string(from: periodStart)
-                    case .weekly:
-                        let weekEnd = calendar.date(byAdding: .day, value: 6, to: periodStart)!
-                        dateString =
-                            "\(dateFormatter.string(from: periodStart)) - \(dateFormatter.string(from: weekEnd))"
-                    case .monthly:
-                        let (start, end) = tariffVM.calculateDateRange(
-                            for: periodStart,
-                            intervalType: interval.viewModelInterval,
-                            billingDay: globalSettings.settings.billingDay
-                        )
-                        dateString = monthFormatter.string(from: start)
-                    }
-
                     if let existingIndex = displayedRatesByDate.firstIndex(where: {
                         $0.0 == dateString
                     }) {
-                        displayedRatesByDate[existingIndex] = (dateString, calculation)
+                        displayedRatesByDate[existingIndex] = (
+                            dateString, tariffVM.currentCalculation!
+                        )
                     } else {
-                        displayedRatesByDate.append((dateString, calculation))
+                        displayedRatesByDate.append((dateString, tariffVM.currentCalculation!))
                     }
                     loadedDays.append(periodStart)
                 }
+            }
+        }
+    }
+
+    /// Build short UK-styled label for intervals, matching the main view format
+    private func shortRangeLabel(
+        for start: Date,
+        to end: Date,
+        _ interval: AccountTariffCardView.IntervalType
+    ) -> String {
+        let cal = Calendar.current
+
+        // Shared formatters
+        let dayMonthFmt = DateFormatter()
+        dayMonthFmt.locale = globalSettings.locale
+        dayMonthFmt.dateFormat = "d MMM"
+
+        let dayMonthYearFmt = DateFormatter()
+        dayMonthYearFmt.locale = globalSettings.locale
+        dayMonthYearFmt.dateFormat = "d MMM yyyy"
+
+        switch interval {
+        case .daily:
+            // Keep it simple: "24 Jan 2025"
+            return dayMonthYearFmt.string(from: start)
+
+        case .weekly:
+            // Example: "13 Jan - 19 Jan 2025" or cross-year "30 Dec 2024 - 5 Jan 2025"
+            let startYr = cal.component(.year, from: start)
+            let endYr = cal.component(.year, from: end)
+
+            let s1 = dayMonthFmt.string(from: start)
+            if startYr == endYr {
+                // same year
+                let s2 = dayMonthFmt.string(from: end) + " \(startYr)"
+                return "\(s1) - \(s2)"
+            } else {
+                // crossing year boundary
+                let s2 = dayMonthYearFmt.string(from: end)
+                return "\(s1) \(startYr) - \(s2)"
+            }
+
+        case .monthly:
+            // Show something like "4 Dec 2024 - 3 Jan 2025"
+            let startYr = cal.component(.year, from: start)
+            let endYr = cal.component(.year, from: end)
+
+            let s1 = dayMonthFmt.string(from: start)
+            if startYr == endYr {
+                let s2 = dayMonthFmt.string(from: end) + " \(endYr)"
+                return "\(s1) - \(s2)"
+            } else {
+                let s2 = dayMonthYearFmt.string(from: end)
+                return "\(s1) \(startYr) - \(s2)"
             }
         }
     }
