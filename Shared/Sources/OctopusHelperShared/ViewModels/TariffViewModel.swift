@@ -493,7 +493,7 @@ public final class TariffViewModel: ObservableObject {
     }
 
     /// Calculates the start and end dates for a given reference date and interval type
-    private func calculateDateRange(for date: Date, intervalType: IntervalType) -> (
+    public func calculateDateRange(for date: Date, intervalType: IntervalType) -> (
         start: Date, end: Date
     ) {
         let calendar = Calendar.current
@@ -539,5 +539,181 @@ public final class TariffViewModel: ObservableObject {
             let end = calendar.date(byAdding: .month, value: 3, to: start) ?? date
             return (start, end)
         }
+    }
+}
+
+// MARK: - Date Navigation & Bounds
+extension TariffViewModel {
+    /// Returns `true` if `date` is at or before the min boundary (for the given interval type).
+    /// If `minDate` is nil, we treat no lower bound.
+    public func isDateAtMinimum(
+        _ date: Date,
+        intervalType: IntervalType,
+        minDate: Date?
+    ) -> Bool {
+        guard let minDate = minDate else { return false }
+        let calendar = Calendar.current
+
+        switch intervalType {
+        case .daily:
+            return calendar.isDate(date, inSameDayAs: minDate)
+        case .weekly:
+            let currentWeekStart = calendar.date(
+                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
+            let minWeekStart = calendar.date(
+                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: minDate))!
+            return currentWeekStart <= minWeekStart
+        case .monthly:
+            let currentMonthStart = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: date))!
+            let minMonthStart = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: minDate))!
+            return currentMonthStart <= minMonthStart
+        case .quarterly:
+            // For now, treat "quarterly" like monthly but in 3-month increments
+            let currentQStart = self.calculateDateRange(for: date, intervalType: .quarterly).start
+            let minQStart = self.calculateDateRange(for: minDate, intervalType: .quarterly).start
+            return currentQStart <= minQStart
+        }
+    }
+
+    /// Returns `true` if `date` is at or after the max boundary (for the given interval type).
+    /// If `maxDate` is nil, treat no upper bound.
+    public func isDateAtMaximum(
+        _ date: Date,
+        intervalType: IntervalType,
+        maxDate: Date?
+    ) -> Bool {
+        guard let maxDate = maxDate else { return false }
+        let calendar = Calendar.current
+
+        switch intervalType {
+        case .daily:
+            return calendar.isDate(date, inSameDayAs: maxDate)
+        case .weekly:
+            let currentWeekStart = calendar.date(
+                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
+            let maxWeekStart = calendar.date(
+                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: maxDate))!
+            return currentWeekStart >= maxWeekStart
+        case .monthly:
+            let currentMonthStart = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: date))!
+            let maxMonthStart = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: maxDate))!
+            return currentMonthStart >= maxMonthStart
+        case .quarterly:
+            let currentQStart = self.calculateDateRange(for: date, intervalType: .quarterly).start
+            let maxQStart = self.calculateDateRange(for: maxDate, intervalType: .quarterly).start
+            return currentQStart >= maxQStart
+        }
+    }
+
+    /// Advances `currentDate` forward/backward by one unit of the given interval type,
+    /// clamping to [minDate, maxDate].
+    ///
+    /// If `intervalType == .daily` and `dailyAvailableDates` is provided, it tries to find
+    /// the next valid day in `dailyAvailableDates`.
+    /// Otherwise it simply increments by 1 day/week/month/quarter.
+    ///
+    /// Returns `nil` if we cannot move further in that direction.
+    public func nextDate(
+        from currentDate: Date,
+        forward: Bool,
+        intervalType: IntervalType,
+        minDate: Date?,
+        maxDate: Date?,
+        dailyAvailableDates: Set<Date>? = nil
+    ) -> Date? {
+        let calendar = Calendar.current
+
+        // If daily and we have a set of valid daily dates with data:
+        if intervalType == .daily, let dailySet = dailyAvailableDates, !dailySet.isEmpty {
+            // Start from the *startOfDay* of currentDate
+            var candidate = calendar.startOfDay(for: currentDate)
+            while true {
+                guard
+                    let nextDay = calendar.date(
+                        byAdding: .day, value: forward ? 1 : -1, to: candidate)
+                else {
+                    return nil
+                }
+                candidate = calendar.startOfDay(for: nextDay)
+
+                // Bounds check
+                if let minDate = minDate, candidate < calendar.startOfDay(for: minDate) {
+                    return nil
+                }
+                if let maxDate = maxDate, candidate > calendar.startOfDay(for: maxDate) {
+                    return nil
+                }
+
+                // If the candidate is in the set, we found our next valid day
+                if dailySet.contains(candidate) {
+                    return candidate
+                }
+                // If we keep going and never find a day, eventually we return nil
+                // once we pass the bounds.
+            }
+        }
+
+        // Otherwise, we do a simpler approach for weekly/monthly/quarterly
+        switch intervalType {
+        case .daily:
+            // No daily set => normal ±1 day
+            guard
+                let newDate = calendar.date(
+                    byAdding: .day, value: forward ? 1 : -1, to: currentDate)
+            else {
+                return nil
+            }
+            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+
+        case .weekly:
+            guard
+                let newDate = calendar.date(
+                    byAdding: .weekOfYear, value: forward ? 1 : -1, to: currentDate)
+            else {
+                return nil
+            }
+            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+
+        case .monthly:
+            guard
+                let newDate = calendar.date(
+                    byAdding: .month, value: forward ? 1 : -1, to: currentDate)
+            else {
+                return nil
+            }
+            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+
+        case .quarterly:
+            // move by 3 months
+            let month = calendar.component(.month, from: currentDate)
+            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
+            var components = calendar.dateComponents([.year], from: currentDate)
+            components.month = quarterStartMonth + (forward ? 3 : -3)
+            components.day = 1
+
+            guard let newDate = calendar.date(from: components) else {
+                return nil
+            }
+            return clampDate(newDate, minDate: minDate, maxDate: maxDate)
+        }
+    }
+
+    /// Helper that bounds a date between optional minDate and maxDate.
+    private func clampDate(
+        _ date: Date,
+        minDate: Date?,
+        maxDate: Date?
+    ) -> Date? {
+        if let minDate = minDate, date < minDate {
+            return nil
+        }
+        if let maxDate = maxDate, date > maxDate {
+            return nil
+        }
+        return date
     }
 }

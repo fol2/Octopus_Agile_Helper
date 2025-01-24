@@ -46,289 +46,8 @@ public struct AccountTariffCardView: View {
         self.consumptionVM = consumptionVM
         // Initialize state properties with default values
         // They will be updated in onAppear with the actual values from globalSettings
-        _selectedInterval = State(initialValue: .daily)
-        _currentDate = State(initialValue: Date())
-    }
-
-    private func initializeFromSettings() {
-        // Update interval and date from settings
-        selectedInterval = IntervalType.from(string: globalSettings.settings.selectedTariffInterval)
-        currentDate =
-            globalSettings.settings.lastViewedTariffDates[
-                globalSettings.settings.selectedTariffInterval] ?? Date()
-    }
-
-    // MARK: - Computed Properties
-    private var isAtMinDate: Bool {
-        guard let minDate = minAllowedDate else { return false }
-        let calendar = Calendar.current
-
-        switch selectedInterval {
-        case .daily:
-            return calendar.isDate(currentDate, inSameDayAs: minDate)
-        case .weekly:
-            let currentWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate))!
-            let minWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: minDate))!
-            return currentWeekStart <= minWeekStart
-        case .monthly:
-            let currentMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: currentDate))!
-            let minMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: minDate))!
-            return currentMonthStart <= minMonthStart
-        }
-    }
-
-    private var isAtMaxDate: Bool {
-        guard let maxDate = maxAllowedDate else { return false }
-        let calendar = Calendar.current
-
-        switch selectedInterval {
-        case .daily:
-            return calendar.isDate(currentDate, inSameDayAs: maxDate)
-        case .weekly:
-            let currentWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: currentDate))!
-            let maxWeekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: maxDate))!
-            return currentWeekStart >= maxWeekStart
-        case .monthly:
-            let currentMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: currentDate))!
-            let maxMonthStart = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: maxDate))!
-            return currentMonthStart >= maxMonthStart
-        }
-    }
-
-    private var dateRange: (start: Date, end: Date) {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: currentDate)
-
-        switch selectedInterval {
-        case .daily:
-            let endDate = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-            return (start: startOfDay, end: endDate)
-
-        case .weekly:
-            let weekStart = calendar.date(
-                from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startOfDay))!
-            let weekEnd = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart)!
-            return (start: weekStart, end: weekEnd)
-
-        case .monthly:
-            let monthStart =
-                calendar.date(from: calendar.dateComponents([.year, .month], from: startOfDay))!
-            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart)!
-            return (start: monthStart, end: monthEnd)
-        }
-    }
-
-    private var accountResponse: OctopusAccountResponse? {
-        guard let accountData = globalSettings.settings.accountData,
-            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
-        else {
-            return nil
-        }
-        return decoded
-    }
-
-    private func iconName(for interval: IntervalType) -> String {
-        switch interval {
-        case .daily: return "calendar.day.timeline.left"
-        case .weekly: return "calendar.badge.clock"
-        case .monthly: return "calendar"
-        }
-    }
-
-    // MARK: - Methods
-    private func savePreferences() {
-        // Save current interval and date
-        globalSettings.settings.selectedTariffInterval = selectedInterval.rawValue
-        globalSettings.settings.lastViewedTariffDates[selectedInterval.rawValue] = currentDate
-    }
-
-    private func updateAllowedDateRange() {
-        let calendar = Calendar.current
-        let now = Date()
-        let startOfToday = calendar.startOfDay(for: now)
-
-        // First determine the latest date we have data for (using daily reference)
-        let latestDailyDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
-
-        // Set max date based on interval
-        switch selectedInterval {
-        case .daily:
-            maxAllowedDate = latestDailyDate
-        case .weekly:
-            // Get the start of the week for our latest daily date
-            let latestWeekStart = calendar.date(
-                from: calendar.dateComponents(
-                    [.yearForWeekOfYear, .weekOfYear], from: latestDailyDate))!
-            maxAllowedDate = latestWeekStart
-        case .monthly:
-            maxAllowedDate = calendar.date(
-                from: calendar.dateComponents([.year, .month], from: latestDailyDate))
-        }
-
-        // Set min date from consumption data
-        minAllowedDate = consumptionVM.minInterval
-
-        // Ensure current date is within bounds
-        if let maxDate = maxAllowedDate, currentDate > maxDate {
-            currentDate = maxDate
-            savePreferences()
-        }
-        if let minDate = minAllowedDate, currentDate < minDate {
-            currentDate = minDate
-            savePreferences()
-        }
-    }
-
-    private func loadConsumptionIfNeeded() async {
-        if consumptionVM.consumptionRecords.isEmpty {
-            await consumptionVM.loadData()
-            updateAllowedDateRange()
-        }
-    }
-
-    /// For daily intervals, returns the next valid date that has actual consumption data
-    /// (based on `consumptionVM.consumptionRecords`). If none found (or goes out of [minDate, maxDate]),
-    /// returns `nil`.
-    private func nextDailyDateWithData(from date: Date, forward: Bool) -> Date? {
-        // Check if we have valid min/max dates
-        guard let minDate = minAllowedDate,
-            let maxDate = maxAllowedDate
-        else {
-            // If we have no valid min/max date, we cannot safely navigate
-            return nil
-        }
-
-        // Gather all available start-of-day dates from consumptionRecords
-        // so that if a day has no records, we won't let the user navigate to it.
-        let dailySet: Set<Date> = {
-            let calendar = Calendar.current
-            return Set(
-                consumptionVM.consumptionRecords.compactMap { record in
-                    guard let intervalStart = record.value(forKey: "interval_start") as? Date else {
-                        return nil
-                    }
-                    // If the record is outside min/max, ignore it.
-                    // This way we don't accidentally loop forever if there's no valid range.
-                    guard intervalStart >= minDate && intervalStart <= maxDate else { return nil }
-
-                    // Normalise to start of day
-                    return calendar.startOfDay(for: intervalStart)
-                }
-            )
-        }()
-
-        guard !dailySet.isEmpty else {
-            // If there's no daily record at all, we can't navigate forward/backward.
-            // Returning nil ensures we don't enter the while loop below.
-            // This prevents infinite looping when forward/backward is tapped.
-            return nil
-        }
-
-        let calendar = Calendar.current
-        // Start from the *current* day boundary
-        var candidate = calendar.startOfDay(for: date)
-
-        while true {
-            // Step by 1 day forward or backward
-            guard
-                let nextDay = calendar.date(byAdding: .day, value: forward ? 1 : -1, to: candidate)
-            else {
-                return nil
-            }
-            candidate = calendar.startOfDay(for: nextDay)
-
-            // Bounds-check against minAllowedDate/maxAllowedDate
-            if candidate < calendar.startOfDay(for: minDate) {
-                return nil
-            }
-            if candidate > calendar.startOfDay(for: maxDate) {
-                return nil
-            }
-
-            // If the candidate day is in the set of days we have data for, we can navigate to it
-            if dailySet.contains(candidate) {
-                return candidate
-            }
-        }
-    }
-
-    private func navigateDate(forward: Bool) {
-        let calendar = Calendar.current
-        var newDate: Date?
-
-        switch selectedInterval {
-        case .daily:
-            // Instead of blindly stepping ±1 day, we jump to the next day for which
-            // consumption data actually exists.
-            newDate = nextDailyDateWithData(from: currentDate, forward: forward)
-
-        case .weekly:
-            newDate = calendar.date(byAdding: .weekOfYear, value: forward ? 1 : -1, to: currentDate)
-
-        case .monthly:
-            newDate = calendar.date(byAdding: .month, value: forward ? 1 : -1, to: currentDate)
-        }
-
-        // If newDate is `nil`, that means:
-        //  - We either fell out of [minDate, maxDate], or
-        //  - We have no consumption data for the next day
-        guard let newDate = newDate else {
-            return
-        }
-
-        // Final safety check, though we already do min/max checks in daily mode
-        // but let's be safe for weekly/monthly steps:
-        if let minDate = minAllowedDate, newDate < minDate {
-            return
-        }
-        if let maxDate = maxAllowedDate, newDate > maxDate {
-            return
-        }
-
-        // If the new date is valid and within range, accept it
-        currentDate = newDate
-        savePreferences()
-        calculateCosts()
-    }
-
-    private func calculateCosts() {
-        if let accountData = accountResponse {
-            Task {
-                await tariffVM.calculateCosts(
-                    for: currentDate,
-                    tariffCode: "savedAccount",
-                    intervalType: selectedInterval.viewModelInterval,
-                    accountData: accountData
-                )
-            }
-        }
-    }
-
-    private func formatDateRange() -> String {
-        let dateRange = self.dateRange
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        formatter.locale = globalSettings.locale
-
-        switch selectedInterval {
-        case .daily:
-            return formatter.string(from: dateRange.start)
-        case .weekly:
-            let weekEnd = Calendar.current.date(byAdding: .day, value: 6, to: dateRange.start)!
-            return "\(formatter.string(from: dateRange.start)) - \(formatter.string(from: weekEnd))"
-        case .monthly:
-            formatter.dateFormat = "LLLL yyyy"  // e.g. "July 2025"
-            return formatter.string(from: dateRange.start)
-        }
+        self._selectedInterval = State(initialValue: .daily)
+        self._currentDate = State(initialValue: Date())
     }
 
     // MARK: - Loading Views
@@ -382,7 +101,7 @@ public struct AccountTariffCardView: View {
     // MARK: - Body
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with improved layout
+            // Header
             HStack {
                 if let def = CardRegistry.shared.definition(for: .accountTariff) {
                     Image(systemName: def.iconName)
@@ -404,7 +123,7 @@ public struct AccountTariffCardView: View {
             .padding(.bottom, 2)
 
             if accountResponse == nil {
-                // No account message with improved styling
+                // No account message
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundColor(Theme.icon)
@@ -422,8 +141,6 @@ public struct AccountTariffCardView: View {
                 switch consumptionVM.fetchState {
                 case .idle:
                     if consumptionVM.consumptionRecords.isEmpty {
-                        // If we have tried to fetch once but still no records,
-                        // show partial or a "No data yet" placeholder, rather than infinite spinner
                         if consumptionVM.error != nil {
                             errorView
                         } else {
@@ -440,7 +157,6 @@ public struct AccountTariffCardView: View {
                     if consumptionVM.consumptionRecords.isEmpty {
                         loadingView
                     } else {
-                        // We do have some records => treat it like partial success
                         mainContentView
                     }
                 case .failure:
@@ -450,37 +166,25 @@ public struct AccountTariffCardView: View {
         }
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
-        .onAppear {
-            Task {
-                initializeFromSettings()
-                updateAllowedDateRange()
-                calculateCosts()
-            }
-        }
+        .onAppear(perform: handleOnAppear)
         .onChange(of: globalSettings.settings.accountData) { oldValue, newValue in
             guard oldValue != newValue else { return }
-
             print("🔄 AccountTariffCardView: Detected new accountData, forcing consumption reload.")
             Task {
-                // Force a complete refresh from the API when account changes
                 await consumptionVM.refreshDataFromAPI(force: true)
-                updateAllowedDateRange()
-                calculateCosts()
+                updateAllowedDateRangeAndRecalculate()
             }
         }
         .onChange(of: globalSettings.locale) { _, _ in
-            // Force a re-render if user changes language
             refreshTrigger.toggle()
         }
         .onChange(of: consumptionVM.fetchState) { oldVal, newVal in
-            // If we remain at .loading for too long with no data, try loading again
             if newVal == .loading && consumptionVM.consumptionRecords.isEmpty {
                 DispatchQueue.main.asyncAfter(wallDeadline: .now() + 8) { [weak consumptionVM] in
                     guard let consumptionVM else { return }
                     if consumptionVM.fetchState == .loading
                         && consumptionVM.consumptionRecords.isEmpty
                     {
-                        // Instead of manually setting state, trigger a new load which has proper state management
                         Task { @MainActor in
                             await consumptionVM.loadData()
                         }
@@ -489,7 +193,7 @@ public struct AccountTariffCardView: View {
             }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
-            updateAllowedDateRange()
+            updateAllowedDateRangeAndRecalculate()
         }
         .id("account-tariff-\(refreshTrigger)")
         .sheet(isPresented: $showingDetails) {
@@ -504,16 +208,195 @@ public struct AccountTariffCardView: View {
         }
     }
 
-    // MARK: - Main Content View
+    // MARK: - Main content body splitted
+    @ViewBuilder
     private var mainContentView: some View {
         VStack(spacing: 0) {
-            // Date Navigation with improved layout - full width
-            HStack(spacing: 0) {
-                // Left navigation area - fixed width
-                HStack {
-                    if !isAtMinDate && !tariffVM.isCalculating {
-                        Button(action: { navigateDate(forward: false) }) {
-                            Image(systemName: "chevron.left")
+            // (A) Date Navigation Sub-View
+            AccountTariffDateNavView(
+                currentDate: $currentDate,
+                selectedInterval: $selectedInterval,
+                minAllowedDate: minAllowedDate,
+                maxAllowedDate: maxAllowedDate,
+                tariffVM: tariffVM,
+                consumptionVM: consumptionVM,
+                onDateChanged: {
+                    savePreferences()
+                    calculateCostsIfPossible()
+                },
+                globalSettings: globalSettings
+            )
+            // (B) Main Card Content Sub-View
+            AccountTariffMainContentView(
+                tariffVM: tariffVM,
+                selectedInterval: $selectedInterval,
+                currentDate: $currentDate,
+                globalSettings: globalSettings,
+                onIntervalChanged: { interval in
+                    selectedInterval = interval
+                    if let savedDate = globalSettings.settings
+                        .lastViewedTariffDates[interval.rawValue]
+                    {
+                        currentDate = savedDate
+                    }
+                    updateAllowedDateRange()
+                    savePreferences()
+                    calculateCostsIfPossible()
+                }
+            )
+        }
+    }
+
+    // MARK: - Private Helpers
+    private func handleOnAppear() {
+        Task {
+            initializeFromSettings()
+            updateAllowedDateRange()
+            calculateCostsIfPossible()
+        }
+    }
+
+    private func updateAllowedDateRangeAndRecalculate() {
+        updateAllowedDateRange()
+        calculateCostsIfPossible()
+    }
+
+    private func calculateCostsIfPossible() {
+        guard let accountData = accountResponse else { return }
+        Task {
+            await tariffVM.calculateCosts(
+                for: currentDate,
+                tariffCode: "savedAccount",
+                intervalType: selectedInterval.viewModelInterval,
+                accountData: accountData
+            )
+        }
+    }
+
+    private func initializeFromSettings() {
+        selectedInterval = IntervalType.from(string: globalSettings.settings.selectedTariffInterval)
+        currentDate =
+            globalSettings.settings
+            .lastViewedTariffDates[globalSettings.settings.selectedTariffInterval] ?? Date()
+    }
+
+    private var accountResponse: OctopusAccountResponse? {
+        guard
+            let accountData = globalSettings.settings.accountData,
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+        else {
+            return nil
+        }
+        return decoded
+    }
+
+    private func savePreferences() {
+        globalSettings.settings.selectedTariffInterval = selectedInterval.rawValue
+        globalSettings.settings.lastViewedTariffDates[selectedInterval.rawValue] = currentDate
+    }
+
+    private func updateAllowedDateRange() {
+        let calendar = Calendar.current
+        let now = Date()
+        let startOfToday = calendar.startOfDay(for: now)
+        let latestDailyDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
+
+        switch selectedInterval {
+        case .daily:
+            maxAllowedDate = latestDailyDate
+        case .weekly:
+            let latestWeekStart = calendar.date(
+                from: calendar.dateComponents(
+                    [.yearForWeekOfYear, .weekOfYear], from: latestDailyDate))!
+            maxAllowedDate = latestWeekStart
+        case .monthly:
+            maxAllowedDate = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: latestDailyDate))
+        }
+
+        minAllowedDate = consumptionVM.minInterval
+
+        if let mx = maxAllowedDate, currentDate > mx {
+            currentDate = mx
+        }
+        if let mn = minAllowedDate, currentDate < mn {
+            currentDate = mn
+        }
+    }
+}
+
+// MARK: - Sub-view: Date Navigation
+private struct AccountTariffDateNavView: View {
+    @Binding var currentDate: Date
+    @Binding var selectedInterval: AccountTariffCardView.IntervalType
+    let minAllowedDate: Date?
+    let maxAllowedDate: Date?
+    @ObservedObject var tariffVM: TariffViewModel
+    @ObservedObject var consumptionVM: ConsumptionViewModel
+    let onDateChanged: () -> Void
+    @ObservedObject var globalSettings: GlobalSettingsManager
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left
+            HStack {
+                let atMin = tariffVM.isDateAtMinimum(
+                    currentDate,
+                    intervalType: selectedInterval.viewModelInterval,
+                    minDate: minAllowedDate
+                )
+                if !atMin && !tariffVM.isCalculating {
+                    Button {
+                        moveDate(forward: false)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .imageScale(.large)
+                            .foregroundColor(Theme.mainColor)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            .frame(width: 44)
+
+            Spacer(minLength: 0)
+
+            // Center
+            HStack {
+                Spacer()
+                Text(dateRangeText())
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                    .overlay(alignment: .bottom) {
+                        if tariffVM.isCalculating {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.7)
+                                .offset(y: 14)
+                        }
+                    }
+                Spacer()
+            }
+            .frame(height: 44)
+
+            Spacer(minLength: 0)
+
+            // Right
+            HStack {
+                let atMax = tariffVM.isDateAtMaximum(
+                    currentDate,
+                    intervalType: selectedInterval.viewModelInterval,
+                    maxDate: maxAllowedDate
+                )
+                if !atMax && !tariffVM.isCalculating {
+                    // For daily, check if we have a next daily date with data
+                    if selectedInterval != .daily
+                        || nextDailyAvailableDateExists(forward: true)
+                    {
+                        Button {
+                            moveDate(forward: true)
+                        } label: {
+                            Image(systemName: "chevron.right")
                                 .imageScale(.large)
                                 .foregroundColor(Theme.mainColor)
                                 .contentShape(Rectangle())
@@ -521,165 +404,211 @@ public struct AccountTariffCardView: View {
                         .buttonStyle(.borderless)
                     }
                 }
-                .frame(width: 44, alignment: .center)
-                .id("left-nav-\(isAtMinDate)-\(tariffVM.isCalculating)")
-
-                Spacer(minLength: 0)
-
-                // Center content - using HStack for better vertical alignment
-                HStack {
-                    Spacer()
-                    Text(formatDateRange())
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.mainTextColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .overlay(alignment: .bottom) {
-                            if tariffVM.isCalculating {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .scaleEffect(0.7)
-                                    .offset(y: 14)  // Position below the text
-                            }
-                        }
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-
-                Spacer(minLength: 0)
-
-                // Right navigation area - fixed width
-                HStack {
-                    if !isAtMaxDate && !tariffVM.isCalculating {
-                        // For daily mode, check if we can navigate to the next day
-                        if selectedInterval != .daily
-                            || nextDailyDateWithData(from: currentDate, forward: true) != nil
-                        {
-                            Button(action: { navigateDate(forward: true) }) {
-                                Image(systemName: "chevron.right")
-                                    .imageScale(.large)
-                                    .foregroundColor(Theme.mainColor)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                    }
-                }
-                .frame(width: 44, alignment: .center)
-                .id("right-nav-\(isAtMaxDate)-\(tariffVM.isCalculating)")
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-
-            // Content and Interval Switcher
-            HStack(alignment: .bottom, spacing: 8) {
-                // Results Display with improved layout
-                if let calculation = tariffVM.currentCalculation {
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Total Cost with improved hierarchy and standard charge info
-                        VStack(alignment: .leading, spacing: 2) {
-                            let cost =
-                                globalSettings.settings.showRatesWithVAT
-                                ? calculation.costIncVAT : calculation.costExcVAT
-                            Text("£\(String(format: "%.2f", cost/100))")
-                                .font(Theme.mainFont())
-                                .foregroundColor(Theme.mainTextColor)
-
-                            let standardCharge =
-                                globalSettings.settings.showRatesWithVAT
-                                ? calculation.standingChargeIncVAT
-                                : calculation.standingChargeExcVAT
-                            Text(
-                                "£\(String(format: "%.2f", standardCharge/100)) standing charge"
-                            )
-                            .font(Theme.subFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                        }
-                        .padding(.vertical, 2)
-
-                        // Usage and Average Rate with improved layout
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "bolt.fill")
-                                    .foregroundColor(Theme.icon)
-                                    .imageScale(.small)
-                                Text(
-                                    "Total Usage: \(String(format: "%.1f kWh", calculation.totalKWh))"
-                                )
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                            }
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .foregroundColor(Theme.icon)
-                                    .imageScale(.small)
-                                let avgRate =
-                                    globalSettings.settings.showRatesWithVAT
-                                    ? calculation.averageUnitRateIncVAT
-                                    : calculation.averageUnitRateExcVAT
-                                Text("Average Rate: \(String(format: "%.2f p/kWh", avgRate))")
-                                    .font(Theme.secondaryFont())
-                                    .foregroundColor(Theme.secondaryTextColor)
-                            }
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-
-                // Right side interval picker
-                VStack(spacing: 6) {
-                    ForEach(IntervalType.allCases, id: \.self) { interval in
-                        Button(action: {
-                            withAnimation {
-                                selectedInterval = interval
-                                // Restore last viewed date for this interval if available
-                                if let savedDate = globalSettings.settings
-                                    .lastViewedTariffDates[interval.rawValue]
-                                {
-                                    currentDate = savedDate
-                                }
-                                updateAllowedDateRange()
-                                savePreferences()
-                                calculateCosts()
-                            }
-                        }) {
-                            HStack {
-                                // Left side with icon
-                                Image(systemName: iconName(for: interval))
-                                    .imageScale(.small)
-                                    .frame(width: 24, alignment: .leading)
-
-                                Spacer(minLength: 16)  // Fixed space between icon and text
-
-                                // Right side with text
-                                Text(interval.displayName)
-                                    .font(.callout)
-                                    .frame(alignment: .trailing)
-                            }
-                            .font(Theme.subFont())
-                            .foregroundColor(
-                                selectedInterval == interval
-                                    ? Theme.mainTextColor : Theme.secondaryTextColor
-                            )
-                            .frame(height: 32)
-                            .frame(width: 110, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(
-                                        selectedInterval == interval
-                                            ? Theme.mainColor.opacity(0.2) : Color.clear)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.bottom, 6)
+            .frame(width: 44)
         }
+        .padding(.vertical, 4)
+    }
+
+    // Attempt to step the date (via TariffViewModel)
+    private func moveDate(forward: Bool) {
+        // Build daily set for consumption if needed
+        var dailySet: Set<Date>? = nil
+        if selectedInterval == .daily {
+            let minD = minAllowedDate ?? Date.distantPast
+            let maxD = maxAllowedDate ?? Date.distantFuture
+            let calendar = Calendar.current
+            dailySet = Set(
+                consumptionVM.consumptionRecords.compactMap { record in
+                    guard let start = record.value(forKey: "interval_start") as? Date else {
+                        return nil
+                    }
+                    if start < minD || start > maxD { return nil }
+                    return calendar.startOfDay(for: start)
+                }
+            )
+        }
+
+        if let newDate = tariffVM.nextDate(
+            from: currentDate,
+            forward: forward,
+            intervalType: selectedInterval.viewModelInterval,
+            minDate: minAllowedDate,
+            maxDate: maxAllowedDate,
+            dailyAvailableDates: dailySet
+        ) {
+            currentDate = newDate
+            onDateChanged()
+        }
+    }
+
+    private func nextDailyAvailableDateExists(forward: Bool) -> Bool {
+        // If we have a valid next daily date, return true
+        // This is basically a "peek" version of moveDate
+        let result = tariffVM.nextDate(
+            from: currentDate,
+            forward: forward,
+            intervalType: selectedInterval.viewModelInterval,
+            minDate: minAllowedDate,
+            maxDate: maxAllowedDate,
+            dailyAvailableDates: buildDailySet()
+        )
+        return (result != nil)
+    }
+
+    private func buildDailySet() -> Set<Date>? {
+        guard selectedInterval == .daily else { return nil }
+        let minD = minAllowedDate ?? Date.distantPast
+        let maxD = maxAllowedDate ?? Date.distantFuture
+        let calendar = Calendar.current
+        let set: Set<Date> = Set(
+            consumptionVM.consumptionRecords.compactMap { record in
+                guard let start = record.value(forKey: "interval_start") as? Date else {
+                    return nil
+                }
+                if start < minD || start > maxD { return nil }
+                return calendar.startOfDay(for: start)
+            }
+        )
+        return set.isEmpty ? nil : set
+    }
+
+    private func dateRangeText() -> String {
+        let (start, end) = tariffVM.calculateDateRange(
+            for: currentDate,
+            intervalType: selectedInterval.viewModelInterval
+        )
+        let formatter = DateFormatter()
+        formatter.locale = globalSettings.locale
+        switch selectedInterval {
+        case .daily:
+            formatter.dateStyle = .medium
+            return formatter.string(from: start)
+        case .weekly:
+            formatter.dateStyle = .medium
+            let endDate = Calendar.current.date(byAdding: .day, value: 6, to: start) ?? end
+            let s1 = formatter.string(from: start)
+            let s2 = formatter.string(from: endDate)
+            return "\(s1) - \(s2)"
+        case .monthly:
+            formatter.dateFormat = "LLLL yyyy"
+            return formatter.string(from: start)
+        }
+    }
+}
+
+// MARK: - Sub-view: Main Content
+private struct AccountTariffMainContentView: View {
+    @ObservedObject var tariffVM: TariffViewModel
+    @Binding var selectedInterval: AccountTariffCardView.IntervalType
+    @Binding var currentDate: Date
+    @ObservedObject var globalSettings: GlobalSettingsManager
+    let onIntervalChanged: (AccountTariffCardView.IntervalType) -> Void
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            // Display currentCalculation if available
+            if let calculation = tariffVM.currentCalculation {
+                TariffCalculationSummaryView(
+                    calculation: calculation,
+                    showVAT: globalSettings.settings.showRatesWithVAT
+                )
+                Spacer(minLength: 0)
+            }
+            // Interval Picker
+            VStack(spacing: 6) {
+                ForEach(AccountTariffCardView.IntervalType.allCases, id: \.self) { interval in
+                    Button {
+                        withAnimation { onIntervalChanged(interval) }
+                    } label: {
+                        HStack {
+                            Image(systemName: iconName(for: interval))
+                                .imageScale(.small)
+                                .frame(width: 24, alignment: .leading)
+                            Spacer(minLength: 16)
+                            Text(interval.displayName)
+                                .font(.callout)
+                                .frame(alignment: .trailing)
+                        }
+                        .font(Theme.subFont())
+                        .foregroundColor(
+                            selectedInterval == interval
+                                ? Theme.mainTextColor : Theme.secondaryTextColor
+                        )
+                        .frame(height: 32)
+                        .frame(width: 110, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(
+                                    selectedInterval == interval
+                                        ? Theme.mainColor.opacity(0.2) : Color.clear)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.bottom, 6)
+    }
+
+    private func iconName(for interval: AccountTariffCardView.IntervalType) -> String {
+        switch interval {
+        case .daily: return "calendar.day.timeline.left"
+        case .weekly: return "calendar.badge.clock"
+        case .monthly: return "calendar"
+        }
+    }
+}
+
+// Displays the cost summary, usage, average rate, etc.
+private struct TariffCalculationSummaryView: View {
+    let calculation: TariffViewModel.TariffCalculation
+    let showVAT: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Total cost & standing charge
+            VStack(alignment: .leading, spacing: 2) {
+                let cost = showVAT ? calculation.costIncVAT : calculation.costExcVAT
+                Text("£\(String(format: "%.2f", cost / 100.0))")
+                    .font(Theme.mainFont())
+                    .foregroundColor(Theme.mainTextColor)
+
+                let standingCharge =
+                    showVAT
+                    ? calculation.standingChargeIncVAT
+                    : calculation.standingChargeExcVAT
+                Text("£\(String(format: "%.2f", standingCharge / 100.0)) standing charge")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+            }
+
+            // Usage & Average Rate
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(Theme.icon)
+                        .imageScale(.small)
+                    Text("Total Usage: \(String(format: "%.1f kWh", calculation.totalKWh))")
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .foregroundColor(Theme.icon)
+                        .imageScale(.small)
+                    let avgRate =
+                        showVAT
+                        ? calculation.averageUnitRateIncVAT
+                        : calculation.averageUnitRateExcVAT
+                    Text("Average Rate: \(String(format: "%.2f p/kWh", avgRate))")
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 
