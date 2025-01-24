@@ -507,14 +507,20 @@ private struct AccountTariffMainContentView: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            // Display currentCalculation if available
-            if let calculation = tariffVM.currentCalculation {
+            // Display calculation or placeholder based on state
+            if tariffVM.isCalculating {
+                TariffCalculationPlaceholderView()
+            } else if let calculation = tariffVM.currentCalculation {
                 TariffCalculationSummaryView(
                     calculation: calculation,
                     showVAT: globalSettings.settings.showRatesWithVAT
                 )
-                Spacer(minLength: 0)
+            } else {
+                TariffCalculationPlaceholderView()
             }
+
+            Spacer(minLength: 0)
+
             // Interval Picker
             VStack(spacing: 6) {
                 ForEach(AccountTariffCardView.IntervalType.allCases, id: \.self) { interval in
@@ -583,6 +589,7 @@ private struct TariffCalculationSummaryView: View {
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Usage & Average Rate
             VStack(alignment: .leading, spacing: 4) {
@@ -607,8 +614,51 @@ private struct TariffCalculationSummaryView: View {
                         .foregroundColor(Theme.secondaryTextColor)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// Add a new placeholder view
+private struct TariffCalculationPlaceholderView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Cost placeholder
+            VStack(alignment: .leading, spacing: 2) {
+                Text("£0.00")
+                    .font(Theme.mainFont())
+                    .foregroundColor(Theme.mainTextColor.opacity(0.3))
+                Text("£0.00 standing charge")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor.opacity(0.3))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Usage & Rate placeholder
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(Theme.icon.opacity(0.3))
+                        .imageScale(.small)
+                    Text("Total Usage: 0.0 kWh")
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.3))
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .foregroundColor(Theme.icon.opacity(0.3))
+                        .imageScale(.small)
+                    Text("Average Rate: 0.00 p/kWh")
+                        .font(Theme.secondaryFont())
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.3))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

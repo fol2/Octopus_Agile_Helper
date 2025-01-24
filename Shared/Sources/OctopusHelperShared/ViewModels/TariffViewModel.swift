@@ -31,6 +31,7 @@ public final class TariffViewModel: ObservableObject {
 
     // MARK: - Dependencies
     private let calculationRepository: TariffCalculationRepository
+    private let skipCoreDataStorage: Bool
 
     // MARK: - Memory Cache
     private struct CacheKey: Hashable {
@@ -54,8 +55,9 @@ public final class TariffViewModel: ObservableObject {
     private let cacheCleanupThreshold = 180  // Clean when reaching 180 entries
 
     // MARK: - Initialization
-    public init() {
+    public init(skipCoreDataStorage: Bool = false) {
         self.calculationRepository = TariffCalculationRepository()
+        self.skipCoreDataStorage = skipCoreDataStorage
         DebugLogger.debug("🔄 Initializing TariffViewModel", component: .tariffViewModel)
     }
 
@@ -114,11 +116,15 @@ public final class TariffViewModel: ObservableObject {
     ///   - tariffCode: The tariff code to calculate for, use "savedAccount" to calculate for saved account
     ///   - intervalType: The type of interval (daily, weekly, monthly)
     ///   - accountData: The account data, required when tariffCode is "savedAccount"
+    ///   - partialStart: Optional start date for partial coverage calculation
+    ///   - partialEnd: Optional end date for partial coverage calculation
     public func calculateCosts(
         for date: Date,
         tariffCode: String,
         intervalType: IntervalType,
-        accountData: OctopusAccountResponse? = nil
+        accountData: OctopusAccountResponse? = nil,
+        partialStart: Date? = nil,
+        partialEnd: Date? = nil
     ) async {
         DebugLogger.debug(
             """
@@ -126,6 +132,7 @@ public final class TariffViewModel: ObservableObject {
             - Date: \(date)
             - Tariff: \(tariffCode)
             - Interval: \(intervalType.rawValue)
+            - Partial Range: \(partialStart?.formatted() ?? "none") to \(partialEnd?.formatted() ?? "none")
             """, component: .tariffViewModel)
 
         // Reset state at the start
@@ -134,23 +141,23 @@ public final class TariffViewModel: ObservableObject {
         currentCalculation = nil  // Clear current calculation while loading
 
         do {
-            // For quarterly, we'll calculate three monthly intervals and sum them
-            if intervalType == .quarterly {
-                try await calculateQuarterlyCosts(
-                    for: date,
-                    tariffCode: tariffCode,
-                    accountData: accountData
-                )
-            } else if tariffCode == "savedAccount" {
-                guard let accountData = accountData else {
-                    throw TariffCalculationError.noDataAvailable(period: date...date)
-                }
-                try await calculateAccountCosts(
-                    for: date, intervalType: intervalType, accountData: accountData)
-            } else {
-                try await calculateSingleTariffCosts(
-                    for: date, tariffCode: tariffCode, intervalType: intervalType)
-            }
+            // 1) Compute the default full range for the given date & interval
+            let (stdStart, stdEnd) = calculateDateRange(for: date, intervalType: intervalType)
+            let (finalStart, finalEnd) = (
+                partialStart ?? stdStart,
+                partialEnd ?? stdEnd
+            )
+
+            // 2) Calculate costs over the range
+            let calculation = try await computeCostsOverRange(
+                startDate: finalStart,
+                endDate: finalEnd,
+                tariffCode: tariffCode,
+                accountData: accountData,
+                storeInCoreData: !skipCoreDataStorage && partialStart == nil && partialEnd == nil
+            )
+
+            currentCalculation = calculation
         } catch {
             self.error = error
             DebugLogger.debug(
@@ -162,293 +169,129 @@ public final class TariffViewModel: ObservableObject {
         cleanupCache()  // Cleanup after calculation
     }
 
-    /// Calculate costs for a quarterly interval by summing three monthly intervals
-    private func calculateQuarterlyCosts(
-        for date: Date,
+    /// Internal method that handles both single-tariff and "savedAccount" calculations
+    /// over any arbitrary date range. Optionally can skip storing in Core Data (for partial coverage).
+    private func computeCostsOverRange(
+        startDate: Date,
+        endDate: Date,
         tariffCode: String,
-        accountData: OctopusAccountResponse?
-    ) async throws {
-        let calendar = Calendar.current
-        let (quarterStart, quarterEnd) = calculateDateRange(for: date, intervalType: .quarterly)
-
-        DebugLogger.debug(
-            """
-            🔄 Starting quarterly calculation:
-            - Quarter: \(quarterStart.formatted()) to \(quarterEnd.formatted())
-            - Tariff: \(tariffCode)
-            """, component: .tariffViewModel)
-
-        var totalKWh = 0.0
-        var totalCostExcVAT = 0.0
-        var totalCostIncVAT = 0.0
-        var totalStandingChargeExcVAT = 0.0
-        var totalStandingChargeIncVAT = 0.0
-
-        // Calculate for each month in the quarter
-        var currentMonth = quarterStart
-        while currentMonth < quarterEnd {
-            // Calculate costs for this month
-            if tariffCode == "savedAccount" {
-                guard let accountData = accountData else {
-                    throw TariffCalculationError.noDataAvailable(period: date...date)
-                }
-                try await calculateAccountCosts(
-                    for: currentMonth,
-                    intervalType: .monthly,
-                    accountData: accountData
-                )
-            } else {
-                try await calculateSingleTariffCosts(
-                    for: currentMonth,
-                    tariffCode: tariffCode,
-                    intervalType: .monthly
-                )
-            }
-
-            // Add this month's results to the totals
-            if let monthCalc = currentCalculation {
-                totalKWh += monthCalc.totalKWh
-                totalCostExcVAT += monthCalc.costExcVAT
-                totalCostIncVAT += monthCalc.costIncVAT
-                totalStandingChargeExcVAT += monthCalc.standingChargeExcVAT
-                totalStandingChargeIncVAT += monthCalc.standingChargeIncVAT
-            }
-
-            // Move to next month
-            currentMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) ?? quarterEnd
+        accountData: OctopusAccountResponse?,
+        storeInCoreData: Bool
+    ) async throws -> TariffCalculation {
+        // 0) Quick sanity check
+        guard endDate > startDate else {
+            throw TariffCalculationError.noDataAvailable(period: startDate...endDate)
         }
 
-        // Calculate average rates
-        let avgRateExcVAT =
-            totalKWh > 0 ? (totalCostExcVAT - totalStandingChargeExcVAT) / totalKWh : 0.0
-        let avgRateIncVAT =
-            totalKWh > 0 ? (totalCostIncVAT - totalStandingChargeIncVAT) / totalKWh : 0.0
-
-        // Create the quarterly calculation
-        currentCalculation = TariffCalculation(
-            periodStart: quarterStart,
-            periodEnd: quarterEnd,
-            totalKWh: totalKWh,
-            costExcVAT: totalCostExcVAT,
-            costIncVAT: totalCostIncVAT,
-            averageUnitRateExcVAT: avgRateExcVAT,
-            averageUnitRateIncVAT: avgRateIncVAT,
-            standingChargeExcVAT: totalStandingChargeExcVAT,
-            standingChargeIncVAT: totalStandingChargeIncVAT
+        // 1) Build a cache key that includes the exact start/end
+        let cKey = CacheKey(
+            tariffCode: tariffCode,
+            intervalType: .daily,  // "daily" nominal for partial ranges
+            startTimestamp: startDate.timeIntervalSince1970,
+            endTimestamp: endDate.timeIntervalSince1970
         )
 
         DebugLogger.debug(
-            """
-            ✅ Quarterly calculation complete:
-            - Total kWh: \(totalKWh)
-            - Total cost (inc VAT): \(String(format: "£%.2f", totalCostIncVAT / 100))
-            - Avg rate (inc VAT): \(String(format: "%.2fp/kWh", avgRateIncVAT))
-            """, component: .tariffViewModel)
+            "🔍 Checking memory cache for \(cKey.debugDescription)",
+            component: .tariffViewModel)
+
+        // 2) Check memory cache first
+        if let cached = calculationCache[cKey] {
+            DebugLogger.debug(
+                "✅ USING MEMORY CACHE: \(cKey.debugDescription)",
+                component: .tariffViewModel)
+            return cached.calculation
+        }
+
+        // 3) Calculate based on tariff type
+        let result: NSManagedObject
+        if tariffCode == "savedAccount" {
+            guard let accData = accountData else {
+                throw TariffCalculationError.noDataAvailable(period: startDate...endDate)
+            }
+            let results = try await calculationRepository.calculateCostForAccount(
+                accountData: accData,
+                startDate: startDate,
+                endDate: endDate,
+                intervalType: "CUSTOM"
+            )
+            guard let firstResult = results.first else {
+                throw TariffCalculationError.noDataAvailable(period: startDate...endDate)
+            }
+            result = firstResult
+        } else {
+            result = try await calculationRepository.calculateCostForPeriod(
+                tariffCode: tariffCode,
+                startDate: startDate,
+                endDate: endDate,
+                intervalType: "CUSTOM",
+                storeInCoreData: storeInCoreData
+            )
+        }
+
+        // 4) Convert to TariffCalculation struct
+        let calculation = convertToCalculation(
+            managedObject: result, start: startDate, end: endDate)
+
+        // 5) Store in memory cache
+        calculationCache[cKey] = CacheEntry(calculation: calculation, timestamp: Date())
+
+        return calculation
     }
 
     // MARK: - Private Methods
 
-    /// Calculate costs for a single tariff
-    private func calculateSingleTariffCosts(
-        for date: Date, tariffCode: String, intervalType: IntervalType
-    ) async throws {
-        let cacheKey = cacheKey(tariffCode: tariffCode, date: date, intervalType: intervalType)
+    /// Calculates the start and end dates for a given reference date and interval type
+    public func calculateDateRange(for date: Date, intervalType: IntervalType) -> (Date, Date) {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
 
-        DebugLogger.debug(
-            "🔍 Looking for calculation: \(cacheKey.debugDescription)", component: .tariffViewModel)
-
-        // 1. Check memory cache first
-        if let cached = calculationCache[cacheKey] {
-            DebugLogger.debug(
-                """
-                ✅ USING MEMORY CACHE:
-                - Key: \(cacheKey.debugDescription)
-                - Total kWh: \(cached.calculation.totalKWh)
-                - Total cost inc VAT: \(cached.calculation.costIncVAT)p
-                """, component: .tariffViewModel)
-            currentCalculation = cached.calculation
-            return
-        } else {
-            DebugLogger.debug(
-                "🔍 No memory cache found, checking CoreData...", component: .tariffViewModel)
+        guard let start = calendar.date(from: components) else {
+            return (date, date)
         }
 
-        let (start, end) = calculateDateRange(for: date, intervalType: intervalType)
-
-        // 2. Check CoreData cache
-        if let existingCalculation = try await calculationRepository.fetchStoredCalculation(
-            tariffCode: tariffCode,
-            intervalType: intervalType.rawValue,
-            periodStart: start,
-            periodEnd: end
-        ) {
-            DebugLogger.debug(
-                """
-                ✅ USING COREDATA CACHE:
-                - Key: \(cacheKey.debugDescription)
-                - Total kWh: \(existingCalculation.value(forKey: "total_consumption_kwh") as? Double ?? 0.0)
-                - Total cost inc VAT: \(existingCalculation.value(forKey: "total_cost_inc_vat") as? Double ?? 0.0)p
-                """, component: .tariffViewModel)
-
-            let calculation = convertToCalculation(
-                managedObject: existingCalculation, start: start, end: end)
-
-            // Store in memory cache
-            calculationCache[cacheKey] = CacheEntry(
-                calculation: calculation,
-                timestamp: Date()
-            )
-            currentCalculation = calculation
-
-            DebugLogger.debug(
-                """
-                ✅ FRESH CALCULATION STORED:
-                - Key: \(cacheKey.debugDescription)
-                - Total kWh: \(calculation.totalKWh)
-                - Total cost inc VAT: \(calculation.costIncVAT)p
-                """, component: .tariffViewModel)
-
-            cleanupCache()
-            return
+        var end: Date
+        switch intervalType {
+        case .daily:
+            end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
+        case .weekly:
+            end = calendar.date(byAdding: .day, value: 7, to: start) ?? date
+        case .monthly:
+            end = calendar.date(byAdding: .month, value: 1, to: start) ?? date
+        case .quarterly:
+            end = calendar.date(byAdding: .month, value: 3, to: start) ?? date
         }
 
-        DebugLogger.debug(
-            "🔄 No cached data found, calculating fresh values...",
-            component: .tariffViewModel
-        )
-
-        // 3. Calculate new if not found in either cache
-        let result = try await calculationRepository.calculateCostForPeriod(
-            tariffCode: tariffCode,
-            startDate: start,
-            endDate: end,
-            intervalType: intervalType.rawValue
-        )
-
-        let calculation = convertToCalculation(managedObject: result, start: start, end: end)
-
-        // Store in memory cache
-        calculationCache[cacheKey] = CacheEntry(
-            calculation: calculation,
-            timestamp: Date()
-        )
-        currentCalculation = calculation
-
-        DebugLogger.debug(
-            """
-            ✅ FRESH CALCULATION STORED:
-            - Key: \(cacheKey.debugDescription)
-            - Total kWh: \(calculation.totalKWh)
-            - Total cost inc VAT: \(calculation.costIncVAT)p
-            """, component: .tariffViewModel)
-
-        cleanupCache()
-    }
-
-    /// Calculate costs for saved account
-    private func calculateAccountCosts(
-        for date: Date,
-        intervalType: IntervalType,
-        accountData: OctopusAccountResponse
-    ) async throws {
-        let (start, end) = calculateDateRange(for: date, intervalType: intervalType)
-        let cacheKey = cacheKey(tariffCode: "savedAccount", date: date, intervalType: intervalType)
-
-        DebugLogger.debug(
-            """
-            🔍 Looking for account calculation:
-            - Key: \(cacheKey.debugDescription)
-            - Period: \(start.formatted()) to \(end.formatted())
-            """, component: .tariffViewModel)
-
-        // 1. Check memory cache first
-        if let cached = calculationCache[cacheKey] {
-            DebugLogger.debug(
-                """
-                ✅ USING MEMORY CACHE:
-                - Key: \(cacheKey.debugDescription)
-                - Total kWh: \(cached.calculation.totalKWh)
-                - Total cost inc VAT: \(cached.calculation.costIncVAT)p
-                """, component: .tariffViewModel)
-            currentCalculation = cached.calculation
-            return
-        }
-
-        // 2. Check CoreData cache
-        let results = try await calculationRepository.calculateCostForAccount(
-            accountData: accountData,
-            startDate: start,
-            endDate: end,
-            intervalType: intervalType.rawValue
-        )
-
-        // 3. Process results
-        if let combinedCalculation = combineAccountCalculations(results, start: start, end: end) {
-            currentCalculation = combinedCalculation
-
-            // Store in memory cache
-            calculationCache[cacheKey] = CacheEntry(
-                calculation: combinedCalculation,
-                timestamp: Date()
-            )
-
-            DebugLogger.debug(
-                """
-                ✅ Calculation stored in memory cache:
-                - Key: \(cacheKey.debugDescription)
-                - Total kWh: \(combinedCalculation.totalKWh)
-                - Total cost inc VAT: \(combinedCalculation.costIncVAT)p
-                """, component: .tariffViewModel)
-        } else {
-            DebugLogger.debug(
-                "❌ No valid calculations found for account", component: .tariffViewModel)
-            throw TariffCalculationError.noDataAvailable(period: start...end)
-        }
+        return (start, end)
     }
 
     /// Converts NSManagedObject to TariffCalculation struct
     private func convertToCalculation(managedObject: NSManagedObject, start: Date, end: Date)
         -> TariffCalculation
     {
-        let calculation = TariffCalculation(
-            periodStart: managedObject.value(forKey: "period_start") as? Date ?? start,
-            periodEnd: managedObject.value(forKey: "period_end") as? Date ?? end,
-            totalKWh: managedObject.value(forKey: "total_consumption_kwh") as? Double ?? 0.0,
-            costExcVAT: managedObject.value(forKey: "total_cost_exc_vat") as? Double ?? 0.0,
-            costIncVAT: managedObject.value(forKey: "total_cost_inc_vat") as? Double ?? 0.0,
-            averageUnitRateExcVAT: managedObject.value(forKey: "average_unit_rate_exc_vat")
-                as? Double ?? 0.0,
-            averageUnitRateIncVAT: managedObject.value(forKey: "average_unit_rate_inc_vat")
-                as? Double ?? 0.0,
-            standingChargeExcVAT: managedObject.value(forKey: "standing_charge_cost_exc_vat")
-                as? Double ?? 0.0,
-            standingChargeIncVAT: managedObject.value(forKey: "standing_charge_cost_inc_vat")
-                as? Double ?? 0.0
+        let totalKWh = managedObject.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
+        let costExcVAT = managedObject.value(forKey: "total_cost_exc_vat") as? Double ?? 0.0
+        let costIncVAT = managedObject.value(forKey: "total_cost_inc_vat") as? Double ?? 0.0
+        let avgRateExcVAT =
+            managedObject.value(forKey: "average_unit_rate_exc_vat") as? Double ?? 0.0
+        let avgRateIncVAT =
+            managedObject.value(forKey: "average_unit_rate_inc_vat") as? Double ?? 0.0
+        let standingChargeExcVAT =
+            managedObject.value(forKey: "standing_charge_cost_exc_vat") as? Double ?? 0.0
+        let standingChargeIncVAT =
+            managedObject.value(forKey: "standing_charge_cost_inc_vat") as? Double ?? 0.0
+
+        return TariffCalculation(
+            periodStart: start,
+            periodEnd: end,
+            totalKWh: totalKWh,
+            costExcVAT: costExcVAT,
+            costIncVAT: costIncVAT,
+            averageUnitRateExcVAT: avgRateExcVAT,
+            averageUnitRateIncVAT: avgRateIncVAT,
+            standingChargeExcVAT: standingChargeExcVAT,
+            standingChargeIncVAT: standingChargeIncVAT
         )
-
-        let costExcVATFormatted = String(format: "%.2f", calculation.costExcVAT / 100)
-        let costIncVATFormatted = String(format: "%.2f", calculation.costIncVAT / 100)
-        let avgRateExcVATFormatted = String(format: "%.2f", calculation.averageUnitRateExcVAT)
-        let avgRateIncVATFormatted = String(format: "%.2f", calculation.averageUnitRateIncVAT)
-        let standingChargeExcVATFormatted = String(
-            format: "%.2f", calculation.standingChargeExcVAT / 100)
-        let standingChargeIncVATFormatted = String(
-            format: "%.2f", calculation.standingChargeIncVAT / 100)
-
-        DebugLogger.debug(
-            """
-            📊 Calculation details:
-            - Period: \(calculation.periodStart) to \(calculation.periodEnd)
-            - Total kWh: \(calculation.totalKWh)
-            - Cost (exc VAT): £\(costExcVATFormatted)
-            - Cost (inc VAT): £\(costIncVATFormatted)
-            - Avg Rate (exc VAT): \(avgRateExcVATFormatted)p/kWh
-            - Avg Rate (inc VAT): \(avgRateIncVATFormatted)p/kWh
-            - Standing Charge (exc VAT): £\(standingChargeExcVATFormatted)
-            - Standing Charge (inc VAT): £\(standingChargeIncVATFormatted)
-            """, component: .tariffViewModel)
-
-        return calculation
     }
 
     /// Combines multiple account calculations into a single TariffCalculation
@@ -491,55 +334,6 @@ public final class TariffViewModel: ObservableObject {
             standingChargeIncVAT: totalStandingChargeIncVAT
         )
     }
-
-    /// Calculates the start and end dates for a given reference date and interval type
-    public func calculateDateRange(for date: Date, intervalType: IntervalType) -> (
-        start: Date, end: Date
-    ) {
-        let calendar = Calendar.current
-
-        switch intervalType {
-        case .daily:
-            // Start of the day (00:00)
-            let start = calendar.startOfDay(for: date)
-            // Start of next day (00:00)
-            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? date
-            return (start, end)
-
-        case .weekly:
-            // Start of the week (Monday 00:00)
-            let start =
-                calendar.date(
-                    from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))
-                ?? date
-            // Start of next week (Monday 00:00)
-            let end = calendar.date(byAdding: .weekOfYear, value: 1, to: start) ?? date
-            return (start, end)
-
-        case .monthly:
-            // Start of the month (1st 00:00)
-            let start =
-                calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
-            // Start of next month (1st 00:00)
-            let end = calendar.date(byAdding: .month, value: 1, to: start) ?? date
-            return (start, end)
-
-        case .quarterly:
-            // Get the current quarter's start month (1-based)
-            let month = calendar.component(.month, from: date)
-            let quarterStartMonth = ((month - 1) / 3) * 3 + 1
-
-            // Create date components for start of quarter
-            var components = calendar.dateComponents([.year], from: date)
-            components.month = quarterStartMonth
-            components.day = 1
-
-            // Get start and end dates
-            let start = calendar.date(from: components) ?? date
-            let end = calendar.date(byAdding: .month, value: 3, to: start) ?? date
-            return (start, end)
-        }
-    }
 }
 
 // MARK: - Date Navigation & Bounds
@@ -571,9 +365,9 @@ extension TariffViewModel {
             return currentMonthStart <= minMonthStart
         case .quarterly:
             // For now, treat "quarterly" like monthly but in 3-month increments
-            let currentQStart = self.calculateDateRange(for: date, intervalType: .quarterly).start
-            let minQStart = self.calculateDateRange(for: minDate, intervalType: .quarterly).start
-            return currentQStart <= minQStart
+            let currentRange = self.calculateDateRange(for: date, intervalType: .quarterly)
+            let minRange = self.calculateDateRange(for: minDate, intervalType: .quarterly)
+            return currentRange.0 <= minRange.0
         }
     }
 
@@ -603,9 +397,9 @@ extension TariffViewModel {
                 from: calendar.dateComponents([.year, .month], from: maxDate))!
             return currentMonthStart >= maxMonthStart
         case .quarterly:
-            let currentQStart = self.calculateDateRange(for: date, intervalType: .quarterly).start
-            let maxQStart = self.calculateDateRange(for: maxDate, intervalType: .quarterly).start
-            return currentQStart >= maxQStart
+            let currentRange = self.calculateDateRange(for: date, intervalType: .quarterly)
+            let maxRange = self.calculateDateRange(for: maxDate, intervalType: .quarterly)
+            return currentRange.0 >= maxRange.0
         }
     }
 

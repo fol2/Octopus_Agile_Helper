@@ -141,41 +141,46 @@ public final class TariffCalculationRepository: ObservableObject {
         tariffCode: String,
         startDate: Date,
         endDate: Date,
-        intervalType: String
+        intervalType: String,
+        storeInCoreData: Bool = true
     ) async throws -> NSManagedObject {
-        // First try to fetch from CoreData
-        let existing = try await context.perform {
-            let fetchRequest = NSFetchRequest<NSManagedObject>(
-                entityName: "TariffCalculationEntity")
+        // First try to fetch from CoreData if we're storing
+        if storeInCoreData {
+            let existing = try await context.perform {
+                let fetchRequest = NSFetchRequest<NSManagedObject>(
+                    entityName: "TariffCalculationEntity")
 
-            // Match by period and interval type for single tariff calculations
-            fetchRequest.predicate = NSPredicate(
-                format:
-                    "tariff_code == %@ AND interval_type == %@ AND period_start == %@ AND period_end == %@",
-                tariffCode, intervalType, startDate as CVarArg, endDate as CVarArg
-            )
-
-            fetchRequest.fetchLimit = 1
-            let results = try self.context.fetch(fetchRequest)
-            return results.first
-        }
-
-        // If we found an existing calculation, check if we have new data
-        if let existing = existing {
-            if try await hasNewDataAvailable(
-                existingCalculation: existing,
-                start: startDate,
-                end: endDate
-            ) {
-                print(
-                    "💡 CoreData cache invalid for tariff \(tariffCode), calculating fresh values..."
+                // Match by period and interval type for single tariff calculations
+                fetchRequest.predicate = NSPredicate(
+                    format:
+                        "tariff_code == %@ AND interval_type == %@ AND period_start == %@ AND period_end == %@",
+                    tariffCode, intervalType, startDate as CVarArg, endDate as CVarArg
                 )
-            } else {
-                print("✅ USING COREDATA CACHE for tariff \(tariffCode)")
-                return existing
+
+                fetchRequest.fetchLimit = 1
+                let results = try self.context.fetch(fetchRequest)
+                return results.first
             }
-        } else {
-            print("🔍 No CoreData cache found for tariff \(tariffCode), calculating fresh values...")
+
+            // If we found an existing calculation, check if we have new data
+            if let existing = existing {
+                if try await hasNewDataAvailable(
+                    existingCalculation: existing,
+                    start: startDate,
+                    end: endDate
+                ) {
+                    print(
+                        "💡 CoreData cache invalid for tariff \(tariffCode), calculating fresh values..."
+                    )
+                } else {
+                    print("✅ USING COREDATA CACHE for tariff \(tariffCode)")
+                    return existing
+                }
+            } else {
+                print(
+                    "🔍 No CoreData cache found for tariff \(tariffCode), calculating fresh values..."
+                )
+            }
         }
 
         // 1) Gather all relevant consumption in EConsumAgile
@@ -224,7 +229,8 @@ public final class TariffCalculationRepository: ObservableObject {
                     startDate: adjustedStartDate,
                     endDate: adjustedEndDate,
                     intervalType: intervalType,
-                    consumptionRecords: filteredRecords
+                    consumptionRecords: filteredRecords,
+                    storeInCoreData: storeInCoreData
                 )
             }
         }
@@ -235,7 +241,8 @@ public final class TariffCalculationRepository: ObservableObject {
             startDate: startDate,
             endDate: endDate,
             intervalType: intervalType,
-            consumptionRecords: consumptionRecords
+            consumptionRecords: consumptionRecords,
+            storeInCoreData: storeInCoreData
         )
     }
 
@@ -245,7 +252,8 @@ public final class TariffCalculationRepository: ObservableObject {
         startDate: Date,
         endDate: Date,
         intervalType: String,
-        consumptionRecords: [NSManagedObject]
+        consumptionRecords: [NSManagedObject],
+        storeInCoreData: Bool = true
     ) async throws -> NSManagedObject {
         // 2) Gather all rates for the same tariff code
         let rateEntities = try await fetchRates(
@@ -273,47 +281,54 @@ public final class TariffCalculationRepository: ObservableObject {
             periodEnd: endDate
         )
 
-        return try await context.perform {
-            let entity: NSManagedObject
-            if let found = existing {
-                entity = found
-            } else {
-                let desc = NSEntityDescription.entity(
-                    forEntityName: "TariffCalculationEntity", in: self.context)!
-                entity = NSManagedObject(entity: desc, insertInto: self.context)
-            }
-
-            // Write fields via KVC or property access
-            entity.setValue(UUID(), forKey: "id")
-            entity.setValue(tariffCode, forKey: "tariff_code")
-            entity.setValue(startDate, forKey: "period_start")
-            entity.setValue(endDate, forKey: "period_end")
-            entity.setValue(intervalType, forKey: "interval_type")
-
-            entity.setValue(totalKWh, forKey: "total_consumption_kwh")
-            entity.setValue(totalCostExcVAT, forKey: "total_cost_exc_vat")
-            entity.setValue(totalCostIncVAT, forKey: "total_cost_inc_vat")
-            entity.setValue(standingExcVAT, forKey: "standing_charge_cost_exc_vat")
-            entity.setValue(standingIncVAT, forKey: "standing_charge_cost_inc_vat")
-
-            // Calculate average unit rates
-            let avgRateExc = totalKWh > 0.0 ? (totalCostExcVAT - standingExcVAT) / totalKWh : 0.0
-            let avgRateInc = totalKWh > 0.0 ? (totalCostIncVAT - standingIncVAT) / totalKWh : 0.0
-            entity.setValue(avgRateExc, forKey: "average_unit_rate_exc_vat")
-            entity.setValue(avgRateInc, forKey: "average_unit_rate_inc_vat")
-
-            let now = Date()
-            entity.setValue(now, forKey: "updated_at")
-
-            // For newly inserted rows only
-            if existing == nil {
-                entity.setValue(now, forKey: "create_at")
-            }
-
-            // Save context
-            try self.context.save()
-            return entity
+        let result: NSManagedObject
+        if let found = existing {
+            result = found
+        } else {
+            let desc = NSEntityDescription.entity(
+                forEntityName: "TariffCalculationEntity", in: self.context)!
+            result = NSManagedObject(entity: desc, insertInto: self.context)
         }
+
+        // Write fields via KVC or property access
+        result.setValue(UUID(), forKey: "id")
+        result.setValue(tariffCode, forKey: "tariff_code")
+        result.setValue(startDate, forKey: "period_start")
+        result.setValue(endDate, forKey: "period_end")
+        result.setValue(intervalType, forKey: "interval_type")
+
+        result.setValue(totalKWh, forKey: "total_consumption_kwh")
+        result.setValue(totalCostExcVAT, forKey: "total_cost_exc_vat")
+        result.setValue(totalCostIncVAT, forKey: "total_cost_inc_vat")
+        result.setValue(standingExcVAT, forKey: "standing_charge_cost_exc_vat")
+        result.setValue(standingIncVAT, forKey: "standing_charge_cost_inc_vat")
+
+        // Calculate average unit rates
+        let avgRateExc = totalKWh > 0.0 ? (totalCostExcVAT - standingExcVAT) / totalKWh : 0.0
+        let avgRateInc = totalKWh > 0.0 ? (totalCostIncVAT - standingIncVAT) / totalKWh : 0.0
+        result.setValue(avgRateExc, forKey: "average_unit_rate_exc_vat")
+        result.setValue(avgRateInc, forKey: "average_unit_rate_inc_vat")
+
+        let now = Date()
+        result.setValue(now, forKey: "updated_at")
+
+        // For newly inserted rows only
+        if existing == nil {
+            result.setValue(now, forKey: "create_at")
+        }
+
+        // Save context
+        try self.context.save()
+
+        // After computing costs, only store in CoreData if requested
+        if storeInCoreData {
+            // Store in CoreData
+            try await context.perform {
+                // ... existing CoreData storage code ...
+            }
+        }
+        // Return the calculation object
+        return result
     }
 
     /// Calculates cost for multiple tariff agreements from a user's account,

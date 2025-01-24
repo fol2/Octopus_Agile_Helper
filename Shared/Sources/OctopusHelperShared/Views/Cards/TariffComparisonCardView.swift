@@ -26,7 +26,8 @@ private class ComparisonCardSettingsManager: ObservableObject {
 
     init() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-           let decoded = try? JSONDecoder().decode(ComparisonCardSettings.self, from: data) {
+            let decoded = try? JSONDecoder().decode(ComparisonCardSettings.self, from: data)
+        {
             self.settings = decoded
         } else {
             self.settings = .default
@@ -99,7 +100,9 @@ private struct ProductGroup: Identifiable, Hashable {
 
     func productCode(for date: Date) -> String? {
         products.first { product in
-            guard let availableFrom = product.value(forKey: "available_from") as? Date else { return false }
+            guard let availableFrom = product.value(forKey: "available_from") as? Date else {
+                return false
+            }
             return abs(availableFrom.timeIntervalSince(date)) < 1
         }?.value(forKey: "code") as? String
     }
@@ -131,8 +134,6 @@ public struct TariffComparisonCardView: View {
     @State private var showingSettingsSheet = false
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
-    @State private var productMinDate: Date?
-    @State private var productMaxDate: Date?
     @State private var hasDateOverlap = true
 
     // Manage compare plan settings
@@ -189,7 +190,7 @@ public struct TariffComparisonCardView: View {
                 initializeFromSettings()
                 updateAllowedDateRange()
                 await loadComparisonPlansIfNeeded()
-                await recalcBothTariffs()
+                await recalcBothTariffs(partialOverlap: true)
             }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
@@ -199,12 +200,16 @@ public struct TariffComparisonCardView: View {
             updateAllowedDateRange()
         }
         .onChange(of: compareSettings.settings.selectedPlanCode) { _ in
-            loadProductAvailability()
-            updateAllowedDateRange()
-            Task { await recalcCompareTariff() }
+            Task {
+                await recalcBothTariffs(partialOverlap: true)
+            }
         }
         .onChange(of: consumptionVM.fetchState) { oldState, newState in
-            // debug or logic as needed
+            if case .success = newState {
+                Task {
+                    await recalcBothTariffs(partialOverlap: true)
+                }
+            }
         }
     }
 
@@ -276,7 +281,7 @@ public struct TariffComparisonCardView: View {
                 ) { newDate in
                     currentDate = newDate
                     savePreferences()
-                    Task { await recalcBothTariffs() }
+                    Task { await recalcBothTariffs(partialOverlap: true) }
                 }
                 .padding(.horizontal)
                 Divider().padding(.horizontal).padding(.vertical, 2)
@@ -337,7 +342,8 @@ public struct TariffComparisonCardView: View {
         if consumptionVM.consumptionRecords.isEmpty {
             noConsumptionView
         } else if !compareSettings.settings.isManualPlan,
-                  compareSettings.settings.selectedPlanCode.isEmpty {
+            compareSettings.settings.selectedPlanCode.isEmpty
+        {
             noPlanSelectedView
         } else if !hasDateOverlap {
             noOverlapView
@@ -366,13 +372,15 @@ public struct TariffComparisonCardView: View {
                     comparePlanLabel: comparePlanLabel,
                     onIntervalChange: { newInterval in
                         selectedInterval = newInterval
-                        if let savedDate = globalSettings.settings.lastViewedComparisonDates[newInterval.rawValue] {
+                        if let savedDate = globalSettings.settings.lastViewedComparisonDates[
+                            newInterval.rawValue]
+                        {
                             currentDate = savedDate
                         }
                         updateAllowedDateRange()
                         savePreferences()
                         Task {
-                            await recalcBothTariffs()
+                            await recalcBothTariffs(partialOverlap: true)
                         }
                     }
                 )
@@ -457,7 +465,8 @@ public struct TariffComparisonCardView: View {
 
     private var hasAccountInfo: Bool {
         let s = globalSettings.settings
-        return !s.apiKey.isEmpty && !(s.electricityMPAN ?? "").isEmpty && !(s.electricityMeterSerialNumber ?? "").isEmpty
+        return !s.apiKey.isEmpty && !(s.electricityMPAN ?? "").isEmpty
+            && !(s.electricityMeterSerialNumber ?? "").isEmpty
     }
 
     private var comparePlanLabel: String {
@@ -487,49 +496,9 @@ public struct TariffComparisonCardView: View {
         globalSettings.settings.lastViewedComparisonDates[selectedInterval.rawValue] = currentDate
     }
 
-    private func loadProductAvailability() {
-        guard !compareSettings.settings.isManualPlan else {
-            productMinDate = nil
-            productMaxDate = nil
-            return
-        }
-        guard let productObj = availablePlans.first(where: {
-            ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
-        }) else {
-            productMinDate = nil
-            productMaxDate = nil
-            return
-        }
-        let minD = productObj.value(forKey: "available_from") as? Date
-        let maxD = productObj.value(forKey: "available_to") as? Date
-        productMinDate = (minD == Date.distantPast) ? nil : minD
-        productMaxDate = (maxD == Date.distantFuture) ? nil : maxD
-    }
-
     private func updateAllowedDateRange() {
-        let accountMin = consumptionVM.minInterval
-        let accountMax = consumptionVM.maxInterval
-
-        var combinedMin = accountMin
-        if let pMin = productMinDate {
-            if let accMin = combinedMin {
-                combinedMin = max(accMin, pMin)
-            } else {
-                combinedMin = pMin
-            }
-        }
-
-        var combinedMax = accountMax
-        if let pMax = productMaxDate {
-            if let accMax = combinedMax {
-                combinedMax = min(accMax, pMax)
-            } else {
-                combinedMax = pMax
-            }
-        }
-
-        minAllowedDate = combinedMin
-        maxAllowedDate = combinedMax
+        minAllowedDate = consumptionVM.minInterval
+        maxAllowedDate = consumptionVM.maxInterval
 
         if let mn = minAllowedDate, currentDate < mn {
             currentDate = mn
@@ -556,7 +525,9 @@ public struct TariffComparisonCardView: View {
     private func groupProducts(_ products: [NSManagedObject]) -> [ProductGroup] {
         var groupsDict: [String: [NSManagedObject]] = [:]
         for product in products {
-            guard let displayName = product.value(forKey: "display_name") as? String else { continue }
+            guard let displayName = product.value(forKey: "display_name") as? String else {
+                continue
+            }
             groupsDict[displayName, default: []].append(product)
         }
         return groupsDict.map { (name, array) in
@@ -564,7 +535,9 @@ public struct TariffComparisonCardView: View {
             let isVar = (first.value(forKey: "is_variable") as? Bool) ?? false
             let isTrk = (first.value(forKey: "is_tracker") as? Bool) ?? false
             let isGrn = (first.value(forKey: "is_green") as? Bool) ?? false
-            return ProductGroup(displayName: name, products: array, isVariable: isVar, isTracker: isTrk, isGreen: isGrn)
+            return ProductGroup(
+                displayName: name, products: array, isVariable: isVar, isTracker: isTrk,
+                isGreen: isGrn)
         }
         .sorted { $0.displayName < $1.displayName }
     }
@@ -586,78 +559,111 @@ public struct TariffComparisonCardView: View {
             var regionProducts: [NSManagedObject] = []
             for product in filtered {
                 guard let code = product.value(forKey: "code") as? String else { continue }
-                var details = try await ProductDetailRepository.shared.loadLocalProductDetail(code: code)
+                var details = try await ProductDetailRepository.shared.loadLocalProductDetail(
+                    code: code)
                 if details.isEmpty {
-                    details = try await ProductDetailRepository.shared.fetchAndStoreProductDetail(productCode: code)
+                    details = try await ProductDetailRepository.shared.fetchAndStoreProductDetail(
+                        productCode: code)
                 }
                 let hasMatch = details.contains { $0.value(forKey: "region") as? String == region }
                 if hasMatch { regionProducts.append(product) }
             }
             regionProducts.sort {
-                let name1 = ($0.value(forKey: "display_name") as? String) ?? ($0.value(forKey: "code") as? String) ?? ""
-                let name2 = ($1.value(forKey: "display_name") as? String) ?? ($1.value(forKey: "code") as? String) ?? ""
+                let name1 =
+                    ($0.value(forKey: "display_name") as? String)
+                    ?? ($0.value(forKey: "code") as? String) ?? ""
+                let name2 =
+                    ($1.value(forKey: "display_name") as? String)
+                    ?? ($1.value(forKey: "code") as? String) ?? ""
                 return name1 < name2
             }
             availablePlans = regionProducts
 
             if !regionProducts.isEmpty,
-               !compareSettings.settings.isManualPlan,
-               compareSettings.settings.selectedPlanCode.isEmpty
+                !compareSettings.settings.isManualPlan,
+                compareSettings.settings.selectedPlanCode.isEmpty
             {
                 if let firstCode = regionProducts[0].value(forKey: "code") as? String {
                     compareSettings.settings.selectedPlanCode = firstCode
-                    await recalcCompareTariff()
+                    await recalcBothTariffs(partialOverlap: true)
                 }
             }
         } catch {
-            // handle error if needed
+            DebugLogger.debug(
+                "❌ Error loading comparison plans: \(error.localizedDescription)",
+                component: .tariffViewModel)
         }
     }
 
     // MARK: - Calculation Routines
 
-    private func recalcBothTariffs() async {
-        async let acctCalc = recalcAccountTariff()
-        async let cmpCalc = recalcCompareTariff()
+    private func recalcBothTariffs(partialOverlap: Bool = false) async {
+        // Default to true for partial overlap to ensure fair comparison
+        async let acctCalc = recalcAccountTariff(partialOverlap: partialOverlap)
+        async let cmpCalc = recalcCompareTariff(partialOverlap: partialOverlap)
         _ = await (acctCalc, cmpCalc)
     }
 
     @MainActor
-    private func recalcAccountTariff() async {
+    private func recalcAccountTariff(partialOverlap: Bool) async {
         if !hasAccountInfo { return }
         guard !consumptionVM.consumptionRecords.isEmpty else { return }
+
         do {
+            let (start, end) = TariffViewModel().calculateDateRange(
+                for: currentDate, intervalType: selectedInterval.vmInterval
+            )
+
+            // For account tariff, we use consumption data range as validity period
+            let (overlapStart, overlapEnd) =
+                partialOverlap
+                ? findOverlapRange(start, end, "savedAccount")
+                : (start, end)
+
             await accountTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "savedAccount",
                 intervalType: selectedInterval.vmInterval,
-                accountData: getAccountResponse()
+                accountData: getAccountResponse(),
+                partialStart: overlapStart,
+                partialEnd: overlapEnd
             )
         } catch {
-            // handle error if needed
+            DebugLogger.debug(
+                "❌ Error in recalcAccountTariff: \(error.localizedDescription)",
+                component: .tariffViewModel)
         }
     }
 
     @MainActor
-    private func recalcCompareTariff() async {
+    private func recalcCompareTariff(partialOverlap: Bool) async {
         guard !consumptionVM.consumptionRecords.isEmpty else {
             hasDateOverlap = false
             return
         }
-        // Check overlap with product bounds
-        guard let (start, end) = combinedDateRange(for: currentDate, interval: selectedInterval) else {
-            hasDateOverlap = false
-            // reset
-            await compareTariffVM.calculateCosts(
-                for: currentDate,
-                tariffCode: "",
-                intervalType: selectedInterval.vmInterval
-            )
-            return
-        }
-        hasDateOverlap = true
 
         do {
+            let (start, end) = TariffViewModel().calculateDateRange(
+                for: currentDate, intervalType: selectedInterval.vmInterval
+            )
+            var (overlapStart, overlapEnd) = (start, end)
+
+            // If partialOverlap, find the date overlap with the chosen plan's validity
+            if partialOverlap {
+                let planRange = await fetchPlanValidityRange(
+                    compareSettings.settings.selectedPlanCode)
+                (overlapStart, overlapEnd) = intersectRanges(start...end, planRange)
+
+                // If there's no intersection, skip
+                if overlapEnd <= overlapStart {
+                    hasDateOverlap = false
+                    await compareTariffVM.resetCalculationState()
+                    return
+                }
+            }
+
+            hasDateOverlap = true
+
             if compareSettings.settings.isManualPlan {
                 // Build mock account response for manual plan
                 let mockAccount = buildMockAccountResponseForManual()
@@ -665,11 +671,14 @@ public struct TariffComparisonCardView: View {
                     for: currentDate,
                     tariffCode: "manualPlan",
                     intervalType: selectedInterval.vmInterval,
-                    accountData: mockAccount
+                    accountData: mockAccount,
+                    partialStart: overlapStart,
+                    partialEnd: overlapEnd
                 )
             } else {
                 let code = compareSettings.settings.selectedPlanCode
                 if code.isEmpty {
+                    hasDateOverlap = false
                     await compareTariffVM.calculateCosts(
                         for: currentDate,
                         tariffCode: "",
@@ -677,23 +686,35 @@ public struct TariffComparisonCardView: View {
                     )
                     return
                 }
+
+                // Get tariff code for the selected product
                 let region = globalSettings.settings.effectiveRegion
-                var tariffCode = try await ProductDetailRepository.shared.findTariffCode(productCode: code, region: region)
+                var tariffCode = try await ProductDetailRepository.shared.findTariffCode(
+                    productCode: code, region: region)
                 if tariffCode == nil {
-                    _ = try await ProductDetailRepository.shared.fetchAndStoreProductDetail(productCode: code)
-                    tariffCode = try await ProductDetailRepository.shared.findTariffCode(productCode: code, region: region)
+                    _ = try await ProductDetailRepository.shared.fetchAndStoreProductDetail(
+                        productCode: code)
+                    tariffCode = try await ProductDetailRepository.shared.findTariffCode(
+                        productCode: code, region: region)
                 }
+
                 guard let finalCode = tariffCode else {
                     throw TariffError.productDetailNotFound(code: code, region: region)
                 }
+
                 await compareTariffVM.calculateCosts(
                     for: currentDate,
                     tariffCode: finalCode,
-                    intervalType: selectedInterval.vmInterval
+                    intervalType: selectedInterval.vmInterval,
+                    partialStart: overlapStart,
+                    partialEnd: overlapEnd
                 )
             }
         } catch {
-            // If an error occurs, reset
+            hasDateOverlap = false
+            DebugLogger.debug(
+                "❌ Error in recalcCompareTariff: \(error.localizedDescription)",
+                component: .tariffViewModel)
             await compareTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "",
@@ -704,52 +725,76 @@ public struct TariffComparisonCardView: View {
 
     private func getAccountResponse() -> OctopusAccountResponse? {
         guard let data = globalSettings.settings.accountData,
-              let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
         else {
             return nil
         }
         return decoded
     }
 
-    private func combinedDateRange(for baseDate: Date, interval: CompareIntervalType) -> (Date, Date)? {
-        // normal monthly/weekly/daily/quarterly boundaries
-        let (baseStart, baseEnd) = TariffViewModel().calculateDateRange(for: baseDate, intervalType: interval.vmInterval)
+    // MARK: - Helper for Overlap
 
-        var finalStart = baseStart
-        var finalEnd = baseEnd
+    /// Find overlap between standard start...end and the tariff validity
+    private func findOverlapRange(_ start: Date, _ end: Date, _ tariffCode: String) -> (Date, Date)
+    {
+        // For savedAccount, we use the consumption data range as the validity period
+        if tariffCode == "savedAccount" {
+            if let minDate = consumptionVM.minInterval,
+                let maxDate = consumptionVM.maxInterval
+            {
+                let range = minDate...maxDate
+                let overlap = intersectRanges(start...end, range)
+                return overlap
+            }
+        }
+        return (start, end)
+    }
 
-        if let pMin = productMinDate {
-            if finalEnd < pMin { return nil }
-            finalStart = max(finalStart, pMin)
+    /// Fetch the validity range for a given plan code
+    private func fetchPlanValidityRange(_ planCode: String) async -> ClosedRange<Date> {
+        // For manual plan, use a wide range
+        if compareSettings.settings.isManualPlan {
+            let now = Date()
+            return now.addingTimeInterval(
+                -365 * 24 * 3600)...now.addingTimeInterval(365 * 24 * 3600)
         }
-        if let pMax = productMaxDate {
-            if finalStart > pMax { return nil }
-            finalEnd = min(finalEnd, pMax)
+
+        // For actual plans, find the product and get its validity range
+        if let product = availablePlans.first(where: {
+            ($0.value(forKey: "code") as? String) == planCode
+        }) {
+            let from = (product.value(forKey: "available_from") as? Date) ?? Date.distantPast
+            let to = (product.value(forKey: "available_to") as? Date) ?? Date.distantFuture
+            return from...to
         }
-        if let aMin = minAllowedDate {
-            if finalEnd < aMin { return nil }
-            finalStart = max(finalStart, aMin)
-        }
-        if let aMax = maxAllowedDate {
-            if finalStart > aMax { return nil }
-            finalEnd = min(finalEnd, aMax)
-        }
-        if finalEnd <= finalStart { return nil }
-        return (finalStart, finalEnd)
+
+        // Default to a wide range if we can't determine
+        let now = Date()
+        return now.addingTimeInterval(-365 * 24 * 3600)...now.addingTimeInterval(365 * 24 * 3600)
+    }
+
+    /// Find the intersection between two date ranges
+    private func intersectRanges(_ r1: ClosedRange<Date>, _ r2: ClosedRange<Date>) -> (Date, Date) {
+        let start = max(r1.lowerBound, r2.lowerBound)
+        let end = min(r1.upperBound, r2.upperBound)
+        return (start, end)
     }
 
     private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
         let now = Date()
         let dateFormatter = ISO8601DateFormatter()
-        let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600*24*365))
-        let toStr = dateFormatter.string(from: now.addingTimeInterval(3600*24*365))
-        let manualAgreement = OctopusAgreement(tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
+        let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
+        let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
+        let manualAgreement = OctopusAgreement(
+            tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
         let mp = OctopusElectricityMP(
             mpan: "0000000000000",
             meters: [OctopusElecMeter(serial_number: "MANUAL")],
             agreements: [manualAgreement]
         )
-        let prop = OctopusProperty(id: 0, electricity_meter_points: [mp], gas_meter_points: nil, address_line_1: nil, moved_in_at: nil, postcode: nil)
+        let prop = OctopusProperty(
+            id: 0, electricity_meter_points: [mp], gas_meter_points: nil, address_line_1: nil,
+            moved_in_at: nil, postcode: nil)
         return OctopusAccountResponse(number: "manualAccount", properties: [prop])
     }
 }
@@ -814,11 +859,13 @@ private struct ComparisonDateNavView: View {
     }
 
     private var atMin: Bool {
-        TariffViewModel().isDateAtMinimum(currentDate, intervalType: selectedInterval.vmInterval, minDate: minDate)
+        TariffViewModel().isDateAtMinimum(
+            currentDate, intervalType: selectedInterval.vmInterval, minDate: minDate)
     }
 
     private var atMax: Bool {
-        TariffViewModel().isDateAtMaximum(currentDate, intervalType: selectedInterval.vmInterval, maxDate: maxDate)
+        TariffViewModel().isDateAtMaximum(
+            currentDate, intervalType: selectedInterval.vmInterval, maxDate: maxDate)
     }
 
     private func moveDate(forward: Bool) {
@@ -834,7 +881,8 @@ private struct ComparisonDateNavView: View {
     }
 
     private func dateRangeText() -> String {
-        let (start, end) = TariffViewModel().calculateDateRange(for: currentDate, intervalType: selectedInterval.vmInterval)
+        let (start, end) = TariffViewModel().calculateDateRange(
+            for: currentDate, intervalType: selectedInterval.vmInterval)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_GB")
 
@@ -903,7 +951,9 @@ private struct ComparisonPlanSelectionView: View {
     private func groupProducts(_ products: [NSManagedObject]) -> [ProductGroup] {
         var groupsDict: [String: [NSManagedObject]] = [:]
         for product in products {
-            guard let displayName = product.value(forKey: "display_name") as? String else { continue }
+            guard let displayName = product.value(forKey: "display_name") as? String else {
+                continue
+            }
             groupsDict[displayName, default: []].append(product)
         }
         return groupsDict.map { (name, array) in
@@ -911,7 +961,9 @@ private struct ComparisonPlanSelectionView: View {
             let isVar = (first.value(forKey: "is_variable") as? Bool) ?? false
             let isTrk = (first.value(forKey: "is_tracker") as? Bool) ?? false
             let isGrn = (first.value(forKey: "is_green") as? Bool) ?? false
-            return ProductGroup(displayName: name, products: array, isVariable: isVar, isTracker: isTrk, isGreen: isGrn)
+            return ProductGroup(
+                displayName: name, products: array, isVariable: isVar, isTracker: isTrk,
+                isGreen: isGrn)
         }
         .sorted { $0.displayName < $1.displayName }
     }
@@ -933,12 +985,15 @@ private struct ComparisonCostSummaryView: View {
         HStack(alignment: .top, spacing: 16) {
             // Left difference & cost block
             VStack(alignment: .leading, spacing: 8) {
-                let accountCost = showVAT ? accountCalculation.costIncVAT : accountCalculation.costExcVAT
-                let compareCost = showVAT ? compareCalculation.costIncVAT : compareCalculation.costExcVAT
+                let accountCost =
+                    showVAT ? accountCalculation.costIncVAT : accountCalculation.costExcVAT
+                let compareCost =
+                    showVAT ? compareCalculation.costIncVAT : compareCalculation.costExcVAT
                 let diff = compareCost - accountCost
                 let diffStr = String(format: "£%.2f", abs(diff) / 100.0)
                 let sign = diff > 0 ? "+" : (diff < 0 ? "−" : "")
-                let diffColor: Color = diff > 0 ? .red : (diff < 0 ? .green : Theme.secondaryTextColor)
+                let diffColor: Color =
+                    diff > 0 ? .red : (diff < 0 ? .green : Theme.secondaryTextColor)
 
                 // Diff row
                 HStack(alignment: .firstTextBaseline) {
@@ -990,14 +1045,17 @@ private struct ComparisonCostSummaryView: View {
                         }
                         .font(Theme.subFont())
                         .foregroundColor(
-                            selectedInterval == interval ? Theme.mainTextColor : Theme.secondaryTextColor
+                            selectedInterval == interval
+                                ? Theme.mainTextColor : Theme.secondaryTextColor
                         )
                         .frame(height: 28)
                         .frame(width: 110, alignment: .leading)
                         .padding(.horizontal, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedInterval == interval ? Theme.mainColor.opacity(0.2) : .clear)
+                                .fill(
+                                    selectedInterval == interval
+                                        ? Theme.mainColor.opacity(0.2) : .clear)
                         )
                     }
                     .buttonStyle(.plain)
@@ -1013,7 +1071,7 @@ private struct ComparisonCostSummaryView: View {
             Image(systemName: "bolt.fill")
                 .foregroundColor(Theme.icon)
                 .imageScale(.small)
-                .opacity(0) // placeholder for alignment
+                .opacity(0)  // placeholder for alignment
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text("\(label):")
@@ -1062,7 +1120,9 @@ private struct ManualPlanDetailView: View {
                 .foregroundColor(Theme.mainTextColor)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Energy Rate: \(String(format: "%.2f", settings.manualRatePencePerKWh))p/kWh")
-                Text("Daily Standing Charge: \(String(format: "%.2f", settings.manualStandingChargePencePerDay))p/day")
+                Text(
+                    "Daily Standing Charge: \(String(format: "%.2f", settings.manualStandingChargePencePerDay))p/day"
+                )
             }
             .font(Theme.subFont())
             .foregroundColor(Theme.secondaryTextColor)
@@ -1127,7 +1187,8 @@ private struct PlanSelectionView: View {
                 ForEach(groups) { group in
                     Button {
                         if let date = group.availableDates.first,
-                           let code = group.productCode(for: date) {
+                            let code = group.productCode(for: date)
+                        {
                             selectedPlanCode = code
                         }
                     } label: {
@@ -1185,7 +1246,9 @@ private struct PlanSelectionView: View {
                             }
                         }
                     } label: {
-                        if let date = group.availableDates.first(where: { group.productCode(for: $0) == selectedPlanCode }) {
+                        if let date = group.availableDates.first(where: {
+                            group.productCode(for: $0) == selectedPlanCode
+                        }) {
                             HStack {
                                 Text("Available from: \(group.formatDate(date))")
                                 Spacer()
@@ -1256,7 +1319,10 @@ private struct ManualInputView: View {
 private struct BadgeView: View {
     let text: String
     let color: Color
-    init(_ text: String, color: Color) { self.text = text; self.color = color }
+    init(_ text: String, color: Color) {
+        self.text = text
+        self.color = color
+    }
     var body: some View {
         Text(text)
             .font(.system(size: 12, weight: .medium))
@@ -1387,13 +1453,15 @@ private struct ProductDetailView: View {
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
             if let availableFrom = product.value(forKey: "available_from") as? Date,
-               availableFrom != Date.distantPast {
+                availableFrom != Date.distantPast
+            {
                 Text("From: \(formatDate(availableFrom))")
                     .font(Theme.captionFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
             if let availableTo = product.value(forKey: "available_to") as? Date,
-               availableTo != Date.distantFuture {
+                availableTo != Date.distantFuture
+            {
                 Text("To: \(formatDate(availableTo))")
                     .font(Theme.captionFont())
                     .foregroundColor(Theme.secondaryTextColor)
@@ -1440,9 +1508,11 @@ private struct ProductDetailView: View {
             return
         }
         do {
-            let details = try await ProductDetailRepository.shared.loadLocalProductDetail(code: code)
+            let details = try await ProductDetailRepository.shared.loadLocalProductDetail(
+                code: code)
             let region = (product.value(forKey: "region") as? String) ?? "A"
-            if let detail = details.first(where: { $0.value(forKey: "region") as? String == region }) {
+            if let detail = details.first(where: { $0.value(forKey: "region") as? String == region }
+            ) {
                 tariffCode = detail.value(forKey: "tariff_code") as? String
             }
             isLoading = false
