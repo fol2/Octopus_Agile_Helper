@@ -399,41 +399,91 @@ public final class TariffViewModel: ObservableObject {
             }
 
         case .quarterly:
-            // Similar approach but we add 3 months to the start (instead of 2)
-            // to match the requirement of "4 Jan - 3 Apr 2025"
-            let dayOfDate = calendar.component(.day, from: date)
-            let yearOfDate = calendar.component(.year, from: date)
-            let monthOfDate = calendar.component(.month, from: date)
+            // For billing_day = 1, align with calendar quarters
+            // For other billing days, align with billing cycle quarters
+            if billingDay == 1 {
+                // Find which calendar quarter contains the date
+                let monthOfDate = calendar.component(.month, from: date)
+                let yearOfDate = calendar.component(.year, from: date)
 
-            var cycleMonth = monthOfDate
-            var cycleYear = yearOfDate
-            if dayOfDate < billingDay {
-                cycleMonth -= 1
-                if cycleMonth < 1 {
-                    cycleMonth = 12
-                    cycleYear -= 1
+                // Determine quarter start month (1, 4, 7, or 10)
+                let quarterStartMonth = ((monthOfDate - 1) / 3) * 3 + 1
+
+                // Create start date components for quarter start
+                var startComps = DateComponents()
+                startComps.year = yearOfDate
+                startComps.month = quarterStartMonth
+                startComps.day = 1
+                startComps.hour = 0
+                startComps.minute = 0
+                startComps.second = 0
+
+                // Get the start date
+                start = calendar.date(from: startComps) ?? date
+
+                // End date is exactly three months after start, minus 1 day
+                if let plusThreeMonths = calendar.date(byAdding: .month, value: 3, to: start) {
+                    end =
+                        calendar.date(byAdding: .day, value: -1, to: plusThreeMonths)
+                        ?? plusThreeMonths
+                    // Set to end of day (23:59:59)
+                    if let endOfDay = calendar.date(
+                        bySettingHour: 23, minute: 59, second: 59, of: end)
+                    {
+                        end = endOfDay
+                    }
+                } else {
+                    end = date
                 }
-            }
-
-            // Create start date components
-            var startComps = DateComponents()
-            startComps.year = cycleYear
-            startComps.month = cycleMonth
-            startComps.day = billingDay
-            startComps.hour = 0
-            startComps.minute = 0
-            startComps.second = 0
-
-            // Get the start date
-            start = calendar.date(from: startComps) ?? date
-
-            // End date is exactly three months after `start` day, minus 1 day
-            if let plusThreeMonths = calendar.date(byAdding: .month, value: 3, to: start) {
-                end =
-                    calendar.date(byAdding: .day, value: -1, to: plusThreeMonths) ?? plusThreeMonths
             } else {
-                // fallback if date logic fails
-                end = date
+                // For other billing days, find the start of the billing quarter
+                let dayOfDate = calendar.component(.day, from: date)
+                let monthOfDate = calendar.component(.month, from: date)
+                let yearOfDate = calendar.component(.year, from: date)
+
+                // Determine which quarter this date belongs to based on billing day
+                var cycleMonth = monthOfDate
+                var cycleYear = yearOfDate
+
+                // If we're before billing day, we're in the previous month's cycle
+                if dayOfDate < billingDay {
+                    cycleMonth -= 1
+                    if cycleMonth < 1 {
+                        cycleMonth = 12
+                        cycleYear -= 1
+                    }
+                }
+
+                // Find the quarter start month based on cycleMonth
+                // Q1: Jan-Mar (1), Q2: Apr-Jun (4), Q3: Jul-Sep (7), Q4: Oct-Dec (10)
+                let quarterStartMonth = ((cycleMonth - 1) / 3) * 3 + 1
+
+                // Create start date components
+                var startComps = DateComponents()
+                startComps.year = cycleYear
+                startComps.month = quarterStartMonth
+                startComps.day = billingDay
+                startComps.hour = 0
+                startComps.minute = 0
+                startComps.second = 0
+
+                // Get the start date
+                start = calendar.date(from: startComps) ?? date
+
+                // End date is three months after start, minus 1 day
+                if let plusThreeMonths = calendar.date(byAdding: .month, value: 3, to: start) {
+                    end =
+                        calendar.date(byAdding: .day, value: -1, to: plusThreeMonths)
+                        ?? plusThreeMonths
+                    // Set to end of day (23:59:59)
+                    if let endOfDay = calendar.date(
+                        bySettingHour: 23, minute: 59, second: 59, of: end)
+                    {
+                        end = endOfDay
+                    }
+                } else {
+                    end = date
+                }
             }
         }
 
