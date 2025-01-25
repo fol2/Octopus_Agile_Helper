@@ -686,8 +686,8 @@ private struct AccountTariffMainContentView: View {
                         HStack {
                             Image(systemName: iconName(for: interval))
                                 .imageScale(.small)
-                                .frame(width: 24, alignment: .leading)
-                            Spacer(minLength: 16)
+                                .frame(alignment: .leading)
+                            Spacer()
                             Text(interval.displayName)
                                 .font(.callout)
                                 .frame(alignment: .trailing)
@@ -698,7 +698,7 @@ private struct AccountTariffMainContentView: View {
                                 ? Theme.mainTextColor : Theme.secondaryTextColor
                         )
                         .frame(height: 32)
-                        .frame(width: 110, alignment: .leading)
+                        .frame(width: 90, alignment: .leading)
                         .padding(.horizontal, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)

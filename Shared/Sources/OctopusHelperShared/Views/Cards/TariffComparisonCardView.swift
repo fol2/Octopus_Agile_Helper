@@ -329,58 +329,67 @@ public struct TariffComparisonCardView: View {
     }
 
     // MARK: - Comparison Results
-    @ViewBuilder
     private var comparisonResultsView: some View {
-        if consumptionVM.consumptionRecords.isEmpty {
-            noConsumptionView
-        } else if !compareSettings.settings.isManualPlan,
-            compareSettings.settings.selectedPlanCode.isEmpty
-        {
-            noPlanSelectedView
-        } else if selectedInterval == .daily && !hasOverlapInDaily {
-            // Show no overlap view if there's no data for the selected day
-            noOverlapView
-        } else if !hasDateOverlap {
-            noOverlapView
-        } else {
-            let acctCalc = accountTariffVM.currentCalculation
-            let cmpCalc = compareTariffVM.currentCalculation
+        ZStack {
+            if consumptionVM.consumptionRecords.isEmpty {
+                noConsumptionView
+            } else if !compareSettings.settings.isManualPlan,
+                compareSettings.settings.selectedPlanCode.isEmpty
+            {
+                noPlanSelectedView
+            } else if selectedInterval == .daily && !hasOverlapInDaily {
+                noOverlapView
+            } else if !hasDateOverlap {
+                noOverlapView
+            } else {
+                let acctCalc = accountTariffVM.currentCalculation
+                let cmpCalc = compareTariffVM.currentCalculation
 
-            if acctCalc == nil || cmpCalc == nil {
-                // Replace simple loading text with a placeholder that matches the structure
+                // Actual content with opacity
+                actualContentView(acctCalc: acctCalc, cmpCalc: cmpCalc)
+                    .opacity((acctCalc != nil && cmpCalc != nil) ? 1 : 0)
+
+                // Placeholder with same dimensions
                 ComparisonCostPlaceholderView(
                     selectedInterval: selectedInterval,
                     comparePlanLabel: comparePlanLabel,
                     isPartialPeriod: isPartialPeriod
                 )
-            } else {
-                // Show cost comparison
-                ComparisonCostSummaryView(
-                    accountCalculation: acctCalc!,
-                    compareCalculation: cmpCalc!,
-                    showVAT: globalSettings.settings.showRatesWithVAT,
-                    selectedInterval: $selectedInterval,
-                    currentDate: $currentDate,
-                    isCalculating: (accountTariffVM.isCalculating || compareTariffVM.isCalculating),
-                    comparePlanLabel: comparePlanLabel,
-                    onIntervalChange: { newInterval in
-                        selectedInterval = newInterval
-                        if let savedDate = globalSettings.settings.lastViewedComparisonDates[
-                            newInterval.rawValue]
-                        {
-                            currentDate = savedDate
-                        }
-                        updateAllowedDateRange()
-                        savePreferences()
-                        Task {
-                            await recalcBothTariffs(partialOverlap: true)
-                        }
-                    },
-                    isPartialPeriod: isPartialPeriod,
-                    requestedPeriod: requestedPeriod,
-                    actualPeriod: actualCalculationPeriod
-                )
+                .opacity((acctCalc == nil || cmpCalc == nil) ? 1 : 0)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func actualContentView(
+        acctCalc: TariffViewModel.TariffCalculation?, cmpCalc: TariffViewModel.TariffCalculation?
+    ) -> some View {
+        if let acctCalc = acctCalc, let cmpCalc = cmpCalc {
+            ComparisonCostSummaryView(
+                accountCalculation: acctCalc,
+                compareCalculation: cmpCalc,
+                showVAT: globalSettings.settings.showRatesWithVAT,
+                selectedInterval: $selectedInterval,
+                currentDate: $currentDate,
+                isCalculating: (accountTariffVM.isCalculating || compareTariffVM.isCalculating),
+                comparePlanLabel: comparePlanLabel,
+                onIntervalChange: { newInterval in
+                    selectedInterval = newInterval
+                    if let savedDate = globalSettings.settings.lastViewedComparisonDates[
+                        newInterval.rawValue]
+                    {
+                        currentDate = savedDate
+                    }
+                    updateAllowedDateRange()
+                    savePreferences()
+                    Task {
+                        await recalcBothTariffs(partialOverlap: true)
+                    }
+                },
+                isPartialPeriod: isPartialPeriod,
+                requestedPeriod: requestedPeriod,
+                actualPeriod: actualCalculationPeriod
+            )
         }
     }
 
@@ -1428,24 +1437,25 @@ private struct ComparisonCostSummaryView: View {
                 VStack(spacing: 6) {
                     ForEach(CompareIntervalType.allCases, id: \.self) { interval in
                         Button {
-                            withAnimation {
-                                onIntervalChange(interval)
-                            }
+                            withAnimation { onIntervalChange(interval) }
                         } label: {
                             HStack {
                                 Image(systemName: iconName(for: interval))
                                     .imageScale(.small)
-                                Spacer(minLength: 16)
+                                    .frame(alignment: .leading)
+                                Spacer()
                                 Text(interval.displayName)
                                     .font(.callout)
+                                    .frame(alignment: .trailing)
                             }
                             .font(Theme.subFont())
                             .foregroundColor(
                                 selectedInterval == interval
                                     ? Theme.mainTextColor : Theme.secondaryTextColor
                             )
-                            .frame(height: 28)
-                            .frame(width: 110, alignment: .leading)
+                            .frame(height: 32)
+                            .frame(width: 90, alignment: .leading)
+                            .padding(.horizontal, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(
@@ -1536,7 +1546,7 @@ private struct ComparisonCostPlaceholderView: View {
 
     init(
         selectedInterval: CompareIntervalType, comparePlanLabel: String,
-        isPartialPeriod: Bool = false
+        isPartialPeriod: Bool = true
     ) {
         self.selectedInterval = selectedInterval
         self.comparePlanLabel = comparePlanLabel
@@ -1652,19 +1662,7 @@ private struct ComparisonCostPlaceholderView: View {
             }
             .padding(.vertical, 2)  // Add vertical padding to match AccountTariffCardView
             .frame(maxWidth: .infinity, alignment: .leading)  // Add frame modifier to match AccountTariffCardView
-
-            // Show placeholder for date range info
-            if isPartialPeriod {
-                VStack(alignment: .leading, spacing: 4) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Theme.secondaryTextColor.opacity(0.2))
-                        .frame(height: 16)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
         }
-        .animation(.spring(duration: 0.3), value: isPartialPeriod)
     }
 
     private func iconName(for interval: CompareIntervalType) -> String {
