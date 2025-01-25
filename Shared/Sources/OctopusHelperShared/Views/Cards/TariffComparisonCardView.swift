@@ -330,7 +330,6 @@ public struct TariffComparisonCardView: View {
 
             if compareSettings.settings.isManualPlan {
                 ManualPlanDetailView(settings: compareSettings.settings)
-                    .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
             } else if let product = availablePlans.first(where: {
                 ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
             }) {
@@ -349,6 +348,7 @@ public struct TariffComparisonCardView: View {
         }
         .padding(.horizontal)
         .padding(.top, 8)
+        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))  // Counter-rotation for back view content
     }
 
     // MARK: - Comparison Results
