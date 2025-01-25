@@ -347,6 +347,10 @@ public final class TariffViewModel: ObservableObject {
             // Instead of +7 days, do +6 for the inclusive 7-day display
             // This fixes "20–27 Jan" => "20–26 Jan"
             end = fixedWeeklyCalendar.date(byAdding: .day, value: 6, to: start) ?? date
+            // Set to end of day (23:59:59) to include all consumption records
+            if let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: end) {
+                end = endOfDay
+            }
 
         case .monthly:
             // (unchanged) interpret date as somewhere inside a "billing month" that starts on `billingDay`
