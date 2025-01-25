@@ -314,44 +314,46 @@ public struct AccountTariffCardView: View {
 
     private func updateAllowedDateRange() {
         let calendar = Calendar.current
-        // We want to allow navigating to the "current" cycle, even if partial.
-        // That means for weekly/monthly, we derive the cycle containing 'today'.
         let today = Date()
         let startOfToday = calendar.startOfDay(for: today)
-        let latestDailyDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
 
-        // Set minAllowedDate first as it's used in maxAllowedDate calculations
+        // Set minAllowedDate from consumption data
         minAllowedDate = consumptionVM.minInterval
+
+        // Get the boundary for current date's interval
+        let currentBoundary = tariffVM.getBoundary(
+            for: today,
+            intervalType: selectedInterval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
 
         switch selectedInterval {
         case .daily:
-            // For daily, we still use yesterday as max
-            maxAllowedDate = latestDailyDate
+            // For daily view, we use yesterday as the maximum allowed date
+            // This ensures we only show complete days
+            maxAllowedDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)
 
-        case .weekly:
-            // For the current week containing "today," set maxAllowedDate to the end of that week
-            let (currentWeekStart, currentWeekEnd) = tariffVM.calculateDateRange(
-                for: today,
+        case .weekly, .monthly:
+            // For weekly and monthly, we allow viewing the current incomplete cycle
+            // The boundary.end gives us the end of current week/month cycle
+            maxAllowedDate = currentBoundary.end
+        }
+
+        // Only clamp against maxAllowedDate to prevent going beyond allowed range
+        if let mx = maxAllowedDate {
+            let dateToCheck = tariffVM.getBoundary(
+                for: currentDate,
                 intervalType: selectedInterval.viewModelInterval,
                 billingDay: globalSettings.settings.billingDay
             )
-            maxAllowedDate = currentWeekEnd
-
-        case .monthly:
-            // For monthly, set the maxAllowedDate to the end of the current billing cycle
-            let (currentMonthStart, currentMonthEnd) = tariffVM.calculateDateRange(
-                for: today,
-                intervalType: selectedInterval.viewModelInterval,
-                billingDay: globalSettings.settings.billingDay
-            )
-            maxAllowedDate = currentMonthEnd
+            // If current date's interval starts after max allowed date, clamp it
+            if dateToCheck.start > mx {
+                currentDate = mx
+            }
         }
 
-        // Only clamp against maxAllowedDate to prevent going beyond today
-        if let mx = maxAllowedDate, currentDate > mx {
-            currentDate = mx
-        }
         // We do NOT clamp against minAllowedDate anymore to allow partial earliest intervals
+        // This is preserved from the original implementation
     }
 }
 
@@ -366,19 +368,38 @@ private struct AccountTariffDateNavView: View {
     let onDateChanged: () -> Void
     @ObservedObject var globalSettings: GlobalSettingsManager
 
+    // Add computed properties for current boundaries
+    private var currentBoundary: TariffViewModel.IntervalBoundary {
+        tariffVM.getBoundary(
+            for: currentDate,
+            intervalType: selectedInterval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+    }
+
+    private var previousBoundary: TariffViewModel.IntervalBoundary? {
+        guard let prevDate = getPreviousDate() else { return nil }
+        return tariffVM.getBoundary(
+            for: prevDate,
+            intervalType: selectedInterval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+    }
+
+    private var nextBoundary: TariffViewModel.IntervalBoundary? {
+        guard let nextDate = getNextDate() else { return nil }
+        return tariffVM.getBoundary(
+            for: nextDate,
+            intervalType: selectedInterval.viewModelInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             // Left
             HStack {
-                let canGoBack = tariffVM.canNavigate(
-                    from: currentDate,
-                    direction: .backward,
-                    intervalType: selectedInterval.viewModelInterval,
-                    minDate: minAllowedDate,
-                    maxDate: maxAllowedDate,
-                    billingDay: globalSettings.settings.billingDay,
-                    dailyAvailableDates: selectedInterval == .daily ? buildDailySet() : nil
-                )
+                let canGoBack = canNavigateBackward()
                 if canGoBack {
                     Button {
                         moveDate(forward: false)
@@ -417,15 +438,7 @@ private struct AccountTariffDateNavView: View {
 
             // Right
             HStack {
-                let canGoForward = tariffVM.canNavigate(
-                    from: currentDate,
-                    direction: .forward,
-                    intervalType: selectedInterval.viewModelInterval,
-                    minDate: minAllowedDate,
-                    maxDate: maxAllowedDate,
-                    billingDay: globalSettings.settings.billingDay,
-                    dailyAvailableDates: selectedInterval == .daily ? buildDailySet() : nil
-                )
+                let canGoForward = canNavigateForward()
                 if canGoForward {
                     Button {
                         moveDate(forward: true)
@@ -443,52 +456,126 @@ private struct AccountTariffDateNavView: View {
         .padding(.vertical, 4)
     }
 
-    // Attempt to step the date (via TariffViewModel)
-    private func moveDate(forward: Bool) {
-        // Build daily set for consumption if needed
-        var dailySet: Set<Date>? = nil
+    // MARK: - Navigation Logic
+    private func canNavigateBackward() -> Bool {
+        // Don't allow navigation while calculating
+        if tariffVM.isCalculating { return false }
+
+        // For daily intervals with available dates, check if previous date exists
         if selectedInterval == .daily {
-            let minD = minAllowedDate ?? Date.distantPast
-            let maxD = maxAllowedDate ?? Date.distantFuture
-            let calendar = Calendar.current
-            dailySet = Set(
-                consumptionVM.consumptionRecords.compactMap { record in
-                    guard let start = record.value(forKey: "interval_start") as? Date else {
-                        return nil
-                    }
-                    if start < minD || start > maxD { return nil }
-                    return calendar.startOfDay(for: start)
-                }
-            )
+            if let dailySet = buildDailySet() {
+                return getPreviousDate() != nil
+            }
         }
 
-        if let newDate = tariffVM.nextDate(
-            from: currentDate,
-            forward: forward,
-            intervalType: selectedInterval.viewModelInterval,
-            minDate: minAllowedDate,
-            maxDate: maxAllowedDate,
-            dailyAvailableDates: dailySet,
-            billingDay: globalSettings.settings.billingDay
-        ) {
-            currentDate = newDate
-            onDateChanged()
+        // For other intervals, use boundary checking
+        guard let prevBoundary = previousBoundary else { return false }
+        return prevBoundary.overlapsWithData(minDate: minAllowedDate, maxDate: maxAllowedDate)
+    }
+
+    private func canNavigateForward() -> Bool {
+        // Don't allow navigation while calculating
+        if tariffVM.isCalculating { return false }
+
+        // For daily intervals with available dates, check if next date exists
+        if selectedInterval == .daily {
+            if let dailySet = buildDailySet() {
+                return getNextDate() != nil
+            }
+        }
+
+        // For other intervals, use boundary checking
+        guard let nextBoundary = nextBoundary else { return false }
+        return !nextBoundary.isAfterData(maxDate: maxAllowedDate)
+    }
+
+    private func getPreviousDate() -> Date? {
+        let calendar = Calendar.current
+
+        switch selectedInterval {
+        case .daily:
+            if let dailySet = buildDailySet() {
+                return findPreviousAvailableDay(from: currentDate, in: dailySet)
+            } else {
+                return calendar.date(byAdding: .day, value: -1, to: currentDate)
+            }
+
+        case .weekly:
+            return calendar.date(byAdding: .weekOfYear, value: -1, to: currentDate)
+
+        case .monthly:
+            return calendar.date(byAdding: .month, value: -1, to: currentDate)
         }
     }
 
-    private func nextDailyAvailableDateExists(forward: Bool) -> Bool {
-        // If we have a valid next daily date, return true
-        // This is basically a "peek" version of moveDate
-        let result = tariffVM.nextDate(
-            from: currentDate,
-            forward: forward,
-            intervalType: selectedInterval.viewModelInterval,
-            minDate: minAllowedDate,
-            maxDate: maxAllowedDate,
-            dailyAvailableDates: buildDailySet(),
-            billingDay: globalSettings.settings.billingDay
-        )
-        return (result != nil)
+    private func getNextDate() -> Date? {
+        let calendar = Calendar.current
+
+        switch selectedInterval {
+        case .daily:
+            if let dailySet = buildDailySet() {
+                return findNextAvailableDay(from: currentDate, in: dailySet)
+            } else {
+                return calendar.date(byAdding: .day, value: 1, to: currentDate)
+            }
+
+        case .weekly:
+            return calendar.date(byAdding: .weekOfYear, value: 1, to: currentDate)
+
+        case .monthly:
+            return calendar.date(byAdding: .month, value: 1, to: currentDate)
+        }
+    }
+
+    private func findPreviousAvailableDay(from date: Date, in dailySet: Set<Date>) -> Date? {
+        let calendar = Calendar.current
+        var candidate = calendar.startOfDay(for: date)
+
+        while true {
+            guard let prevDay = calendar.date(byAdding: .day, value: -1, to: candidate) else {
+                return nil
+            }
+            candidate = calendar.startOfDay(for: prevDay)
+
+            // Bounds check
+            if let minDate = minAllowedDate, candidate < calendar.startOfDay(for: minDate) {
+                return nil
+            }
+
+            // If the candidate is in the set, we found our previous valid day
+            if dailySet.contains(candidate) {
+                return candidate
+            }
+        }
+    }
+
+    private func findNextAvailableDay(from date: Date, in dailySet: Set<Date>) -> Date? {
+        let calendar = Calendar.current
+        var candidate = calendar.startOfDay(for: date)
+
+        while true {
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: candidate) else {
+                return nil
+            }
+            candidate = calendar.startOfDay(for: nextDay)
+
+            // Bounds check
+            if let maxDate = maxAllowedDate, candidate > calendar.startOfDay(for: maxDate) {
+                return nil
+            }
+
+            // If the candidate is in the set, we found our next valid day
+            if dailySet.contains(candidate) {
+                return candidate
+            }
+        }
+    }
+
+    private func moveDate(forward: Bool) {
+        if let newDate = forward ? getNextDate() : getPreviousDate() {
+            currentDate = newDate
+            onDateChanged()
+        }
     }
 
     private func buildDailySet() -> Set<Date>? {
