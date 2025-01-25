@@ -510,7 +510,7 @@ public final class TariffCalculationRepository: ObservableObject {
         let records = try await context.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
             request.predicate = NSPredicate(
-                format: "interval_start >= %@ AND interval_end <= %@",
+                format: "interval_start >= %@ AND interval_start < %@",
                 start as NSDate, end as NSDate
             )
             request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
@@ -531,7 +531,7 @@ public final class TariffCalculationRepository: ObservableObject {
             return try await context.perform {
                 let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
                 request.predicate = NSPredicate(
-                    format: "interval_start >= %@ AND interval_end <= %@",
+                    format: "interval_start >= %@ AND interval_start < %@",
                     start as NSDate, end as NSDate
                 )
                 request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]

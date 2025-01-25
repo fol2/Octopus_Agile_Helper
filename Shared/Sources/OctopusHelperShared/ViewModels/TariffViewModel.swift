@@ -384,8 +384,11 @@ public final class TariffViewModel: ObservableObject {
             if let plusOneMonth = calendar.date(byAdding: .month, value: 1, to: start) {
                 // Get end of day before next month
                 end = calendar.date(byAdding: .day, value: -1, to: plusOneMonth) ?? plusOneMonth
-                // Add 1 second to include the last interval
-                end = calendar.date(byAdding: .second, value: 1, to: end) ?? end
+                // Set to end of day (23:59:59) to include all consumption records
+                if let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: end)
+                {
+                    end = endOfDay
+                }
             } else {
                 // fallback if date logic fails
                 end = date
