@@ -302,7 +302,8 @@ public struct TariffComparisonCardView: View {
                     },
                     globalSettings: globalSettings,
                     accountTariffVM: accountTariffVM,
-                    compareTariffVM: compareTariffVM
+                    compareTariffVM: compareTariffVM,
+                    consumptionVM: consumptionVM
                 )
                 .padding(.horizontal)
 
@@ -932,19 +933,40 @@ private struct ComparisonDateNavView: View {
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var accountTariffVM: TariffViewModel
     @ObservedObject var compareTariffVM: TariffViewModel
+    @ObservedObject var consumptionVM: ConsumptionViewModel
+
+    // Add computed properties for boundaries
+    private var currentBoundary: TariffViewModel.IntervalBoundary {
+        accountTariffVM.getBoundary(
+            for: currentDate,
+            intervalType: selectedInterval.vmInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+    }
+
+    private var previousBoundary: TariffViewModel.IntervalBoundary? {
+        guard let prevDate = getPreviousDate() else { return nil }
+        return accountTariffVM.getBoundary(
+            for: prevDate,
+            intervalType: selectedInterval.vmInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+    }
+
+    private var nextBoundary: TariffViewModel.IntervalBoundary? {
+        guard let nextDate = getNextDate() else { return nil }
+        return accountTariffVM.getBoundary(
+            for: nextDate,
+            intervalType: selectedInterval.vmInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             // Left
             HStack {
-                let canGoBack = accountTariffVM.canNavigate(
-                    from: currentDate,
-                    direction: .backward,
-                    intervalType: selectedInterval.vmInterval,
-                    minDate: minDate,
-                    maxDate: maxDate,
-                    billingDay: globalSettings.settings.billingDay
-                )
+                let canGoBack = canNavigateBackward()
                 if canGoBack && !isCalculating {
                     Button {
                         moveDate(forward: false)
@@ -967,14 +989,7 @@ private struct ComparisonDateNavView: View {
 
             // Right
             HStack {
-                let canGoForward = accountTariffVM.canNavigate(
-                    from: currentDate,
-                    direction: .forward,
-                    intervalType: selectedInterval.vmInterval,
-                    minDate: minDate,
-                    maxDate: maxDate,
-                    billingDay: globalSettings.settings.billingDay
-                )
+                let canGoForward = canNavigateForward()
                 if canGoForward && !isCalculating {
                     Button {
                         moveDate(forward: true)
@@ -989,15 +1004,191 @@ private struct ComparisonDateNavView: View {
         .padding(.vertical, 4)
     }
 
+    // MARK: - Navigation Logic
+    private func canNavigateBackward() -> Bool {
+        // Don't allow navigation while calculating
+        if isCalculating { return false }
+
+        // For daily intervals, check if previous date exists in consumption data
+        if selectedInterval == .daily {
+            if let dailySet = buildDailySet() {
+                return findPreviousAvailableDay(from: currentDate, in: dailySet) != nil
+            }
+        }
+
+        // For other intervals, use boundary checking
+        guard let prevBoundary = previousBoundary else { return false }
+        return prevBoundary.overlapsWithData(minDate: minDate, maxDate: maxDate)
+    }
+
+    private func canNavigateForward() -> Bool {
+        // Don't allow navigation while calculating
+        if isCalculating { return false }
+
+        // For daily intervals, check if next date exists in consumption data
+        if selectedInterval == .daily {
+            if let dailySet = buildDailySet() {
+                return findNextAvailableDay(from: currentDate, in: dailySet) != nil
+            }
+        }
+
+        // For other intervals, use boundary checking
+        guard let nextBoundary = nextBoundary else { return false }
+        return !nextBoundary.isAfterData(maxDate: maxDate)
+    }
+
+    private func buildDailySet() -> Set<Date>? {
+        let minD = minDate ?? Date.distantPast
+        let maxD = maxDate ?? Date.distantFuture
+        let calendar = Calendar.current
+        let set: Set<Date> = Set(
+            consumptionVM.consumptionRecords.compactMap { record in
+                guard let start = record.value(forKey: "interval_start") as? Date else {
+                    return nil
+                }
+                if start < minD || start > maxD { return nil }
+                return calendar.startOfDay(for: start)
+            }
+        )
+        return set.isEmpty ? nil : set
+    }
+
+    private func findPreviousAvailableDay(from date: Date, in dailySet: Set<Date>) -> Date? {
+        let calendar = Calendar.current
+        var candidate = calendar.startOfDay(for: date)
+
+        while true {
+            guard let prevDay = calendar.date(byAdding: .day, value: -1, to: candidate) else {
+                return nil
+            }
+            candidate = calendar.startOfDay(for: prevDay)
+
+            // Bounds check
+            if let minDate = minDate, candidate < calendar.startOfDay(for: minDate) {
+                return nil
+            }
+
+            // If the candidate is in the set, we found our previous valid day
+            if dailySet.contains(candidate) {
+                return candidate
+            }
+        }
+    }
+
+    private func findNextAvailableDay(from date: Date, in dailySet: Set<Date>) -> Date? {
+        let calendar = Calendar.current
+        var candidate = calendar.startOfDay(for: date)
+
+        while true {
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: candidate) else {
+                return nil
+            }
+            candidate = calendar.startOfDay(for: nextDay)
+
+            // Bounds check
+            if let maxDate = maxDate, candidate > calendar.startOfDay(for: maxDate) {
+                return nil
+            }
+
+            // If the candidate is in the set, we found our next valid day
+            if dailySet.contains(candidate) {
+                return candidate
+            }
+        }
+    }
+
+    private func getPreviousDate() -> Date? {
+        let calendar = Calendar.current
+
+        switch selectedInterval {
+        case .daily:
+            if let dailySet = buildDailySet() {
+                return findPreviousAvailableDay(from: currentDate, in: dailySet)
+            }
+            return calendar.date(byAdding: .day, value: -1, to: currentDate)
+
+        case .weekly:
+            let prevDate = calendar.date(byAdding: .weekOfYear, value: -1, to: currentDate)
+            guard let date = prevDate else { return nil }
+            // Validate using boundary
+            let boundary = accountTariffVM.getBoundary(
+                for: date,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            return boundary.overlapsWithData(minDate: minDate, maxDate: maxDate) ? date : nil
+
+        case .monthly:
+            let prevDate = calendar.date(byAdding: .month, value: -1, to: currentDate)
+            guard let date = prevDate else { return nil }
+            // Validate using boundary
+            let boundary = accountTariffVM.getBoundary(
+                for: date,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            return boundary.overlapsWithData(minDate: minDate, maxDate: maxDate) ? date : nil
+
+        case .quarterly:
+            let prevDate = calendar.date(byAdding: .month, value: -3, to: currentDate)
+            guard let date = prevDate else { return nil }
+            // Validate using boundary
+            let boundary = accountTariffVM.getBoundary(
+                for: date,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            return boundary.overlapsWithData(minDate: minDate, maxDate: maxDate) ? date : nil
+        }
+    }
+
+    private func getNextDate() -> Date? {
+        let calendar = Calendar.current
+
+        switch selectedInterval {
+        case .daily:
+            if let dailySet = buildDailySet() {
+                return findNextAvailableDay(from: currentDate, in: dailySet)
+            }
+            return calendar.date(byAdding: .day, value: 1, to: currentDate)
+
+        case .weekly:
+            let nextDate = calendar.date(byAdding: .weekOfYear, value: 1, to: currentDate)
+            guard let date = nextDate else { return nil }
+            // Validate using boundary
+            let boundary = accountTariffVM.getBoundary(
+                for: date,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            return !boundary.isAfterData(maxDate: maxDate) ? date : nil
+
+        case .monthly:
+            let nextDate = calendar.date(byAdding: .month, value: 1, to: currentDate)
+            guard let date = nextDate else { return nil }
+            // Validate using boundary
+            let boundary = accountTariffVM.getBoundary(
+                for: date,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            return !boundary.isAfterData(maxDate: maxDate) ? date : nil
+
+        case .quarterly:
+            let nextDate = calendar.date(byAdding: .month, value: 3, to: currentDate)
+            guard let date = nextDate else { return nil }
+            // Validate using boundary
+            let boundary = accountTariffVM.getBoundary(
+                for: date,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            return !boundary.isAfterData(maxDate: maxDate) ? date : nil
+        }
+    }
+
     private func moveDate(forward: Bool) {
-        if let newDate = accountTariffVM.nextDate(
-            from: currentDate,
-            forward: forward,
-            intervalType: selectedInterval.vmInterval,
-            minDate: minDate,
-            maxDate: maxDate,
-            billingDay: globalSettings.settings.billingDay
-        ) {
+        if let newDate = forward ? getNextDate() : getPreviousDate() {
             onDateChanged(newDate)
         }
     }
