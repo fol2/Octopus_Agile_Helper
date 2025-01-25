@@ -1204,9 +1204,10 @@ private struct ComparisonCostSummaryView: View {
     private func averageRate(for calc: TariffViewModel.TariffCalculation) -> String? {
         let totalKWh = calc.totalKWh
         guard totalKWh > 0 else { return nil }
-        let totalCost = showVAT ? calc.costIncVAT : calc.costExcVAT
-        let avg = Double(totalCost) / totalKWh
-        return String(format: "%.2f", avg)
+
+        // Use the pre-calculated average rate that excludes standing charge
+        let avgRate = showVAT ? calc.averageUnitRateIncVAT : calc.averageUnitRateExcVAT
+        return String(format: "%.2f", avgRate)
     }
 }
 
