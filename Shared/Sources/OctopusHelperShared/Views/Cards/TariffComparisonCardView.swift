@@ -352,7 +352,9 @@ public struct TariffComparisonCardView: View {
                 ComparisonCostPlaceholderView(
                     selectedInterval: selectedInterval,
                     comparePlanLabel: comparePlanLabel,
-                    isPartialPeriod: isPartialPeriod
+                    isPartialPeriod: isPartialPeriod,
+                    requestedPeriod: requestedPeriod,
+                    actualPeriod: actualCalculationPeriod
                 )
                 .opacity((acctCalc == nil || cmpCalc == nil) ? 1 : 0)
             }
@@ -1517,8 +1519,8 @@ private struct ComparisonCostSummaryView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .padding(.vertical, 2)  // Add vertical padding to match AccountTariffCardView
-            .frame(maxWidth: .infinity, alignment: .leading)  // Add frame modifier to match AccountTariffCardView
+            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -1592,32 +1594,41 @@ private struct ComparisonCostPlaceholderView: View {
     let selectedInterval: CompareIntervalType
     let comparePlanLabel: String
     let isPartialPeriod: Bool
+    let requestedPeriod: (start: Date, end: Date)?
+    let actualPeriod: (start: Date, end: Date)?
 
     init(
-        selectedInterval: CompareIntervalType, comparePlanLabel: String,
-        isPartialPeriod: Bool = true
+        selectedInterval: CompareIntervalType,
+        comparePlanLabel: String,
+        isPartialPeriod: Bool = false,
+        requestedPeriod: (start: Date, end: Date)? = nil,
+        actualPeriod: (start: Date, end: Date)? = nil
     ) {
         self.selectedInterval = selectedInterval
         self.comparePlanLabel = comparePlanLabel
         self.isPartialPeriod = isPartialPeriod
+        self.requestedPeriod = requestedPeriod
+        self.actualPeriod = actualPeriod
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Reserve consistent space to avoid "shaking" on quick calculations
+        VStack(spacing: 0) {  // Changed to match actual view's spacing
+            // Partial period info with same layout as actual view
             HStack {
-                if isPartialPeriod {
+                if isPartialPeriod, let actual = actualPeriod {
                     Image(systemName: "info.circle")
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                    Text("Showing partial period")
-                        .font(Theme.captionFont())
-                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                    Text(
+                        "Available data: \(formatDateRange(actual.start, Calendar.current.date(byAdding: .day, value: -1, to: actual.end) ?? actual.end))"
+                    )
+                    .font(Theme.captionFont())
+                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                 }
             }
-            .frame(height: 20)
+            .frame(height: 20)  // Match exact height of actual view
 
             HStack(alignment: .top, spacing: 16) {
-                // Left difference & cost block with shimmer effect
+                // Rest of the view remains similar but with consistent spacing
                 VStack(alignment: .leading, spacing: 8) {
                     // Diff row
                     HStack(alignment: .firstTextBaseline) {
@@ -1681,6 +1692,7 @@ private struct ComparisonCostPlaceholderView: View {
                         }
                     }
                 }
+                .padding(.vertical, 2)
 
                 // Right side interval switcher (keep the same as actual view)
                 VStack(spacing: 6) {
@@ -1688,17 +1700,20 @@ private struct ComparisonCostPlaceholderView: View {
                         HStack {
                             Image(systemName: iconName(for: interval))
                                 .imageScale(.small)
-                            Spacer(minLength: 16)
+                                .frame(alignment: .leading)
+                            Spacer()
                             Text(interval.displayName)
                                 .font(.callout)
+                                .frame(alignment: .trailing)
                         }
                         .font(Theme.subFont())
                         .foregroundColor(
                             selectedInterval == interval
                                 ? Theme.mainTextColor : Theme.secondaryTextColor
                         )
-                        .frame(height: 28)
-                        .frame(width: 110, alignment: .leading)
+                        .frame(height: 32)
+                        .frame(width: 100, alignment: .leading)
+                        .padding(.horizontal, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(
@@ -1709,8 +1724,8 @@ private struct ComparisonCostPlaceholderView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .padding(.vertical, 2)  // Add vertical padding to match AccountTariffCardView
-            .frame(maxWidth: .infinity, alignment: .leading)  // Add frame modifier to match AccountTariffCardView
+            .padding(.vertical, 8)  // Match actual view's padding
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
