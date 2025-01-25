@@ -1355,6 +1355,7 @@ private struct ComparisonCostSummaryView: View {
                         .foregroundColor(Theme.secondaryTextColor)
                 }
                 .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             HStack(alignment: .top, spacing: 16) {
@@ -1450,8 +1451,10 @@ private struct ComparisonCostSummaryView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
+        .animation(.spring(duration: 0.3), value: isPartialPeriod)
     }
 
     private func formatDateRange(_ start: Date, _ end: Date) -> String {
@@ -1546,6 +1549,7 @@ private struct ComparisonCostPlaceholderView: View {
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                 }
                 .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             HStack(alignment: .top, spacing: 16) {
@@ -1653,8 +1657,10 @@ private struct ComparisonCostPlaceholderView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
+        .animation(.spring(duration: 0.3), value: isPartialPeriod)
     }
 
     private func iconName(for interval: CompareIntervalType) -> String {
