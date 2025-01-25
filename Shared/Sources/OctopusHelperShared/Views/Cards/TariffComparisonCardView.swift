@@ -1364,25 +1364,16 @@ private struct ComparisonCostSummaryView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Show partial period info if applicable
-            ZStack {
-                // Invisible placeholder with matching font properties
-                Text(" ")  // Non-breaking space to maintain height
-                    .font(Theme.captionFont())
-                    .foregroundColor(.clear)
-                    .accessibilityHidden(true)
-
-                // Actual content
+            // Always reserve consistent space to avoid layout shifting
+            HStack {
                 if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(Theme.secondaryTextColor)
-                        Text(
-                            "Available data: \(formatDateRange(actual.start, Calendar.current.date(byAdding: .day, value: -1, to: actual.end) ?? actual.end))"
-                        )
-                        .font(Theme.captionFont())
+                    Image(systemName: "info.circle")
                         .foregroundColor(Theme.secondaryTextColor)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    Text(
+                        "Available data: \(formatDateRange(actual.start, Calendar.current.date(byAdding: .day, value: -1, to: actual.end) ?? actual.end))"
+                    )
+                    .font(Theme.captionFont())
+                    .foregroundColor(Theme.secondaryTextColor)
                 }
             }
             .frame(height: 20)  // Explicit height matching the content
@@ -1555,17 +1546,17 @@ private struct ComparisonCostPlaceholderView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // Show partial period placeholder if applicable
-            if isPartialPeriod {
-                HStack {
+            // Reserve consistent space to avoid “shaking” on quick calculations
+            HStack {
+                if isPartialPeriod {
                     Image(systemName: "info.circle")
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                     Text("Showing partial period")
                         .font(Theme.captionFont())
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            .frame(height: 20)
 
             HStack(alignment: .top, spacing: 16) {
                 // Left difference & cost block with shimmer effect
