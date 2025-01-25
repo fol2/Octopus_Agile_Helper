@@ -157,6 +157,8 @@ public struct TariffComparisonCardView: View {
     // For region-based plan selection
     @State private var availablePlans: [NSManagedObject] = []
 
+    @State private var showingDetails = false  // Add this state
+
     public init(
         consumptionVM: ConsumptionViewModel,
         ratesVM: RatesViewModel,
@@ -168,10 +170,26 @@ public struct TariffComparisonCardView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {  // ← Zero spacing root container
+        VStack(alignment: .leading, spacing: 12) {
             // Header
-            headerView
-                .padding(.bottom, 2)  // ← Match Account card's header bottom padding
+            HStack {
+                if let def = CardRegistry.shared.definition(for: .tariffComparison) {
+                    Image(systemName: def.iconName)
+                        .foregroundColor(Theme.icon)
+                    Text(LocalizedStringKey(def.displayNameKey))
+                        .font(Theme.titleFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Spacer()
+                    Button(action: {
+                        showingDetails = true
+                    }) {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .foregroundColor(Theme.secondaryTextColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.bottom, 2)
 
             Spacer()
                 .padding(.vertical, 4)
@@ -192,8 +210,20 @@ public struct TariffComparisonCardView: View {
             }
         }
         .rateCardStyle()  // ← Apply card style to root container
-        .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
-        .animation(.spring(duration: 0.6), value: isFlipped)
+        .sheet(isPresented: $showingDetails) {
+            NavigationView {
+                TariffComparisonDetailView(
+                    compareSettings: compareSettings,
+                    availablePlans: $availablePlans,
+                    globalSettings: globalSettings,
+                    compareTariffVM: compareTariffVM,
+                    currentDate: $currentDate,
+                    selectedInterval: $selectedInterval,
+                    overlapStart: $overlapStart,
+                    overlapEnd: $overlapEnd
+                )
+            }
+        }
         .environment(\.locale, globalSettings.locale)
         .onAppear {
             Task {
@@ -238,37 +268,6 @@ public struct TariffComparisonCardView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Header
-    private var headerView: some View {
-        HStack {
-            if let def = CardRegistry.shared.definition(for: .tariffComparison) {
-                HStack {
-                    Image(systemName: def.iconName)
-                        .foregroundColor(Theme.icon)
-                    Text(LocalizedStringKey(def.displayNameKey))
-                        .font(Theme.titleFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-            }
-            Spacer()
-            if hasAccountInfo {
-                if compareTariffVM.isCalculating || accountTariffVM.isCalculating {
-                    ProgressView().scaleEffect(0.8)
-                } else {
-                    Button(action: {
-                        withAnimation {
-                            isFlipped.toggle()
-                        }
-                    }) {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(Theme.secondaryTextColor)
-                    }
-                }
-            }
-        }
-        .padding(.bottom, 2)  // ← Match Account card's header bottom padding
     }
 
     // MARK: - Configuration Section
@@ -1344,6 +1343,65 @@ private struct ComparisonPlanSelectionView: View {
     }
 }
 
+// Add new detail view struct
+private struct TariffComparisonDetailView: View {
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject var compareSettings: ComparisonCardSettingsManager
+    @Binding var availablePlans: [NSManagedObject]
+    @ObservedObject var globalSettings: GlobalSettingsManager
+    @ObservedObject var compareTariffVM: TariffViewModel
+    @Binding var currentDate: Date
+    @Binding var selectedInterval: CompareIntervalType
+    @Binding var overlapStart: Date?
+    @Binding var overlapEnd: Date?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with centered title and close button
+            ZStack {
+                Text("Tariff Comparison Details")
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.mainTextColor)
+
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
+                            .imageScale(.large)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Theme.mainBackground)
+
+            Divider()
+                .padding(.horizontal)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+            // Plan Selection
+            ComparisonPlanSelectionView(
+                compareSettings: compareSettings,
+                availablePlans: $availablePlans,
+                globalSettings: globalSettings,
+                compareTariffVM: compareTariffVM,
+                currentDate: $currentDate,
+                selectedInterval: $selectedInterval,
+                overlapStart: $overlapStart,
+                overlapEnd: $overlapEnd
+            )
+            .padding(.horizontal)
+
+            // Additional detail content can be added here
+        }
+        .background(Theme.mainBackground)
+    }
+}
+
 // MARK: - Subviews: Comparison Results
 
 private struct ComparisonCostSummaryView: View {
@@ -1546,7 +1604,7 @@ private struct ComparisonCostPlaceholderView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // Reserve consistent space to avoid “shaking” on quick calculations
+            // Reserve consistent space to avoid "shaking" on quick calculations
             HStack {
                 if isPartialPeriod {
                     Image(systemName: "info.circle")
@@ -1740,6 +1798,7 @@ private struct PlanSelectionView: View {
 
     var body: some View {
         VStack(spacing: 12) {
+            // Plan selection menu
             Menu {
                 ForEach(groups) { group in
                     Button {
@@ -1759,6 +1818,7 @@ private struct PlanSelectionView: View {
                                 Image(systemName: "checkmark")
                             }
                         }
+                        .padding(.vertical, 8)  // Increased padding for menu items
                     }
                 }
             } label: {
@@ -1778,11 +1838,12 @@ private struct PlanSelectionView: View {
                     Image(systemName: "chevron.down")
                         .foregroundColor(Theme.secondaryTextColor)
                 }
+                .padding(.vertical, 12)  // Increased vertical padding for menu button
                 .background(Theme.mainBackground.opacity(0.3))
                 .cornerRadius(8)
             }
 
-            // If multiple versions, show separate menu
+            // Version selection (if applicable)
             if let group = groups.first(where: { isCurrentlySelected($0) }) {
                 if let date = group.availableDates.first(where: {
                     group.productCode(for: $0) == selectedPlanCode
@@ -1801,6 +1862,7 @@ private struct PlanSelectionView: View {
                                                 Image(systemName: "checkmark")
                                             }
                                         }
+                                        .padding(.vertical, 8)  // Increased padding for menu items
                                     }
                                 }
                             }
@@ -1810,21 +1872,24 @@ private struct PlanSelectionView: View {
                                 Spacer()
                                 Image(systemName: "chevron.down")
                             }
+                            .padding(.vertical, 12)  // Increased vertical padding for menu button
                             .background(Theme.mainBackground.opacity(0.3))
                             .cornerRadius(8)
                         }
                     } else {
-                        // Single date case - show as plain text
+                        // Single date case
                         HStack {
                             Text("Available from: \(group.formatDate(date))")
                             Spacer()
                         }
+                        .padding(.vertical, 12)  // Increased vertical padding for single date display
                         .background(Theme.mainBackground.opacity(0.3))
                         .cornerRadius(8)
                     }
                 }
             }
         }
+        .padding(.vertical, 4)  // Added overall vertical padding to match ManualInputView
     }
 
     private func isCurrentlySelected(_ group: ProductGroup) -> Bool {

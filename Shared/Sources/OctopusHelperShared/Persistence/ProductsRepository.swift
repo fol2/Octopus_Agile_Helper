@@ -27,11 +27,23 @@ public final class ProductsRepository: ObservableObject {
     private let context: NSManagedObjectContext
 
     // MARK: - Constants
+    private let defaultProductCodes = [
+        "SILVER-24-12-31",
+        "SILVER-FLEX-22-11-25",
+        "SILVER-23-12-06",
+        "SILVER-24-04-03",
+        "SILVER-24-07-01",
+        "SILVER-24-10-01"
+    ]
+
     private let lastFetchKey = "ProductsRepository.lastSuccessfulFetch"
     private let calendar = Calendar.current
 
     // MARK: - Initializer
     private init() {
+        // Adjust to your actual persistence setup
+        // If you have multiple containers, or a different environment,
+        // you can pass in the context at init time, etc.
         self.context = PersistenceController.shared.container.viewContext
     }
 
@@ -45,9 +57,23 @@ public final class ProductsRepository: ObservableObject {
     /// - Throws: Possible network/decoding errors (OctopusAPIError) or Core Data errors.
     /// - Returns: Array of newly updated/inserted `ProductEntity` as NSManagedObject.
     @discardableResult
-    public func syncAllProducts(brand: String? = nil, forceFetch: Bool = false) async throws
-        -> [NSManagedObject]
-    {
+    public func syncAllProducts(brand: String? = nil, forceFetch: Bool = false) async throws -> [NSManagedObject] {
+        // First check if we have any products at all
+        let existingProducts = try await fetchLocalProducts()
+        if existingProducts.isEmpty {
+            print("syncAllProducts: ℹ️ No local products found, fetching from API...")
+            // Skip the daily check and proceed with fetch
+        } else {
+            // Check if we've already fetched today
+            if !forceFetch, let lastFetch = UserDefaults.standard.object(forKey: lastFetchKey) as? Date {
+                let isToday = calendar.isDate(lastFetch, inSameDayAs: Date())
+                if isToday {
+                    print("syncAllProducts: ℹ️ Already fetched products today. Using local data...")
+                    return existingProducts
+                }
+            }
+        }
+        
         print("syncAllProducts: 🔄 开始同步产品数据...")
         // 1) Fetch from the API
         let apiItems = try await apiClient.fetchAllProducts(brand: brand)
@@ -56,6 +82,15 @@ public final class ProductsRepository: ObservableObject {
         // 2) Upsert them into Core Data
         let finalEntities = try await upsertProducts(apiItems)
         print("syncAllProducts: ✅ 成功保存到Core Data，最终实体数量: \(finalEntities.count)")
+
+        // 3) After main sync, ensure we have all default products if not in the list
+        for defaultProductCode in defaultProductCodes {
+            let isProductInAPI = apiItems.contains { $0.code == defaultProductCode }
+            if !isProductInAPI {
+                print("syncAllProducts: ℹ️ Product \(defaultProductCode) not in official list, adding manually...")
+                _ = try await ensureProductExists(productCode: defaultProductCode)
+            }
+        }
 
         // Store successful fetch timestamp
         UserDefaults.standard.set(Date(), forKey: lastFetchKey)
@@ -113,9 +148,7 @@ public final class ProductsRepository: ObservableObject {
         // 1) Check if it already exists
         let existing = try await fetchLocalProductsByCode(productCode)
         if !existing.isEmpty {
-            print(
-                "ensureProductExists: ✅ Product \(productCode) already in local DB, skipping fetch."
-            )
+            print("ensureProductExists: ✅ Product \(productCode) already in local DB, skipping fetch.")
             return existing
         }
 
@@ -128,8 +161,7 @@ public final class ProductsRepository: ObservableObject {
         let upserted = try await upsertProducts([
             OctopusProductItem(
                 code: detail.code,
-                direction: detail.direction
-                    ?? (detail.single_register_electricity_tariffs == nil
+                direction: detail.direction ?? (detail.single_register_electricity_tariffs == nil
                         && detail.single_register_gas_tariffs == nil ? "UNKNOWN" : "IMPORT"),
                 full_name: detail.full_name,
                 display_name: detail.display_name,
@@ -155,8 +187,7 @@ public final class ProductsRepository: ObservableObject {
         ])
 
         // 4) Upsert the tariff details
-        _ = try await ProductDetailRepository.shared.upsertProductDetail(
-            json: detail, code: productCode)
+        _ = try await ProductDetailRepository.shared.upsertProductDetail(json: detail, code: productCode)
         return upserted
     }
 
@@ -166,9 +197,7 @@ public final class ProductsRepository: ObservableObject {
     /// - Parameter tariffCodes: e.g. ["E-1R-AGILE-24-04-03-H", "E-1R-SILVER-24-12-31-A"]
     /// - Returns: All newly added or existing product rows
     @discardableResult
-    public func ensureProductsForTariffCodes(_ tariffCodes: [String]) async throws
-        -> [NSManagedObject]
-    {
+    public func ensureProductsForTariffCodes(_ tariffCodes: [String]) async throws -> [NSManagedObject] {
         var allUpserted: [NSManagedObject] = []
         for code in tariffCodes {
             if let shortCode = productCodeFromTariff(code) {
@@ -243,15 +272,15 @@ public final class ProductsRepository: ObservableObject {
     /// Copies fields from the API model (`OctopusProductItem`) into a `ProductEntity` row.
     /// Update this logic if you add/remove columns from your ProductEntity.
     private func update(productEntity: NSManagedObject, from item: OctopusProductItem) {
-        productEntity.setValue(item.code, forKey: "code")
-        productEntity.setValue(item.direction, forKey: "direction")
-        productEntity.setValue(item.full_name, forKey: "full_name")
+        productEntity.setValue(item.code,         forKey: "code")
+        productEntity.setValue(item.direction,    forKey: "direction")
+        productEntity.setValue(item.full_name,    forKey: "full_name")
         productEntity.setValue(item.display_name, forKey: "display_name")
-        productEntity.setValue(item.description, forKey: "desc")
-        productEntity.setValue(item.is_variable, forKey: "is_variable")
-        productEntity.setValue(item.is_green, forKey: "is_green")
-        productEntity.setValue(item.is_tracker, forKey: "is_tracker")
-        productEntity.setValue(item.is_prepay, forKey: "is_prepay")
+        productEntity.setValue(item.description,  forKey: "desc")
+        productEntity.setValue(item.is_variable,  forKey: "is_variable")
+        productEntity.setValue(item.is_green,     forKey: "is_green")
+        productEntity.setValue(item.is_tracker,   forKey: "is_tracker")
+        productEntity.setValue(item.is_prepay,    forKey: "is_prepay")
 
         // Convert Boolean to String as per Core Data model requirement
         productEntity.setValue(item.is_business ? "true" : "false", forKey: "is_business")
@@ -259,8 +288,8 @@ public final class ProductsRepository: ObservableObject {
         // Use correct attribute name "is_stricted" from Core Data model
         productEntity.setValue(item.is_restricted, forKey: "is_stricted")
 
-        productEntity.setValue(item.term, forKey: "term")
-        productEntity.setValue(item.brand, forKey: "brand")
+        productEntity.setValue(item.term,         forKey: "term")
+        productEntity.setValue(item.brand,        forKey: "brand")
 
         // Handle optional dates with nil coalescing
         productEntity.setValue(item.available_from ?? Date.distantPast, forKey: "available_from")
@@ -282,8 +311,7 @@ public final class ProductsRepository: ObservableObject {
         guard parts.count >= 4 else { return nil }
 
         // Remove first 2 parts and last part
-        let productParts = parts[2...(parts.count - 2)]
-        return productParts.joined(separator: "-")
+        return parts[2...5].joined(separator: "-") // e.g. "AGILE-24-04-03"
     }
 
     /// Fetch local product rows by the exact product code (case-sensitive match).
