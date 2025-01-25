@@ -168,38 +168,30 @@ public struct TariffComparisonCardView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) { // ← Zero spacing root container
+        VStack(spacing: 0) {  // ← Zero spacing root container
             // Header
             headerView
-                .padding(.horizontal)
-                .padding(.bottom, 2) // ← Match Account card's header padding
-            
-            Divider()
-                .padding(.horizontal)
-                .padding(.vertical, 4) // ← Match Account card's divider style
-            
+                .padding(.bottom, 2)  // ← Match Account card's header bottom padding
+
+            Spacer()
+                .padding(.vertical, 4)
+
             if !hasAccountInfo {
                 noAccountView
             } else {
-                VStack(spacing: 0) { // ← Structured content container
+                VStack(spacing: 0) {  // ← Structured content container
                     configurationSection
-                        .padding(.horizontal)
-                    
-                    Divider()
+
+                    Spacer()
                         .padding(.vertical, 8)
-                    
+
                     dateNavigationSection
-                        .padding(.horizontal)
-                    
-                    Divider()
-                        .padding(.vertical, 8)
-                    
+
                     resultsSection
-                        .padding(.horizontal)
                 }
             }
         }
-        .rateCardStyle() // ← Apply card style to root container
+        .rateCardStyle()  // ← Apply card style to root container
         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .animation(.spring(duration: 0.6), value: isFlipped)
         .environment(\.locale, globalSettings.locale)
@@ -276,7 +268,7 @@ public struct TariffComparisonCardView: View {
                 }
             }
         }
-        .padding(.bottom, 2) // ← Match Account card's header bottom padding
+        .padding(.bottom, 2)  // ← Match Account card's header bottom padding
     }
 
     // MARK: - Configuration Section
@@ -305,6 +297,8 @@ public struct TariffComparisonCardView: View {
                 )
             }
         )
+        .padding(.top, 8)
+        .padding(.horizontal)
     }
 
     // MARK: - Date Navigation Section
@@ -325,13 +319,13 @@ public struct TariffComparisonCardView: View {
             compareTariffVM: compareTariffVM,
             consumptionVM: consumptionVM
         )
-        .padding(.vertical, 4) // ← Match Account card's 44pt height containers
+        .padding(.vertical, 4)  // ← Match Account card's 44pt height containers
     }
 
     // MARK: - Results Section
     private var resultsSection: some View {
         comparisonResultsView
-            .padding(.vertical, 8) // ← Match vertical padding in Account card
+            .padding(.vertical, 8)  // ← Match vertical padding in Account card
     }
 
     // MARK: - Comparison Results
@@ -403,7 +397,6 @@ public struct TariffComparisonCardView: View {
                 .font(Theme.captionFont())
                 .foregroundColor(Theme.secondaryTextColor.opacity(0.7))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
@@ -978,7 +971,9 @@ private struct ComparisonDateNavView: View {
                         moveDate(forward: false)
                     } label: {
                         Image(systemName: "chevron.left")
+                            .imageScale(.large)
                             .foregroundColor(Theme.mainColor)
+                            .contentShape(Rectangle())
                     }
                 }
             }
@@ -1001,13 +996,15 @@ private struct ComparisonDateNavView: View {
                         moveDate(forward: true)
                     } label: {
                         Image(systemName: "chevron.right")
+                            .imageScale(.large)
                             .foregroundColor(Theme.mainColor)
+                            .contentShape(Rectangle())
                     }
                 }
             }
             .frame(width: 44)
         }
-        .padding(.vertical, 4)
+        .padding(.top, 4)
     }
 
     // MARK: - Navigation Logic
@@ -1293,7 +1290,7 @@ private struct ComparisonPlanSelectionView: View {
         VStack(spacing: 12) {
             Picker("Mode", selection: $compareSettings.settings.isManualPlan) {
                 Text("Octopus Plan").tag(false)
-                Text("Manual Plan").tag(true)
+                Text("Manual").tag(true)
             }
             .pickerStyle(.segmented)
 
@@ -1356,19 +1353,30 @@ private struct ComparisonCostSummaryView: View {
     let actualPeriod: (start: Date, end: Date)?
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             // Show partial period info if applicable
-            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Text("Showing partial period")
+            ZStack {
+                // Invisible placeholder with matching font properties
+                Text(" ")  // Non-breaking space to maintain height
+                    .font(Theme.captionFont())
+                    .foregroundColor(.clear)
+                    .accessibilityHidden(true)
+
+                // Actual content
+                if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(Theme.secondaryTextColor)
+                        Text(
+                            "Available data: \(formatDateRange(actual.start, Calendar.current.date(byAdding: .day, value: -1, to: actual.end) ?? actual.end))"
+                        )
                         .font(Theme.captionFont())
                         .foregroundColor(Theme.secondaryTextColor)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .padding(.horizontal)
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            .frame(height: 20)  // Explicit height matching the content
 
             HStack(alignment: .top, spacing: 16) {
                 // Left difference & cost block
@@ -1415,7 +1423,7 @@ private struct ComparisonCostSummaryView: View {
                         )
                     }
                 }
-
+                Spacer()
                 // Right side interval switcher
                 VStack(spacing: 6) {
                     ForEach(CompareIntervalType.allCases, id: \.self) { interval in
@@ -1438,7 +1446,6 @@ private struct ComparisonCostSummaryView: View {
                             )
                             .frame(height: 28)
                             .frame(width: 110, alignment: .leading)
-                            .padding(.horizontal, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(
@@ -1451,21 +1458,9 @@ private struct ComparisonCostSummaryView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .padding(.vertical, 6)
-
-            // Show date range info for partial period
-            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Available data: \(formatDateRange(actual.start, actual.end))")
-                        .font(Theme.captionFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
+            .padding(.vertical, 2)  // Add vertical padding to match AccountTariffCardView
+            .frame(maxWidth: .infinity, alignment: .leading)  // Add frame modifier to match AccountTariffCardView
         }
-        .animation(.spring(duration: 0.3), value: isPartialPeriod)
     }
 
     private func formatDateRange(_ start: Date, _ end: Date) -> String {
@@ -1559,7 +1554,6 @@ private struct ComparisonCostPlaceholderView: View {
                         .font(Theme.captionFont())
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                 }
-                .padding(.horizontal)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
@@ -1577,7 +1571,7 @@ private struct ComparisonCostPlaceholderView: View {
                         Spacer()
                     }
 
-                    Divider().padding(.horizontal)
+                    Spacer()
 
                     // Cost rows placeholder
                     VStack(alignment: .leading, spacing: 8) {
@@ -1646,7 +1640,6 @@ private struct ComparisonCostPlaceholderView: View {
                         )
                         .frame(height: 28)
                         .frame(width: 110, alignment: .leading)
-                        .padding(.horizontal, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(
@@ -1657,7 +1650,8 @@ private struct ComparisonCostPlaceholderView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 2)  // Add vertical padding to match AccountTariffCardView
+            .frame(maxWidth: .infinity, alignment: .leading)  // Add frame modifier to match AccountTariffCardView
 
             // Show placeholder for date range info
             if isPartialPeriod {
@@ -1667,7 +1661,6 @@ private struct ComparisonCostPlaceholderView: View {
                         .frame(height: 16)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
@@ -1707,7 +1700,6 @@ private struct ManualPlanDetailView: View {
                 .foregroundColor(Theme.secondaryTextColor)
                 .padding(.top, 8)
         }
-        .padding()
     }
 }
 
@@ -1797,7 +1789,6 @@ private struct PlanSelectionView: View {
                     Image(systemName: "chevron.down")
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                .padding()
                 .background(Theme.mainBackground.opacity(0.3))
                 .cornerRadius(8)
             }
@@ -1830,7 +1821,6 @@ private struct PlanSelectionView: View {
                                 Spacer()
                                 Image(systemName: "chevron.down")
                             }
-                            .padding()
                             .background(Theme.mainBackground.opacity(0.3))
                             .cornerRadius(8)
                         }
@@ -1840,14 +1830,12 @@ private struct PlanSelectionView: View {
                             Text("Available from: \(group.formatDate(date))")
                             Spacer()
                         }
-                        .padding()
                         .background(Theme.mainBackground.opacity(0.3))
                         .cornerRadius(8)
                     }
                 }
             }
         }
-        .padding(.horizontal)
     }
 
     private func isCurrentlySelected(_ group: ProductGroup) -> Bool {
@@ -2094,7 +2082,6 @@ private struct BadgeView: View {
     var body: some View {
         Text(text)
             .font(.system(size: 12, weight: .medium))
-            .padding(.horizontal, 8).padding(.vertical, 4)
             .background(color.opacity(0.2))
             .foregroundColor(color)
             .clipShape(Capsule())
@@ -2134,7 +2121,6 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
                         .foregroundColor(Theme.secondaryTextColor)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
-                .padding()
                 .background(Theme.mainBackground.opacity(0.3))
                 .cornerRadius(8)
             }
@@ -2168,7 +2154,6 @@ private struct ProductDetailView: View {
                         .foregroundColor(.red)
                 }
             }
-            .padding()
         }
         .onAppear { Task { await loadTariffCode() } }
     }
