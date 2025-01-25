@@ -522,7 +522,21 @@ public struct TariffComparisonCardView: View {
     }
 
     private func updateAllowedDateRange() {
-        minAllowedDate = consumptionVM.minInterval
+        // Get consumption min date
+        let consumptionMin = consumptionVM.minInterval
+
+        // Get product available from date
+        var productMin: Date? = nil
+        if !compareSettings.settings.isManualPlan {
+            if let (group, date) = findSelectedGroup() {
+                productMin = date
+            }
+        }
+
+        // Use the later of consumption min and product available from
+        minAllowedDate = [consumptionMin, productMin].compactMap { $0 }.max()
+
+        // Set max date
         let calendar = Calendar.current
         let today = Date()
         let startOfToday = calendar.startOfDay(for: today)
@@ -542,11 +556,26 @@ public struct TariffComparisonCardView: View {
             maxAllowedDate = consumptionVM.maxInterval
         }
 
-        if let mn = minAllowedDate, currentDate < mn {
-            currentDate = mn
+        // Clamp current date if needed using IntervalBoundary
+        if let mn = minAllowedDate {
+            let boundary = accountTariffVM.getBoundary(
+                for: currentDate,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            if !boundary.overlapsWithData(minDate: mn, maxDate: nil) {
+                currentDate = mn
+            }
         }
-        if let mx = maxAllowedDate, currentDate > mx {
-            currentDate = mx
+        if let mx = maxAllowedDate {
+            let boundary = accountTariffVM.getBoundary(
+                for: currentDate,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+            if boundary.isAfterData(maxDate: mx) {
+                currentDate = mx
+            }
         }
     }
 
@@ -1017,7 +1046,14 @@ private struct ComparisonDateNavView: View {
         }
 
         // For other intervals, use boundary checking
-        guard let prevBoundary = previousBoundary else { return false }
+        guard let prevDate = getPreviousDate() else { return false }
+
+        // Use IntervalBoundary to check if the previous date's interval overlaps with allowed data range
+        let prevBoundary = accountTariffVM.getBoundary(
+            for: prevDate,
+            intervalType: selectedInterval.vmInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
         return prevBoundary.overlapsWithData(minDate: minDate, maxDate: maxDate)
     }
 
@@ -1346,20 +1382,17 @@ private struct ComparisonCostSummaryView: View {
     var body: some View {
         VStack(spacing: 8) {
             // Show partial period info if applicable
-            VStack {
-                if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(Theme.secondaryTextColor)
-                        Text("Showing partial period")
-                            .font(Theme.captionFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                    }
-                    .padding(.horizontal)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Text("Showing partial period")
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
+                .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .clipped()
 
             HStack(alignment: .top, spacing: 16) {
                 // Left difference & cost block
@@ -1446,21 +1479,18 @@ private struct ComparisonCostSummaryView: View {
             .padding(.vertical, 6)
 
             // Show date range info for partial period
-            VStack {
-                if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Available data: \(formatDateRange(actual.start, actual.end))")
-                            .font(Theme.captionFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Available data: \(formatDateRange(actual.start, actual.end))")
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            .clipped()
         }
-        .animation(.spring(duration: 0.3, bounce: 0.2), value: isPartialPeriod)
+        .animation(.spring(duration: 0.3), value: isPartialPeriod)
     }
 
     private func formatDateRange(_ start: Date, _ end: Date) -> String {
@@ -1546,20 +1576,17 @@ private struct ComparisonCostPlaceholderView: View {
     var body: some View {
         VStack(spacing: 8) {
             // Show partial period placeholder if applicable
-            VStack {
-                if isPartialPeriod {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                        Text("Showing partial period")
-                            .font(Theme.captionFont())
-                            .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                    }
-                    .padding(.horizontal)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            if isPartialPeriod {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                    Text("Showing partial period")
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                 }
+                .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .clipped()
 
             HStack(alignment: .top, spacing: 16) {
                 // Left difference & cost block with shimmer effect
@@ -1658,21 +1685,18 @@ private struct ComparisonCostPlaceholderView: View {
             .padding(.vertical, 6)
 
             // Show placeholder for date range info
-            VStack {
-                if isPartialPeriod {
-                    VStack(alignment: .leading, spacing: 4) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Theme.secondaryTextColor.opacity(0.2))
-                            .frame(height: 16)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            if isPartialPeriod {
+                VStack(alignment: .leading, spacing: 4) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.secondaryTextColor.opacity(0.2))
+                        .frame(height: 16)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            .clipped()
         }
-        .animation(.spring(duration: 0.3, bounce: 0.2), value: isPartialPeriod)
+        .animation(.spring(duration: 0.3), value: isPartialPeriod)
     }
 
     private func iconName(for interval: CompareIntervalType) -> String {
