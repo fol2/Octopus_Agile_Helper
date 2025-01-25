@@ -1346,17 +1346,20 @@ private struct ComparisonCostSummaryView: View {
     var body: some View {
         VStack(spacing: 8) {
             // Show partial period info if applicable
-            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Text("Showing partial period")
-                        .font(Theme.captionFont())
-                        .foregroundColor(Theme.secondaryTextColor)
+            VStack {
+                if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(Theme.secondaryTextColor)
+                        Text("Showing partial period")
+                            .font(Theme.captionFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                    }
+                    .padding(.horizontal)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .padding(.horizontal)
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            .clipped()
 
             HStack(alignment: .top, spacing: 16) {
                 // Left difference & cost block
@@ -1443,18 +1446,21 @@ private struct ComparisonCostSummaryView: View {
             .padding(.vertical, 6)
 
             // Show date range info for partial period
-            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Available data: \(formatDateRange(actual.start, actual.end))")
-                        .font(Theme.captionFont())
-                        .foregroundColor(Theme.secondaryTextColor)
+            VStack {
+                if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Available data: \(formatDateRange(actual.start, actual.end))")
+                            .font(Theme.captionFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
+            .clipped()
         }
-        .animation(.spring(duration: 0.3), value: isPartialPeriod)
+        .animation(.spring(duration: 0.3, bounce: 0.2), value: isPartialPeriod)
     }
 
     private func formatDateRange(_ start: Date, _ end: Date) -> String {
@@ -1540,17 +1546,20 @@ private struct ComparisonCostPlaceholderView: View {
     var body: some View {
         VStack(spacing: 8) {
             // Show partial period placeholder if applicable
-            if isPartialPeriod {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                    Text("Showing partial period")
-                        .font(Theme.captionFont())
-                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+            VStack {
+                if isPartialPeriod {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                        Text("Showing partial period")
+                            .font(Theme.captionFont())
+                            .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                    }
+                    .padding(.horizontal)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .padding(.horizontal)
-                .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            .clipped()
 
             HStack(alignment: .top, spacing: 16) {
                 // Left difference & cost block with shimmer effect
@@ -1649,18 +1658,21 @@ private struct ComparisonCostPlaceholderView: View {
             .padding(.vertical, 6)
 
             // Show placeholder for date range info
-            if isPartialPeriod {
-                VStack(alignment: .leading, spacing: 4) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Theme.secondaryTextColor.opacity(0.2))
-                        .frame(height: 16)
+            VStack {
+                if isPartialPeriod {
+                    VStack(alignment: .leading, spacing: 4) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Theme.secondaryTextColor.opacity(0.2))
+                            .frame(height: 16)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
+            .clipped()
         }
-        .animation(.spring(duration: 0.3), value: isPartialPeriod)
+        .animation(.spring(duration: 0.3, bounce: 0.2), value: isPartialPeriod)
     }
 
     private func iconName(for interval: CompareIntervalType) -> String {
