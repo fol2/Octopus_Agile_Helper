@@ -139,6 +139,11 @@ public struct TariffComparisonCardView: View {
     @State private var overlapStart: Date?
     @State private var overlapEnd: Date?
 
+    // New state variables for partial period tracking
+    @State private var actualCalculationPeriod: (start: Date, end: Date)?
+    @State private var isPartialPeriod: Bool = false
+    @State private var requestedPeriod: (start: Date, end: Date)?
+
     // Manage compare plan settings
     @StateObject private var compareSettings = ComparisonCardSettingsManager()
 
@@ -373,7 +378,8 @@ public struct TariffComparisonCardView: View {
                 // Replace simple loading text with a placeholder that matches the structure
                 ComparisonCostPlaceholderView(
                     selectedInterval: selectedInterval,
-                    comparePlanLabel: comparePlanLabel
+                    comparePlanLabel: comparePlanLabel,
+                    isPartialPeriod: isPartialPeriod
                 )
             } else {
                 // Show cost comparison
@@ -397,7 +403,10 @@ public struct TariffComparisonCardView: View {
                         Task {
                             await recalcBothTariffs(partialOverlap: true)
                         }
-                    }
+                    },
+                    isPartialPeriod: isPartialPeriod,
+                    requestedPeriod: requestedPeriod,
+                    actualPeriod: actualCalculationPeriod
                 )
             }
         }
@@ -630,37 +639,47 @@ public struct TariffComparisonCardView: View {
     // MARK: - Calculation Routines
 
     private func recalcBothTariffs(partialOverlap: Bool = false) async {
-        // Default to true for partial overlap to ensure fair comparison
-        async let acctCalc = recalcAccountTariff(partialOverlap: partialOverlap)
-        async let cmpCalc = recalcCompareTariff(partialOverlap: partialOverlap)
+        // Calculate the requested date range based on interval type
+        let (requestedStart, requestedEnd) = TariffViewModel().calculateDateRange(
+            for: currentDate,
+            intervalType: selectedInterval.vmInterval,
+            billingDay: globalSettings.settings.billingDay
+        )
+
+        // Determine the actual calculation period considering all constraints
+        guard
+            let (overlapStart, overlapEnd) = await determineOverlapPeriod(
+                requestedStart: requestedStart,
+                requestedEnd: requestedEnd
+            )
+        else {
+            hasDateOverlap = false
+            await accountTariffVM.resetCalculationState()
+            await compareTariffVM.resetCalculationState()
+            return
+        }
+
+        hasDateOverlap = true
+
+        // Calculate both tariffs with the same overlap period
+        async let acctCalc = recalcAccountTariff(start: overlapStart, end: overlapEnd)
+        async let cmpCalc = recalcCompareTariff(start: overlapStart, end: overlapEnd)
         _ = await (acctCalc, cmpCalc)
     }
 
     @MainActor
-    private func recalcAccountTariff(partialOverlap: Bool) async {
+    private func recalcAccountTariff(start: Date, end: Date) async {
         if !hasAccountInfo { return }
         guard !consumptionVM.consumptionRecords.isEmpty else { return }
 
         do {
-            let (start, end) = TariffViewModel().calculateDateRange(
-                for: currentDate,
-                intervalType: selectedInterval.vmInterval,
-                billingDay: globalSettings.settings.billingDay
-            )
-
-            // For account tariff, we use consumption data range as validity period
-            let (overlapStart, overlapEnd) =
-                partialOverlap
-                ? findOverlapRange(start, end, "savedAccount")
-                : (start, end)
-
             await accountTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "savedAccount",
                 intervalType: selectedInterval.vmInterval,
                 accountData: getAccountResponse(),
-                partialStart: overlapStart,
-                partialEnd: overlapEnd
+                partialStart: start,
+                partialEnd: end
             )
         } catch {
             DebugLogger.debug(
@@ -670,36 +689,13 @@ public struct TariffComparisonCardView: View {
     }
 
     @MainActor
-    private func recalcCompareTariff(partialOverlap: Bool) async {
+    private func recalcCompareTariff(start: Date, end: Date) async {
         guard !consumptionVM.consumptionRecords.isEmpty else {
             hasDateOverlap = false
             return
         }
 
         do {
-            let (start, end) = TariffViewModel().calculateDateRange(
-                for: currentDate,
-                intervalType: selectedInterval.vmInterval,
-                billingDay: globalSettings.settings.billingDay
-            )
-            var (overlapStart, overlapEnd) = (start, end)
-
-            // If partialOverlap, find the date overlap with the chosen plan's validity
-            if partialOverlap {
-                let planRange = await fetchPlanValidityRange(
-                    compareSettings.settings.selectedPlanCode)
-                (overlapStart, overlapEnd) = intersectRanges(start...end, planRange)
-
-                // If there's no intersection, skip
-                if overlapEnd <= overlapStart {
-                    hasDateOverlap = false
-                    await compareTariffVM.resetCalculationState()
-                    return
-                }
-            }
-
-            hasDateOverlap = true
-
             if compareSettings.settings.isManualPlan {
                 // Build mock account response for manual plan
                 let mockAccount = buildMockAccountResponseForManual()
@@ -708,8 +704,8 @@ public struct TariffComparisonCardView: View {
                     tariffCode: "manualPlan",
                     intervalType: selectedInterval.vmInterval,
                     accountData: mockAccount,
-                    partialStart: overlapStart,
-                    partialEnd: overlapEnd
+                    partialStart: start,
+                    partialEnd: end
                 )
             } else {
                 let code = compareSettings.settings.selectedPlanCode
@@ -742,8 +738,8 @@ public struct TariffComparisonCardView: View {
                     for: currentDate,
                     tariffCode: finalCode,
                     intervalType: selectedInterval.vmInterval,
-                    partialStart: overlapStart,
-                    partialEnd: overlapEnd
+                    partialStart: start,
+                    partialEnd: end
                 )
             }
         } catch {
@@ -814,6 +810,81 @@ public struct TariffComparisonCardView: View {
         let start = max(r1.lowerBound, r2.lowerBound)
         let end = min(r1.upperBound, r2.upperBound)
         return (start, end)
+    }
+
+    /// Determine the actual calculation period based on data availability and tariff validity
+    private func determineOverlapPeriod(requestedStart: Date, requestedEnd: Date) async -> (
+        Date, Date
+    )? {
+        // Get consumption data range
+        guard let consumptionStart = consumptionVM.minInterval,
+            let consumptionEnd = consumptionVM.maxInterval
+        else {
+            return nil
+        }
+
+        // Get account tariff range
+        let accountRange = await fetchAccountValidityRange()
+
+        // Get comparison tariff range
+        let compareRange = await fetchPlanValidityRange(compareSettings.settings.selectedPlanCode)
+
+        // Find intersection of all ranges
+        let (start1, end1) = intersectRanges(
+            requestedStart...requestedEnd, consumptionStart...consumptionEnd)
+        let (start2, end2) = intersectRanges(accountRange, compareRange)
+
+        // Create ranges for final intersection
+        let range1 = start1...end1
+        let range2 = start2...end2
+        let (finalStart, finalEnd) = intersectRanges(range1, range2)
+
+        // Check if this is a partial period
+        isPartialPeriod = finalStart != requestedStart || finalEnd != requestedEnd
+
+        // Store both the requested and actual periods
+        requestedPeriod = (requestedStart, requestedEnd)
+        actualCalculationPeriod = (finalStart, finalEnd)
+
+        return (finalStart, finalEnd)
+    }
+
+    /// Fetch the validity range for account tariffs
+    private func fetchAccountValidityRange() async -> ClosedRange<Date> {
+        if let accountData = getAccountResponse(),
+            let firstProperty = accountData.properties.first,
+            let elecMP = firstProperty.electricity_meter_points?.first,
+            let agreements = elecMP.agreements
+        {
+
+            let dateFormatter = ISO8601DateFormatter()
+
+            // Find the overall validity range across all agreements
+            var minDate = Date.distantFuture
+            var maxDate = Date.distantPast
+
+            for agreement in agreements {
+                if let fromStr = agreement.valid_from,
+                    let from = dateFormatter.date(from: fromStr)
+                {
+                    minDate = min(minDate, from)
+                }
+
+                if let toStr = agreement.valid_to,
+                    let to = dateFormatter.date(from: toStr)
+                {
+                    maxDate = max(maxDate, to)
+                }
+            }
+
+            if minDate < maxDate {
+                return minDate...maxDate
+            }
+        }
+
+        // Default to a wide range if we can't determine
+        let now = Date()
+        return now.addingTimeInterval(-365 * 24 * 3600)...now.addingTimeInterval(365 * 24 * 3600)
     }
 
     private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
@@ -1076,91 +1147,132 @@ private struct ComparisonCostSummaryView: View {
     let comparePlanLabel: String
     let onIntervalChange: (CompareIntervalType) -> Void
 
+    // Add new properties for partial period info
+    let isPartialPeriod: Bool
+    let requestedPeriod: (start: Date, end: Date)?
+    let actualPeriod: (start: Date, end: Date)?
+
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Left difference & cost block
-            VStack(alignment: .leading, spacing: 8) {
-                let accountCost =
-                    showVAT ? accountCalculation.costIncVAT : accountCalculation.costExcVAT
-                let compareCost =
-                    showVAT ? compareCalculation.costIncVAT : compareCalculation.costExcVAT
-                let diff = compareCost - accountCost
-                let diffStr = String(format: "£%.2f", abs(diff) / 100.0)
-                let sign = diff > 0 ? "+" : (diff < 0 ? "−" : "")
-                let diffColor: Color =
-                    diff > 0 ? .red : (diff < 0 ? .green : Theme.secondaryTextColor)
-
-                // Diff row
-                HStack(alignment: .firstTextBaseline) {
-                    if isCalculating {
-                        ProgressView().scaleEffect(0.8)
-                    } else {
-                        Text("\(sign)\(diffStr)")
-                            .font(Theme.mainFont())
-                            .foregroundColor(diffColor)
-                    }
-                    Text("difference")
-                        .font(Theme.subFont())
+        VStack(spacing: 8) {
+            // Show partial period info if applicable
+            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                HStack {
+                    Image(systemName: "info.circle")
                         .foregroundColor(Theme.secondaryTextColor)
-                    Spacer()
+                    Text("Showing partial period")
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor)
                 }
-
-                Divider().padding(.horizontal)
-
-                // My account vs compare
-                VStack(alignment: .leading, spacing: 8) {
-                    costRow(
-                        label: "My Account",
-                        cost: accountCost,
-                        averageRate: averageRate(for: accountCalculation)
-                    )
-                    costRow(
-                        label: comparePlanLabel,
-                        cost: compareCost,
-                        averageRate: averageRate(for: compareCalculation)
-                    )
-                }
+                .padding(.horizontal)
             }
 
-            // Right side interval switcher
-            VStack(spacing: 6) {
-                ForEach(CompareIntervalType.allCases, id: \.self) { interval in
-                    Button {
-                        withAnimation {
-                            onIntervalChange(interval)
+            HStack(alignment: .top, spacing: 16) {
+                // Left difference & cost block
+                VStack(alignment: .leading, spacing: 8) {
+                    let accountCost =
+                        showVAT ? accountCalculation.costIncVAT : accountCalculation.costExcVAT
+                    let compareCost =
+                        showVAT ? compareCalculation.costIncVAT : compareCalculation.costExcVAT
+                    let diff = compareCost - accountCost
+                    let diffStr = String(format: "£%.2f", abs(diff) / 100.0)
+                    let sign = diff > 0 ? "+" : (diff < 0 ? "−" : "")
+                    let diffColor: Color =
+                        diff > 0 ? .red : (diff < 0 ? .green : Theme.secondaryTextColor)
+
+                    // Diff row
+                    HStack(alignment: .firstTextBaseline) {
+                        if isCalculating {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Text("\(sign)\(diffStr)")
+                                .font(Theme.mainFont())
+                                .foregroundColor(diffColor)
                         }
-                    } label: {
-                        HStack {
-                            Image(systemName: iconName(for: interval))
-                                .imageScale(.small)
-                            Spacer(minLength: 16)
-                            Text(interval.displayName)
-                                .font(.callout)
-                        }
-                        .font(Theme.subFont())
-                        .foregroundColor(
-                            selectedInterval == interval
-                                ? Theme.mainTextColor : Theme.secondaryTextColor
+                        Text("difference")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        Spacer()
+                    }
+
+                    Divider().padding(.horizontal)
+
+                    // My account vs compare
+                    VStack(alignment: .leading, spacing: 8) {
+                        costRow(
+                            label: "My Account",
+                            cost: accountCost,
+                            calculation: accountCalculation,
+                            averageRate: averageRate(for: accountCalculation)
                         )
-                        .frame(height: 28)
-                        .frame(width: 110, alignment: .leading)
-                        .padding(.horizontal, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(
-                                    selectedInterval == interval
-                                        ? Theme.mainColor.opacity(0.2) : .clear)
+                        costRow(
+                            label: comparePlanLabel,
+                            cost: compareCost,
+                            calculation: compareCalculation,
+                            averageRate: averageRate(for: compareCalculation)
                         )
                     }
-                    .buttonStyle(.plain)
                 }
+
+                // Right side interval switcher
+                VStack(spacing: 6) {
+                    ForEach(CompareIntervalType.allCases, id: \.self) { interval in
+                        Button {
+                            withAnimation {
+                                onIntervalChange(interval)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: iconName(for: interval))
+                                    .imageScale(.small)
+                                Spacer(minLength: 16)
+                                Text(interval.displayName)
+                                    .font(.callout)
+                            }
+                            .font(Theme.subFont())
+                            .foregroundColor(
+                                selectedInterval == interval
+                                    ? Theme.mainTextColor : Theme.secondaryTextColor
+                            )
+                            .frame(height: 28)
+                            .frame(width: 110, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(
+                                        selectedInterval == interval
+                                            ? Theme.mainColor.opacity(0.2) : .clear)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 6)
             }
             .padding(.vertical, 6)
+
+            // Show date range info for partial period
+            if isPartialPeriod, let requested = requestedPeriod, let actual = actualPeriod {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Available data: \(formatDateRange(actual.start, actual.end))")
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+            }
         }
-        .padding(.vertical, 6)
     }
 
-    private func costRow(label: String, cost: Double, averageRate: String?) -> some View {
+    private func formatDateRange(_ start: Date, _ end: Date) -> String {
+        let df = DateFormatter()
+        df.dateFormat = "d MMM yyyy"
+        return "\(df.string(from: start)) - \(df.string(from: end))"
+    }
+
+    private func costRow(
+        label: String, cost: Double, calculation: TariffViewModel.TariffCalculation,
+        averageRate: String?
+    ) -> some View {
         HStack(spacing: 8) {
             // Use specific icons for different types
             if label.lowercased().contains("my account") {
@@ -1183,6 +1295,11 @@ private struct ComparisonCostSummaryView: View {
                         .font(Theme.subFont())
                         .foregroundColor(Theme.mainTextColor)
                 }
+                let standingCharge =
+                    showVAT ? calculation.standingChargeIncVAT : calculation.standingChargeExcVAT
+                Text("£\(String(format: "%.2f", standingCharge / 100.0)) standing charge")
+                    .font(Theme.captionFont())
+                    .foregroundColor(Theme.secondaryTextColor)
                 if let avg = averageRate {
                     Text("Avg: \(avg)p/kWh")
                         .font(Theme.captionFont())
@@ -1215,97 +1332,138 @@ private struct ComparisonCostSummaryView: View {
 private struct ComparisonCostPlaceholderView: View {
     let selectedInterval: CompareIntervalType
     let comparePlanLabel: String
+    let isPartialPeriod: Bool
+
+    init(
+        selectedInterval: CompareIntervalType, comparePlanLabel: String,
+        isPartialPeriod: Bool = false
+    ) {
+        self.selectedInterval = selectedInterval
+        self.comparePlanLabel = comparePlanLabel
+        self.isPartialPeriod = isPartialPeriod
+    }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Left difference & cost block with shimmer effect
-            VStack(alignment: .leading, spacing: 8) {
-                // Diff row
-                HStack(alignment: .firstTextBaseline) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Theme.secondaryTextColor.opacity(0.2))
-                        .frame(width: 80, height: 20)
-                    Text("difference")
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Spacer()
+        VStack(spacing: 8) {
+            // Show partial period placeholder if applicable
+            if isPartialPeriod {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                    Text("Showing partial period")
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
                 }
-
-                Divider().padding(.horizontal)
-
-                // Cost rows placeholder
-                VStack(alignment: .leading, spacing: 8) {
-                    // My Account row
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.crop.circle")
-                            .foregroundColor(Theme.icon.opacity(0.5))
-                            .imageScale(.small)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text("My Account:")
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Theme.secondaryTextColor.opacity(0.2))
-                                    .frame(width: 60, height: 16)
-                            }
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Theme.secondaryTextColor.opacity(0.2))
-                                .frame(width: 80, height: 14)
-                        }
-                    }
-
-                    // Compare plan row
-                    HStack(spacing: 8) {
-                        Image(systemName: "shippingbox.fill")
-                            .foregroundColor(Theme.icon.opacity(0.5))
-                            .imageScale(.small)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text("\(comparePlanLabel):")
-                                    .font(Theme.subFont())
-                                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Theme.secondaryTextColor.opacity(0.2))
-                                    .frame(width: 60, height: 16)
-                            }
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Theme.secondaryTextColor.opacity(0.2))
-                                .frame(width: 80, height: 14)
-                        }
-                    }
-                }
+                .padding(.horizontal)
             }
 
-            // Right side interval switcher (keep the same as actual view)
-            VStack(spacing: 6) {
-                ForEach(CompareIntervalType.allCases, id: \.self) { interval in
-                    HStack {
-                        Image(systemName: iconName(for: interval))
-                            .imageScale(.small)
-                        Spacer(minLength: 16)
-                        Text(interval.displayName)
-                            .font(.callout)
+            HStack(alignment: .top, spacing: 16) {
+                // Left difference & cost block with shimmer effect
+                VStack(alignment: .leading, spacing: 8) {
+                    // Diff row
+                    HStack(alignment: .firstTextBaseline) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Theme.secondaryTextColor.opacity(0.2))
+                            .frame(width: 80, height: 20)
+                        Text("difference")
+                            .font(Theme.subFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        Spacer()
                     }
-                    .font(Theme.subFont())
-                    .foregroundColor(
-                        selectedInterval == interval
-                            ? Theme.mainTextColor : Theme.secondaryTextColor
-                    )
-                    .frame(height: 28)
-                    .frame(width: 110, alignment: .leading)
-                    .padding(.horizontal, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(
-                                selectedInterval == interval
-                                    ? Theme.mainColor.opacity(0.2) : .clear)
-                    )
+
+                    Divider().padding(.horizontal)
+
+                    // Cost rows placeholder
+                    VStack(alignment: .leading, spacing: 8) {
+                        // My Account row
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.crop.circle")
+                                .foregroundColor(Theme.icon.opacity(0.5))
+                                .imageScale(.small)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text("My Account:")
+                                        .font(Theme.subFont())
+                                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Theme.secondaryTextColor.opacity(0.2))
+                                        .frame(width: 60, height: 16)
+                                }
+                                Text("£0.00 standing charge")
+                                    .font(Theme.captionFont())
+                                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.secondaryTextColor.opacity(0.2))
+                                    .frame(width: 80, height: 14)
+                            }
+                        }
+
+                        // Compare plan row
+                        HStack(spacing: 8) {
+                            Image(systemName: "shippingbox.fill")
+                                .foregroundColor(Theme.icon.opacity(0.5))
+                                .imageScale(.small)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text("\(comparePlanLabel):")
+                                        .font(Theme.subFont())
+                                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Theme.secondaryTextColor.opacity(0.2))
+                                        .frame(width: 60, height: 16)
+                                }
+                                Text("£0.00 standing charge")
+                                    .font(Theme.captionFont())
+                                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.secondaryTextColor.opacity(0.2))
+                                    .frame(width: 80, height: 14)
+                            }
+                        }
+                    }
                 }
+
+                // Right side interval switcher (keep the same as actual view)
+                VStack(spacing: 6) {
+                    ForEach(CompareIntervalType.allCases, id: \.self) { interval in
+                        HStack {
+                            Image(systemName: iconName(for: interval))
+                                .imageScale(.small)
+                            Spacer(minLength: 16)
+                            Text(interval.displayName)
+                                .font(.callout)
+                        }
+                        .font(Theme.subFont())
+                        .foregroundColor(
+                            selectedInterval == interval
+                                ? Theme.mainTextColor : Theme.secondaryTextColor
+                        )
+                        .frame(height: 28)
+                        .frame(width: 110, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(
+                                    selectedInterval == interval
+                                        ? Theme.mainColor.opacity(0.2) : .clear)
+                        )
+                    }
+                }
+                .padding(.vertical, 6)
             }
             .padding(.vertical, 6)
+
+            // Show placeholder for date range info
+            if isPartialPeriod {
+                VStack(alignment: .leading, spacing: 4) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.secondaryTextColor.opacity(0.2))
+                        .frame(height: 16)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+            }
         }
-        .padding(.vertical, 6)
     }
 
     private func iconName(for interval: CompareIntervalType) -> String {
