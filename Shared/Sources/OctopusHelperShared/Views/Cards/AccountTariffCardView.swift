@@ -698,7 +698,7 @@ private struct AccountTariffMainContentView: View {
                                 ? Theme.mainTextColor : Theme.secondaryTextColor
                         )
                         .frame(height: 32)
-                        .frame(width: 90, alignment: .leading)
+                        .frame(width: 100, alignment: .leading)
                         .padding(.horizontal, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
