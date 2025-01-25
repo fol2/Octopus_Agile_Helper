@@ -168,14 +168,38 @@ public struct TariffComparisonCardView: View {
     }
 
     public var body: some View {
-        Group {
-            if isFlipped {
-                backView
+        VStack(spacing: 0) { // ← Zero spacing root container
+            // Header
+            headerView
+                .padding(.horizontal)
+                .padding(.bottom, 2) // ← Match Account card's header padding
+            
+            Divider()
+                .padding(.horizontal)
+                .padding(.vertical, 4) // ← Match Account card's divider style
+            
+            if !hasAccountInfo {
+                noAccountView
             } else {
-                frontView
+                VStack(spacing: 0) { // ← Structured content container
+                    configurationSection
+                        .padding(.horizontal)
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    dateNavigationSection
+                        .padding(.horizontal)
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    resultsSection
+                        .padding(.horizontal)
+                }
             }
         }
-        .rateCardStyle()
+        .rateCardStyle() // ← Apply card style to root container
         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .animation(.spring(duration: 0.6), value: isFlipped)
         .environment(\.locale, globalSettings.locale)
@@ -224,137 +248,90 @@ public struct TariffComparisonCardView: View {
         }
     }
 
-    // MARK: - Front View
-    private var frontView: some View {
-        VStack(spacing: 0) {
-            // Header with flip button
-            HStack {
-                if let def = CardRegistry.shared.definition(for: .tariffComparison) {
-                    HStack {
-                        Image(systemName: def.iconName)
-                            .foregroundColor(Theme.icon)
-                        Text(LocalizedStringKey(def.displayNameKey))
-                            .font(Theme.titleFont())
+    // MARK: - Header
+    private var headerView: some View {
+        HStack {
+            if let def = CardRegistry.shared.definition(for: .tariffComparison) {
+                HStack {
+                    Image(systemName: def.iconName)
+                        .foregroundColor(Theme.icon)
+                    Text(LocalizedStringKey(def.displayNameKey))
+                        .font(Theme.titleFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
+            Spacer()
+            if hasAccountInfo {
+                if compareTariffVM.isCalculating || accountTariffVM.isCalculating {
+                    ProgressView().scaleEffect(0.8)
+                } else {
+                    Button(action: {
+                        withAnimation {
+                            isFlipped.toggle()
+                        }
+                    }) {
+                        Image(systemName: "info.circle.fill")
                             .foregroundColor(Theme.secondaryTextColor)
                     }
                 }
-                Spacer()
-                if hasAccountInfo {
-                    if compareTariffVM.isCalculating || accountTariffVM.isCalculating {
-                        ProgressView().scaleEffect(0.8)
-                    } else {
-                        Button(action: {
-                            withAnimation {
-                                isFlipped.toggle()
-                            }
-                        }) {
-                            Image(systemName: "info.circle.fill")
-                                .foregroundColor(Theme.secondaryTextColor)
-                        }
-                    }
-                }
-            }
-            .padding(.bottom, 2)
-
-            if !hasAccountInfo {
-                noAccountView
-            } else {
-                // Collapsible configuration
-                CollapsibleSection(
-                    label: {
-                        if compareSettings.settings.isManualPlan {
-                            ManualPlanSummaryView(settings: compareSettings.settings)
-                        } else if let groupInfo = findSelectedGroup() {
-                            PlanSummaryView(group: groupInfo.group, availableDate: groupInfo.date)
-                        } else {
-                            Text("Select Plan")
-                                .foregroundColor(Theme.secondaryTextColor)
-                        }
-                    },
-                    content: {
-                        ComparisonPlanSelectionView(
-                            compareSettings: compareSettings,
-                            availablePlans: $availablePlans,
-                            globalSettings: globalSettings,
-                            compareTariffVM: compareTariffVM,
-                            currentDate: $currentDate,
-                            selectedInterval: $selectedInterval,
-                            overlapStart: $overlapStart,
-                            overlapEnd: $overlapEnd
-                        )
-                    }
-                )
-                .padding(.horizontal)
-
-                Divider().padding(.horizontal).padding(.vertical, 2)
-
-                // Date navigation sub-view
-                ComparisonDateNavView(
-                    currentDate: $currentDate,
-                    selectedInterval: $selectedInterval,
-                    minDate: minAllowedDate,
-                    maxDate: maxAllowedDate,
-                    isCalculating: (accountTariffVM.isCalculating || compareTariffVM.isCalculating),
-                    onDateChanged: { newDate in
-                        currentDate = newDate
-                        savePreferences()
-                        Task { await recalcBothTariffs(partialOverlap: true) }
-                    },
-                    globalSettings: globalSettings,
-                    accountTariffVM: accountTariffVM,
-                    compareTariffVM: compareTariffVM,
-                    consumptionVM: consumptionVM
-                )
-                .padding(.horizontal)
-
-                Divider().padding(.horizontal).padding(.vertical, 2)
-
-                // Comparison results
-                comparisonResultsView
             }
         }
+        .padding(.bottom, 2) // ← Match Account card's header bottom padding
     }
 
-    // MARK: - Back View
-    private var backView: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Plan Details")
-                    .font(Theme.titleFont())
-                    .foregroundColor(Theme.secondaryTextColor)
-                Spacer()
-                Button {
-                    withAnimation {
-                        isFlipped.toggle()
-                    }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
+    // MARK: - Configuration Section
+    private var configurationSection: some View {
+        CollapsibleSection(
+            label: {
+                if compareSettings.settings.isManualPlan {
+                    ManualPlanSummaryView(settings: compareSettings.settings)
+                } else if let groupInfo = findSelectedGroup() {
+                    PlanSummaryView(group: groupInfo.group, availableDate: groupInfo.date)
+                } else {
+                    Text("Select Plan")
                         .foregroundColor(Theme.secondaryTextColor)
                 }
+            },
+            content: {
+                ComparisonPlanSelectionView(
+                    compareSettings: compareSettings,
+                    availablePlans: $availablePlans,
+                    globalSettings: globalSettings,
+                    compareTariffVM: compareTariffVM,
+                    currentDate: $currentDate,
+                    selectedInterval: $selectedInterval,
+                    overlapStart: $overlapStart,
+                    overlapEnd: $overlapEnd
+                )
             }
-            .padding(.bottom, 2)
+        )
+    }
 
-            if compareSettings.settings.isManualPlan {
-                ManualPlanDetailView(settings: compareSettings.settings)
-            } else if let product = availablePlans.first(where: {
-                ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
-            }) {
-                ProductDetailView(product: product)
-                    .environmentObject(globalSettings)
-            } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 36))
-                        .foregroundColor(.orange)
-                    Text("No product details available.")
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-                .padding(.vertical, 20)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))  // Counter-rotation for back view content
+    // MARK: - Date Navigation Section
+    private var dateNavigationSection: some View {
+        ComparisonDateNavView(
+            currentDate: $currentDate,
+            selectedInterval: $selectedInterval,
+            minDate: minAllowedDate,
+            maxDate: maxAllowedDate,
+            isCalculating: (accountTariffVM.isCalculating || compareTariffVM.isCalculating),
+            onDateChanged: { newDate in
+                currentDate = newDate
+                savePreferences()
+                Task { await recalcBothTariffs(partialOverlap: true) }
+            },
+            globalSettings: globalSettings,
+            accountTariffVM: accountTariffVM,
+            compareTariffVM: compareTariffVM,
+            consumptionVM: consumptionVM
+        )
+        .padding(.vertical, 4) // ← Match Account card's 44pt height containers
+    }
+
+    // MARK: - Results Section
+    private var resultsSection: some View {
+        comparisonResultsView
+            .padding(.vertical, 8) // ← Match vertical padding in Account card
     }
 
     // MARK: - Comparison Results
@@ -1319,7 +1296,6 @@ private struct ComparisonPlanSelectionView: View {
                 Text("Manual Plan").tag(true)
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal)
 
             if compareSettings.settings.isManualPlan {
                 ManualInputView(
@@ -1419,10 +1395,9 @@ private struct ComparisonCostSummaryView: View {
                         Text("difference")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
-                        Spacer()
                     }
 
-                    Divider().padding(.horizontal)
+                    Spacer()
 
                     // My account vs compare
                     VStack(alignment: .leading, spacing: 8) {
@@ -1981,7 +1956,6 @@ private struct ManualInputView: View {
                     .font(Theme.captionFont())
             }
         }
-        .padding(.horizontal)
         .onChange(of: globalSettings.settings.showRatesWithVAT) { _, newValue in
             // Convert rates when VAT setting changes
             settings.manualRatePencePerKWh = convertRateForVATChange(
