@@ -40,6 +40,7 @@ public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var ratesVM: RatesViewModel
+    @EnvironmentObject var tariffVM: TariffViewModel
     @StateObject private var consumptionVM: ConsumptionViewModel
     @StateObject private var viewModel = ContentViewModel()
     let hasAgileCards: Bool
@@ -79,7 +80,8 @@ public struct ContentView: View {
                         ratesViewModel: ratesVM,
                         consumptionViewModel: consumptionVM,
                         globalTimer: globalTimer,
-                        globalSettings: globalSettings
+                        globalSettings: globalSettings,
+                        tariffVM: tariffVM
                     )
 
                     ForEach(sortedCardConfigs()) { config in

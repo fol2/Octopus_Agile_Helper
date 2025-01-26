@@ -248,8 +248,11 @@ extension CardRegistry {
                 makeView: { deps in
                     AnyView(
                         AccountTariffCardView(
-                            viewModel: deps.ratesViewModel, consumptionVM: deps.consumptionViewModel
-                        ))
+                            viewModel: deps.ratesViewModel,
+                            consumptionVM: deps.consumptionViewModel
+                        )
+                        .environmentObject(deps.tariffViewModel)
+                    )
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.doc.horizontal",

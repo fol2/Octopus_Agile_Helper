@@ -4,9 +4,9 @@ import SwiftUI
 
 public struct AccountTariffCardView: View {
     // MARK: - Dependencies
-    @ObservedObject var viewModel: RatesViewModel
     @EnvironmentObject var globalSettings: GlobalSettingsManager
-    @StateObject private var tariffVM = TariffViewModel()
+    @ObservedObject var viewModel: RatesViewModel
+    @EnvironmentObject var tariffVM: TariffViewModel
     @ObservedObject var consumptionVM: ConsumptionViewModel
 
     // MARK: - State

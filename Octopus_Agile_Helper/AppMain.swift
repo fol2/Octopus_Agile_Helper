@@ -10,6 +10,7 @@ struct Octopus_Agile_HelperApp: App {
     private let globalTimer = GlobalTimer()
     private let persistenceController = PersistenceController.shared
     private let cardRegistry = CardRegistry.shared
+    @StateObject private var tariffVM = TariffViewModel()
 
     // MARK: - StateObjects
     @StateObject private var globalSettings = GlobalSettingsManager()
@@ -60,6 +61,7 @@ struct Octopus_Agile_HelperApp: App {
                             \.managedObjectContext, persistenceController.container.viewContext
                         )
                         .environmentObject(globalSettings)
+                        .environmentObject(tariffVM)
                         .environmentObject(ratesVM)
                         .environmentObject(globalTimer)
                         .preferredColorScheme(.dark)
@@ -79,6 +81,7 @@ struct Octopus_Agile_HelperApp: App {
                                     .environmentObject(globalSettings)
                                     .environmentObject(globalTimer)
                                     .environmentObject(ratesVM)
+                                    .environmentObject(tariffVM)
                                     .environment(
                                         \.managedObjectContext,
                                         persistenceController.container.viewContext
@@ -165,6 +168,7 @@ extension Octopus_Agile_HelperApp {
         let globalTimer = GlobalTimer()
         let globalSettings = GlobalSettingsManager()
         let ratesVM = RatesViewModel(globalTimer: GlobalTimer())
+        let tariffVM = TariffViewModel()
 
         var body: some View {
             ZStack {
@@ -173,6 +177,7 @@ extension Octopus_Agile_HelperApp {
                         .environmentObject(globalTimer)
                         .environmentObject(globalSettings)
                         .environmentObject(ratesVM)
+                        .environmentObject(tariffVM)
                         .preferredColorScheme(.dark)
                 } else {
                     SplashScreenView(isLoading: .constant(true))

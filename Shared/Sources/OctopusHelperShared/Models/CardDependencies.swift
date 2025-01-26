@@ -142,6 +142,10 @@ public final class CardDependencies {
         try! resolve()
     }
 
+    public var tariffViewModel: TariffViewModel {
+        try! resolve()
+    }
+
     public var globalTimer: GlobalTimer {
         try! resolve()
     }
@@ -158,13 +162,15 @@ public final class CardDependencies {
         ratesViewModel: RatesViewModel,
         consumptionViewModel: ConsumptionViewModel,
         globalTimer: GlobalTimer,
-        globalSettings: GlobalSettingsManager
+        globalSettings: GlobalSettingsManager,
+        tariffVM: TariffViewModel
     ) -> CardDependencies {
         let dependencies = CardDependencies()
         dependencies.register(ratesViewModel)
         dependencies.register(consumptionViewModel)
         dependencies.register(globalTimer)
         dependencies.register(globalSettings)
+        dependencies.register(tariffVM)
         return dependencies
     }
 }
