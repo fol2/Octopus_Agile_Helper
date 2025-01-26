@@ -22,6 +22,23 @@ private class ComparisonCardSettingsManager: ObservableObject {
     @Published var settings: ComparisonCardSettings {
         didSet { saveSettings() }
     }
+
+    // Helper: only write if new JSON actually differs from what's stored.
+    private func needsSave(_ newSettings: ComparisonCardSettings) -> Bool {
+        let encoder = JSONEncoder()
+        guard let newData = try? encoder.encode(newSettings) else {
+            return true  // if we can't encode, we usually want to attempt saving anyway
+        }
+        // Compare to what's in user defaults now:
+        if let oldData = UserDefaults.standard.data(forKey: userDefaultsKey) {
+            // If bytes match, skip
+            if oldData.elementsEqual(newData) {
+                return false
+            }
+        }
+        return true
+    }
+
     private let userDefaultsKey = "TariffComparisonCardSettings"
 
     init() {
@@ -35,8 +52,17 @@ private class ComparisonCardSettingsManager: ObservableObject {
     }
 
     private func saveSettings() {
-        if let encoded = try? JSONEncoder().encode(settings) {
+        // Only write out if truly changed from what's in user defaults
+        guard needsSave(settings) else {
+            print("⚠️ ComparisonCardSettingsManager: No real changes, skipping re-save.")
+            return
+        }
+        do {
+            let encoded = try JSONEncoder().encode(settings)
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+            print("✅ ComparisonCardSettingsManager: New settings saved.")
+        } catch {
+            print("❌ ComparisonCardSettingsManager: Failed to encode settings: \(error)")
         }
     }
 }

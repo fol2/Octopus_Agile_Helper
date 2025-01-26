@@ -167,9 +167,31 @@ public struct AccountTariffCardView: View {
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
         .onAppear(perform: handleOnAppear)
-        .onChange(of: globalSettings.settings.accountData) { oldValue, newValue in
-            guard oldValue != newValue else { return }
-            print("🔄 AccountTariffCardView: Detected new accountData, forcing consumption reload.")
+        .onChange(of: globalSettings.settings.accountData) { oldDataValue, newDataValue in
+            // If both are nil, no real change
+            if oldDataValue == nil && newDataValue == nil {
+                return
+            }
+            // If one is nil and the other not, that's definitely a change
+            guard let oldData = oldDataValue, let newData = newDataValue else {
+                print(
+                    "🔄 AccountTariffCardView: accountData changed (nil <-> non-nil), forcing consumption reload."
+                )
+                Task {
+                    await consumptionVM.refreshDataFromAPI(force: true)
+                    updateAllowedDateRangeAndRecalculate()
+                }
+                return
+            }
+            // Both non-nil => compare raw bytes
+            guard !oldData.elementsEqual(newData) else {
+                print(
+                    "🔄 AccountTariffCardView: accountData changed, but data is identical. Skipping reload."
+                )
+                return
+            }
+            // If truly different bytes, reload
+            print("🔄 AccountTariffCardView: accountData changed, forcing consumption reload.")
             Task {
                 await consumptionVM.refreshDataFromAPI(force: true)
                 updateAllowedDateRangeAndRecalculate()
