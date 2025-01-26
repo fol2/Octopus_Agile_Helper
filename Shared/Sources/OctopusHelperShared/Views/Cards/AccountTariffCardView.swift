@@ -172,17 +172,30 @@ public struct AccountTariffCardView: View {
             if oldDataValue == nil && newDataValue == nil {
                 return
             }
+
+            // Skip re-entrant calls that can cause repeated re-init or freeze
+            if consumptionVM.fetchState == .loading {
+                print("🔄 Skipping forced refresh — consumption is already loading.")
+                return
+            }
+
             // If one is nil and the other not, that's definitely a change
             guard let oldData = oldDataValue, let newData = newDataValue else {
                 print(
                     "🔄 AccountTariffCardView: accountData changed (nil <-> non-nil), forcing consumption reload."
                 )
                 Task {
+                    // Skip if we are in partial state to avoid repeated reload
+                    if consumptionVM.fetchState == .partial {
+                        print("🔄 Skipping reload while in partial state")
+                        return
+                    }
                     await consumptionVM.refreshDataFromAPI(force: true)
                     updateAllowedDateRangeAndRecalculate()
                 }
                 return
             }
+
             // Both non-nil => compare raw bytes
             guard !oldData.elementsEqual(newData) else {
                 print(
@@ -190,9 +203,15 @@ public struct AccountTariffCardView: View {
                 )
                 return
             }
+
             // If truly different bytes, reload
             print("🔄 AccountTariffCardView: accountData changed, forcing consumption reload.")
             Task {
+                // Skip if we are in partial state to avoid repeated reload
+                if consumptionVM.fetchState == .partial {
+                    print("🔄 Skipping reload while in partial state")
+                    return
+                }
                 await consumptionVM.refreshDataFromAPI(force: true)
                 updateAllowedDateRangeAndRecalculate()
             }
