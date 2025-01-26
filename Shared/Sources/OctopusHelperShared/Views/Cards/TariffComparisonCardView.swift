@@ -217,42 +217,48 @@ public struct TariffComparisonCardView: View {
         .rateCardStyle()  // ← Apply card style to root container
         .sheet(isPresented: $showingDetails) {
             NavigationView {
-                VStack(spacing: 0) {
-                    HStack {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if compareSettings.settings.isManualPlan {
+                            ManualPlanDetailView(settings: compareSettings.settings)
+                        } else if let product = availablePlans.first(where: {
+                            ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
+                        }) {
+                            ProductDetailView(product: product)
+                                .environmentObject(globalSettings)
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.orange)
+                                Text("No product details available.")
+                                    .foregroundColor(Theme.secondaryTextColor)
+                            }
+                            .frame(maxHeight: .infinity)
+                            .padding(.vertical, 20)
+                        }
+                    }
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
                         Text("Plan Details")
                             .font(Theme.titleFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                        Spacer()
+                            .foregroundColor(Theme.mainTextColor)
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             showingDetails = false
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(Theme.secondaryTextColor)
+                                .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
+                                .imageScale(.large)
                         }
-                    }
-                    .padding(.bottom, 2)
-
-                    if compareSettings.settings.isManualPlan {
-                        ManualPlanDetailView(settings: compareSettings.settings)
-                    } else if let product = availablePlans.first(where: {
-                        ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
-                    }) {
-                        ProductDetailView(product: product)
-                            .environmentObject(globalSettings)
-                    } else {
-                        VStack(spacing: 16) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 36))
-                                .foregroundColor(.orange)
-                            Text("No product details available.")
-                                .foregroundColor(Theme.secondaryTextColor)
-                        }
-                        .padding(.vertical, 20)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .background(Theme.mainBackground)
             }
+            .navigationViewStyle(.stack)
         }
         .environment(\.locale, globalSettings.locale)
         .onAppear {
