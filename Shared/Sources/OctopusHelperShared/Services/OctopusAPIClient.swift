@@ -171,12 +171,12 @@ public struct ConsumptionRecord: Codable {
 
 // MARK: - Account Models
 /// Account-level response structures (sketch)
-public struct OctopusAccountResponse: Codable {
+public struct OctopusAccountResponse: Codable, Equatable {
     public let number: String
     public let properties: [OctopusProperty]
 }
 
-public struct OctopusProperty: Codable {
+public struct OctopusProperty: Codable, Equatable {
     public let id: Int
     public let electricity_meter_points: [OctopusElectricityMP]?
     public let gas_meter_points: [OctopusGasMP]?
@@ -185,29 +185,29 @@ public struct OctopusProperty: Codable {
     public let postcode: String?
 }
 
-public struct OctopusElectricityMP: Codable {
+public struct OctopusElectricityMP: Codable, Equatable {
     public let mpan: String
     public let meters: [OctopusElecMeter]?
     public let agreements: [OctopusAgreement]?
 }
 
-public struct OctopusElecMeter: Codable {
+public struct OctopusElecMeter: Codable, Equatable {
     public let serial_number: String
 }
 
-public struct OctopusAgreement: Codable {
+public struct OctopusAgreement: Codable, Equatable {
     public let tariff_code: String
     public let valid_from: String?
     public let valid_to: String?
 }
 
-public struct OctopusGasMP: Codable {
+public struct OctopusGasMP: Codable, Equatable {
     public let mprn: String
     public let meters: [OctopusGasMeter]?
     public let agreements: [OctopusAgreement]?
 }
 
-public struct OctopusGasMeter: Codable {
+public struct OctopusGasMeter: Codable, Equatable {
     public let serial_number: String
 }
 

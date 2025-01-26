@@ -16,6 +16,7 @@ public struct AccountTariffCardView: View {
     @State private var refreshTrigger = false
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
+    @State private var accountResponse: OctopusAccountResponse?
 
     // MARK: - Types
     enum IntervalType: String, CaseIterable {
@@ -167,9 +168,19 @@ public struct AccountTariffCardView: View {
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
         .onAppear(perform: handleOnAppear)
+        .task {
+            decodeAccountData()
+        }
         .onChange(of: globalSettings.settings.accountData) { oldValue, newValue in
-            guard oldValue != newValue else { return }
-            print("🔄 AccountTariffCardView: Detected new accountData, forcing consumption reload.")
+            decodeAccountData()
+
+            // Only reload if the data actually changed
+            guard oldValue != newValue else {
+                print("ℹ️ AccountTariffCardView: Account data unchanged, skipping refresh")
+                return
+            }
+
+            print("🔄 AccountTariffCardView: Account data changed, refreshing consumption...")
             Task {
                 await consumptionVM.refreshDataFromAPI(force: true)
                 updateAllowedDateRangeAndRecalculate()
@@ -297,14 +308,19 @@ public struct AccountTariffCardView: View {
             .lastViewedTariffDates[globalSettings.settings.selectedTariffInterval] ?? Date()
     }
 
-    private var accountResponse: OctopusAccountResponse? {
-        guard
-            let accountData = globalSettings.settings.accountData,
-            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
-        else {
-            return nil
+    private func decodeAccountData() {
+        guard let accountData = globalSettings.settings.accountData else {
+            accountResponse = nil
+            return
         }
-        return decoded
+
+        // Decode in background
+        Task {
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+            await MainActor.run {
+                self.accountResponse = decoded
+            }
+        }
     }
 
     private func savePreferences() {

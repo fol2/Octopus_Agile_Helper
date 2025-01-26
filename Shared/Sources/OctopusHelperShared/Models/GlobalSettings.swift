@@ -379,40 +379,58 @@ public class GlobalSettingsManager: ObservableObject {
     // MARK: - Save Settings
     // -------------------------------------------
     public func saveSettings() {
-        if let encoded = try? JSONEncoder().encode(settings) {
-            // Save to standard UserDefaults
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+        // Capture current settings to avoid any race conditions
+        let currentSettings = self.settings
+
+        Task.detached(priority: .utility) {
+            // Encode in background
+            guard let encoded = try? JSONEncoder().encode(currentSettings) else { return }
+
+            // Save to standard UserDefaults (thread-safe)
+            await MainActor.run {
+                UserDefaults.standard.set(encoded, forKey: self.userDefaultsKey)
+            }
 
             // Also save to shared UserDefaults for widget access
             let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
-            sharedDefaults?.set(encoded, forKey: "user_settings")
+            await MainActor.run {
+                sharedDefaults?.set(encoded, forKey: "user_settings")
 
-            // Also save individual values for easier widget access
-            sharedDefaults?.set(settings.regionInput, forKey: "selected_postcode")
-            sharedDefaults?.set(settings.apiKey, forKey: "api_key")
-            sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
-            sharedDefaults?.set(settings.billingDay, forKey: "billing_day")
-            sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
-            sharedDefaults?.set(settings.showRatesWithVAT, forKey: "show_rates_with_vat")
-            sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")
-            sharedDefaults?.set(settings.electricityMPAN, forKey: "electricity_mpan")
-            sharedDefaults?.set(
-                settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
-            sharedDefaults?.set(settings.accountNumber, forKey: "account_number")
-            sharedDefaults?.set(settings.accountData, forKey: "account_data")
-            sharedDefaults?.set(settings.selectedTariffInterval, forKey: "selected_tariff_interval")
-            sharedDefaults?.set(settings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
-            sharedDefaults?.set(
-                settings.selectedComparisonInterval, forKey: "selected_comparison_interval")
-            sharedDefaults?.set(
-                settings.lastViewedComparisonDates, forKey: "last_viewed_comparison_dates")
+                // Also save individual values for easier widget access
+                sharedDefaults?.set(currentSettings.regionInput, forKey: "selected_postcode")
+                sharedDefaults?.set(currentSettings.apiKey, forKey: "api_key")
+                sharedDefaults?.set(
+                    currentSettings.selectedLanguage.rawValue, forKey: "selected_language")
+                sharedDefaults?.set(currentSettings.billingDay, forKey: "billing_day")
+                sharedDefaults?.set(
+                    currentSettings.showRatesInPounds, forKey: "show_rates_in_pounds")
+                sharedDefaults?.set(currentSettings.showRatesWithVAT, forKey: "show_rates_with_vat")
+                sharedDefaults?.set(currentSettings.currentAgileCode, forKey: "current_agile_code")
+                sharedDefaults?.set(currentSettings.electricityMPAN, forKey: "electricity_mpan")
+                sharedDefaults?.set(
+                    currentSettings.electricityMeterSerialNumber, forKey: "meter_serial_number")
+                sharedDefaults?.set(currentSettings.accountNumber, forKey: "account_number")
+                sharedDefaults?.set(currentSettings.accountData, forKey: "account_data")
+                sharedDefaults?.set(
+                    currentSettings.selectedTariffInterval, forKey: "selected_tariff_interval")
+                sharedDefaults?.set(
+                    currentSettings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
+                sharedDefaults?.set(
+                    currentSettings.selectedComparisonInterval,
+                    forKey: "selected_comparison_interval")
+                sharedDefaults?.set(
+                    currentSettings.lastViewedComparisonDates,
+                    forKey: "last_viewed_comparison_dates")
+            }
 
             // Notify widget of changes
             #if !WIDGET
-                if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
-                    let selector = NSSelectorFromString("reloadAllTimelines")
-                    if widgetCenter.responds(to: selector) {
-                        widgetCenter.perform(selector)
+                await MainActor.run {
+                    if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
+                        let selector = NSSelectorFromString("reloadAllTimelines")
+                        if widgetCenter.responds(to: selector) {
+                            widgetCenter.perform(selector)
+                        }
                     }
                 }
             #endif
