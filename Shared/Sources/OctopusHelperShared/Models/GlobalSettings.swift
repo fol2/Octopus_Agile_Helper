@@ -1,6 +1,48 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Settings State Management
+public enum SettingsState: Equatable {
+    case idle
+    case loading
+    case saving
+    case error(SettingsError)
+
+    public static func == (lhs: SettingsState, rhs: SettingsState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.loading, .loading), (.saving, .saving):
+            return true
+        case (.error(let lhsError), .error(let rhsError)):
+            return lhsError.localizedDescription == rhsError.localizedDescription
+        default:
+            return false
+        }
+    }
+}
+
+public enum SettingsError: LocalizedError {
+    case encodingFailed
+    case decodingFailed
+    case saveFailed
+    case loadFailed
+    case invalidState
+
+    public var errorDescription: String? {
+        switch self {
+        case .encodingFailed:
+            return "Failed to encode settings"
+        case .decodingFailed:
+            return "Failed to decode settings"
+        case .saveFailed:
+            return "Failed to save settings"
+        case .loadFailed:
+            return "Failed to load settings"
+        case .invalidState:
+            return "Invalid state transition"
+        }
+    }
+}
+
 // MARK: - Supported App Languages
 public enum Language: String, Codable, CaseIterable {
     // Instead of hardcoding languages, we'll compute them dynamically
@@ -247,82 +289,179 @@ extension GlobalSettings {
 
 // MARK: - Manager (ObservableObject)
 public class GlobalSettingsManager: ObservableObject {
-    private var isSaving = false
-    private var isLoading = false  // New flag to track loading state
-
+    // MARK: - Properties
+    @Published private(set) public var state: SettingsState = .idle
     @Published public var settings: GlobalSettings {
         didSet {
-            // Skip saving if we're loading or already saving
-            guard !isLoading && !isSaving else { return }
+            // Skip saving if we're in a non-idle state
+            guard case .idle = state else { return }
+            debouncedSave()
+        }
+    }
+    @Published public var locale: Locale
 
-            isSaving = true
+    // MARK: - Private Properties
+    private let userDefaultsKey = "GlobalSettings"
+    private var saveWorkItem: DispatchWorkItem?
+    private let saveDebounceInterval: TimeInterval = 0.5
+    private let saveQueue = DispatchQueue(
+        label: "com.jamesto.octopus-agile-helper.settings.save", qos: .utility)
 
-            // Only log when regionInput changes
-            if oldValue.regionInput != settings.regionInput {
-                print(
-                    "GlobalSettingsManager: settings changed to regionInput=\(settings.regionInput) => effectiveRegion=\(settings.effectiveRegion)"
-                )
-            }
+    // MARK: - Initialization
+    public init() {
+        // Initialize with default values before loading
+        self.settings = .defaultSettings
+        self.locale = Language.english.locale
 
-            saveSettings()
-            if oldValue.selectedLanguage != settings.selectedLanguage {
-                locale = settings.selectedLanguage.locale
-            }
-            isSaving = false
+        // Load settings asynchronously
+        Task { @MainActor in
+            await loadSettings()
         }
     }
 
-    @Published public var locale: Locale
-    private let userDefaultsKey = "GlobalSettings"
+    // MARK: - Private Methods
+    private func debouncedSave() {
+        saveWorkItem?.cancel()
 
-    // -------------------------------------------
-    // MARK: - Initialization
-    // -------------------------------------------
-    public init() {
-        isLoading = true  // Set loading flag
-
-        // 1. Attempt to load from UserDefaults
-        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-            let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
-        {
-            // We have existing settings
-            self.settings = decoded
-            self.locale = decoded.selectedLanguage.locale
-        } else {
-            // 2. No saved settings => use system preferred language
-            let matchedLanguage = Language.systemPreferred()
-
-            self.settings = GlobalSettings(
-                regionInput: "",
-                apiKey: "",
-                selectedLanguage: matchedLanguage,
-                billingDay: 1,
-                showRatesInPounds: false,
-                showRatesWithVAT: true,
-                cardSettings: [],
-                currentAgileCode: "",
-                electricityMPAN: nil,
-                electricityMeterSerialNumber: nil,
-                accountNumber: nil,
-                accountData: nil,
-                selectedTariffInterval: "DAILY",
-                lastViewedTariffDates: [:],
-                selectedComparisonInterval: "DAILY",
-                lastViewedComparisonDates: [:]
-            )
-            self.locale = matchedLanguage.locale
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            Task { @MainActor in
+                await self.saveSettings()
+            }
         }
 
-        // 3. Merge any missing cards without triggering saves
-        let oldSettings = self.settings
-        mergeMissingCards()
+        saveWorkItem = workItem
+        saveQueue.asyncAfter(deadline: .now() + saveDebounceInterval, execute: workItem)
+    }
 
-        // Only save if cards were actually added
-        if oldSettings != self.settings {
-            saveSettings()
+    @MainActor
+    private func loadSettings() async {
+        guard case .idle = state else { return }
+        state = .loading
+
+        do {
+            // Load from UserDefaults in background
+            let loadedSettings = try await Task.detached(priority: .utility) {
+                [self] () throws -> GlobalSettings in
+                guard let data = UserDefaults.standard.data(forKey: self.userDefaultsKey) else {
+                    // If no saved settings, use system preferred language
+                    let matchedLanguage = Language.systemPreferred()
+                    return GlobalSettings(
+                        regionInput: "",
+                        apiKey: "",
+                        selectedLanguage: matchedLanguage,
+                        billingDay: 1,
+                        showRatesInPounds: false,
+                        showRatesWithVAT: true,
+                        cardSettings: [],
+                        currentAgileCode: "",
+                        electricityMPAN: nil,
+                        electricityMeterSerialNumber: nil,
+                        accountNumber: nil,
+                        accountData: nil,
+                        selectedTariffInterval: "DAILY",
+                        lastViewedTariffDates: [:],
+                        selectedComparisonInterval: "DAILY",
+                        lastViewedComparisonDates: [:]
+                    )
+                }
+
+                guard let decoded = try? JSONDecoder().decode(GlobalSettings.self, from: data)
+                else {
+                    throw SettingsError.decodingFailed
+                }
+
+                return decoded
+            }.value
+
+            // Update settings and locale on main thread
+            self.settings = loadedSettings
+            self.locale = loadedSettings.selectedLanguage.locale
+
+            // Merge any missing cards
+            let oldSettings = self.settings
+            mergeMissingCards()
+
+            // Only save if cards were actually added
+            if oldSettings != self.settings {
+                await saveSettings()
+            }
+
+            state = .idle
+        } catch {
+            state = .error(error as? SettingsError ?? .loadFailed)
+            DebugLogger.debug("Failed to load settings: \(error)", component: .stateChanges)
         }
+    }
 
-        isLoading = false  // Clear loading flag
+    @MainActor
+    private func saveSettings() async {
+        guard case .idle = state else { return }
+        state = .saving
+
+        do {
+            // Capture current settings to avoid race conditions
+            let currentSettings = self.settings
+
+            try await Task.detached(priority: .utility) { [weak self] () throws in
+                guard let self = self else { return }
+
+                // Encode in background
+                guard let encoded = try? JSONEncoder().encode(currentSettings) else {
+                    throw SettingsError.encodingFailed
+                }
+
+                // Save to standard UserDefaults (thread-safe)
+                await MainActor.run {
+                    UserDefaults.standard.set(encoded, forKey: self.userDefaultsKey)
+                }
+
+                // Save to shared UserDefaults for widget access
+                if let sharedDefaults = UserDefaults(
+                    suiteName: "group.com.jamesto.octopus-agile-helper")
+                {
+                    await MainActor.run {
+                        sharedDefaults.set(encoded, forKey: "user_settings")
+                        self.saveIndividualSettings(currentSettings, to: sharedDefaults)
+                    }
+                }
+
+                // Notify widget of changes
+                #if !WIDGET
+                    await MainActor.run {
+                        if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
+                            let selector = NSSelectorFromString("reloadAllTimelines")
+                            if widgetCenter.responds(to: selector) {
+                                widgetCenter.perform(selector)
+                            }
+                        }
+                    }
+                #endif
+            }.value
+
+            state = .idle
+        } catch {
+            state = .error(error as? SettingsError ?? .saveFailed)
+            DebugLogger.debug("Failed to save settings: \(error)", component: .stateChanges)
+        }
+    }
+
+    private func saveIndividualSettings(_ settings: GlobalSettings, to defaults: UserDefaults) {
+        defaults.set(settings.regionInput, forKey: "selected_postcode")
+        defaults.set(settings.apiKey, forKey: "api_key")
+        defaults.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
+        defaults.set(settings.billingDay, forKey: "billing_day")
+        defaults.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
+        defaults.set(settings.showRatesWithVAT, forKey: "show_rates_with_vat")
+        defaults.set(settings.currentAgileCode, forKey: "current_agile_code")
+        defaults.set(settings.electricityMPAN, forKey: "electricity_mpan")
+        defaults.set(settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
+        defaults.set(settings.accountNumber, forKey: "account_number")
+        defaults.set(settings.accountData, forKey: "account_data")
+        defaults.set(settings.selectedTariffInterval, forKey: "selected_tariff_interval")
+        defaults.set(settings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
+        defaults.set(settings.selectedComparisonInterval, forKey: "selected_comparison_interval")
+        defaults.set(settings.lastViewedComparisonDates, forKey: "last_viewed_comparison_dates")
     }
 
     // -------------------------------------------

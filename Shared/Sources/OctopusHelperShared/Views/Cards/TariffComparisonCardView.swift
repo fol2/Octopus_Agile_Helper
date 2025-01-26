@@ -126,6 +126,9 @@ public struct TariffComparisonCardView: View {
     @StateObject private var accountTariffVM = TariffViewModel()
     @StateObject private var compareTariffVM = TariffViewModel()
 
+    // Add decoded account state
+    @State private var decodedAccount: OctopusAccountResponse? = nil
+
     // Interval & date state
     @State private var selectedInterval: CompareIntervalType = .daily
     @State private var currentDate = Date()
@@ -271,6 +274,7 @@ public struct TariffComparisonCardView: View {
                 await recalcBothTariffs(partialOverlap: true)
                 hasInitiallyLoaded = true
             }
+            decodeAccountData()
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
             updateAllowedDateRange()
@@ -304,6 +308,9 @@ public struct TariffComparisonCardView: View {
                     await recalcBothTariffs(partialOverlap: true)
                 }
             }
+        }
+        .onChange(of: globalSettings.settings.accountData) { _ in
+            decodeAccountData()
         }
     }
 
@@ -769,6 +776,7 @@ public struct TariffComparisonCardView: View {
     @MainActor
     private func recalcAccountTariff(start: Date, end: Date) async {
         if !hasAccountInfo { return }
+        guard let account = decodedAccount else { return }  // use the decoded version
         guard !consumptionVM.consumptionRecords.isEmpty else { return }
 
         do {
@@ -776,7 +784,7 @@ public struct TariffComparisonCardView: View {
                 for: currentDate,
                 tariffCode: "savedAccount",
                 intervalType: selectedInterval.vmInterval,
-                accountData: getAccountResponse(),
+                accountData: account,
                 partialStart: start,
                 partialEnd: end,
                 isChangingPlan: isChangingPlan
@@ -969,12 +977,11 @@ public struct TariffComparisonCardView: View {
 
     /// Fetch the validity range for account tariffs
     private func fetchAccountValidityRange() async -> ClosedRange<Date> {
-        if let accountData = getAccountResponse(),
+        if let accountData = decodedAccount,
             let firstProperty = accountData.properties.first,
             let elecMP = firstProperty.electricity_meter_points?.first,
             let agreements = elecMP.agreements
         {
-
             let dateFormatter = ISO8601DateFormatter()
 
             // Find the overall validity range across all agreements
@@ -1034,6 +1041,21 @@ public struct TariffComparisonCardView: View {
         return consumptionVM.consumptionRecords.contains { record in
             guard let start = record.value(forKey: "interval_start") as? Date else { return false }
             return start >= dayStart && start < dayEnd
+        }
+    }
+
+    private func decodeAccountData() {
+        guard let accountData = globalSettings.settings.accountData else {
+            decodedAccount = nil
+            return
+        }
+        Task.detached {
+            let parsed = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+            await MainActor.run {
+                self.decodedAccount = parsed
+                // Recalculate when account data changes
+                Task { await self.recalcBothTariffs() }
+            }
         }
     }
 }
