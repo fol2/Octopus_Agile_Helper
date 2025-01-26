@@ -145,15 +145,26 @@ public final class TariffViewModel: ObservableObject {
 
         DebugLogger.debug("🧹 Starting cache cleanup", component: .tariffViewModel)
 
-        // If too large, remove oldest entries
-        if calculationCache.count > maxCacheSize {
-            let sortedEntries = calculationCache.sorted { $0.value.timestamp > $1.value.timestamp }
-            calculationCache = Dictionary(
-                uniqueKeysWithValues:
-                    sortedEntries
-                    .prefix(maxCacheSize)
-                    .map { ($0.key, $0.value) }
-            )
+        // Move heavy sorting to background thread
+        let currentCache = self.calculationCache
+        Task.detached(priority: .utility) { [weak self] in
+            let sortedEntries = currentCache.sorted { $0.value.timestamp > $1.value.timestamp }
+            let newCache: [CacheKey: CacheEntry]
+            if sortedEntries.count > self?.maxCacheSize ?? 200 {
+                newCache = Dictionary(
+                    uniqueKeysWithValues:
+                        sortedEntries
+                        .prefix(self?.maxCacheSize ?? 200)
+                        .map { ($0.key, $0.value) }
+                )
+            } else {
+                newCache = currentCache
+            }
+
+            // Update cache on main actor
+            await MainActor.run { [weak self] in
+                self?.calculationCache = newCache
+            }
         }
 
         DebugLogger.debug(
