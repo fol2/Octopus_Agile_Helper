@@ -412,7 +412,7 @@ private struct AccountTariffDateNavView: View {
                     .buttonStyle(.borderless)
                 }
             }
-            .frame(width: 44)
+            .frame(width: 64)
 
             Spacer(minLength: 0)
 
@@ -437,7 +437,28 @@ private struct AccountTariffDateNavView: View {
             Spacer(minLength: 0)
 
             // Right
-            HStack {
+            HStack(spacing: 0) {
+                // New jump to max button
+                if let maxDate = maxAllowedDate, currentDate < maxDate {
+                    Button {
+                        currentDate = maxDate
+                        onDateChanged()
+                    } label: {
+                        Image(systemName: "chevron.right.to.line")
+                            .imageScale(.large)
+                            .foregroundColor(Theme.mainColor)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(tariffVM.isCalculating)
+                    .frame(width: 24)
+                    .padding(.trailing, 8)
+                } else {
+                    Color.clear
+                        .frame(width: 24)
+                        .padding(.trailing, 8)
+                }
+                
+                // Existing forward button
                 let canGoForward = canNavigateForward()
                 if canGoForward {
                     Button {
@@ -448,10 +469,14 @@ private struct AccountTariffDateNavView: View {
                             .foregroundColor(Theme.mainColor)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.borderless)
+                    .frame(width: 24)
+                } else {
+                    Color.clear
+                        .frame(width: 24)
                 }
             }
-            .frame(width: 44)
+            .frame(width: 56)
+            .contentShape(Rectangle())
         }
         .padding(.vertical, 4)
     }

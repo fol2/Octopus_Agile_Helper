@@ -159,6 +159,12 @@ public struct TariffComparisonCardView: View {
 
     @State private var showingDetails = false  // Add this state
 
+    @State private var isChangingPlan = false
+
+    // Add new state properties
+    @State private var calculationError: String? = nil
+    @State private var didAutoAdjustRange: Bool = false
+
     public init(
         consumptionVM: ConsumptionViewModel,
         ratesVM: RatesViewModel,
@@ -369,6 +375,8 @@ public struct TariffComparisonCardView: View {
             ComparisonCostSummaryView(
                 accountCalculation: acctCalc,
                 compareCalculation: cmpCalc,
+                calculationError: calculationError,
+                didAutoAdjustRange: didAutoAdjustRange,
                 showVAT: globalSettings.settings.showRatesWithVAT,
                 selectedInterval: $selectedInterval,
                 currentDate: $currentDate,
@@ -527,12 +535,7 @@ public struct TariffComparisonCardView: View {
             // Same logic as AccountTariffCardView: clamp to yesterday if data ends earlier
             let rawMax = consumptionVM.maxInterval ?? .distantFuture
             maxAllowedDate = min(rawMax, latestDailyDate)
-        case .weekly:
-            // Keep existing logic
-            maxAllowedDate = consumptionVM.maxInterval
-        case .monthly:
-            maxAllowedDate = consumptionVM.maxInterval
-        case .quarterly:
+        case .weekly, .monthly, .quarterly:
             maxAllowedDate = consumptionVM.maxInterval
         }
 
@@ -543,10 +546,28 @@ public struct TariffComparisonCardView: View {
                 intervalType: selectedInterval.vmInterval,
                 billingDay: globalSettings.settings.billingDay
             )
-            if !boundary.overlapsWithData(minDate: mn, maxDate: nil) {
-                currentDate = mn
+            
+            // New logic for handling partial overlap
+            if selectedInterval == .weekly {
+                // For weekly intervals, if the boundary starts before minAllowedDate
+                // but ends after it, we want to clamp to a week starting at minAllowedDate
+                if boundary.start < mn && boundary.end > mn {
+                    // Find the next week boundary starting from minAllowedDate
+                    let weekStart = calendar.date(
+                        from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: mn)
+                    ) ?? mn
+                    currentDate = weekStart
+                } else if !boundary.overlapsWithData(minDate: mn, maxDate: nil) {
+                    currentDate = mn
+                }
+            } else {
+                // Original logic for other intervals
+                if !boundary.overlapsWithData(minDate: mn, maxDate: nil) {
+                    currentDate = mn
+                }
             }
         }
+        
         if let mx = maxAllowedDate {
             let boundary = accountTariffVM.getBoundary(
                 for: currentDate,
@@ -636,7 +657,7 @@ public struct TariffComparisonCardView: View {
             {
                 if let firstCode = regionProducts[0].value(forKey: "code") as? String {
                     compareSettings.settings.selectedPlanCode = firstCode
-                    await recalcBothTariffs(partialOverlap: true)
+                    await recalcBothTariffs(partialOverlap: true, isChangingPlan: true)
                 }
             }
         } catch {
@@ -648,33 +669,68 @@ public struct TariffComparisonCardView: View {
 
     // MARK: - Calculation Routines
 
-    private func recalcBothTariffs(partialOverlap: Bool = false) async {
-        // Calculate the requested date range based on interval type
-        let (requestedStart, requestedEnd) = TariffViewModel().calculateDateRange(
-            for: currentDate,
-            intervalType: selectedInterval.vmInterval,
-            billingDay: globalSettings.settings.billingDay
-        )
+    private func recalcBothTariffs(
+        partialOverlap: Bool = false,
+        isChangingPlan: Bool = false
+    ) async {
+        self.isChangingPlan = isChangingPlan  // Set the state when recalculating
 
-        // Determine the actual calculation period considering all constraints
-        guard
-            let (overlapStart, overlapEnd) = await determineOverlapPeriod(
-                requestedStart: requestedStart,
-                requestedEnd: requestedEnd
+        do {
+            // Calculate the requested date range based on interval type
+            let (requestedStart, requestedEnd) = TariffViewModel().calculateDateRange(
+                for: currentDate,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
             )
-        else {
+
+            // Determine the actual calculation period considering all constraints
+            guard
+                let (overlapStart, overlapEnd) = await determineOverlapPeriod(
+                    requestedStart: requestedStart,
+                    requestedEnd: requestedEnd,
+                    isChangingPlan: isChangingPlan
+                )
+            else {
+                hasDateOverlap = false
+                await accountTariffVM.resetCalculationState()
+                await compareTariffVM.resetCalculationState()
+                return
+            }
+
+            hasDateOverlap = true
+
+            // Calculate both tariffs with the same overlap period
+            async let acctCalc = recalcAccountTariff(start: overlapStart, end: overlapEnd)
+            async let cmpCalc = recalcCompareTariff(start: overlapStart, end: overlapEnd)
+            _ = await (acctCalc, cmpCalc)
+
+        } catch let error as TariffCalculationError {
+            switch error {
+            case .invalidDateRange:
+                if !isChangingPlan {
+                    // Retry with isChangingPlan = true
+                    calculationError = "Adjusting date range to latest available data..."
+                    didAutoAdjustRange = true
+                    await recalcBothTariffs(partialOverlap: partialOverlap, isChangingPlan: true)
+                } else {
+                    // If we're already in changing plan mode, reset state
+                    calculationError = "Unable to calculate costs for this date range"
+                    hasDateOverlap = false
+                    await accountTariffVM.resetCalculationState()
+                    await compareTariffVM.resetCalculationState()
+                }
+            default:
+                calculationError = "Error calculating costs"
+                hasDateOverlap = false
+                await accountTariffVM.resetCalculationState()
+                await compareTariffVM.resetCalculationState()
+            }
+        } catch {
+            // Handle other errors
             hasDateOverlap = false
             await accountTariffVM.resetCalculationState()
             await compareTariffVM.resetCalculationState()
-            return
         }
-
-        hasDateOverlap = true
-
-        // Calculate both tariffs with the same overlap period
-        async let acctCalc = recalcAccountTariff(start: overlapStart, end: overlapEnd)
-        async let cmpCalc = recalcCompareTariff(start: overlapStart, end: overlapEnd)
-        _ = await (acctCalc, cmpCalc)
     }
 
     @MainActor
@@ -689,7 +745,8 @@ public struct TariffComparisonCardView: View {
                 intervalType: selectedInterval.vmInterval,
                 accountData: getAccountResponse(),
                 partialStart: start,
-                partialEnd: end
+                partialEnd: end,
+                isChangingPlan: isChangingPlan
             )
         } catch {
             DebugLogger.debug(
@@ -823,9 +880,27 @@ public struct TariffComparisonCardView: View {
     }
 
     /// Determine the actual calculation period based on data availability and tariff validity
-    private func determineOverlapPeriod(requestedStart: Date, requestedEnd: Date) async -> (
-        Date, Date
-    )? {
+    private func determineOverlapPeriod(
+        requestedStart: Date,
+        requestedEnd: Date,
+        isChangingPlan: Bool = false
+    ) async -> (Date, Date)? {
+        // If changing plan, use latest consumption record as base
+        if isChangingPlan {
+            guard let latestRecord = consumptionVM.maxInterval else {
+                return nil
+            }
+
+            // Calculate new range based on latest record
+            let (newStart, newEnd) = TariffViewModel().calculateDateRange(
+                for: latestRecord,
+                intervalType: selectedInterval.vmInterval,
+                billingDay: globalSettings.settings.billingDay
+            )
+
+            return (newStart, newEnd)
+        }
+
         // Get consumption data range
         guard let consumptionStart = consumptionVM.minInterval,
             let consumptionEnd = consumptionVM.maxInterval
@@ -999,7 +1074,29 @@ private struct ComparisonDateNavView: View {
             Spacer(minLength: 0)
 
             // Right
-            HStack {
+            HStack(spacing: 0) {
+                // Jump to max date button
+                if let maxDate = maxDate, currentDate < maxDate {
+                    Button {
+                        currentDate = maxDate
+                        onDateChanged(maxDate)
+                    } label: {
+                        Image(systemName: "chevron.right.to.line")
+                            .imageScale(.large)
+                            .foregroundColor(Theme.mainColor)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(isCalculating)
+                    .frame(width: 24)
+                    .padding(.trailing, 8)
+                } else {
+                    // Invisible placeholder to maintain layout
+                    Color.clear
+                        .frame(width: 24)
+                        .padding(.trailing, 8)
+                }
+                
+                // Original navigation button
                 let canGoForward = canNavigateForward()
                 if canGoForward && !isCalculating {
                     Button {
@@ -1010,9 +1107,14 @@ private struct ComparisonDateNavView: View {
                             .foregroundColor(Theme.mainColor)
                             .contentShape(Rectangle())
                     }
+                    .frame(width: 24)
+                } else {
+                    Color.clear
+                        .frame(width: 24)
                 }
             }
-            .frame(width: 44)
+            .frame(width: 56)  // Fixed width for stable layout
+            .contentShape(Rectangle())
         }
         .padding(.top, 4)
     }
@@ -1128,14 +1230,23 @@ private struct ComparisonDateNavView: View {
             return calendar.date(byAdding: .day, value: -1, to: currentDate)
 
         case .weekly:
+            guard let mn = minDate else { return nil }
             let prevDate = calendar.date(byAdding: .weekOfYear, value: -1, to: currentDate)
             guard let date = prevDate else { return nil }
-            // Validate using boundary
+            
+            // Get boundary for the previous week
             let boundary = accountTariffVM.getBoundary(
                 for: date,
                 intervalType: selectedInterval.vmInterval,
                 billingDay: globalSettings.settings.billingDay
             )
+            
+            // Strict check: if ANY part of the week is before minAllowedDate, reject it
+            if boundary.start < mn {
+                return nil
+            }
+            
+            // Only allow if the entire week is valid
             return boundary.overlapsWithData(minDate: minDate, maxDate: maxDate) ? date : nil
 
         case .monthly:
@@ -1409,6 +1520,8 @@ private struct TariffComparisonDetailView: View {
 private struct ComparisonCostSummaryView: View {
     let accountCalculation: TariffViewModel.TariffCalculation
     let compareCalculation: TariffViewModel.TariffCalculation
+    let calculationError: String?
+    let didAutoAdjustRange: Bool
     let showVAT: Bool
     @Binding var selectedInterval: CompareIntervalType
     @Binding var currentDate: Date
@@ -1423,6 +1536,16 @@ private struct ComparisonCostSummaryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let error = calculationError {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.caption)
+            }
+            if didAutoAdjustRange {
+                Text("Date range adjusted to latest available data")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
             // Show partial period info if applicable
             // Always reserve consistent space to avoid layout shifting
             HStack {
@@ -1611,6 +1734,12 @@ private struct ComparisonCostPlaceholderView: View {
         self.actualPeriod = actualPeriod
     }
 
+    private func formatDateRange(_ start: Date, _ end: Date) -> String {
+        let df = DateFormatter()
+        df.dateFormat = "d MMM yyyy"
+        return "\(df.string(from: start)) - \(df.string(from: end))"
+    }
+
     var body: some View {
         VStack(spacing: 0) {  // Changed to match actual view's spacing
             // Partial period info with same layout as actual view
@@ -1634,14 +1763,13 @@ private struct ComparisonCostPlaceholderView: View {
                     HStack(alignment: .firstTextBaseline) {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Theme.secondaryTextColor.opacity(0.2))
-                            .frame(width: 80, height: 20)
+                            .frame(width: 80, height: 36)
                         Text("difference")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
-                        Spacer()
                     }
 
-                    Spacer()
+                    Spacer()  // Match spacing distribution
 
                     // Cost rows placeholder
                     VStack(alignment: .leading, spacing: 8) {
@@ -1692,7 +1820,7 @@ private struct ComparisonCostPlaceholderView: View {
                         }
                     }
                 }
-                .padding(.vertical, 2)
+                Spacer()
 
                 // Right side interval switcher (keep the same as actual view)
                 VStack(spacing: 6) {
@@ -1724,8 +1852,33 @@ private struct ComparisonCostPlaceholderView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .padding(.vertical, 8)  // Match actual view's padding
+            .padding(.vertical, 2)  // Match actual view's padding
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // Helper function to create consistent cost row placeholders
+    private func costRowPlaceholder(label: String, icon: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(Theme.icon.opacity(0.5))
+                .imageScale(.small)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(label)
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.secondaryTextColor.opacity(0.2))
+                        .frame(width: 60, height: 16)
+                }
+                Text("£0.00 standing charge")
+                    .font(Theme.captionFont())
+                    .foregroundColor(Theme.secondaryTextColor.opacity(0.5))
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Theme.secondaryTextColor.opacity(0.2))
+                    .frame(width: 80, height: 14)
+            }
         }
     }
 
@@ -2150,10 +2303,13 @@ private struct BadgeView: View {
     }
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .medium))
-            .background(color.opacity(0.2))
-            .foregroundColor(color)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundColor(color.opacity(1.2))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.3))
             .clipShape(Capsule())
+
     }
 }
 
@@ -2197,6 +2353,7 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
 
             if isExpanded {
                 content()
+                    .padding(.vertical, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }

@@ -28,6 +28,7 @@ private struct ComparisonCardSettings: Codable {
 public enum TariffCalculationError: Error {
     case noDataAvailable(period: ClosedRange<Date>)
     case insufficientData(available: ClosedRange<Date>, requested: ClosedRange<Date>)
+    case invalidDateRange(message: String)
 }
 
 @MainActor

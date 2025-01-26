@@ -197,7 +197,8 @@ public final class TariffViewModel: ObservableObject {
         intervalType: IntervalType,
         accountData: OctopusAccountResponse? = nil,
         partialStart: Date? = nil,
-        partialEnd: Date? = nil
+        partialEnd: Date? = nil,
+        isChangingPlan: Bool = false
     ) async {
         DebugLogger.debug(
             """
@@ -206,6 +207,7 @@ public final class TariffViewModel: ObservableObject {
             - Tariff: \(tariffCode)
             - Interval: \(intervalType.rawValue)
             - Partial Range: \(partialStart?.formatted() ?? "none") to \(partialEnd?.formatted() ?? "none")
+            - Is Changing Plan: \(isChangingPlan)
             """, component: .tariffViewModel)
 
         // Reset state at the start
@@ -221,13 +223,22 @@ public final class TariffViewModel: ObservableObject {
                 partialEnd ?? stdEnd
             )
 
+            // Add guard for invalid date ranges
+            guard finalEnd > finalStart else {
+                throw TariffCalculationError.invalidDateRange(
+                    message:
+                        "Invalid date range: end date (\(finalEnd)) must be after start date (\(finalStart))"
+                )
+            }
+
             // 2) Calculate costs over the range
             let calculation = try await computeCostsOverRange(
                 startDate: finalStart,
                 endDate: finalEnd,
                 tariffCode: tariffCode,
                 accountData: accountData,
-                storeInCoreData: !skipCoreDataStorage && partialStart == nil && partialEnd == nil
+                storeInCoreData: !skipCoreDataStorage && partialStart == nil && partialEnd == nil,
+                isChangingPlan: isChangingPlan
             )
 
             currentCalculation = calculation
@@ -249,7 +260,8 @@ public final class TariffViewModel: ObservableObject {
         endDate: Date,
         tariffCode: String,
         accountData: OctopusAccountResponse?,
-        storeInCoreData: Bool
+        storeInCoreData: Bool,
+        isChangingPlan: Bool
     ) async throws -> TariffCalculation {
         // 0) Quick sanity check
         guard endDate > startDate else {
