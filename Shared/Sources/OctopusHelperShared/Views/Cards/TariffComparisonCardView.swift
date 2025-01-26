@@ -222,7 +222,8 @@ public struct TariffComparisonCardView: View {
                         if compareSettings.settings.isManualPlan {
                             ManualPlanDetailView(settings: compareSettings.settings)
                         } else if let product = availablePlans.first(where: {
-                            ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
+                            ($0.value(forKey: "code") as? String)
+                                == compareSettings.settings.selectedPlanCode
                         }) {
                             ProductDetailView(product: product)
                                 .environmentObject(globalSettings)
@@ -576,16 +577,18 @@ public struct TariffComparisonCardView: View {
                 intervalType: selectedInterval.vmInterval,
                 billingDay: globalSettings.settings.billingDay
             )
-            
+
             // New logic for handling partial overlap
             if selectedInterval == .weekly {
                 // For weekly intervals, if the boundary starts before minAllowedDate
                 // but ends after it, we want to clamp to a week starting at minAllowedDate
                 if boundary.start < mn && boundary.end > mn {
                     // Find the next week boundary starting from minAllowedDate
-                    let weekStart = calendar.date(
-                        from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: mn)
-                    ) ?? mn
+                    let weekStart =
+                        calendar.date(
+                            from: calendar.dateComponents(
+                                [.yearForWeekOfYear, .weekOfYear], from: mn)
+                        ) ?? mn
                     currentDate = weekStart
                 } else if !boundary.overlapsWithData(minDate: mn, maxDate: nil) {
                     currentDate = mn
@@ -597,7 +600,7 @@ public struct TariffComparisonCardView: View {
                 }
             }
         }
-        
+
         if let mx = maxAllowedDate {
             let boundary = accountTariffVM.getBoundary(
                 for: currentDate,
@@ -1106,10 +1109,22 @@ private struct ComparisonDateNavView: View {
             // Right
             HStack(spacing: 0) {
                 // Jump to max date button
-                if let maxDate = maxDate, currentDate < maxDate {
+                let canGoForward = canNavigateForward()
+                if let maxDate = maxDate, currentDate < maxDate && !isCalculating && canGoForward {
                     Button {
-                        currentDate = maxDate
-                        onDateChanged(maxDate)
+                        if selectedInterval == .daily {
+                            // For daily intervals, find the latest available day from consumption data
+                            if let dailySet = buildDailySet(),
+                                let latestAvailable = dailySet.max()
+                            {
+                                currentDate = latestAvailable
+                                onDateChanged(latestAvailable)
+                            }
+                        } else {
+                            // For other intervals, use maxDate
+                            currentDate = maxDate
+                            onDateChanged(maxDate)
+                        }
                     } label: {
                         Image(systemName: "chevron.right.to.line")
                             .imageScale(.large)
@@ -1125,9 +1140,8 @@ private struct ComparisonDateNavView: View {
                         .frame(width: 24)
                         .padding(.trailing, 8)
                 }
-                
+
                 // Original navigation button
-                let canGoForward = canNavigateForward()
                 if canGoForward && !isCalculating {
                     Button {
                         moveDate(forward: true)
@@ -1263,19 +1277,19 @@ private struct ComparisonDateNavView: View {
             guard let mn = minDate else { return nil }
             let prevDate = calendar.date(byAdding: .weekOfYear, value: -1, to: currentDate)
             guard let date = prevDate else { return nil }
-            
+
             // Get boundary for the previous week
             let boundary = accountTariffVM.getBoundary(
                 for: date,
                 intervalType: selectedInterval.vmInterval,
                 billingDay: globalSettings.settings.billingDay
             )
-            
+
             // Strict check: if ANY part of the week is before minAllowedDate, reject it
             if boundary.start < mn {
                 return nil
             }
-            
+
             // Only allow if the entire week is valid
             return boundary.overlapsWithData(minDate: minDate, maxDate: maxDate) ? date : nil
 

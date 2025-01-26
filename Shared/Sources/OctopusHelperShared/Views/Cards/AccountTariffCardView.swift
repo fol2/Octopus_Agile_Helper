@@ -438,11 +438,25 @@ private struct AccountTariffDateNavView: View {
 
             // Right
             HStack(spacing: 0) {
+                let canGoForward = canNavigateForward()
                 // New jump to max button
-                if let maxDate = maxAllowedDate, currentDate < maxDate {
+                if let maxDate = maxAllowedDate,
+                    currentDate < maxDate && !tariffVM.isCalculating && canGoForward
+                {
                     Button {
-                        currentDate = maxDate
-                        onDateChanged()
+                        if selectedInterval == .daily {
+                            // For daily intervals, find the latest available day from consumption data
+                            if let dailySet = buildDailySet(),
+                                let latestAvailable = dailySet.max()
+                            {
+                                currentDate = latestAvailable
+                                onDateChanged()
+                            }
+                        } else {
+                            // For other intervals, use maxDate
+                            currentDate = maxDate
+                            onDateChanged()
+                        }
                     } label: {
                         Image(systemName: "chevron.right.to.line")
                             .imageScale(.large)
@@ -457,9 +471,8 @@ private struct AccountTariffDateNavView: View {
                         .frame(width: 24)
                         .padding(.trailing, 8)
                 }
-                
+
                 // Existing forward button
-                let canGoForward = canNavigateForward()
                 if canGoForward {
                     Button {
                         moveDate(forward: true)
