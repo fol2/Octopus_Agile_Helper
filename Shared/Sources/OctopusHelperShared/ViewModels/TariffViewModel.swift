@@ -124,7 +124,10 @@ public final class TariffViewModel: ObservableObject {
     public init(skipCoreDataStorage: Bool = false) {
         self.calculationRepository = TariffCalculationRepository()
         self.skipCoreDataStorage = skipCoreDataStorage
-        DebugLogger.debug("🔄 Initializing TariffViewModel", component: .tariffViewModel)
+        DebugLogger.debug(
+            "🔄 TariffViewModel initialized (no main-actor lock)",
+            component: .tariffViewModel
+        )
     }
 
     // MARK: - Cache Management

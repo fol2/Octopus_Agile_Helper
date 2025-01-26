@@ -4,7 +4,7 @@ import Foundation
 import SwiftUI
 
 /// Manages Octopus electricity consumption data in Core Data, including fetching and caching.
-@MainActor
+
 public final class ElectricityConsumptionRepository: ObservableObject {
     // MARK: - Singleton
     public static let shared = ElectricityConsumptionRepository()
@@ -12,7 +12,8 @@ public final class ElectricityConsumptionRepository: ObservableObject {
     // MARK: - Dependencies
     private let apiClient = OctopusAPIClient.shared
     private var globalSettingsManager: GlobalSettingsManager
-    private let context: NSManagedObjectContext
+    /// Use a background context to avoid main-thread blocking
+    private let backgroundContext: NSManagedObjectContext
 
     // For pagination, each page typically has 100 records from Octopus.
     private let recordsPerPage = 100
@@ -20,7 +21,7 @@ public final class ElectricityConsumptionRepository: ObservableObject {
     // MARK: - Initializer
     private init(globalSettingsManager: GlobalSettingsManager = GlobalSettingsManager()) {
         self.globalSettingsManager = globalSettingsManager
-        context = PersistenceController.shared.container.viewContext
+        self.backgroundContext = PersistenceController.shared.container.newBackgroundContext()
     }
 
     /// Updates the GlobalSettingsManager instance
@@ -36,13 +37,13 @@ public final class ElectricityConsumptionRepository: ObservableObject {
         let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
         request.sortDescriptors = [NSSortDescriptor(key: "interval_end", ascending: false)]
 
-        return try await withCheckedThrowingContinuation { continuation in
-            context.perform {
+        return try await withCheckedThrowingContinuation { cont in
+            backgroundContext.perform {
                 do {
-                    let results = try self.context.fetch(request)
-                    continuation.resume(returning: results)
+                    let results = try self.backgroundContext.fetch(request)
+                    cont.resume(returning: results)
                 } catch {
-                    continuation.resume(throwing: error)
+                    cont.resume(throwing: error)
                 }
             }
         }
@@ -276,10 +277,10 @@ public final class ElectricityConsumptionRepository: ObservableObject {
         let deleteReq = NSBatchDeleteRequest(fetchRequest: fetchReq)
 
         return try await withCheckedThrowingContinuation { continuation in
-            context.perform {
+            backgroundContext.perform {
                 do {
-                    try self.context.execute(deleteReq)
-                    try self.context.save()
+                    try self.backgroundContext.execute(deleteReq)
+                    try self.backgroundContext.save()
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
@@ -296,7 +297,7 @@ public final class ElectricityConsumptionRepository: ObservableObject {
         request.sortDescriptors = [NSSortDescriptor(key: "interval_end", ascending: false)]
         request.fetchLimit = 1
 
-        guard let latestRecord = try? context.fetch(request).first,
+        guard let latestRecord = try? backgroundContext.fetch(request).first,
             let maxDate = latestRecord.value(forKey: "interval_end") as? Date
         else {
             print("DEBUG: No consumption records found")
@@ -334,11 +335,11 @@ public final class ElectricityConsumptionRepository: ObservableObject {
     /// Inserts consumption data into Core Data. Skips duplicates based on the `interval_start`.
     private func storeConsumptionRecords(_ records: [ConsumptionRecord]) async throws {
         return try await withCheckedThrowingContinuation { continuation in
-            context.perform {
+            backgroundContext.perform {
                 do {
                     // Build a dictionary of existing records keyed by interval_start
                     let fetchReq = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
-                    let existing = try self.context.fetch(fetchReq)
+                    let existing = try self.backgroundContext.fetch(fetchReq)
                     let existingMap = Dictionary(
                         uniqueKeysWithValues: existing.compactMap {
                             record -> (Date, NSManagedObject)? in
@@ -361,7 +362,7 @@ public final class ElectricityConsumptionRepository: ObservableObject {
                         } else {
                             // Insert new
                             let newItem = NSEntityDescription.insertNewObject(
-                                forEntityName: "EConsumAgile", into: self.context)
+                                forEntityName: "EConsumAgile", into: self.backgroundContext)
                             newItem.setValue(c.interval_start, forKey: "interval_start")
                             newItem.setValue(c.interval_end, forKey: "interval_end")
                             newItem.setValue(c.consumption, forKey: "consumption")
@@ -372,7 +373,7 @@ public final class ElectricityConsumptionRepository: ObservableObject {
                     print(
                         "Debug - Storage update: \(updatedCount) updated, \(insertedCount) inserted"
                     )
-                    try self.context.save()
+                    try self.backgroundContext.save()
                     continuation.resume()
                 } catch {
                     print("Debug - Error storing records: \(error)")
