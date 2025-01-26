@@ -34,21 +34,24 @@ public enum TariffCalculationError: Error {
 @MainActor
 public final class TariffCalculationRepository: ObservableObject {
     // MARK: - Dependencies
-    private let context: NSManagedObjectContext
+    private let backgroundContext: NSManagedObjectContext
     private let consumptionRepository: ElectricityConsumptionRepository
     private let ratesRepository: RatesRepository
 
     // MARK: - Initialization
     public init(
-        context: NSManagedObjectContext = PersistenceController.shared.container.viewContext,
         consumptionRepository: ElectricityConsumptionRepository = .shared,
         ratesRepository: RatesRepository = .shared
     ) {
-        self.context = context
         self.consumptionRepository = consumptionRepository
         self.ratesRepository = ratesRepository
+        // Use a background context to avoid blocking the main thread:
+        let container = PersistenceController.shared.container
+        self.backgroundContext = container.newBackgroundContext()
+        self.backgroundContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
     }
 
+    // MARK: - Use backgroundContext instead of main context
     // MARK: - Public API
 
     /// Checks if we have new consumption data available since the calculation was last updated
@@ -64,7 +67,7 @@ public final class TariffCalculationRepository: ObservableObject {
             existingCalculation.value(forKey: "updated_at") as? Date ?? .distantPast
 
         // Fetch current consumption records for the period
-        let currentRecords = try await fetchConsumption(start: start, end: end)
+        let currentRecords = try await self.fetchConsumption(start: start, end: end)
 
         // Calculate current total consumption
         let currentTotalKWh = currentRecords.reduce(0.0) { total, record in
@@ -106,7 +109,7 @@ public final class TariffCalculationRepository: ObservableObject {
         periodStart: Date,
         periodEnd: Date
     ) async throws -> NSManagedObject? {
-        let existing = try await context.perform {
+        let existing = try await backgroundContext.perform {
             let fetchRequest = NSFetchRequest<NSManagedObject>(
                 entityName: "TariffCalculationEntity")
 
@@ -118,14 +121,14 @@ public final class TariffCalculationRepository: ObservableObject {
             )
 
             fetchRequest.fetchLimit = 1
-            let results = try self.context.fetch(fetchRequest)
+            let results = try self.backgroundContext.fetch(fetchRequest)
             return results.first
         }
 
         // If we found an existing calculation, check if we have new data
-        if let existing = existing {
+        if let existingCalc = existing {
             if try await hasNewDataAvailable(
-                existingCalculation: existing,
+                existingCalculation: existingCalc,
                 start: periodStart,
                 end: periodEnd
             ) {
@@ -155,7 +158,7 @@ public final class TariffCalculationRepository: ObservableObject {
     ) async throws -> NSManagedObject {
         // First try to fetch from CoreData if we're storing
         if storeInCoreData {
-            let existing = try await context.perform {
+            let existing = try await backgroundContext.perform {
                 let fetchRequest = NSFetchRequest<NSManagedObject>(
                     entityName: "TariffCalculationEntity")
 
@@ -167,7 +170,7 @@ public final class TariffCalculationRepository: ObservableObject {
                 )
 
                 fetchRequest.fetchLimit = 1
-                let results = try self.context.fetch(fetchRequest)
+                let results = try self.backgroundContext.fetch(fetchRequest)
                 return results.first
             }
 
@@ -274,7 +277,7 @@ public final class TariffCalculationRepository: ObservableObject {
     }
 
     /// Helper function to compute and store cost calculation
-    private func computeAndStoreCost(
+    fileprivate func computeAndStoreCost(
         tariffCode: String,
         startDate: Date,
         endDate: Date,
@@ -301,7 +304,7 @@ public final class TariffCalculationRepository: ObservableObject {
             )
 
         // 5) Insert or update TariffCalculationEntity
-        let existing = try await fetchStoredCalculation(
+        let existing = try await self.fetchStoredCalculation(
             tariffCode: tariffCode,
             intervalType: intervalType,
             periodStart: startDate,
@@ -313,8 +316,8 @@ public final class TariffCalculationRepository: ObservableObject {
             result = found
         } else {
             let desc = NSEntityDescription.entity(
-                forEntityName: "TariffCalculationEntity", in: self.context)!
-            result = NSManagedObject(entity: desc, insertInto: self.context)
+                forEntityName: "TariffCalculationEntity", in: self.backgroundContext)!
+            result = NSManagedObject(entity: desc, insertInto: self.backgroundContext)
         }
 
         // Write fields via KVC or property access
@@ -345,12 +348,12 @@ public final class TariffCalculationRepository: ObservableObject {
         }
 
         // Save context
-        try self.context.save()
+        try self.backgroundContext.save()
 
         // After computing costs, only store in CoreData if requested
         if storeInCoreData {
             // Store in CoreData
-            try await context.perform {
+            try await backgroundContext.perform {
                 // ... existing CoreData storage code ...
             }
         }
@@ -370,7 +373,7 @@ public final class TariffCalculationRepository: ObservableObject {
         intervalType: String
     ) async throws -> [NSManagedObject] {
         // First try to fetch from CoreData
-        let existing = try await context.perform {
+        let existing = try await backgroundContext.perform {
             let fetchRequest = NSFetchRequest<NSManagedObject>(
                 entityName: "TariffCalculationEntity")
 
@@ -382,7 +385,7 @@ public final class TariffCalculationRepository: ObservableObject {
             )
 
             fetchRequest.fetchLimit = 1
-            let results = try self.context.fetch(fetchRequest)
+            let results = try self.backgroundContext.fetch(fetchRequest)
             return results.first
         }
 
@@ -449,10 +452,10 @@ public final class TariffCalculationRepository: ObservableObject {
 
         // Store the combined calculation in CoreData
         if !results.isEmpty {
-            let combinedCalc = try await context.perform {
+            let combinedCalc = try await backgroundContext.perform {
                 let desc = NSEntityDescription.entity(
-                    forEntityName: "TariffCalculationEntity", in: self.context)!
-                let entity = NSManagedObject(entity: desc, insertInto: self.context)
+                    forEntityName: "TariffCalculationEntity", in: self.backgroundContext)!
+                let entity = NSManagedObject(entity: desc, insertInto: self.backgroundContext)
 
                 // Sum up the values from individual calculations
                 var totalKWh = 0.0
@@ -491,7 +494,7 @@ public final class TariffCalculationRepository: ObservableObject {
                 entity.setValue(Date(), forKey: "updated_at")
                 entity.setValue(Date(), forKey: "create_at")
 
-                try self.context.save()
+                try self.backgroundContext.save()
                 return entity
             }
 
@@ -508,14 +511,14 @@ public final class TariffCalculationRepository: ObservableObject {
     /// If no data is found, attempts to fetch from API.
     private func fetchConsumption(start: Date, end: Date) async throws -> [NSManagedObject] {
         // First try to fetch from local storage
-        let records = try await context.perform {
+        let records = try await backgroundContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
             request.predicate = NSPredicate(
                 format: "interval_start >= %@ AND interval_start < %@",
                 start as NSDate, end as NSDate
             )
             request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
-            return try self.context.fetch(request)
+            return try self.backgroundContext.fetch(request)
         }
 
         // If no records found, try to fetch from API
@@ -529,14 +532,14 @@ public final class TariffCalculationRepository: ObservableObject {
             try await consumptionRepository.updateConsumptionData()
 
             // Try fetching again after API update
-            return try await context.perform {
+            return try await backgroundContext.perform {
                 let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
                 request.predicate = NSPredicate(
                     format: "interval_start >= %@ AND interval_start < %@",
                     start as NSDate, end as NSDate
                 )
                 request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
-                return try self.context.fetch(request)
+                return try self.backgroundContext.fetch(request)
             }
         }
 
@@ -549,14 +552,14 @@ public final class TariffCalculationRepository: ObservableObject {
         -> [NSManagedObject]
     {
         // First try to fetch from local storage
-        let records = try await context.perform {
+        let records = try await backgroundContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
             request.predicate = NSPredicate(
                 format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
                 tariffCode, start as NSDate, end as NSDate
             )
             request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-            return try self.context.fetch(request)
+            return try self.backgroundContext.fetch(request)
         }
 
         // If no records found, try to fetch from API
@@ -570,14 +573,14 @@ public final class TariffCalculationRepository: ObservableObject {
             let (_, _) = try await ratesRepository.fetchAndStoreRates(tariffCode: tariffCode)
 
             // Try fetching again after API update
-            return try await context.perform {
+            return try await backgroundContext.perform {
                 let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
                 request.predicate = NSPredicate(
                     format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
                     tariffCode, start as NSDate, end as NSDate
                 )
                 request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-                return try self.context.fetch(request)
+                return try self.backgroundContext.fetch(request)
             }
         }
 
@@ -590,11 +593,11 @@ public final class TariffCalculationRepository: ObservableObject {
         -> [NSManagedObject]
     {
         // First try to fetch from local storage
-        let records = try await context.perform {
+        let records = try await backgroundContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
             request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
             request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-            return try self.context.fetch(request)
+            return try self.backgroundContext.fetch(request)
         }
 
         // If no records found, try to fetch from API
@@ -603,10 +606,10 @@ public final class TariffCalculationRepository: ObservableObject {
             print("🔄 Attempting to fetch from API...")
 
             // First we need to get the product details to get the standing charge URL
-            let details = try await context.perform {
+            let details = try await backgroundContext.perform {
                 let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
                 request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-                return try self.context.fetch(request)
+                return try self.backgroundContext.fetch(request)
             }
 
             if let detail = details.first,
@@ -619,12 +622,12 @@ public final class TariffCalculationRepository: ObservableObject {
                 )
 
                 // Try fetching again after API update
-                return try await context.perform {
+                return try await backgroundContext.perform {
                     let request = NSFetchRequest<NSManagedObject>(
                         entityName: "StandingChargeEntity")
                     request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
                     request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-                    return try self.context.fetch(request)
+                    return try self.backgroundContext.fetch(request)
                 }
             } else {
                 print(
@@ -865,7 +868,7 @@ public final class TariffCalculationRepository: ObservableObject {
         // Return an "in-memory" TariffCalculationEntity
         // so the TariffViewModel can handle it. We do not insert into self.context.
         let desc = NSEntityDescription.entity(
-            forEntityName: "TariffCalculationEntity", in: self.context)!
+            forEntityName: "TariffCalculationEntity", in: self.backgroundContext)!
         let calc = NSManagedObject(entity: desc, insertInto: nil)  // no context => ephemeral
         calc.setValue(UUID(), forKey: "id")
         calc.setValue(tariffCode, forKey: "tariff_code")

@@ -634,7 +634,7 @@ struct TariffCalculationsSection: View {
     init(selectedTariffCode: Binding<String?>) {
         self._selectedTariffCode = selectedTariffCode
         self.context = PersistenceController.shared.container.viewContext
-        self.repository = TariffCalculationRepository(context: self.context)
+        self.repository = TariffCalculationRepository()
     }
 
     // Helper to normalize dates to start of day

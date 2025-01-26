@@ -180,7 +180,7 @@ public struct AccountTariffCardView: View {
         }
         .onChange(of: consumptionVM.fetchState) { oldVal, newVal in
             if newVal == .loading && consumptionVM.consumptionRecords.isEmpty {
-                DispatchQueue.main.asyncAfter(wallDeadline: .now() + 8) { [weak consumptionVM] in
+                DispatchQueue.main.asyncAfter(wallDeadline: .now() + 60) { [weak consumptionVM] in
                     guard let consumptionVM else { return }
                     if consumptionVM.fetchState == .loading
                         && consumptionVM.consumptionRecords.isEmpty
