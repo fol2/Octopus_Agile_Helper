@@ -121,11 +121,12 @@ public final class TariffViewModel: ObservableObject {
     }
 
     // MARK: - Initialization
+    @MainActor
     public init(skipCoreDataStorage: Bool = false) {
         self.calculationRepository = TariffCalculationRepository()
         self.skipCoreDataStorage = skipCoreDataStorage
         DebugLogger.debug(
-            "🔄 Initializing TariffViewModel off main actor", component: .tariffViewModel)
+            "🔄 TariffViewModel initialised on main actor", component: .tariffViewModel)
     }
 
     // MARK: - Cache Management
