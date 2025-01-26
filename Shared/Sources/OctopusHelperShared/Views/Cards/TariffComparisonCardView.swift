@@ -131,7 +131,6 @@ public struct TariffComparisonCardView: View {
     @State private var currentDate = Date()
 
     // Other UI states
-    @State private var showingSettingsSheet = false
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
     @State private var hasDateOverlap = true
@@ -189,7 +188,7 @@ public struct TariffComparisonCardView: View {
                     Button(action: {
                         showingDetails = true
                     }) {
-                        Image(systemName: "chevron.right.circle.fill")
+                        Image(systemName: "info.circle.fill")
                             .foregroundColor(Theme.secondaryTextColor)
                     }
                     .buttonStyle(.plain)
@@ -218,16 +217,41 @@ public struct TariffComparisonCardView: View {
         .rateCardStyle()  // ← Apply card style to root container
         .sheet(isPresented: $showingDetails) {
             NavigationView {
-                TariffComparisonDetailView(
-                    compareSettings: compareSettings,
-                    availablePlans: $availablePlans,
-                    globalSettings: globalSettings,
-                    compareTariffVM: compareTariffVM,
-                    currentDate: $currentDate,
-                    selectedInterval: $selectedInterval,
-                    overlapStart: $overlapStart,
-                    overlapEnd: $overlapEnd
-                )
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Plan Details")
+                            .font(Theme.titleFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                        Spacer()
+                        Button {
+                            showingDetails = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(Theme.secondaryTextColor)
+                        }
+                    }
+                    .padding(.bottom, 2)
+
+                    if compareSettings.settings.isManualPlan {
+                        ManualPlanDetailView(settings: compareSettings.settings)
+                    } else if let product = availablePlans.first(where: {
+                        ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
+                    }) {
+                        ProductDetailView(product: product)
+                            .environmentObject(globalSettings)
+                    } else {
+                        VStack(spacing: 16) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 36))
+                                .foregroundColor(.orange)
+                            Text("No product details available.")
+                                .foregroundColor(Theme.secondaryTextColor)
+                        }
+                        .padding(.vertical, 20)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
             }
         }
         .environment(\.locale, globalSettings.locale)
@@ -1583,7 +1607,7 @@ private struct ComparisonCostSummaryView: View {
                                 .font(Theme.mainFont())
                                 .foregroundColor(diffColor)
                         }
-                        Text("difference")
+                        Text("diff.")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                     }
@@ -1764,7 +1788,7 @@ private struct ComparisonCostPlaceholderView: View {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Theme.secondaryTextColor.opacity(0.2))
                             .frame(width: 80, height: 36)
-                        Text("difference")
+                        Text("diff.")
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                     }
