@@ -166,54 +166,13 @@ public struct AccountTariffCardView: View {
         }
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
-        .onAppear(perform: handleOnAppear)
-        .onChange(of: globalSettings.settings.accountData) { oldDataValue, newDataValue in
-            // If both are nil, no real change
-            if oldDataValue == nil && newDataValue == nil {
-                return
-            }
-
-            // Skip re-entrant calls that can cause repeated re-init or freeze
-            if consumptionVM.fetchState == .loading {
-                print("🔄 Skipping forced refresh — consumption is already loading.")
-                return
-            }
-
-            // If one is nil and the other not, that's definitely a change
-            guard let oldData = oldDataValue, let newData = newDataValue else {
-                print(
-                    "🔄 AccountTariffCardView: accountData changed (nil <-> non-nil), forcing consumption reload."
-                )
-                Task {
-                    // Skip if we are in partial state to avoid repeated reload
-                    if consumptionVM.fetchState == .partial {
-                        print("🔄 Skipping reload while in partial state")
-                        return
-                    }
-                    await consumptionVM.refreshDataFromAPI(force: true)
-                    updateAllowedDateRangeAndRecalculate()
-                }
-                return
-            }
-
-            // Both non-nil => compare raw bytes
-            guard !oldData.elementsEqual(newData) else {
-                print(
-                    "🔄 AccountTariffCardView: accountData changed, but data is identical. Skipping reload."
-                )
-                return
-            }
-
-            // If truly different bytes, reload
-            print("🔄 AccountTariffCardView: accountData changed, forcing consumption reload.")
-            Task {
-                // Skip if we are in partial state to avoid repeated reload
-                if consumptionVM.fetchState == .partial {
-                    print("🔄 Skipping reload while in partial state")
-                    return
-                }
-                await consumptionVM.refreshDataFromAPI(force: true)
-                updateAllowedDateRangeAndRecalculate()
+        // MARK: - Header
+        // IMPORTANT CHANGE: Instead of always calling `handleOnAppear` no matter what,
+        // we only do so if the VM is in `.idle`. This prevents multiple forced reloads
+        // and stops re-entrant calls that cause the freeze.
+        .onAppear {
+            if consumptionVM.fetchState == .idle {
+                handleOnAppear()
             }
         }
         .onChange(of: globalSettings.locale) { _, _ in
@@ -233,10 +192,6 @@ public struct AccountTariffCardView: View {
                 }
             }
         }
-        .onChange(of: consumptionVM.minInterval) { _, _ in
-            updateAllowedDateRangeAndRecalculate()
-        }
-        .id("account-tariff-\(refreshTrigger)")
         .sheet(isPresented: $showingDetails) {
             NavigationView {
                 AccountTariffDetailView(
