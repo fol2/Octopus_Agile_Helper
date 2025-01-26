@@ -511,7 +511,8 @@ public final class TariffCalculationRepository: ObservableObject {
     /// If no data is found, attempts to fetch from API.
     private func fetchConsumption(start: Date, end: Date) async throws -> [NSManagedObject] {
         // First try to fetch from local storage
-        let records = try await backgroundContext.perform {
+        // 1) Do a quick fetch inside backgroundContext.perform
+        let localRecords = try await backgroundContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
             request.predicate = NSPredicate(
                 format: "interval_start >= %@ AND interval_start < %@",
@@ -521,29 +522,29 @@ public final class TariffCalculationRepository: ObservableObject {
             return try self.backgroundContext.fetch(request)
         }
 
-        // If no records found, try to fetch from API
-        if records.isEmpty {
-            print(
-                "🔄 No consumption data found locally for period \(start.formatted()) to \(end.formatted())"
-            )
-            print("🔄 Attempting to fetch from API...")
-
-            // Update consumption data from API
-            try await consumptionRepository.updateConsumptionData()
-
-            // Try fetching again after API update
-            return try await backgroundContext.perform {
-                let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
-                request.predicate = NSPredicate(
-                    format: "interval_start >= %@ AND interval_start < %@",
-                    start as NSDate, end as NSDate
-                )
-                request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
-                return try self.backgroundContext.fetch(request)
-            }
+        // 2) If we found something, return immediately
+        if !localRecords.isEmpty {
+            return localRecords
         }
 
-        return records
+        // Otherwise, we found 0 records. Attempt a network fetch outside backgroundContext.perform
+        print("🔄 No consumption data found for \(start)–\(end). Fetching from API...")
+
+        // 3) Now fetch from API or do your main-actor logic
+        try await consumptionRepository.updateConsumptionData()
+
+        // 4) Do a *new* backgroundContext.perform for the updated fetch
+        let updatedRecords = try await backgroundContext.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
+            request.predicate = NSPredicate(
+                format: "interval_start >= %@ AND interval_start < %@",
+                start as NSDate, end as NSDate
+            )
+            request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
+            return try self.backgroundContext.fetch(request)
+        }
+
+        return updatedRecords
     }
 
     /// Fetch rate records from RateEntity for a single tariff_code that intersect the requested date window.
@@ -551,8 +552,8 @@ public final class TariffCalculationRepository: ObservableObject {
     private func fetchRates(tariffCode: String, start: Date, end: Date) async throws
         -> [NSManagedObject]
     {
-        // First try to fetch from local storage
-        let records = try await backgroundContext.perform {
+        // 1) Attempt local fetch in background context
+        let localRates = try await backgroundContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
             request.predicate = NSPredicate(
                 format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
@@ -563,28 +564,26 @@ public final class TariffCalculationRepository: ObservableObject {
         }
 
         // If no records found, try to fetch from API
-        if records.isEmpty {
-            print(
-                "🔄 No rate data found locally for period \(start.formatted()) to \(end.formatted())"
-            )
-            print("🔄 Attempting to fetch from API...")
-
-            // Update rates data from API
-            let (_, _) = try await ratesRepository.fetchAndStoreRates(tariffCode: tariffCode)
-
-            // Try fetching again after API update
-            return try await backgroundContext.perform {
-                let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-                request.predicate = NSPredicate(
-                    format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
-                    tariffCode, start as NSDate, end as NSDate
-                )
-                request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-                return try self.backgroundContext.fetch(request)
-            }
+        // 2) If not empty, just return
+        if !localRates.isEmpty {
+            return localRates
         }
 
-        return records
+        // 3) Otherwise, do the remote fetch outside backgroundContext.perform
+        print("🔄 No rate data found. Fetching from API...")
+        let (_, _) = try await ratesRepository.fetchAndStoreRates(tariffCode: tariffCode)
+
+        // 4) Then do a new backgroundContext.perform after we have new data
+        let updatedRates = try await backgroundContext.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+            request.predicate = NSPredicate(
+                format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
+                tariffCode, start as NSDate, end as NSDate
+            )
+            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+            return try self.backgroundContext.fetch(request)
+        }
+        return updatedRates
     }
 
     /// Fetch standing charge records from StandingChargeEntity for the same tariff_code + date window.
@@ -592,51 +591,54 @@ public final class TariffCalculationRepository: ObservableObject {
     private func fetchStandingCharges(tariffCode: String, start: Date, end: Date) async throws
         -> [NSManagedObject]
     {
-        // First try to fetch from local storage
-        let records = try await backgroundContext.perform {
+        // 1) Attempt local fetch in background context
+        let localRecords = try await backgroundContext.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "StandingChargeEntity")
             request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
             request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
             return try self.backgroundContext.fetch(request)
         }
 
-        // If no records found, try to fetch from API
-        if records.isEmpty {
-            print("🔄 No standing charge data found locally for tariff \(tariffCode)")
-            print("🔄 Attempting to fetch from API...")
-
-            // First we need to get the product details to get the standing charge URL
-            let details = try await backgroundContext.perform {
-                let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
-                request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-                return try self.backgroundContext.fetch(request)
-            }
-
-            if let detail = details.first,
-                let standingChargeLink = detail.value(forKey: "link_standing_charge") as? String
-            {
-                // Update standing charges from API
-                try await ratesRepository.fetchAndStoreStandingCharges(
-                    tariffCode: tariffCode,
-                    url: standingChargeLink
-                )
-
-                // Try fetching again after API update
-                return try await backgroundContext.perform {
-                    let request = NSFetchRequest<NSManagedObject>(
-                        entityName: "StandingChargeEntity")
-                    request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-                    request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-                    return try self.backgroundContext.fetch(request)
-                }
-            } else {
-                print(
-                    "⚠️ Could not find product details or standing charge link for tariff \(tariffCode)"
-                )
-            }
+        // 2) If not empty, just return
+        if !localRecords.isEmpty {
+            return localRecords
         }
 
-        return records
+        // 3) Otherwise, do the remote fetch outside backgroundContext.perform
+        print("🔄 No standing charge data found locally for tariff \(tariffCode)")
+        print("🔄 Attempting to fetch from API...")
+
+        // First we need to get the product details to get the standing charge URL
+        let details = try await backgroundContext.perform {
+            let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
+            request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+            return try self.backgroundContext.fetch(request)
+        }
+
+        if let detail = details.first,
+            let standingChargeLink = detail.value(forKey: "link_standing_charge") as? String
+        {
+            // Update standing charges from API
+            try await ratesRepository.fetchAndStoreStandingCharges(
+                tariffCode: tariffCode,
+                url: standingChargeLink
+            )
+
+            // 4) Then do a new backgroundContext.perform after we have new data
+            let updatedRecords = try await backgroundContext.perform {
+                let request = NSFetchRequest<NSManagedObject>(
+                    entityName: "StandingChargeEntity")
+                request.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
+                request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+                return try self.backgroundContext.fetch(request)
+            }
+            return updatedRecords
+        } else {
+            print(
+                "⚠️ Could not find product details or standing charge link for tariff \(tariffCode)"
+            )
+            return []
+        }
     }
 
     /// Core function that merges half-hour consumption with matched RateEntity intervals,
