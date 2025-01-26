@@ -54,52 +54,6 @@ public final class TariffCalculationRepository: ObservableObject {
     // MARK: - Use backgroundContext instead of main context
     // MARK: - Public API
 
-    /// Checks if we have new consumption data available since the calculation was last updated
-    private func hasNewDataAvailable(
-        existingCalculation: NSManagedObject,
-        start: Date,
-        end: Date
-    ) async throws -> Bool {
-        // Get the stored total consumption from the calculation
-        let storedTotalKWh =
-            existingCalculation.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
-        let storedUpdateTime =
-            existingCalculation.value(forKey: "updated_at") as? Date ?? .distantPast
-
-        // Fetch current consumption records for the period
-        let currentRecords = try await self.fetchConsumption(start: start, end: end)
-
-        // Calculate current total consumption
-        let currentTotalKWh = currentRecords.reduce(0.0) { total, record in
-            total + (record.value(forKey: "consumption") as? Double ?? 0.0)
-        }
-
-        // Compare total consumption with a small tolerance for floating point differences
-        let tolerance = 0.0001
-        let consumptionDifference = abs(currentTotalKWh - storedTotalKWh)
-
-        print(
-            """
-            🔍 VALIDATING CACHED DATA:
-            - Period: \(start.formatted()) to \(end.formatted())
-            - Last updated: \(storedUpdateTime.formatted())
-            - Stored consumption: \(String(format: "%.4f", storedTotalKWh))kWh
-            - Current consumption: \(String(format: "%.4f", currentTotalKWh))kWh
-            - Difference: \(String(format: "%.4f", consumptionDifference))kWh
-            - Tolerance: \(tolerance)kWh
-            """)
-
-        if consumptionDifference > tolerance {
-            print(
-                "❌ CACHE INVALID: Consumption difference (\(String(format: "%.4f", consumptionDifference))kWh) exceeds tolerance (\(tolerance)kWh)"
-            )
-            return true
-        }
-
-        print("✅ CACHE VALID: Using stored calculation")
-        return false
-    }
-
     /// Fetches a stored TariffCalculationEntity if it matches the exact period & tariffCode & intervalType.
     /// Also checks if we have new data available since the calculation was made.
     /// Returns nil if not found or if we have new data that wasn't included in the original calculation.
@@ -125,20 +79,33 @@ public final class TariffCalculationRepository: ObservableObject {
             return results.first
         }
 
-        // If we found an existing calculation, check if we have new data
-        if let existingCalc = existing {
-            if try await hasNewDataAvailable(
-                existingCalculation: existingCalc,
-                start: periodStart,
-                end: periodEnd
-            ) {
-                // We have new data, don't use the existing calculation
-                return nil
-            }
-            return existing
+        guard let existing = existing else {
+            return nil
         }
 
-        return nil
+        // Inline check for new consumption data – do it outside the first perform, but in a
+        // single pass to avoid re-entrancy. We'll do a second fetchConsumption *without*
+        // backgroundContext.perform, so it remains on the main task. Then re-enter for final check.
+
+        let storedTotalKWh =
+            existing.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
+
+        // fetchConsumption also calls backgroundContext.perform, but here we are no longer
+        // inside the prior block. So it is safe as a separate top-level await call.
+        let currentRecords = try await self.fetchConsumption(start: periodStart, end: periodEnd)
+        let currentTotalKWh = currentRecords.reduce(0.0) { total, record in
+            total + (record.value(forKey: "consumption") as? Double ?? 0.0)
+        }
+
+        let tolerance = 0.0001
+        let diff = abs(currentTotalKWh - storedTotalKWh)
+        if diff > tolerance {
+            print("💡 CoreData cache invalid for tariff \(tariffCode), calculating fresh values...")
+            return nil
+        } else {
+            print("✅ USING COREDATA CACHE for \(tariffCode)")
+            return existing
+        }
     }
 
     /// Calculates cost for a single tariff code over a specified date range,
@@ -176,11 +143,18 @@ public final class TariffCalculationRepository: ObservableObject {
 
             // If we found an existing calculation, check if we have new data
             if let existing = existing {
-                if try await hasNewDataAvailable(
-                    existingCalculation: existing,
-                    start: startDate,
-                    end: endDate
-                ) {
+                // Inline check for new data
+                let storedTotalKWh =
+                    existing.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
+
+                let currentRecords = try await self.fetchConsumption(start: startDate, end: endDate)
+                let currentTotalKWh = currentRecords.reduce(0.0) { total, record in
+                    total + (record.value(forKey: "consumption") as? Double ?? 0.0)
+                }
+
+                let tolerance = 0.0001
+                let diff = abs(currentTotalKWh - storedTotalKWh)
+                if diff > tolerance {
                     print(
                         "💡 CoreData cache invalid for tariff \(tariffCode), calculating fresh values..."
                     )
@@ -391,11 +365,17 @@ public final class TariffCalculationRepository: ObservableObject {
 
         // If we found an existing calculation, check if we have new data
         if let existing = existing {
-            if try await hasNewDataAvailable(
-                existingCalculation: existing,
-                start: startDate,
-                end: endDate
-            ) {
+            // Inline check for new data
+            let storedTotalKWh = existing.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
+
+            let currentRecords = try await self.fetchConsumption(start: startDate, end: endDate)
+            let currentTotalKWh = currentRecords.reduce(0.0) { total, record in
+                total + (record.value(forKey: "consumption") as? Double ?? 0.0)
+            }
+
+            let tolerance = 0.0001
+            let diff = abs(currentTotalKWh - storedTotalKWh)
+            if diff > tolerance {
                 print("💡 CoreData cache invalid, calculating fresh values...")
             } else {
                 print("✅ USING COREDATA CACHE for account calculation")
@@ -527,24 +507,7 @@ public final class TariffCalculationRepository: ObservableObject {
             return localRecords
         }
 
-        // Otherwise, we found 0 records. Attempt a network fetch outside backgroundContext.perform
-        print("🔄 No consumption data found for \(start)–\(end). Fetching from API...")
-
-        // 3) Now fetch from API or do your main-actor logic
-        try await consumptionRepository.updateConsumptionData()
-
-        // 4) Do a *new* backgroundContext.perform for the updated fetch
-        let updatedRecords = try await backgroundContext.perform {
-            let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
-            request.predicate = NSPredicate(
-                format: "interval_start >= %@ AND interval_start < %@",
-                start as NSDate, end as NSDate
-            )
-            request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
-            return try self.backgroundContext.fetch(request)
-        }
-
-        return updatedRecords
+        return localRecords
     }
 
     /// Fetch rate records from RateEntity for a single tariff_code that intersect the requested date window.
