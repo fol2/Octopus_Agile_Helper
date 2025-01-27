@@ -4,13 +4,13 @@ import SwiftUI
 
 // MARK: - Enums & Support Types
 
-private struct ComparisonCardSettings: Codable {
+public struct TariffComparisonCardSettings: Codable {
     var selectedPlanCode: String
     var isManualPlan: Bool
     var manualRatePencePerKWh: Double
     var manualStandingChargePencePerDay: Double
 
-    static let `default` = ComparisonCardSettings(
+    static let `default` = TariffComparisonCardSettings(
         selectedPlanCode: "",
         isManualPlan: false,
         manualRatePencePerKWh: 30.0,
@@ -18,11 +18,11 @@ private struct ComparisonCardSettings: Codable {
     )
 }
 
-private class ComparisonCardSettingsManager: ObservableObject {
+public class TariffComparisonCardSettingsManager: ObservableObject {
     private var isBatchUpdating = false
     private var isInitializing = false
 
-    @Published var settings: ComparisonCardSettings {
+    @Published var settings: TariffComparisonCardSettings {
         didSet {
             // Skip saving if we're in a batch update or initializing
             guard !isBatchUpdating && !isInitializing else { return }
@@ -31,7 +31,7 @@ private class ComparisonCardSettingsManager: ObservableObject {
     }
 
     // Helper: only write if new JSON actually differs from what's stored.
-    private func needsSave(_ newSettings: ComparisonCardSettings) -> Bool {
+    private func needsSave(_ newSettings: TariffComparisonCardSettings) -> Bool {
         let encoder = JSONEncoder()
         guard let newData = try? encoder.encode(newSettings) else {
             return true  // if we can't encode, we usually want to attempt saving anyway
@@ -46,12 +46,12 @@ private class ComparisonCardSettingsManager: ObservableObject {
         return true
     }
 
-    private let userDefaultsKey = "TariffComparisonCardSettings"
+    private let userDefaultsKey = "TariffTariffComparisonCardSettings"
 
     init() {
         isInitializing = true
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-            let decoded = try? JSONDecoder().decode(ComparisonCardSettings.self, from: data)
+            let decoded = try? JSONDecoder().decode(TariffComparisonCardSettings.self, from: data)
         {
             self.settings = decoded
         } else {
@@ -70,20 +70,20 @@ private class ComparisonCardSettingsManager: ObservableObject {
     private func saveSettings() {
         // Only write out if truly changed from what's in user defaults
         guard needsSave(settings) else {
-            print("⚠️ ComparisonCardSettingsManager: No real changes, skipping re-save.")
+            print("⚠️ TariffComparisonCardSettingsManager: No real changes, skipping re-save.")
             return
         }
         do {
             let encoded = try JSONEncoder().encode(settings)
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            print("✅ ComparisonCardSettingsManager: New settings saved.")
+            print("✅ TariffComparisonCardSettingsManager: New settings saved.")
         } catch {
-            print("❌ ComparisonCardSettingsManager: Failed to encode settings: \(error)")
+            print("❌ TariffComparisonCardSettingsManager: Failed to encode settings: \(error)")
         }
     }
 }
 
-private enum CompareIntervalType: String, CaseIterable {
+public enum CompareIntervalType: String, CaseIterable {
     case daily = "DAILY"
     case weekly = "WEEKLY"
     case monthly = "MONTHLY"
@@ -186,7 +186,7 @@ public struct TariffComparisonCardView: View {
     @State private var requestedPeriod: (start: Date, end: Date)?
 
     // Manage compare plan settings
-    @StateObject private var compareSettings = ComparisonCardSettingsManager()
+    @StateObject private var compareSettings = TariffComparisonCardSettingsManager()
 
     // Refresh toggles & scene states
     @State private var refreshTrigger = false
@@ -261,50 +261,27 @@ public struct TariffComparisonCardView: View {
         }
         .rateCardStyle()  // ← Apply card style to root container
         .sheet(isPresented: $showingDetails) {
-            NavigationView {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        if compareSettings.settings.isManualPlan {
-                            ManualPlanDetailView(settings: compareSettings.settings)
-                        } else if let product = availablePlans.first(where: {
-                            ($0.value(forKey: "code") as? String)
-                                == compareSettings.settings.selectedPlanCode
-                        }) {
-                            ProductDetailView(product: product)
-                                .environmentObject(globalSettings)
-                        } else {
-                            VStack(spacing: 16) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .font(.system(size: 36))
-                                    .foregroundColor(.orange)
-                                Text("No product details available.")
-                                    .foregroundColor(Theme.secondaryTextColor)
-                            }
-                            .frame(maxHeight: .infinity)
-                            .padding(.vertical, 20)
-                        }
-                    }
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        Text("Plan Details")
-                            .font(Theme.titleFont())
-                            .foregroundColor(Theme.mainTextColor)
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showingDetails = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
-                                .imageScale(.large)
-                        }
-                    }
-                }
-                .background(Theme.mainBackground)
-            }
-            .navigationViewStyle(.stack)
+            // First, get the selected product
+            let selectedProduct = availablePlans.first(where: {
+                ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
+            })
+
+            // Then create the detail view
+            TariffComparisonDetailView(
+                selectedPlanCode: compareSettings.settings.selectedPlanCode,
+                isManualPlan: compareSettings.settings.isManualPlan,
+                manualRatePencePerKWh: compareSettings.settings.manualRatePencePerKWh,
+                manualStandingChargePencePerDay: compareSettings.settings
+                    .manualStandingChargePencePerDay,
+                selectedProduct: selectedProduct,
+                globalSettings: globalSettings,
+                compareTariffVM: compareTariffVM,
+                consumptionVM: consumptionVM,  // Pass the existing consumptionVM
+                currentDate: $currentDate,
+                selectedInterval: $selectedInterval,
+                overlapStart: $overlapStart,
+                overlapEnd: $overlapEnd
+            )
         }
         .environment(\.locale, globalSettings.locale)
         .onAppear {
@@ -851,6 +828,8 @@ public struct TariffComparisonCardView: View {
                 hasDateOverlap = false
                 await accountTariffVM.resetCalculationState()
                 await compareTariffVM.resetCalculationState()
+                self.overlapStart = nil  // Reset overlap period
+                self.overlapEnd = nil
                 return
             }
 
@@ -858,6 +837,8 @@ public struct TariffComparisonCardView: View {
                 "📅 Overlap period determined: \(overlapStart) to \(overlapEnd)",
                 component: .tariffViewModel)
             hasDateOverlap = true
+            self.overlapStart = overlapStart  // Set overlap period
+            self.overlapEnd = overlapEnd
 
             DebugLogger.debug(
                 "🔄 Starting parallel tariff calculations", component: .tariffViewModel)
@@ -1632,7 +1613,7 @@ private struct ComparisonDateNavView: View {
 // MARK: - Subviews: Plan Selection
 
 private struct ComparisonPlanSelectionView: View {
-    @ObservedObject var compareSettings: ComparisonCardSettingsManager
+    @ObservedObject var compareSettings: TariffComparisonCardSettingsManager
     @Binding var availablePlans: [NSManagedObject]
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
@@ -1687,65 +1668,6 @@ private struct ComparisonPlanSelectionView: View {
                 isGreen: isGrn)
         }
         .sorted { $0.displayName < $1.displayName }
-    }
-}
-
-// Add new detail view struct
-private struct TariffComparisonDetailView: View {
-    @Environment(\.dismiss) var dismiss
-    @ObservedObject var compareSettings: ComparisonCardSettingsManager
-    @Binding var availablePlans: [NSManagedObject]
-    @ObservedObject var globalSettings: GlobalSettingsManager
-    @ObservedObject var compareTariffVM: TariffViewModel
-    @Binding var currentDate: Date
-    @Binding var selectedInterval: CompareIntervalType
-    @Binding var overlapStart: Date?
-    @Binding var overlapEnd: Date?
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header with centered title and close button
-            ZStack {
-                Text("Tariff Comparison Details")
-                    .font(Theme.titleFont())
-                    .foregroundColor(Theme.mainTextColor)
-
-                HStack {
-                    Spacer()
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
-                            .imageScale(.large)
-                    }
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Theme.mainBackground)
-
-            Divider()
-                .padding(.horizontal)
-                .padding(.top, 12)
-                .padding(.bottom, 4)
-
-            // Plan Selection
-            ComparisonPlanSelectionView(
-                compareSettings: compareSettings,
-                availablePlans: $availablePlans,
-                globalSettings: globalSettings,
-                compareTariffVM: compareTariffVM,
-                currentDate: $currentDate,
-                selectedInterval: $selectedInterval,
-                overlapStart: $overlapStart,
-                overlapEnd: $overlapEnd
-            )
-            .padding(.horizontal)
-
-            // Additional detail content can be added here
-        }
-        .background(Theme.mainBackground)
     }
 }
 
@@ -2128,7 +2050,7 @@ private struct ComparisonCostPlaceholderView: View {
 // MARK: - Additional Sub-views
 
 private struct ManualPlanDetailView: View {
-    let settings: ComparisonCardSettings
+    let settings: TariffComparisonCardSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -2152,7 +2074,7 @@ private struct ManualPlanDetailView: View {
 }
 
 private struct ManualPlanSummaryView: View {
-    let settings: ComparisonCardSettings
+    let settings: TariffComparisonCardSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -2301,7 +2223,7 @@ private struct PlanSelectionView: View {
 }
 
 private struct ManualInputView: View {
-    @Binding var settings: ComparisonCardSettings
+    @Binding var settings: TariffComparisonCardSettings
     @ObservedObject var compareTariffVM: TariffViewModel
     @Binding var currentDate: Date
     @Binding var selectedInterval: CompareIntervalType
@@ -2527,14 +2449,14 @@ private struct NumberTextField: UIViewRepresentable {
     }
 }
 
-private struct BadgeView: View {
+public struct BadgeView: View {
     let text: String
     let color: Color
     init(_ text: String, color: Color) {
         self.text = text
         self.color = color
     }
-    var body: some View {
+    public var body: some View {
         Text(text)
             .font(.system(size: 10, weight: .medium))
             .foregroundColor(color.opacity(1.2))

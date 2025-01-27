@@ -118,4 +118,59 @@ public final class DebugLogger {
             isDebugLoggingEnabled = false
         }
     }
+
+    // MARK: - Structured Logging
+
+    /// Shared instance for structured logging
+    public static let shared = DebugLogger()
+
+    // Cache for deduplication
+    private var recentLogs: [(message: String, timestamp: Date)] = []
+    private let deduplicationWindow: TimeInterval = 0.1  // 100ms window
+
+    /// Log a structured debug message with details
+    /// - Parameters:
+    ///   - message: The main message to log
+    ///   - details: A dictionary of additional details to log
+    ///   - component: The component generating the log (optional)
+    ///   - function: The function name (automatically captured)
+    ///   - line: The line number (automatically captured)
+    public func log(
+        _ message: String,
+        details: [String: Any],
+        component: LogComponent? = .tariffViewModel,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        guard Self.isDebugLoggingEnabled && (component?.isEnabled ?? true) else { return }
+
+        // Create a unique key for this log
+        let logKey = "\(message)|\(function)|\(line)"
+        let now = Date()
+
+        // Clean up old entries
+        recentLogs = recentLogs.filter { now.timeIntervalSince($0.timestamp) < deduplicationWindow }
+
+        // Check for duplicates
+        guard !recentLogs.contains(where: { $0.message == logKey }) else {
+            return
+        }
+
+        // Add to recent logs
+        recentLogs.append((logKey, now))
+
+        let timestamp = DateFormatter.localizedString(
+            from: now,
+            dateStyle: .none,
+            timeStyle: .medium
+        )
+
+        let componentStr = component.map { "[\($0.rawValue)]" } ?? ""
+        print("[\(timestamp)]\(componentStr) [\(function):\(line)]:")
+        print("  Message: \(message)")
+        print("  Details:")
+        details.forEach { key, value in
+            print("    - \(key): \(value)")
+        }
+    }
 }
