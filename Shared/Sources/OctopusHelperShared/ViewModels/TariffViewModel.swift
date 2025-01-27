@@ -33,9 +33,29 @@ public final class TariffViewModel: ObservableObject {
     }
 
     // MARK: - Published Properties
-    @Published public private(set) var currentCalculation: TariffCalculation?
-    @Published public private(set) var isCalculating = false
-    @Published public private(set) var error: Error?
+    @Published public private(set) var currentCalculation: TariffCalculation? {
+        didSet {
+            DebugLogger.debug(
+                "🔄 TariffViewModel currentCalculation changed: \(currentCalculation != nil ? "has value" : "nil")",
+                component: .tariffViewModel)
+        }
+    }
+    @Published public private(set) var isCalculating: Bool = false {
+        didSet {
+            DebugLogger.debug(
+                "🔄 TariffViewModel isCalculating changed: \(oldValue) -> \(isCalculating)",
+                component: .tariffViewModel)
+        }
+    }
+    @Published public private(set) var error: Error? {
+        didSet {
+            if let error = error {
+                DebugLogger.debug(
+                    "❌ TariffViewModel error set: \(error.localizedDescription)",
+                    component: .tariffViewModel)
+            }
+        }
+    }
 
     // MARK: - Dependencies
     private let calculationRepository: TariffCalculationRepository
@@ -58,7 +78,14 @@ public final class TariffViewModel: ObservableObject {
         let timestamp: Date
     }
 
-    private var calculationCache: [CacheKey: CacheEntry] = [:]
+    private var calculationCache: [CacheKey: CacheEntry] = [:] {
+        didSet {
+            DebugLogger.debug(
+                "🔄 TariffViewModel cache updated - entries: \(calculationCache.count)",
+                component: .tariffViewModel)
+        }
+    }
+
     private let maxCacheSize = 200  // Increased to 200 entries
     private let cacheCleanupThreshold = 180  // Clean when reaching 180 entries
 
@@ -123,31 +150,57 @@ public final class TariffViewModel: ObservableObject {
     // MARK: - Initialization
     @MainActor
     public init(skipCoreDataStorage: Bool = false) {
+        DebugLogger.debug(
+            "🔄 TariffViewModel init starting on thread: \(Thread.current.description)",
+            component: .tariffViewModel)
         self.calculationRepository = TariffCalculationRepository()
         self.skipCoreDataStorage = skipCoreDataStorage
         DebugLogger.debug(
-            "🔄 TariffViewModel initialised on main actor", component: .tariffViewModel)
+            """
+            ✅ TariffViewModel initialized:
+            - Skip Core Data: \(skipCoreDataStorage)
+            - Thread: \(Thread.current.description)
+            - Memory address: \(Unmanaged.passUnretained(self).toOpaque())
+            """, component: .tariffViewModel)
+    }
+
+    deinit {
+        DebugLogger.debug(
+            "♻️ TariffViewModel deinit at \(Unmanaged.passUnretained(self).toOpaque())",
+            component: .tariffViewModel)
     }
 
     // MARK: - Cache Management
     private func cacheKey(tariffCode: String, date: Date, intervalType: IntervalType) -> CacheKey {
         let (start, end) = calculateDateRange(for: date, intervalType: intervalType)
-        return CacheKey(
+        let key = CacheKey(
             tariffCode: tariffCode,
             intervalType: intervalType,
             startTimestamp: start.timeIntervalSince1970,
             endTimestamp: end.timeIntervalSince1970
         )
+        DebugLogger.debug(
+            "🔑 Generated cache key: \(key.debugDescription)", component: .tariffViewModel)
+        return key
     }
 
     private func cleanupCache() {
-        guard calculationCache.count > cacheCleanupThreshold else { return }
+        guard calculationCache.count > cacheCleanupThreshold else {
+            DebugLogger.debug(
+                "⏭️ Skipping cache cleanup - below threshold (\(calculationCache.count) entries)",
+                component: .tariffViewModel)
+            return
+        }
 
-        DebugLogger.debug("🧹 Starting cache cleanup", component: .tariffViewModel)
+        DebugLogger.debug(
+            "🧹 Starting cache cleanup on thread: \(Thread.current.description)",
+            component: .tariffViewModel)
 
         // Move heavy sorting to background thread
         let currentCache = self.calculationCache
         Task.detached(priority: .utility) { [weak self] in
+            DebugLogger.debug(
+                "🔄 Cache cleanup task started on background thread", component: .tariffViewModel)
             let sortedEntries = currentCache.sorted { $0.value.timestamp > $1.value.timestamp }
             let newCache: [CacheKey: CacheEntry]
             if sortedEntries.count > self?.maxCacheSize ?? 200 {
@@ -157,23 +210,22 @@ public final class TariffViewModel: ObservableObject {
                         .prefix(self?.maxCacheSize ?? 200)
                         .map { ($0.key, $0.value) }
                 )
+                DebugLogger.debug(
+                    "✂️ Cache trimmed to max size: \(newCache.count) entries",
+                    component: .tariffViewModel)
             } else {
                 newCache = currentCache
+                DebugLogger.debug(
+                    "✅ Cache within size limits: \(newCache.count) entries",
+                    component: .tariffViewModel)
             }
 
             // Update cache on main actor
             await MainActor.run { [weak self] in
+                DebugLogger.debug("🔄 Updating cache on main thread", component: .tariffViewModel)
                 self?.calculationCache = newCache
             }
         }
-
-        DebugLogger.debug(
-            """
-            ✨ Cache cleanup complete:
-            - Entries: \(calculationCache.count)
-            - Memory entries:
-            \(calculationCache.map { "  • \($0.key.debugDescription)" }.joined(separator: "\n"))
-            """, component: .tariffViewModel)
     }
 
     public func invalidateCache() {
@@ -186,14 +238,19 @@ public final class TariffViewModel: ObservableObject {
     /// Reset the calculation state and invalidate manual plan cache
     @MainActor
     public func resetCalculationState() async {
+        DebugLogger.debug(
+            "🔄 TariffViewModel starting resetCalculationState", component: .tariffViewModel)
         isCalculating = false
         error = nil
         currentCalculation = nil
         // Invalidate cache for manual plan calculations only
+        let oldCount = calculationCache.count
         calculationCache = calculationCache.filter { $0.key.tariffCode != "manualPlan" }
         DebugLogger.debug(
-            "🔄 Reset calculation state and invalidated manual plan cache",
+            "🧹 TariffViewModel cache cleaned: \(oldCount) -> \(calculationCache.count) entries",
             component: .tariffViewModel)
+        DebugLogger.debug(
+            "✅ TariffViewModel resetCalculationState complete", component: .tariffViewModel)
     }
 
     /// Calculate tariff costs for a specific date and interval type
@@ -215,12 +272,14 @@ public final class TariffViewModel: ObservableObject {
     ) async {
         DebugLogger.debug(
             """
-            🔄 Starting cost calculation:
+            🔄 TariffViewModel starting cost calculation:
             - Date: \(date)
             - Tariff: \(tariffCode)
             - Interval: \(intervalType.rawValue)
+            - Has Account Data: \(accountData != nil)
             - Partial Range: \(partialStart?.formatted() ?? "none") to \(partialEnd?.formatted() ?? "none")
             - Is Changing Plan: \(isChangingPlan)
+            - Current Thread: \(Thread.current.description)
             """, component: .tariffViewModel)
 
         // Reset state at the start
@@ -236,12 +295,20 @@ public final class TariffViewModel: ObservableObject {
                 partialEnd ?? stdEnd
             )
 
+            DebugLogger.debug(
+                "📅 TariffViewModel date range computed: \(finalStart) -> \(finalEnd)",
+                component: .tariffViewModel)
+
             // Add guard for invalid date ranges
             guard finalEnd > finalStart else {
-                throw TariffCalculationError.invalidDateRange(
+                let error = TariffCalculationError.invalidDateRange(
                     message:
                         "Invalid date range: end date (\(finalEnd)) must be after start date (\(finalStart))"
                 )
+                DebugLogger.debug(
+                    "❌ TariffViewModel invalid date range: \(error.localizedDescription)",
+                    component: .tariffViewModel)
+                throw error
             }
 
             // 2) Calculate costs over the range
@@ -254,14 +321,20 @@ public final class TariffViewModel: ObservableObject {
                 isChangingPlan: isChangingPlan
             )
 
+            DebugLogger.debug(
+                "✅ TariffViewModel calculation complete - setting result",
+                component: .tariffViewModel)
             currentCalculation = calculation
         } catch {
-            self.error = error
             DebugLogger.debug(
-                "❌ Error calculating costs: \(error.localizedDescription)",
+                "❌ TariffViewModel calculation error: \(error.localizedDescription)",
                 component: .tariffViewModel)
+            self.error = error
         }
 
+        DebugLogger.debug(
+            "🏁 TariffViewModel finishing calculation - setting isCalculating=false",
+            component: .tariffViewModel)
         isCalculating = false
         cleanupCache()  // Cleanup after calculation
     }
@@ -717,31 +790,38 @@ extension TariffViewModel {
 
         // If daily and we have a set of valid daily dates with data:
         if intervalType == .daily, let dailySet = dailyAvailableDates, !dailySet.isEmpty {
-            // Start from the *startOfDay* of currentDate
-            var candidate = calendar.startOfDay(for: currentDate)
-            while true {
-                guard
-                    let nextDay = calendar.date(
-                        byAdding: .day, value: forward ? 1 : -1, to: candidate)
-                else {
-                    return nil
-                }
-                candidate = calendar.startOfDay(for: nextDay)
+            // Start from the startOfDay of currentDate
+            let startOfCurrentDay = calendar.startOfDay(for: currentDate)
 
-                // Bounds check
-                if let minDate = minDate, candidate < calendar.startOfDay(for: minDate) {
-                    return nil
-                }
-                if let maxDate = maxDate, candidate > calendar.startOfDay(for: maxDate) {
-                    return nil
+            // Filter dates based on direction and bounds
+            let validDates = dailySet.filter { date in
+                let startOfDate = calendar.startOfDay(for: date)
+
+                // Check direction
+                if forward {
+                    guard startOfDate > startOfCurrentDay else { return false }
+                } else {
+                    guard startOfDate < startOfCurrentDay else { return false }
                 }
 
-                // If the candidate is in the set, we found our next valid day
-                if dailySet.contains(candidate) {
-                    return candidate
+                // Check bounds
+                if let minDate = minDate {
+                    let startOfMin = calendar.startOfDay(for: minDate)
+                    if startOfDate < startOfMin { return false }
                 }
-                // If we keep going and never find a day, eventually we return nil
-                // once we pass the bounds.
+                if let maxDate = maxDate {
+                    let startOfMax = calendar.startOfDay(for: maxDate)
+                    if startOfDate > startOfMax { return false }
+                }
+
+                return true
+            }
+
+            // Get the closest date in the requested direction
+            if forward {
+                return validDates.min()
+            } else {
+                return validDates.max()
             }
         }
 

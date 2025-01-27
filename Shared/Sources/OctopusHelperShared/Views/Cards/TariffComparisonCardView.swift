@@ -212,9 +212,11 @@ public struct TariffComparisonCardView: View {
         ratesVM: RatesViewModel,
         globalSettings: GlobalSettingsManager
     ) {
+        DebugLogger.debug("🔄 TariffComparisonCardView init started", component: .tariffViewModel)
         self.consumptionVM = consumptionVM
         self.ratesVM = ratesVM
         self.globalSettings = globalSettings
+        DebugLogger.debug("🔄 TariffComparisonCardView init completed", component: .tariffViewModel)
     }
 
     public var body: some View {
@@ -306,22 +308,33 @@ public struct TariffComparisonCardView: View {
         }
         .environment(\.locale, globalSettings.locale)
         .onAppear {
+            DebugLogger.debug(
+                "🔄 TariffComparisonCardView onAppear triggered", component: .tariffViewModel)
             Task {
-                guard !hasInitiallyLoaded else { return }
+                guard !hasInitiallyLoaded else {
+                    DebugLogger.debug(
+                        "⏭️ Skipping initialization - already loaded", component: .tariffViewModel)
+                    return
+                }
 
+                DebugLogger.debug("🔄 Starting initial setup", component: .tariffViewModel)
                 // Batch all initialization updates
                 compareSettings.batchUpdate {
+                    DebugLogger.debug("🔄 Initializing from settings", component: .tariffViewModel)
                     initializeFromSettings()
                     updateAllowedDateRange()
                 }
 
+                DebugLogger.debug("🔄 Loading comparison plans", component: .tariffViewModel)
                 // Load comparison plans (may update settings)
                 await loadComparisonPlansIfNeeded()
 
+                DebugLogger.debug("🔄 Recalculating tariffs", component: .tariffViewModel)
                 // Only recalc after all initialization is complete
                 await recalcBothTariffs(partialOverlap: true)
 
                 hasInitiallyLoaded = true
+                DebugLogger.debug("✅ Initial setup completed", component: .tariffViewModel)
             }
         }
         .task {
@@ -718,8 +731,11 @@ public struct TariffComparisonCardView: View {
     }
 
     private func loadComparisonPlansIfNeeded() async {
+        DebugLogger.debug("🔄 Starting loadComparisonPlansIfNeeded", component: .tariffViewModel)
         do {
             let region = globalSettings.settings.effectiveRegion
+            DebugLogger.debug(
+                "🔍 Fetching local products for region: \(region)", component: .tariffViewModel)
             var allProducts = try await ProductsRepository.shared.fetchAllLocalProducts()
             if allProducts.isEmpty {
                 allProducts = try await ProductsRepository.shared.syncAllProducts()
@@ -758,11 +774,16 @@ public struct TariffComparisonCardView: View {
                 !compareSettings.settings.isManualPlan,
                 compareSettings.settings.selectedPlanCode.isEmpty
             {
+                DebugLogger.debug("🔄 Setting initial plan selection", component: .tariffViewModel)
                 if let firstCode = regionProducts[0].value(forKey: "code") as? String {
                     compareSettings.settings.selectedPlanCode = firstCode
                     await recalcBothTariffs(partialOverlap: true, isChangingPlan: true)
                 }
             }
+            DebugLogger.debug("✅ Loaded \(allProducts.count) products", component: .tariffViewModel)
+            DebugLogger.debug(
+                "✅ Filtered to \(regionProducts.count) region-specific products",
+                component: .tariffViewModel)
         } catch {
             DebugLogger.debug(
                 "❌ Error loading comparison plans: \(error.localizedDescription)",
@@ -776,15 +797,24 @@ public struct TariffComparisonCardView: View {
         partialOverlap: Bool = false,
         isChangingPlan: Bool = false
     ) async {
+        DebugLogger.debug(
+            "🔄 Starting recalcBothTariffs (partialOverlap: \(partialOverlap), isChangingPlan: \(isChangingPlan))",
+            component: .tariffViewModel)
         self.isChangingPlan = isChangingPlan  // Set the state when recalculating
 
         do {
+            DebugLogger.debug(
+                "🔍 Calculating date range for current date: \(currentDate)",
+                component: .tariffViewModel)
             // Calculate the requested date range based on interval type
             let (requestedStart, requestedEnd) = TariffViewModel().calculateDateRange(
                 for: currentDate,
                 intervalType: selectedInterval.vmInterval,
                 billingDay: globalSettings.settings.billingDay
             )
+            DebugLogger.debug(
+                "📅 Requested period: \(requestedStart) to \(requestedEnd)",
+                component: .tariffViewModel)
 
             // Determine the actual calculation period considering all constraints
             guard
@@ -794,20 +824,27 @@ public struct TariffComparisonCardView: View {
                     isChangingPlan: isChangingPlan
                 )
             else {
+                DebugLogger.debug("⚠️ No valid overlap period found", component: .tariffViewModel)
                 hasDateOverlap = false
                 await accountTariffVM.resetCalculationState()
                 await compareTariffVM.resetCalculationState()
                 return
             }
 
+            DebugLogger.debug(
+                "📅 Overlap period determined: \(overlapStart) to \(overlapEnd)",
+                component: .tariffViewModel)
             hasDateOverlap = true
 
-            // Calculate both tariffs with the same overlap period
+            DebugLogger.debug(
+                "🔄 Starting parallel tariff calculations", component: .tariffViewModel)
             async let acctCalc = recalcAccountTariff(start: overlapStart, end: overlapEnd)
             async let cmpCalc = recalcCompareTariff(start: overlapStart, end: overlapEnd)
             _ = await (acctCalc, cmpCalc)
+            DebugLogger.debug("✅ Completed both tariff calculations", component: .tariffViewModel)
 
         } catch let error as TariffCalculationError {
+            DebugLogger.debug("❌ TariffCalculationError: \(error)", component: .tariffViewModel)
             switch error {
             case .invalidDateRange:
                 if !isChangingPlan {
@@ -838,13 +875,23 @@ public struct TariffComparisonCardView: View {
 
     @MainActor
     private func recalcAccountTariff(start: Date, end: Date) async {
-        if !hasAccountInfo { return }
-        guard !consumptionVM.consumptionRecords.isEmpty else { return }
-
-        guard let accountData = getAccountResponse() else {
+        DebugLogger.debug("🔄 Starting account tariff calculation", component: .tariffViewModel)
+        if !hasAccountInfo {
+            DebugLogger.debug("⚠️ No account info available", component: .tariffViewModel)
             return
         }
+        guard !consumptionVM.consumptionRecords.isEmpty else {
+            DebugLogger.debug("⚠️ No consumption records available", component: .tariffViewModel)
+            return
+        }
+
+        guard let accountData = getAccountResponse() else {
+            DebugLogger.debug("⚠️ Failed to get account response", component: .tariffViewModel)
+            return
+        }
+
         do {
+            DebugLogger.debug("🔄 Calculating account costs", component: .tariffViewModel)
             await accountTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "savedAccount",
@@ -854,6 +901,7 @@ public struct TariffComparisonCardView: View {
                 partialEnd: end,
                 isChangingPlan: isChangingPlan
             )
+            DebugLogger.debug("✅ Account tariff calculation completed", component: .tariffViewModel)
         } catch {
             DebugLogger.debug(
                 "❌ Error in recalcAccountTariff: \(error.localizedDescription)",
@@ -863,14 +911,16 @@ public struct TariffComparisonCardView: View {
 
     @MainActor
     private func recalcCompareTariff(start: Date, end: Date) async {
+        DebugLogger.debug("🔄 Starting comparison tariff calculation", component: .tariffViewModel)
         guard !consumptionVM.consumptionRecords.isEmpty else {
+            DebugLogger.debug("⚠️ No consumption records available", component: .tariffViewModel)
             hasDateOverlap = false
             return
         }
 
         do {
             if compareSettings.settings.isManualPlan {
-                // Build mock account response for manual plan
+                DebugLogger.debug("🔄 Calculating manual plan costs", component: .tariffViewModel)
                 let mockAccount = buildMockAccountResponseForManual()
                 await compareTariffVM.calculateCosts(
                     for: currentDate,
@@ -883,6 +933,7 @@ public struct TariffComparisonCardView: View {
             } else {
                 let code = compareSettings.settings.selectedPlanCode
                 if code.isEmpty {
+                    DebugLogger.debug("⚠️ No plan code selected", component: .tariffViewModel)
                     hasDateOverlap = false
                     await compareTariffVM.calculateCosts(
                         for: currentDate,
@@ -892,11 +943,15 @@ public struct TariffComparisonCardView: View {
                     return
                 }
 
-                // Get tariff code for the selected product
+                DebugLogger.debug(
+                    "🔍 Finding tariff code for product: \(code)", component: .tariffViewModel)
                 let region = globalSettings.settings.effectiveRegion
                 var tariffCode = try await ProductDetailRepository.shared.findTariffCode(
                     productCode: code, region: region)
+
                 if tariffCode == nil {
+                    DebugLogger.debug(
+                        "🔄 Fetching product details for: \(code)", component: .tariffViewModel)
                     _ = try await ProductDetailRepository.shared.fetchAndStoreProductDetail(
                         productCode: code)
                     tariffCode = try await ProductDetailRepository.shared.findTariffCode(
@@ -904,9 +959,13 @@ public struct TariffComparisonCardView: View {
                 }
 
                 guard let finalCode = tariffCode else {
+                    DebugLogger.debug(
+                        "❌ No tariff code found for product: \(code)", component: .tariffViewModel)
                     throw TariffError.productDetailNotFound(code: code, region: region)
                 }
 
+                DebugLogger.debug(
+                    "🔄 Calculating costs for tariff: \(finalCode)", component: .tariffViewModel)
                 await compareTariffVM.calculateCosts(
                     for: currentDate,
                     tariffCode: finalCode,
@@ -915,11 +974,13 @@ public struct TariffComparisonCardView: View {
                     partialEnd: end
                 )
             }
+            DebugLogger.debug(
+                "✅ Comparison tariff calculation completed", component: .tariffViewModel)
         } catch {
-            hasDateOverlap = false
             DebugLogger.debug(
                 "❌ Error in recalcCompareTariff: \(error.localizedDescription)",
                 component: .tariffViewModel)
+            hasDateOverlap = false
             await compareTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "",
@@ -1322,46 +1383,50 @@ private struct ComparisonDateNavView: View {
 
     private func findPreviousAvailableDay(from date: Date, in dailySet: Set<Date>) -> Date? {
         let calendar = Calendar.current
-        var candidate = calendar.startOfDay(for: date)
+        let startOfCurrentDay = calendar.startOfDay(for: date)
 
-        while true {
-            guard let prevDay = calendar.date(byAdding: .day, value: -1, to: candidate) else {
-                return nil
-            }
-            candidate = calendar.startOfDay(for: prevDay)
+        // Filter valid dates (before current day and within bounds)
+        let validDates = dailySet.filter { date in
+            let startOfDate = calendar.startOfDay(for: date)
 
-            // Bounds check
-            if let minDate = minDate, candidate < calendar.startOfDay(for: minDate) {
-                return nil
+            // Must be before current day
+            guard startOfDate < startOfCurrentDay else { return false }
+
+            // Check bounds
+            if let minDate = minDate {
+                let startOfMin = calendar.startOfDay(for: minDate)
+                if startOfDate < startOfMin { return false }
             }
 
-            // If the candidate is in the set, we found our previous valid day
-            if dailySet.contains(candidate) {
-                return candidate
-            }
+            return true
         }
+
+        // Return the most recent valid date
+        return validDates.max()
     }
 
     private func findNextAvailableDay(from date: Date, in dailySet: Set<Date>) -> Date? {
         let calendar = Calendar.current
-        var candidate = calendar.startOfDay(for: date)
+        let startOfCurrentDay = calendar.startOfDay(for: date)
 
-        while true {
-            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: candidate) else {
-                return nil
-            }
-            candidate = calendar.startOfDay(for: nextDay)
+        // Filter valid dates (after current day and within bounds)
+        let validDates = dailySet.filter { date in
+            let startOfDate = calendar.startOfDay(for: date)
 
-            // Bounds check
-            if let maxDate = maxDate, candidate > calendar.startOfDay(for: maxDate) {
-                return nil
+            // Must be after current day
+            guard startOfDate > startOfCurrentDay else { return false }
+
+            // Check bounds
+            if let maxDate = maxDate {
+                let startOfMax = calendar.startOfDay(for: maxDate)
+                if startOfDate > startOfMax { return false }
             }
 
-            // If the candidate is in the set, we found our next valid day
-            if dailySet.contains(candidate) {
-                return candidate
-            }
+            return true
         }
+
+        // Return the earliest valid date
+        return validDates.min()
     }
 
     private func getPreviousDate() -> Date? {

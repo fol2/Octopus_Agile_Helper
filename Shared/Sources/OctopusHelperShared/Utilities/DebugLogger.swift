@@ -8,6 +8,7 @@ public enum LogComponent: String {
     case ratesRepository = "RATES REPO"
     case stateChanges = "STATE CHANGES"
     case tariffViewModel = "TARIFF VM"
+    case cardManagement = "CardManagement"
 
     var isEnabled: Bool {
         switch self {
@@ -17,6 +18,7 @@ public enum LogComponent: String {
         case .ratesRepository: return DebugLogger.isRatesRepoLoggingEnabled
         case .stateChanges: return DebugLogger.isStateChangesLoggingEnabled
         case .tariffViewModel: return DebugLogger.isTariffVMLoggingEnabled
+        case .cardManagement: return DebugLogger.isCardManagementLoggingEnabled
         }
     }
 }
@@ -31,10 +33,11 @@ public final class DebugLogger {
     /// Component-specific switches
     public static var isWidgetLoggingEnabled = false
     public static var isWidgetCacheLoggingEnabled = false
-    public static var isRatesVMLoggingEnabled = false
-    public static var isRatesRepoLoggingEnabled = false
-    public static var isStateChangesLoggingEnabled = false
+    public static var isRatesVMLoggingEnabled = true
+    public static var isRatesRepoLoggingEnabled = true
+    public static var isStateChangesLoggingEnabled = true
     public static var isTariffVMLoggingEnabled = true
+    public static var isCardManagementLoggingEnabled = true
 
     // MARK: - Logging Methods
 
@@ -79,6 +82,8 @@ public final class DebugLogger {
                 isStateChangesLoggingEnabled = true
             case .tariffViewModel:
                 isTariffVMLoggingEnabled = true
+            case .cardManagement:
+                isCardManagementLoggingEnabled = true
             }
         }
     }
@@ -100,13 +105,15 @@ public final class DebugLogger {
                 isStateChangesLoggingEnabled = false
             case .tariffViewModel:
                 isTariffVMLoggingEnabled = false
+            case .cardManagement:
+                isCardManagementLoggingEnabled = false
             }
         }
 
         // If all components are disabled, disable master switch
         if !isWidgetLoggingEnabled && !isWidgetCacheLoggingEnabled && !isRatesVMLoggingEnabled
             && !isRatesRepoLoggingEnabled && !isStateChangesLoggingEnabled
-            && !isTariffVMLoggingEnabled
+            && !isTariffVMLoggingEnabled && !isCardManagementLoggingEnabled
         {
             isDebugLoggingEnabled = false
         }

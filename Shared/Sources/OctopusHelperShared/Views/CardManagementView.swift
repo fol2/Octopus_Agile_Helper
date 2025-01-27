@@ -63,9 +63,37 @@ struct CardManagementView: View {
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
+        .onAppear {
+            DebugLogger.debug("🔄 CardManagementView appeared", component: .cardManagement)
+            DebugLogger.enableLogging(for: .cardManagement)
+            // Log initial card states
+            DebugLogger.debug("📊 Initial card states:", component: .cardManagement)
+            for card in globalSettings.settings.cardSettings {
+                DebugLogger.debug(
+                    "  • \(card.cardType): enabled=\(card.isEnabled), purchased=\(card.isPurchased)",
+                    component: .cardManagement)
+            }
+        }
+        .onChange(of: globalSettings.settings.cardSettings) { oldValue, newValue in
+            DebugLogger.debug("🔄 Card settings changed", component: .cardManagement)
+            DebugLogger.debug("📊 Previous card states:", component: .cardManagement)
+            for card in oldValue {
+                DebugLogger.debug(
+                    "  • \(card.cardType): enabled=\(card.isEnabled), purchased=\(card.isPurchased)",
+                    component: .cardManagement)
+            }
+            DebugLogger.debug("📊 New card states:", component: .cardManagement)
+            for card in newValue {
+                DebugLogger.debug(
+                    "  • \(card.cardType): enabled=\(card.isEnabled), purchased=\(card.isPurchased)",
+                    component: .cardManagement)
+            }
+        }
     }
 
     private func moveCards(from source: IndexSet, to destination: Int) {
+        DebugLogger.debug(
+            "🔄 Moving cards from \(source) to \(destination)", component: .cardManagement)
         withAnimation {
             var cards = globalSettings.settings.cardSettings
             cards.move(fromOffsets: source, toOffset: destination)
@@ -78,6 +106,7 @@ struct CardManagementView: View {
             globalSettings.settings.cardSettings = cards
             globalSettings.saveSettings()
         }
+        DebugLogger.debug("✅ Card move completed", component: .cardManagement)
     }
 }
 
@@ -129,16 +158,38 @@ struct CardRowView: View {
                             .font(Theme.subFont())
                     }
                     .buttonStyle(.plain)
-                    
+
                     // Show the plan(s)
-                    Text("Supported: \(definition.supportedPlans.map { $0.rawValue.capitalized }.joined(separator: ", "))")
-                        .font(.caption)
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.leading, 6)
+                    Text(
+                        "Supported: \(definition.supportedPlans.map { $0.rawValue.capitalized }.joined(separator: ", "))"
+                    )
+                    .font(.caption)
+                    .foregroundColor(Theme.secondaryTextColor)
+                    .padding(.leading, 6)
 
                     // Toggle or 'Unlock' button
                     if cardConfig.isPurchased {
-                        Toggle(isOn: $cardConfig.isEnabled) {
+                        Toggle(
+                            isOn: Binding(
+                                get: { cardConfig.isEnabled },
+                                set: { newValue in
+                                    DebugLogger.debug(
+                                        "🔄 Card toggle state change for \(cardConfig.cardType): \(cardConfig.isEnabled) -> \(newValue)",
+                                        component: .cardManagement)
+                                    cardConfig.isEnabled = newValue
+                                    // Log the current state of all cards after toggle
+                                    let allCards = globalSettings.settings.cardSettings
+                                    DebugLogger.debug(
+                                        "📊 Current card states after toggle:",
+                                        component: .cardManagement)
+                                    for card in allCards {
+                                        DebugLogger.debug(
+                                            "  • \(card.cardType): enabled=\(card.isEnabled), purchased=\(card.isPurchased)",
+                                            component: .cardManagement)
+                                    }
+                                }
+                            )
+                        ) {
                             EmptyView()
                         }
                         .labelsHidden()
@@ -169,11 +220,32 @@ struct CardRowView: View {
             .onReceive(refreshManager.$sceneActiveTick) { _ in
                 clockIconTrigger = Date()
             }
+            .onAppear {
+                DebugLogger.debug(
+                    "👁️ Card row appeared for \(cardConfig.cardType): enabled=\(cardConfig.isEnabled), purchased=\(cardConfig.isPurchased), thread=\(Thread.current.description)",
+                    component: .cardManagement)
+            }
+            .onDisappear {
+                DebugLogger.debug(
+                    "👋 Card row disappeared for \(cardConfig.cardType)", component: .cardManagement)
+            }
+            .onChange(of: cardConfig.isEnabled) { oldValue, newValue in
+                DebugLogger.debug(
+                    "🔄 Card \(cardConfig.cardType) enabled state changed: \(oldValue) -> \(newValue), thread=\(Thread.current.description)",
+                    component: .cardManagement)
+            }
+            .task {
+                DebugLogger.debug(
+                    "🔄 Card row task started for \(cardConfig.cardType)", component: .cardManagement
+                )
+            }
         }
     }
 
     private func purchaseCard() {
-        // In a real app, integrate with StoreKit, etc.
+        DebugLogger.debug("💳 Purchasing card \(cardConfig.cardType)", component: .cardManagement)
         cardConfig.isPurchased = true
+        DebugLogger.debug(
+            "✅ Card \(cardConfig.cardType) purchased successfully", component: .cardManagement)
     }
 }
