@@ -249,13 +249,14 @@ extension GlobalSettings {
 public class GlobalSettingsManager: ObservableObject {
     private var isSaving = false
     private var isLoading = false  // New flag to track loading state
+    private var isBatchUpdating = false  // New flag for batch updates
     private let saveQueue = DispatchQueue(
         label: "com.jamesto.octopus-agile-helper.settings-save", qos: .utility)
 
     @Published public var settings: GlobalSettings {
         didSet {
-            // Skip saving if we're loading or already saving
-            guard !isLoading && !isSaving else { return }
+            // Skip saving if we're loading, already saving, or in a batch update
+            guard !isLoading && !isSaving && !isBatchUpdating else { return }
 
             isSaving = true
 
@@ -474,6 +475,21 @@ public class GlobalSettingsManager: ObservableObject {
                     }
                 #endif
             }
+        }
+    }
+
+    // MARK: - Batch Updates
+    public func batchUpdate(_ updates: () -> Void) {
+        isBatchUpdating = true
+        let oldSettings = settings
+
+        updates()
+
+        isBatchUpdating = false
+
+        // Only save if settings actually changed
+        if oldSettings != settings {
+            saveSettings()
         }
     }
 }

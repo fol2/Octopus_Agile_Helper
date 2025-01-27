@@ -19,8 +19,15 @@ private struct ComparisonCardSettings: Codable {
 }
 
 private class ComparisonCardSettingsManager: ObservableObject {
+    private var isBatchUpdating = false
+    private var isInitializing = false
+
     @Published var settings: ComparisonCardSettings {
-        didSet { saveSettings() }
+        didSet {
+            // Skip saving if we're in a batch update or initializing
+            guard !isBatchUpdating && !isInitializing else { return }
+            saveSettings()
+        }
     }
 
     // Helper: only write if new JSON actually differs from what's stored.
@@ -42,6 +49,7 @@ private class ComparisonCardSettingsManager: ObservableObject {
     private let userDefaultsKey = "TariffComparisonCardSettings"
 
     init() {
+        isInitializing = true
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
             let decoded = try? JSONDecoder().decode(ComparisonCardSettings.self, from: data)
         {
@@ -49,6 +57,14 @@ private class ComparisonCardSettingsManager: ObservableObject {
         } else {
             self.settings = .default
         }
+        isInitializing = false
+    }
+
+    func batchUpdate(_ updates: () -> Void) {
+        isBatchUpdating = true
+        updates()
+        isBatchUpdating = false
+        saveSettings()
     }
 
     private func saveSettings() {
@@ -292,27 +308,41 @@ public struct TariffComparisonCardView: View {
         .onAppear {
             Task {
                 guard !hasInitiallyLoaded else { return }
-                initializeFromSettings()
-                updateAllowedDateRange()
+
+                // Batch all initialization updates
+                compareSettings.batchUpdate {
+                    initializeFromSettings()
+                    updateAllowedDateRange()
+                }
+
+                // Load comparison plans (may update settings)
                 await loadComparisonPlansIfNeeded()
+
+                // Only recalc after all initialization is complete
                 await recalcBothTariffs(partialOverlap: true)
+
                 hasInitiallyLoaded = true
             }
         }
         .task {
             guard let data = globalSettings.settings.accountData else { return }
-            DispatchQueue.global(qos: .userInitiated).async {
+            // Move decoding to background thread
+            await Task.detached(priority: .userInitiated) {
                 let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.cachedAccountResponse = decoded
+                await MainActor.run {
+                    cachedAccountResponse = decoded
                 }
-            }
+            }.value
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
-            updateAllowedDateRange()
+            compareSettings.batchUpdate {
+                updateAllowedDateRange()
+            }
         }
         .onChange(of: consumptionVM.maxInterval) { _, _ in
-            updateAllowedDateRange()
+            compareSettings.batchUpdate {
+                updateAllowedDateRange()
+            }
         }
         .onChange(of: compareSettings.settings.selectedPlanCode) { _ in
             Task {
@@ -572,8 +602,12 @@ public struct TariffComparisonCardView: View {
     }
 
     private func savePreferences() {
-        globalSettings.settings.selectedComparisonInterval = selectedInterval.rawValue
-        globalSettings.settings.lastViewedComparisonDates[selectedInterval.rawValue] = currentDate
+        // Batch global settings updates
+        globalSettings.batchUpdate {
+            globalSettings.settings.selectedComparisonInterval = selectedInterval.rawValue
+            globalSettings.settings.lastViewedComparisonDates[selectedInterval.rawValue] =
+                currentDate
+        }
     }
 
     private func updateAllowedDateRange() {
