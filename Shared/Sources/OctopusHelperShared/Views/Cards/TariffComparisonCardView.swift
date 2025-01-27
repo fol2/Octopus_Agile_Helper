@@ -197,6 +197,7 @@ public struct TariffComparisonCardView: View {
 
     // For region-based plan selection
     @State private var availablePlans: [NSManagedObject] = []
+    @State private var currentFullTariffCode: String = ""  // Add this state variable
 
     @State private var cachedAccountResponse: OctopusAccountResponse?
     @State private var showingDetails = false  // Add this state
@@ -269,6 +270,7 @@ public struct TariffComparisonCardView: View {
             // Then create the detail view
             TariffComparisonDetailView(
                 selectedPlanCode: compareSettings.settings.selectedPlanCode,
+                fullTariffCode: currentFullTariffCode,  // Pass the stored full tariff code
                 isManualPlan: compareSettings.settings.isManualPlan,
                 manualRatePencePerKWh: compareSettings.settings.manualRatePencePerKWh,
                 manualStandingChargePencePerDay: compareSettings.settings
@@ -926,6 +928,7 @@ public struct TariffComparisonCardView: View {
             if compareSettings.settings.isManualPlan {
                 DebugLogger.debug("🔄 Calculating manual plan costs", component: .tariffViewModel)
                 let mockAccount = buildMockAccountResponseForManual()
+                currentFullTariffCode = "manualPlan"  // Set for manual plan
                 await compareTariffVM.calculateCosts(
                     for: currentDate,
                     tariffCode: "manualPlan",
@@ -968,6 +971,8 @@ public struct TariffComparisonCardView: View {
                     throw TariffError.productDetailNotFound(code: code, region: region)
                 }
 
+                currentFullTariffCode = finalCode  // Store the full tariff code
+
                 DebugLogger.debug(
                     "🔄 Calculating costs for tariff: \(finalCode)", component: .tariffViewModel)
                 await compareTariffVM.calculateCosts(
@@ -985,6 +990,7 @@ public struct TariffComparisonCardView: View {
                 "❌ Error in recalcCompareTariff: \(error.localizedDescription)",
                 component: .tariffViewModel)
             hasDateOverlap = false
+            currentFullTariffCode = ""  // Clear on error
             await compareTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "",

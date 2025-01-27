@@ -1,11 +1,14 @@
 import Charts
 import CoreData
+import OctopusHelperShared
 import SwiftUI
 
+@available(iOS 17.0, *)
 // MARK: - Main Detail View
 public struct TariffComparisonDetailView: View {
     @Environment(\.dismiss) var dismiss
     let selectedPlanCode: String
+    let fullTariffCode: String
     let isManualPlan: Bool
     let manualRatePencePerKWh: Double
     let manualStandingChargePencePerDay: Double
@@ -24,6 +27,7 @@ public struct TariffComparisonDetailView: View {
 
     public init(
         selectedPlanCode: String,
+        fullTariffCode: String,
         isManualPlan: Bool,
         manualRatePencePerKWh: Double,
         manualStandingChargePencePerDay: Double,
@@ -37,6 +41,7 @@ public struct TariffComparisonDetailView: View {
         overlapEnd: Binding<Date?>
     ) {
         self.selectedPlanCode = selectedPlanCode
+        self.fullTariffCode = fullTariffCode
         self.isManualPlan = isManualPlan
         self.manualRatePencePerKWh = manualRatePencePerKWh
         self.manualStandingChargePencePerDay = manualStandingChargePencePerDay
@@ -59,31 +64,18 @@ public struct TariffComparisonDetailView: View {
                     .offset(y: showContent ? 0 : 20)
 
                 // Quick Comparison Card
-                if let acctCalc = compareTariffVM.currentCalculation,
-                    let cmpCalc = compareTariffVM.currentCalculation
-                {
-                    ComparisonInsightCard(
-                        accountCalc: acctCalc,
-                        compareCalc: cmpCalc,
-                        showVAT: globalSettings.settings.showRatesWithVAT,
-                        overlapStart: overlapStart,
-                        overlapEnd: overlapEnd,
-                        consumptionVM: consumptionVM,
-                        selectedProduct: selectedProduct,
-                        isManualPlan: isManualPlan,
-                        globalSettings: globalSettings,
-                        compareTariffVM: compareTariffVM
-                    )
-                    .opacity(showContent ? 1 : 0)
-                    .offset(y: showContent ? 0 : 20)
-                } else {
-                    #if DEBUG
-                        let _ = print("Debug: Calculations missing")
-                        let _ = print(
-                            "- currentCalculation: \(String(describing: compareTariffVM.currentCalculation))"
-                        )
-                    #endif
-                }
+                ComparisonInsightCard(
+                    showVAT: globalSettings.settings.showRatesWithVAT,
+                    consumptionVM: consumptionVM,
+                    selectedProduct: selectedProduct,
+                    isManualPlan: isManualPlan,
+                    selectedPlanCode: selectedPlanCode,
+                    fullTariffCode: fullTariffCode,
+                    globalSettings: globalSettings,
+                    compareTariffVM: compareTariffVM
+                )
+                .opacity(showContent ? 1 : 0)
+                .offset(y: showContent ? 0 : 20)
 
                 // Rate Analysis Card
                 RateAnalysisCard(
@@ -153,19 +145,28 @@ public struct TariffComparisonDetailView: View {
 }
 
 // MARK: - Comparison Insight Card
+@MainActor
 private struct ComparisonInsightCard: View {
-    let accountCalc: TariffViewModel.TariffCalculation
-    let compareCalc: TariffViewModel.TariffCalculation
+    private let calculationRepository = TariffCalculationRepository(
+        consumptionRepository: .shared,
+        ratesRepository: .shared
+    )
     let showVAT: Bool
-    let overlapStart: Date?  // Keep these for backward compatibility
-    let overlapEnd: Date?  // but we won't use them
     @ObservedObject var consumptionVM: ConsumptionViewModel
     let selectedProduct: NSManagedObject?
     let isManualPlan: Bool
+    let selectedPlanCode: String
+    let fullTariffCode: String
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
 
-    private func calculateOverlapPeriod() -> (start: Date?, end: Date?)? {
+    // New state properties for calculations
+    @State private var accountCalculation: TariffViewModel.TariffCalculation?
+    @State private var compareCalculation: TariffViewModel.TariffCalculation?
+    @State private var isCalculating = false
+    @State private var error: Error?
+
+    private func calculateOverlapPeriod() -> (start: Date, end: Date)? {
         // Get consumption data range
         guard let consumptionStart = consumptionVM.minInterval,
             let consumptionEnd = consumptionVM.maxInterval
@@ -225,77 +226,112 @@ private struct ComparisonInsightCard: View {
         return (startDate, displayEndDate)
     }
 
-    // MARK: - View Body
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Cost Comparison")
-                .font(Theme.mainFont2())
-                .foregroundColor(Theme.mainTextColor)
-
-            HStack(spacing: 20) {
-                // Cost difference visualization
-                ZStack {
-                    Circle()
-                        .stroke(Theme.secondaryTextColor.opacity(0.2), lineWidth: 8)
-                    Circle()
-                        .trim(from: 0, to: calculateSavingsPercentage())
-                        .stroke(
-                            costDifference > 0 ? Color.red : Color.green,
-                            style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-
-                    VStack(spacing: 4) {
-                        Text(costDifference > 0 ? "More" : "Savings")
-                            .font(Theme.captionFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                        Text("£\(String(format: "%.2f", abs(costDifference) / 100))")
-                            .font(Theme.mainFont())
-                            .foregroundColor(costDifference > 0 ? .red : .green)
-                    }
-                }
-                .frame(width: 100, height: 100)
-
-                // Detailed breakdown
-                VStack(alignment: .leading, spacing: 8) {
-                    costBreakdownRow(
-                        label: "My Account",
-                        cost: accountCost,
-                        color: Theme.mainColor
-                    )
-                    costBreakdownRow(
-                        label: "Compared Plan",
-                        cost: compareCost,
-                        color: Theme.secondaryTextColor
-                    )
-
-                    if let savingsPercentage = calculateSavingsPercentageString() {
-                        Text(savingsPercentage)
-                            .font(Theme.captionFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                    }
-                }
-            }
+    private func calculateCosts() async {
+        guard let (startDate, endDate) = calculateOverlapPeriod() else {
+            DebugLogger.shared.log(
+                "⚠️ No valid overlap period found",
+                details: ["error": "Could not calculate overlap period"]
+            )
+            return
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.mainBackground)
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
+
+        isCalculating = true
+        defer { isCalculating = false }
+
+        do {
+            // Get account data for savedAccount tariff
+            let accountData: OctopusAccountResponse?
+            if let rawData = globalSettings.settings.accountData {
+                accountData = try JSONDecoder().decode(OctopusAccountResponse.self, from: rawData)
+            } else {
+                accountData = nil
+            }
+
+            // Calculate for account tariff
+            await compareTariffVM.calculateCosts(
+                for: startDate,
+                tariffCode: "savedAccount",
+                intervalType: .monthly,
+                accountData: accountData,
+                partialStart: startDate,
+                partialEnd: endDate
+            )
+            if let calc = compareTariffVM.currentCalculation {
+                accountCalculation = calc
+            }
+
+            // Calculate for comparison tariff
+            let tariffCode = isManualPlan ? "manualPlan" : fullTariffCode
+            let compareAccountData = isManualPlan ? buildMockAccountResponseForManual() : nil
+
+            // Log the tariff code we're trying to calculate
+            DebugLogger.shared.log(
+                "🔄 Calculating costs for tariff",
+                details: [
+                    "tariffCode": tariffCode,
+                    "startDate": startDate.description,
+                    "endDate": endDate.description,
+                ]
+            )
+
+            await compareTariffVM.calculateCosts(
+                for: startDate,
+                tariffCode: tariffCode,
+                intervalType: .monthly,
+                accountData: compareAccountData,
+                partialStart: startDate,
+                partialEnd: endDate
+            )
+            if let calc = compareTariffVM.currentCalculation {
+                compareCalculation = calc
+            }
+        } catch let apiError as OctopusAPIError {
+            self.error = apiError
+            DebugLogger.shared.log(
+                "❌ API Error calculating costs",
+                details: [
+                    "error": apiError.localizedDescription,
+                    "errorType": "OctopusAPIError",
+                ]
+            )
+        } catch {
+            self.error = error
+            DebugLogger.shared.log(
+                "❌ Error calculating costs",
+                details: [
+                    "error": error.localizedDescription,
+                    "errorType": String(describing: type(of: error)),
+                ]
+            )
+        }
+    }
+
+    private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
+        let now = Date()
+        let dateFormatter = ISO8601DateFormatter()
+        let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
+        let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
+        let manualAgreement = OctopusAgreement(
+            tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
+        let mp = OctopusElectricityMP(
+            mpan: "0000000000000",
+            meters: [OctopusElecMeter(serial_number: "MANUAL")],
+            agreements: [manualAgreement]
         )
-        .onAppear {
-            Task {
-                calculateOverlapPeriod()
-            }
-        }
+        let prop = OctopusProperty(
+            id: 0, electricity_meter_points: [mp], gas_meter_points: nil, address_line_1: nil,
+            moved_in_at: nil, postcode: nil)
+        return OctopusAccountResponse(number: "manualAccount", properties: [prop])
     }
 
     private var accountCost: Double {
-        showVAT ? accountCalc.costIncVAT : accountCalc.costExcVAT
+        guard let calc = accountCalculation else { return 0 }
+        return showVAT ? calc.costIncVAT : calc.costExcVAT
     }
 
     private var compareCost: Double {
-        showVAT ? compareCalc.costIncVAT : compareCalc.costExcVAT
+        guard let calc = compareCalculation else { return 0 }
+        return showVAT ? calc.costIncVAT : calc.costExcVAT
     }
 
     private var costDifference: Double {
@@ -313,6 +349,115 @@ private struct ComparisonInsightCard: View {
         return String(format: "%.1f%% \(costDifference > 0 ? "increase" : "savings")", percentage)
     }
 
+    // MARK: - View Body
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Cost Comparison")
+                .font(Theme.mainFont2())
+                .foregroundColor(Theme.mainTextColor)
+
+            if let (start, end) = calculateOverlapPeriod() {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.8))
+
+                    Text(formatDateRange(start: start, end: end))
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+                .padding(.bottom, 6)
+            }
+
+            if let error = error {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text("Error")
+                            .font(Theme.subFont())
+                            .foregroundColor(.red)
+                    }
+                    Text(error.localizedDescription)
+                        .font(Theme.captionFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.red.opacity(0.1))
+                )
+            } else if isCalculating {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("Calculating costs...")
+                            .font(Theme.captionFont())
+                            .foregroundColor(Theme.secondaryTextColor)
+                    }
+                    Spacer()
+                }
+            } else if let acctCalc = accountCalculation,
+                let cmpCalc = compareCalculation
+            {
+                HStack(spacing: 20) {
+                    // Cost difference visualization
+                    ZStack {
+                        Circle()
+                            .stroke(Theme.secondaryTextColor.opacity(0.2), lineWidth: 8)
+                        Circle()
+                            .trim(from: 0, to: calculateSavingsPercentage())
+                            .stroke(
+                                costDifference > 0 ? Color.red : Color.green,
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+
+                        VStack(spacing: 4) {
+                            Text(costDifference > 0 ? "More" : "Savings")
+                                .font(Theme.captionFont())
+                                .foregroundColor(Theme.secondaryTextColor)
+                            Text("£\(String(format: "%.2f", abs(costDifference) / 100))")
+                                .font(Theme.mainFont())
+                                .foregroundColor(costDifference > 0 ? .red : .green)
+                        }
+                    }
+                    .frame(width: 100, height: 100)
+
+                    // Detailed breakdown
+                    VStack(alignment: .leading, spacing: 8) {
+                        costBreakdownRow(
+                            label: "My Account",
+                            cost: accountCost,
+                            color: Theme.mainColor
+                        )
+                        costBreakdownRow(
+                            label: "Compared Plan",
+                            cost: compareCost,
+                            color: Theme.secondaryTextColor
+                        )
+
+                        if let savingsPercentage = calculateSavingsPercentageString() {
+                            Text(savingsPercentage)
+                                .font(Theme.captionFont())
+                                .foregroundColor(Theme.secondaryTextColor)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Theme.mainBackground)
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
+        )
+        .task {
+            await calculateCosts()
+        }
+    }
+
     private func costBreakdownRow(label: String, cost: Double, color: Color) -> some View {
         HStack {
             Text(label)
@@ -326,10 +471,21 @@ private struct ComparisonInsightCard: View {
     }
 
     private func formatDateRange(start: Date, end: Date) -> String {
-        // Enhanced formatting
         let df = DateFormatter()
-        df.dateFormat = "d MMM yyyy"
-        return "\(df.string(from: start)) - \(df.string(from: end))"
+        df.dateStyle = .medium
+
+        // If in same year, only show year once at the end
+        let calendar = Calendar.current
+        if calendar.component(.year, from: start) == calendar.component(.year, from: end) {
+            df.setLocalizedDateFormatFromTemplate("d MMM")
+            let startStr = df.string(from: start)
+            df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
+            let endStr = df.string(from: end)
+            return "\(startStr) - \(endStr)"
+        } else {
+            df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
+            return "\(df.string(from: start)) - \(df.string(from: end))"
+        }
     }
 }
 
@@ -672,4 +828,135 @@ private struct CacheInputs: Equatable {
         lhs.minInterval == rhs.minInterval && lhs.maxInterval == rhs.maxInterval
             && lhs.productId == rhs.productId && lhs.isManual == rhs.isManual
     }
+}
+
+@MainActor
+private let calculationRepository = TariffCalculationRepository(
+    consumptionRepository: .shared,
+    ratesRepository: .shared
+)
+
+// MARK: - Helper Functions
+func breakdownDateRangeIntoMonths(start: Date, end: Date) -> [(start: Date, end: Date)] {
+    var months: [(start: Date, end: Date)] = []
+    let calendar = Calendar.current
+
+    var currentDate = start
+    while currentDate < end {
+        // Get start of month
+        let monthStart = calendar.date(
+            from: calendar.dateComponents([.year, .month], from: currentDate))!
+
+        // Get start of next month
+        let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart)!
+
+        // The end date for this month is either the next month start or the overall end date
+        let monthEnd = min(nextMonth, end)
+
+        months.append((start: max(monthStart, start), end: monthEnd))
+
+        // Move to next month
+        currentDate = nextMonth
+    }
+
+    return months
+}
+
+func fetchStoredMonthlyCalculations(
+    months: [(start: Date, end: Date)],
+    tariffCode: String
+) async throws -> [NSManagedObject] {
+    var storedCalculations: [NSManagedObject] = []
+
+    for month in months {
+        if let stored = try await calculationRepository.fetchStoredCalculation(
+            tariffCode: tariffCode,
+            intervalType: "MONTHLY",
+            periodStart: month.start,
+            periodEnd: month.end
+        ) {
+            storedCalculations.append(stored)
+        }
+    }
+
+    return storedCalculations
+}
+
+func calculateMissingMonths(
+    months: [(start: Date, end: Date)],
+    storedCalculations: [NSManagedObject],
+    tariffCode: String,
+    accountData: OctopusAccountResponse? = nil
+) async throws -> [NSManagedObject] {
+    var allCalculations = storedCalculations
+
+    for month in months {
+        // Check if we already have this month
+        let hasMonth = storedCalculations.contains { calc in
+            (calc.value(forKey: "period_start") as? Date) == month.start
+                && (calc.value(forKey: "period_end") as? Date) == month.end
+        }
+
+        if !hasMonth {
+            // Calculate missing month
+            let calculation: NSManagedObject
+            if tariffCode == "savedAccount" {
+                guard let accData = accountData else { continue }
+                let results = try await calculationRepository.calculateCostForAccount(
+                    accountData: accData,
+                    startDate: month.start,
+                    endDate: month.end,
+                    intervalType: "MONTHLY"
+                )
+                guard let firstResult = results.first else { continue }
+                calculation = firstResult
+            } else {
+                calculation = try await calculationRepository.calculateCostForPeriod(
+                    tariffCode: tariffCode,
+                    startDate: month.start,
+                    endDate: month.end,
+                    intervalType: "MONTHLY"
+                )
+            }
+            allCalculations.append(calculation)
+        }
+    }
+
+    return allCalculations
+}
+
+func sumMonthlyCalculations(_ calculations: [NSManagedObject]) -> TariffViewModel.TariffCalculation
+{
+    var totalKWh = 0.0
+    var totalCostExcVAT = 0.0
+    var totalCostIncVAT = 0.0
+    var totalStandingChargeExcVAT = 0.0
+    var totalStandingChargeIncVAT = 0.0
+
+    for calc in calculations {
+        totalKWh += calc.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
+        totalCostExcVAT += calc.value(forKey: "total_cost_exc_vat") as? Double ?? 0.0
+        totalCostIncVAT += calc.value(forKey: "total_cost_inc_vat") as? Double ?? 0.0
+        totalStandingChargeExcVAT +=
+            calc.value(forKey: "standing_charge_cost_exc_vat") as? Double ?? 0.0
+        totalStandingChargeIncVAT +=
+            calc.value(forKey: "standing_charge_cost_inc_vat") as? Double ?? 0.0
+    }
+
+    let avgRateExcVAT =
+        totalKWh > 0 ? (totalCostExcVAT - totalStandingChargeExcVAT) / totalKWh : 0.0
+    let avgRateIncVAT =
+        totalKWh > 0 ? (totalCostIncVAT - totalStandingChargeIncVAT) / totalKWh : 0.0
+
+    return TariffViewModel.TariffCalculation(
+        periodStart: calculations.first?.value(forKey: "period_start") as? Date ?? Date(),
+        periodEnd: calculations.last?.value(forKey: "period_end") as? Date ?? Date(),
+        totalKWh: totalKWh,
+        costExcVAT: totalCostExcVAT,
+        costIncVAT: totalCostIncVAT,
+        averageUnitRateExcVAT: avgRateExcVAT,
+        averageUnitRateIncVAT: avgRateIncVAT,
+        standingChargeExcVAT: totalStandingChargeExcVAT,
+        standingChargeIncVAT: totalStandingChargeIncVAT
+    )
 }
