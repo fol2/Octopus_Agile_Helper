@@ -20,6 +20,15 @@ public class PersistenceController {
 
     public let container: NSPersistentContainer
     private var remoteChangeObserver: NSObjectProtocol?
+    private var backgroundContexts = [NSManagedObjectContext]()
+
+    public func newBackgroundContext() -> NSManagedObjectContext {
+        let context = container.newBackgroundContext()
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.automaticallyMergesChangesFromParent = true
+        backgroundContexts.append(context)
+        return context
+    }
 
     public init(inMemory: Bool = false) {
         container = NSPersistentContainer(name: "Octopus_Agile_Helper")
@@ -179,6 +188,20 @@ public class PersistenceController {
             //  NSPersistentCloudKitContainer.defaultDirectoryURL  OR
             //  a specialized merging API. However, the simpler approach:
             self.container.viewContext.refreshAllObjects()
+        }
+    }
+
+    // MARK: - Background Context Management
+
+    public func cleanupBackgroundContexts() {
+        backgroundContexts.removeAll()
+    }
+
+    public func saveBackgroundContexts() throws {
+        for context in backgroundContexts {
+            if context.hasChanges {
+                try context.save()
+            }
         }
     }
 }

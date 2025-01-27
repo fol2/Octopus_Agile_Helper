@@ -39,7 +39,8 @@ public final class TariffCalculationRepository: ObservableObject {
 
     // MARK: - Initialization
     public init(
-        context: NSManagedObjectContext = PersistenceController.shared.container.viewContext,
+        context: NSManagedObjectContext = PersistenceController.shared.container
+            .newBackgroundContext(),
         consumptionRepository: ElectricityConsumptionRepository = .shared,
         ratesRepository: RatesRepository = .shared
     ) {
@@ -283,7 +284,7 @@ public final class TariffCalculationRepository: ObservableObject {
     ) async throws -> NSManagedObject {
         // 2) Gather all rates for the same tariff code
         let rateEntities = try await fetchRates(
-            tariffCode: tariffCode, start: startDate, end: endDate)
+            start: startDate, end: endDate, tariffCode: tariffCode)
 
         // 3) Gather all standing charges for the same tariff code
         let standingCharges = try await fetchStandingCharges(
@@ -344,7 +345,7 @@ public final class TariffCalculationRepository: ObservableObject {
         }
 
         // Save context
-        try backgroundContext.save()
+        try await saveContext()
 
         // After computing costs, only store in CoreData if requested
         if storeInCoreData {
@@ -506,81 +507,47 @@ public final class TariffCalculationRepository: ObservableObject {
     /// Fetch half-hour consumption from EConsumAgile, for the specified time window.
     /// If no data is found, attempts to fetch from API.
     private func fetchConsumption(start: Date, end: Date) async throws -> [NSManagedObject] {
-        // First try to fetch from local storage
-        let records = try await backgroundContext.perform {
-            let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
-            request.predicate = NSPredicate(
-                format: "interval_start >= %@ AND interval_start < %@",
-                start as NSDate, end as NSDate
-            )
-            request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
-            return try self.backgroundContext.fetch(request)
-        }
-
-        // If no records found, try to fetch from API
-        if records.isEmpty {
-            print(
-                "🔄 No consumption data found locally for period \(start.formatted()) to \(end.formatted())"
-            )
-            print("🔄 Attempting to fetch from API...")
-
-            // Update consumption data from API
-            try await consumptionRepository.updateConsumptionData()
-
-            // Try fetching again after API update
-            return try await backgroundContext.perform {
-                let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
-                request.predicate = NSPredicate(
-                    format: "interval_start >= %@ AND interval_start < %@",
-                    start as NSDate, end as NSDate
-                )
-                request.sortDescriptors = [NSSortDescriptor(key: "interval_start", ascending: true)]
-                return try self.backgroundContext.fetch(request)
+        try await withCheckedThrowingContinuation { continuation in
+            backgroundContext.perform {
+                do {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: "EConsumAgile")
+                    request.predicate = NSPredicate(
+                        format: "interval_start >= %@ AND interval_start < %@",
+                        start as NSDate, end as NSDate
+                    )
+                    request.sortDescriptors = [
+                        NSSortDescriptor(key: "interval_start", ascending: true)
+                    ]
+                    let results = try self.backgroundContext.fetch(request)
+                    continuation.resume(returning: results)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
         }
-
-        return records
     }
 
     /// Fetch rate records from RateEntity for a single tariff_code that intersect the requested date window.
     /// If no data is found, attempts to fetch from API.
-    private func fetchRates(tariffCode: String, start: Date, end: Date) async throws
+    private func fetchRates(start: Date, end: Date, tariffCode: String) async throws
         -> [NSManagedObject]
     {
-        // First try to fetch from local storage
-        let records = try await backgroundContext.perform {
-            let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-            request.predicate = NSPredicate(
-                format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
-                tariffCode, start as NSDate, end as NSDate
-            )
-            request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-            return try self.backgroundContext.fetch(request)
-        }
-
-        // If no records found, try to fetch from API
-        if records.isEmpty {
-            print(
-                "🔄 No rate data found locally for period \(start.formatted()) to \(end.formatted())"
-            )
-            print("🔄 Attempting to fetch from API...")
-
-            // Update rates data from API
-            let (_, _) = try await ratesRepository.fetchAndStoreRates(tariffCode: tariffCode)
-
-            // Try fetching again after API update
-            return try await backgroundContext.perform {
-                let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
-                request.predicate = NSPredicate(
-                    format: "tariff_code == %@ AND valid_to >= %@ AND valid_from <= %@",
-                    tariffCode, start as NSDate, end as NSDate
-                )
-                request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
-                return try self.backgroundContext.fetch(request)
+        try await withCheckedThrowingContinuation { continuation in
+            backgroundContext.perform {
+                do {
+                    let request = NSFetchRequest<NSManagedObject>(entityName: "RateEntity")
+                    request.predicate = NSPredicate(
+                        format: "tariff_code == %@ AND valid_from >= %@ AND valid_from < %@",
+                        tariffCode, start as NSDate, end as NSDate
+                    )
+                    request.sortDescriptors = [NSSortDescriptor(key: "valid_from", ascending: true)]
+                    let results = try self.backgroundContext.fetch(request)
+                    continuation.resume(returning: results)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
         }
-
-        return records
     }
 
     /// Fetch standing charge records from StandingChargeEntity for the same tariff_code + date window.
@@ -883,5 +850,20 @@ public final class TariffCalculationRepository: ObservableObject {
         calc.setValue(Date(), forKey: "updated_at")
         // create_at is optional for ephemeral
         return calc
+    }
+
+    private func saveContext() async throws {
+        if backgroundContext.hasChanges {
+            try await withCheckedThrowingContinuation { continuation in
+                backgroundContext.perform {
+                    do {
+                        try self.backgroundContext.save()
+                        continuation.resume()
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        }
     }
 }

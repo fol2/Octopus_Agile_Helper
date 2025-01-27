@@ -8,19 +8,40 @@ struct CardManagementView: View {
     @State private var editMode = EditMode.active
     @State private var selectedCard: CardConfig?
     @State private var refreshTrigger = false
+    @State private var isSaving = false
+    @State private var saveError: Error?
 
     var body: some View {
         VStack(spacing: 0) {
-            // Title
+            // Title with save indicator
             HStack {
                 Text(LocalizedStringKey("Manage Cards"))
                     .font(Theme.mainFont())
                     .foregroundColor(Theme.mainTextColor)
                 Spacer()
+                if isSaving {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .tint(Theme.mainColor)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 22)
+
+            // Error message if present
+            if let error = saveError {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text("Error saving: \(error.localizedDescription)")
+                        .font(Theme.subFont())
+                        .foregroundColor(.red)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
 
             // Instruction text
             HStack {
@@ -75,8 +96,21 @@ struct CardManagementView: View {
                 cards[index].sortOrder = index + 1
             }
 
+            // Update the UI immediately
             globalSettings.settings.cardSettings = cards
-            globalSettings.saveSettings()
+
+            // Save in background
+            Task {
+                isSaving = true
+                saveError = nil
+                do {
+                    try await globalSettings.saveSettingsAsync()
+                } catch {
+                    saveError = error
+                    DebugLogger.debug("Error saving card order: \(error)", component: .stateChanges)
+                }
+                isSaving = false
+            }
         }
     }
 }
@@ -87,6 +121,8 @@ struct CardRowView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
     @State private var clockIconTrigger = Date()
+    @State private var isSaving = false
+    @State private var saveError: Error?
     let onInfoTap: () -> Void
 
     var body: some View {
@@ -129,31 +165,52 @@ struct CardRowView: View {
                             .font(Theme.subFont())
                     }
                     .buttonStyle(.plain)
-                    
-                    // Show the plan(s)
-                    Text("Supported: \(definition.supportedPlans.map { $0.rawValue.capitalized }.joined(separator: ", "))")
-                        .font(.caption)
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.leading, 6)
 
-                    // Toggle or 'Unlock' button
-                    if cardConfig.isPurchased {
-                        Toggle(isOn: $cardConfig.isEnabled) {
-                            EmptyView()
+                    // Show the plan(s)
+                    Text(
+                        "Supported: \(definition.supportedPlans.map { $0.rawValue.capitalized }.joined(separator: ", "))"
+                    )
+                    .font(.caption)
+                    .foregroundColor(Theme.secondaryTextColor)
+                    .padding(.leading, 6)
+
+                    // Toggle or 'Unlock' button with saving indicator
+                    HStack(spacing: 4) {
+                        if isSaving {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .tint(Theme.mainColor)
                         }
-                        .labelsHidden()
-                        .tint(Theme.secondaryColor)
-                    } else {
-                        Button {
-                            purchaseCard()
-                        } label: {
-                            Text(LocalizedStringKey("Unlock"))
-                                .font(Theme.secondaryFont())
-                                .textCase(.none)
+
+                        if cardConfig.isPurchased {
+                            Toggle(
+                                isOn: Binding(
+                                    get: { cardConfig.isEnabled },
+                                    set: { newValue in
+                                        Task {
+                                            await toggleCard(enabled: newValue)
+                                        }
+                                    }
+                                )
+                            ) {
+                                EmptyView()
+                            }
+                            .labelsHidden()
+                            .tint(Theme.secondaryColor)
+                            .disabled(isSaving)
+                        } else {
+                            Button {
+                                purchaseCard()
+                            } label: {
+                                Text(LocalizedStringKey("Unlock"))
+                                    .font(Theme.secondaryFont())
+                                    .textCase(.none)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .tint(Theme.mainColor)
+                            .disabled(isSaving)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .tint(Theme.mainColor)
                     }
                 }
                 .padding(.vertical, 10)
@@ -169,7 +226,73 @@ struct CardRowView: View {
             .onReceive(refreshManager.$sceneActiveTick) { _ in
                 clockIconTrigger = Date()
             }
+            // Show error if present
+            .overlay(alignment: .trailing) {
+                if let error = saveError {
+                    Text(error.localizedDescription)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(4)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(4)
+                        .transition(.opacity)
+                }
+            }
         }
+    }
+
+    private func toggleCard(enabled: Bool) async {
+        isSaving = true
+        saveError = nil
+
+        do {
+            // Create a new config with the updated state
+            var updatedConfig = cardConfig
+            updatedConfig.isEnabled = enabled
+
+            // Find the index of this card in the settings
+            if let index = globalSettings.settings.cardSettings.firstIndex(where: {
+                $0.id == cardConfig.id
+            }) {
+                // Save first
+                var updatedSettings = globalSettings.settings
+                updatedSettings.cardSettings[index] = updatedConfig
+
+                // Create a temporary GlobalSettings with the new card settings
+                let tempSettings = GlobalSettings(
+                    regionInput: updatedSettings.regionInput,
+                    apiKey: updatedSettings.apiKey,
+                    selectedLanguage: updatedSettings.selectedLanguage,
+                    billingDay: updatedSettings.billingDay,
+                    showRatesInPounds: updatedSettings.showRatesInPounds,
+                    showRatesWithVAT: updatedSettings.showRatesWithVAT,
+                    cardSettings: updatedSettings.cardSettings,
+                    currentAgileCode: updatedSettings.currentAgileCode,
+                    electricityMPAN: updatedSettings.electricityMPAN,
+                    electricityMeterSerialNumber: updatedSettings.electricityMeterSerialNumber,
+                    accountNumber: updatedSettings.accountNumber,
+                    accountData: updatedSettings.accountData,
+                    selectedTariffInterval: updatedSettings.selectedTariffInterval,
+                    lastViewedTariffDates: updatedSettings.lastViewedTariffDates,
+                    selectedComparisonInterval: updatedSettings.selectedComparisonInterval,
+                    lastViewedComparisonDates: updatedSettings.lastViewedComparisonDates
+                )
+
+                // Try to save first
+                try await globalSettings.saveSettingsAsync()
+
+                // If save successful, update the UI
+                await MainActor.run {
+                    cardConfig = updatedConfig
+                    globalSettings.settings = tempSettings
+                }
+            }
+        } catch {
+            saveError = error
+            DebugLogger.debug("Error saving card state: \(error)", component: .stateChanges)
+        }
+
+        isSaving = false
     }
 
     private func purchaseCard() {

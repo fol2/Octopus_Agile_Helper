@@ -33,12 +33,17 @@ public final class TariffViewModel: ObservableObject {
     }
 
     // MARK: - Published Properties
-    @Published public private(set) var currentCalculation: TariffCalculation?
     @Published public private(set) var isCalculating = false
     @Published public private(set) var error: Error?
+    @Published public private(set) var currentCalculation: TariffCalculation?
+
+    // MARK: - Private Properties
+    private var currentTask: Task<Void, Never>?
+    private var lastCalculationRequest: Date?
+    private let debounceInterval: TimeInterval = 0.1  // 100ms debounce
 
     // MARK: - Dependencies
-    private let calculationRepository: TariffCalculationRepository
+    private let repository: TariffCalculationRepository
     private let skipCoreDataStorage: Bool
 
     // MARK: - Memory Cache
@@ -122,7 +127,7 @@ public final class TariffViewModel: ObservableObject {
 
     // MARK: - Initialization
     public init(skipCoreDataStorage: Bool = false) {
-        self.calculationRepository = TariffCalculationRepository()
+        self.repository = TariffCalculationRepository()
         self.skipCoreDataStorage = skipCoreDataStorage
         DebugLogger.debug(
             "🔄 TariffViewModel initialized (no main-actor lock)",
@@ -148,13 +153,19 @@ public final class TariffViewModel: ObservableObject {
 
         // If too large, remove oldest entries
         if calculationCache.count > maxCacheSize {
-            let sortedEntries = calculationCache.sorted { $0.value.timestamp > $1.value.timestamp }
-            calculationCache = Dictionary(
-                uniqueKeysWithValues:
-                    sortedEntries
-                    .prefix(maxCacheSize)
-                    .map { ($0.key, $0.value) }
-            )
+            // Sort entries by timestamp
+            let sortedKeys = calculationCache.keys.sorted { key1, key2 in
+                guard let entry1 = calculationCache[key1],
+                    let entry2 = calculationCache[key2]
+                else {
+                    return false
+                }
+                return entry1.timestamp > entry2.timestamp
+            }
+
+            // Keep only the newest entries
+            let keysToKeep = Set(sortedKeys.prefix(maxCacheSize))
+            calculationCache = calculationCache.filter { keysToKeep.contains($0.key) }
         }
 
         DebugLogger.debug(
@@ -173,10 +184,17 @@ public final class TariffViewModel: ObservableObject {
 
     // MARK: - Public Methods
 
+    /// Cancel any ongoing calculation
+    public func cancel() {
+        currentTask?.cancel()
+        currentTask = nil
+        isCalculating = false
+    }
+
     /// Reset the calculation state and invalidate manual plan cache
     @MainActor
     public func resetCalculationState() async {
-        isCalculating = false
+        cancel()
         error = nil
         currentCalculation = nil
         // Invalidate cache for manual plan calculations only
@@ -186,14 +204,8 @@ public final class TariffViewModel: ObservableObject {
             component: .tariffViewModel)
     }
 
-    /// Calculate tariff costs for a specific date and interval type
-    /// - Parameters:
-    ///   - date: The reference date for calculation
-    ///   - tariffCode: The tariff code to calculate for, use "savedAccount" to calculate for saved account
-    ///   - intervalType: The type of interval (daily, weekly, monthly)
-    ///   - accountData: The account data, required when tariffCode is "savedAccount"
-    ///   - partialStart: Optional start date for partial coverage calculation
-    ///   - partialEnd: Optional end date for partial coverage calculation
+    /// Calculate costs for a given date and interval type
+    @MainActor
     public func calculateCosts(
         for date: Date,
         tariffCode: String,
@@ -203,57 +215,93 @@ public final class TariffViewModel: ObservableObject {
         partialEnd: Date? = nil,
         isChangingPlan: Bool = false
     ) async {
-        DebugLogger.debug(
-            """
-            🔄 Starting cost calculation:
-            - Date: \(date)
-            - Tariff: \(tariffCode)
-            - Interval: \(intervalType.rawValue)
-            - Partial Range: \(partialStart?.formatted() ?? "none") to \(partialEnd?.formatted() ?? "none")
-            - Is Changing Plan: \(isChangingPlan)
-            """, component: .tariffViewModel)
+        // Cancel any existing calculation
+        cancel()
 
-        // Reset state at the start
-        error = nil
-        isCalculating = true
-        currentCalculation = nil  // Clear current calculation while loading
-
-        do {
-            // 1) Compute the default full range for the given date & interval
-            let (stdStart, stdEnd) = calculateDateRange(for: date, intervalType: intervalType)
-            let (finalStart, finalEnd) = (
-                partialStart ?? stdStart,
-                partialEnd ?? stdEnd
-            )
-
-            // Add guard for invalid date ranges
-            guard finalEnd > finalStart else {
-                throw TariffCalculationError.invalidDateRange(
-                    message:
-                        "Invalid date range: end date (\(finalEnd)) must be after start date (\(finalStart))"
-                )
-            }
-
-            // 2) Calculate costs over the range
-            let calculation = try await computeCostsOverRange(
-                startDate: finalStart,
-                endDate: finalEnd,
-                tariffCode: tariffCode,
-                accountData: accountData,
-                storeInCoreData: !skipCoreDataStorage && partialStart == nil && partialEnd == nil,
-                isChangingPlan: isChangingPlan
-            )
-
-            currentCalculation = calculation
-        } catch {
-            self.error = error
-            DebugLogger.debug(
-                "❌ Error calculating costs: \(error.localizedDescription)",
-                component: .tariffViewModel)
+        // Implement debouncing
+        let now = Date()
+        if let lastRequest = lastCalculationRequest,
+            now.timeIntervalSince(lastRequest) < debounceInterval
+        {
+            return
         }
+        lastCalculationRequest = now
 
-        isCalculating = false
-        cleanupCache()  // Cleanup after calculation
+        // Start new calculation
+        isCalculating = true
+        error = nil
+
+        currentTask = Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                // Move heavy computation to background
+                let result = try await Task.detached(priority: .userInitiated) {
+                    // 1) Compute the default full range for the given date & interval
+                    let (stdStart, stdEnd) = await self.calculateDateRange(
+                        for: date,
+                        intervalType: intervalType
+                    )
+                    let (finalStart, finalEnd) = (
+                        partialStart ?? stdStart,
+                        partialEnd ?? stdEnd
+                    )
+
+                    // Add guard for invalid date ranges
+                    guard finalEnd > finalStart else {
+                        throw TariffCalculationError.invalidDateRange(
+                            message:
+                                "Invalid date range: end date (\(finalEnd)) must be after start date (\(finalStart))"
+                        )
+                    }
+
+                    // 2) Calculate costs over the range
+                    let managedObject = try await self.repository.calculateCostForPeriod(
+                        tariffCode: tariffCode,
+                        startDate: finalStart,
+                        endDate: finalEnd,
+                        intervalType: intervalType.rawValue,
+                        storeInCoreData: !self.skipCoreDataStorage && partialStart == nil
+                            && partialEnd == nil
+                    )
+
+                    // 3) Convert to TariffCalculation
+                    return TariffCalculation(
+                        periodStart: finalStart,
+                        periodEnd: finalEnd,
+                        totalKWh: managedObject.value(forKey: "total_consumption_kwh") as? Double
+                            ?? 0,
+                        costExcVAT: managedObject.value(forKey: "total_cost_exc_vat") as? Double
+                            ?? 0,
+                        costIncVAT: managedObject.value(forKey: "total_cost_inc_vat") as? Double
+                            ?? 0,
+                        averageUnitRateExcVAT: managedObject.value(
+                            forKey: "average_unit_rate_exc_vat") as? Double ?? 0,
+                        averageUnitRateIncVAT: managedObject.value(
+                            forKey: "average_unit_rate_inc_vat") as? Double ?? 0,
+                        standingChargeExcVAT: managedObject.value(
+                            forKey: "standing_charge_cost_exc_vat") as? Double ?? 0,
+                        standingChargeIncVAT: managedObject.value(
+                            forKey: "standing_charge_cost_inc_vat") as? Double ?? 0
+                    )
+                }.value
+
+                // Update state on main actor
+                await MainActor.run {
+                    guard !Task.isCancelled else { return }
+                    self.currentCalculation = result
+                    self.error = nil
+                    self.isCalculating = false
+                }
+            } catch {
+                await MainActor.run {
+                    guard !Task.isCancelled else { return }
+                    self.error = error
+                    self.currentCalculation = nil
+                    self.isCalculating = false
+                }
+            }
+        }
     }
 
     /// Internal method that handles both single-tariff and "savedAccount" calculations
@@ -304,7 +352,7 @@ public final class TariffViewModel: ObservableObject {
             guard let accData = accountData else {
                 throw TariffCalculationError.noDataAvailable(period: startDate...endDate)
             }
-            let results = try await calculationRepository.calculateCostForAccount(
+            let results = try await repository.calculateCostForAccount(
                 accountData: accData,
                 startDate: startDate,
                 endDate: endDate,
@@ -315,7 +363,7 @@ public final class TariffViewModel: ObservableObject {
             }
             result = firstResult
         } else {
-            result = try await calculationRepository.calculateCostForPeriod(
+            result = try await repository.calculateCostForPeriod(
                 tariffCode: tariffCode,
                 startDate: startDate,
                 endDate: endDate,
