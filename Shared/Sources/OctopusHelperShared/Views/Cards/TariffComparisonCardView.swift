@@ -1369,7 +1369,13 @@ private struct ComparisonDateNavView: View {
             intervalType: selectedInterval.vmInterval,
             billingDay: globalSettings.settings.billingDay
         )
-        return prevBoundary.overlapsWithData(minDate: minDate, maxDate: maxDate)
+
+        // Special handling for weekly to allow partial overlap at start
+        if selectedInterval == .weekly {
+            return prevBoundary.end > (minDate ?? Date.distantPast)
+        } else {
+            return prevBoundary.overlapsWithData(minDate: minDate, maxDate: maxDate)
+        }
     }
 
     private func canNavigateForward() -> Bool {
@@ -1474,13 +1480,8 @@ private struct ComparisonDateNavView: View {
                 billingDay: globalSettings.settings.billingDay
             )
 
-            // Strict check: if ANY part of the week is before minAllowedDate, reject it
-            if boundary.start < mn {
-                return nil
-            }
-
-            // Only allow if the entire week is valid
-            return boundary.overlapsWithData(minDate: minDate, maxDate: maxDate) ? date : nil
+            // Match the logic in canNavigateBackward to allow partial overlap at start
+            return boundary.end > mn ? date : nil
 
         case .monthly:
             let prevDate = calendar.date(byAdding: .month, value: -1, to: currentDate)
