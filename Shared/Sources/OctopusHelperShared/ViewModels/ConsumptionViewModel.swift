@@ -26,6 +26,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
     @Published public private(set) var fetchState: DataFetchState = .idle
     @Published public private(set) var error: Error?
 
+    // Add cache for available dates
+    private var availableDates: Set<Date>?
+
     private let repository: ElectricityConsumptionRepository
     private var globalSettingsManager: GlobalSettingsManager
 
@@ -45,6 +48,39 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
         let settings = globalSettingsManager.settings
         return !settings.apiKey.isEmpty && !(settings.electricityMPAN ?? "").isEmpty
             && !(settings.electricityMeterSerialNumber ?? "").isEmpty
+    }
+
+    /// Updates the available dates cache when loading data
+    private func updateAvailableDates() {
+        let calendar = Calendar.current
+        availableDates = Set(
+            consumptionRecords.compactMap { record in
+                guard let start = record.value(forKey: "interval_start") as? Date else {
+                    return nil
+                }
+                return calendar.startOfDay(for: start)
+            }
+        )
+    }
+
+    /// Check if a specific day has consumption data
+    public func hasData(for date: Date) -> Bool {
+        guard let dates = availableDates else { return false }
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        return dates.contains(startOfDay)
+    }
+
+    /// Get all available dates within a range
+    public func getAvailableDates(in range: ClosedRange<Date>) -> Set<Date> {
+        guard let dates = availableDates else { return [] }
+        let calendar = Calendar.current
+        let startOfRange = calendar.startOfDay(for: range.lowerBound)
+        let endOfRange = calendar.startOfDay(for: range.upperBound)
+
+        return dates.filter { date in
+            date >= startOfRange && date <= endOfRange
+        }
     }
 
     /// Loads existing data from Core Data
@@ -81,6 +117,10 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
             consumptionRecords = allData
             minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }.min()
             maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
+
+            // Update available dates cache
+            updateAvailableDates()
+
             print("📊 ConsumptionVM.loadData: Found \(allData.count) records")
             if let min = minInterval, let max = maxInterval {
                 print("  - Date range: \(min) to \(max)")
@@ -186,6 +226,9 @@ public final class ConsumptionViewModel: ObservableObject, ConsumptionViewModeli
                 minInterval = allData.compactMap { $0.value(forKey: "interval_start") as? Date }
                     .min()
                 maxInterval = allData.compactMap { $0.value(forKey: "interval_end") as? Date }.max()
+
+                // Update available dates cache
+                updateAvailableDates()
 
                 print("📊 ConsumptionVM.refreshDataFromAPI: Found \(allData.count) records")
                 if let min = minInterval, let max = maxInterval {

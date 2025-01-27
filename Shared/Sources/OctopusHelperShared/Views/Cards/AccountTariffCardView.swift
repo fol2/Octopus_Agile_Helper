@@ -378,6 +378,17 @@ public struct AccountTariffCardView: View {
             }
         }
     }
+
+    private func buildDailySet() -> Set<Date>? {
+        guard selectedInterval == .daily else { return nil }
+        guard let minD = minAllowedDate,
+            let maxD = maxAllowedDate
+        else { return nil }
+
+        // Use the new ConsumptionViewModel method to get available dates
+        let dates = consumptionVM.getAvailableDates(in: minD...maxD)
+        return dates.isEmpty ? nil : dates
+    }
 }
 
 // MARK: - Sub-view: Date Navigation
@@ -641,19 +652,13 @@ private struct AccountTariffDateNavView: View {
 
     private func buildDailySet() -> Set<Date>? {
         guard selectedInterval == .daily else { return nil }
-        let minD = minAllowedDate ?? Date.distantPast
-        let maxD = maxAllowedDate ?? Date.distantFuture
-        let calendar = Calendar.current
-        let set: Set<Date> = Set(
-            consumptionVM.consumptionRecords.compactMap { record in
-                guard let start = record.value(forKey: "interval_start") as? Date else {
-                    return nil
-                }
-                if start < minD || start > maxD { return nil }
-                return calendar.startOfDay(for: start)
-            }
-        )
-        return set.isEmpty ? nil : set
+        guard let minD = minAllowedDate,
+            let maxD = maxAllowedDate
+        else { return nil }
+
+        // Use the new ConsumptionViewModel method to get available dates
+        let dates = consumptionVM.getAvailableDates(in: minD...maxD)
+        return dates.isEmpty ? nil : dates
     }
 
     private func dateRangeText() -> String {
