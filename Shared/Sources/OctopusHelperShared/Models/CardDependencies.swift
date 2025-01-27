@@ -94,6 +94,7 @@ public enum DependencyError: Error {
 /// A dynamic container for all dependencies that cards might need
 public final class CardDependencies {
     private var container = [String: Any]()
+    private var weakContainer = [String: () -> Any]()
     private let _refreshManager = CardRefreshManager.shared
 
     public init() {}
@@ -104,9 +105,28 @@ public final class CardDependencies {
         container[key] = dependency
     }
 
+    /// Register a dependency with a weak reference
+    public func registerWeak<T: AnyObject>(_ dependency: T, factory: @escaping () -> T) {
+        let key = String(describing: T.self)
+        weakContainer[key] = { [weak dependency] in
+            return dependency ?? factory()
+        }
+    }
+
     /// Resolve a dependency with type safety
     public func resolve<T>() throws -> T {
         let key = String(describing: T.self)
+
+        // First try the weak container
+        if let factory = weakContainer[key] {
+            if let dependency = factory() as? T {
+                return dependency
+            }
+            // If weak reference is nil, remove it
+            weakContainer.removeValue(forKey: key)
+        }
+
+        // Then try the regular container
         guard let dependency = container[key] else {
             throw DependencyError.dependencyNotRegistered(key)
         }
@@ -150,6 +170,28 @@ public final class CardDependencies {
         try! resolve()
     }
 
+    @MainActor
+    public var accountTariffViewModel: TariffViewModel {
+        let key = "accountTariffViewModel"
+        if let vm = container[key] as? TariffViewModel {
+            return vm
+        }
+        let newVM = TariffViewModel()
+        container[key] = newVM
+        return newVM
+    }
+
+    @MainActor
+    public var compareTariffViewModel: TariffViewModel {
+        let key = "compareTariffViewModel"
+        if let vm = container[key] as? TariffViewModel {
+            return vm
+        }
+        let newVM = TariffViewModel()
+        container[key] = newVM
+        return newVM
+    }
+
     // MARK: - Factory Methods
 
     /// Creates a new instance of CardDependencies with all required dependencies registered
@@ -166,6 +208,16 @@ public final class CardDependencies {
         dependencies.register(globalTimer)
         dependencies.register(globalSettings)
         return dependencies
+    }
+
+    // MARK: - TariffViewModel Management
+    @MainActor
+    public func registerTariffViewModels(
+        accountTariffViewModel: TariffViewModel,
+        compareTariffViewModel: TariffViewModel
+    ) {
+        register(accountTariffViewModel)
+        register(compareTariffViewModel)
     }
 }
 

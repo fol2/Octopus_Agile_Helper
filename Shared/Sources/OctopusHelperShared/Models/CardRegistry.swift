@@ -265,23 +265,25 @@ extension CardRegistry {
                 displayNameKey: "Tariff Comparison",
                 descriptionKey:
                     "Compare your current account cost with another plan or a manual rate.",
-                isPremium: true,  // or false if you prefer
-                makeView: { deps in
+                isPremium: true,
+                makeView: { @MainActor deps in
                     AnyView(
                         TariffComparisonCardView(
-                            consumptionVM: deps.consumptionViewModel,  // We'll need consumption data
-                            ratesVM: deps.ratesViewModel,  // If we want fallback or custom logic
-                            globalSettings: deps.globalSettings
+                            consumptionVM: deps.consumptionViewModel,
+                            ratesVM: deps.ratesViewModel,
+                            globalSettings: deps.globalSettings,
+                            accountTariffVM: deps.accountTariffViewModel,
+                            compareTariffVM: deps.compareTariffViewModel
                         )
                     )
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "rectangle.split.3x1.fill",
-                defaultIsEnabled: true,  // Make sure it's enabled by default
-                defaultIsPurchased: true,  // Make sure it's purchased by default
-                defaultSortOrder: 7,  // after your existing cards
+                defaultIsEnabled: true,
+                defaultIsPurchased: true,
+                defaultSortOrder: 7,
                 mediaItems: [],
-                supportedPlans: [.any]  // or [.agile], .any is fine if we allow any plan
+                supportedPlans: [.any]
             )
         )
     }

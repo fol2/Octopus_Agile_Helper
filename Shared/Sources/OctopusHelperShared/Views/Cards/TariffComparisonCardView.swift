@@ -121,10 +121,8 @@ public struct TariffComparisonCardView: View {
     @ObservedObject var consumptionVM: ConsumptionViewModel
     @ObservedObject var ratesVM: RatesViewModel
     @ObservedObject var globalSettings: GlobalSettingsManager
-
-    // Two separate TariffViewModels for actual account vs. comparison
-    @StateObject private var accountTariffVM = TariffViewModel()
-    @StateObject private var compareTariffVM = TariffViewModel()
+    @ObservedObject var accountTariffVM: TariffViewModel
+    @ObservedObject var compareTariffVM: TariffViewModel
 
     // Interval & date state
     @State private var selectedInterval: CompareIntervalType = .daily
@@ -164,14 +162,19 @@ public struct TariffComparisonCardView: View {
     @State private var calculationError: String? = nil
     @State private var didAutoAdjustRange: Bool = false
 
+    @MainActor
     public init(
         consumptionVM: ConsumptionViewModel,
         ratesVM: RatesViewModel,
-        globalSettings: GlobalSettingsManager
+        globalSettings: GlobalSettingsManager,
+        accountTariffVM: TariffViewModel,
+        compareTariffVM: TariffViewModel
     ) {
         self.consumptionVM = consumptionVM
         self.ratesVM = ratesVM
         self.globalSettings = globalSettings
+        self.accountTariffVM = accountTariffVM
+        self.compareTariffVM = compareTariffVM
     }
 
     public var body: some View {
@@ -262,14 +265,10 @@ public struct TariffComparisonCardView: View {
             .navigationViewStyle(.stack)
         }
         .environment(\.locale, globalSettings.locale)
-        .onAppear {
-            Task {
-                guard !hasInitiallyLoaded else { return }
-                initializeFromSettings()
-                updateAllowedDateRange()
-                await loadComparisonPlansIfNeeded()
-                await recalcBothTariffs(partialOverlap: true)
+        .task {
+            if !hasInitiallyLoaded {
                 hasInitiallyLoaded = true
+                await recalcBothTariffs(partialOverlap: true)
             }
         }
         .onChange(of: consumptionVM.minInterval) { _, _ in
