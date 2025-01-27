@@ -71,7 +71,8 @@ public struct TariffComparisonDetailView: View {
                         consumptionVM: consumptionVM,
                         selectedProduct: selectedProduct,
                         isManualPlan: isManualPlan,
-                        globalSettings: globalSettings
+                        globalSettings: globalSettings,
+                        compareTariffVM: compareTariffVM
                     )
                     .opacity(showContent ? 1 : 0)
                     .offset(y: showContent ? 0 : 20)
@@ -162,25 +163,7 @@ private struct ComparisonInsightCard: View {
     let selectedProduct: NSManagedObject?
     let isManualPlan: Bool
     @ObservedObject var globalSettings: GlobalSettingsManager
-
-    // Use StateObject for caching to ensure it persists
-    @StateObject private var cache = OverlapPeriodCache()
-
-    private var calculatedOverlapPeriod: (start: Date?, end: Date?)? {
-        let currentInputs = CacheInputs(
-            minInterval: consumptionVM.minInterval,
-            maxInterval: consumptionVM.maxInterval,
-            productId: selectedProduct?.objectID,
-            isManual: isManualPlan
-        )
-
-        return cache.getOverlapPeriod(
-            for: currentInputs,
-            calculate: {
-                calculateOverlapPeriod()
-            }
-        )
-    }
+    @ObservedObject var compareTariffVM: TariffViewModel
 
     private func calculateOverlapPeriod() -> (start: Date?, end: Date?)? {
         // Get consumption data range
@@ -242,69 +225,12 @@ private struct ComparisonInsightCard: View {
         return (startDate, displayEndDate)
     }
 
-    private var shouldShowPeriod: Bool {
-        guard let period = calculatedOverlapPeriod,
-            let start = period.start,
-            let end = period.end,
-            start < end
-        else {
-            return false
-        }
-        return true
-    }
-
+    // MARK: - View Body
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Cost Comparison")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
-                .onAppear {
-                    DebugLogger.shared.log(
-                        "\n🔍 Debug ComparisonInsightCard Variables",
-                        details: [
-                            "isManualPlan": isManualPlan,
-                            "consumptionVM.minInterval": String(
-                                describing: consumptionVM.minInterval),
-                            "consumptionVM.maxInterval": String(
-                                describing: consumptionVM.maxInterval),
-                            "Product Info": selectedProduct.map { product in
-                                [
-                                    "display_name": String(
-                                        describing: product.value(forKey: "display_name")),
-                                    "available_from": String(
-                                        describing: product.value(forKey: "available_from")),
-                                    "available_to": String(
-                                        describing: product.value(forKey: "available_to")),
-                                ]
-                            } ?? "nil",
-                            "calculatedOverlapPeriod": calculatedOverlapPeriod.map { period in
-                                [
-                                    "start": String(describing: period.start),
-                                    "end": String(describing: period.end),
-                                ]
-                            } ?? "nil",
-                            "shouldShowPeriod": shouldShowPeriod,
-                        ]
-                    )
-                }
-
-            // Comparison Period
-            if shouldShowPeriod,
-                let period = calculatedOverlapPeriod,
-                let start = period.start,
-                let end = period.end
-            {
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .foregroundColor(Theme.icon)
-                        .imageScale(.medium)
-
-                    Text(formatDateRange(start: start, end: end))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-                .padding(.bottom, 8)
-            }
 
             HStack(spacing: 20) {
                 // Cost difference visualization
@@ -357,6 +283,11 @@ private struct ComparisonInsightCard: View {
                 .fill(Theme.mainBackground)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
+        .onAppear {
+            Task {
+                calculateOverlapPeriod()
+            }
+        }
     }
 
     private var accountCost: Double {
@@ -395,10 +326,10 @@ private struct ComparisonInsightCard: View {
     }
 
     private func formatDateRange(start: Date, end: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+        // Enhanced formatting
+        let df = DateFormatter()
+        df.dateFormat = "d MMM yyyy"
+        return "\(df.string(from: start)) - \(df.string(from: end))"
     }
 }
 
@@ -740,21 +671,5 @@ private struct CacheInputs: Equatable {
     static func == (lhs: CacheInputs, rhs: CacheInputs) -> Bool {
         lhs.minInterval == rhs.minInterval && lhs.maxInterval == rhs.maxInterval
             && lhs.productId == rhs.productId && lhs.isManual == rhs.isManual
-    }
-}
-
-private class OverlapPeriodCache: ObservableObject {
-    private var lastInputs: CacheInputs?
-    private var cachedResult: (start: Date?, end: Date?)?
-
-    func getOverlapPeriod(
-        for inputs: CacheInputs,
-        calculate: () -> (start: Date?, end: Date?)?
-    ) -> (start: Date?, end: Date?)? {
-        if lastInputs != inputs {
-            cachedResult = calculate()
-            lastInputs = inputs
-        }
-        return cachedResult
     }
 }
