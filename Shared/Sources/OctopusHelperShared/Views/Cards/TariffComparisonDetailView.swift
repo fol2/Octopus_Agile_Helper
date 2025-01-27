@@ -364,12 +364,12 @@ private struct ComparisonInsightCard: View {
     private func startNumberAnimation() async {
         let targetValue = Int(round(abs(costDifference) / 100))
         displayNumber = 0
-        
+
         // Calculate step size based on target value
         let duration: TimeInterval = 1.5  // Match spring animation duration
         let steps = min(max(targetValue, 20), 50)  // At least 20 steps, max 50 steps
         let stepDuration = duration / TimeInterval(steps)
-        
+
         for step in 1...steps {
             try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
             displayNumber = Int(round((Double(step) / Double(steps)) * Double(targetValue)))
@@ -457,9 +457,9 @@ private struct ComparisonInsightCard: View {
                         // Reset animations
                         animatedDifference = 0
                         animatedPercentage = 0
-                        
+
                         try? await Task.sleep(for: .milliseconds(100))
-                        
+
                         // Animate to new values
                         withAnimation(.spring(duration: 1.5, bounce: 0.2)) {
                             animatedDifference = costDifference
