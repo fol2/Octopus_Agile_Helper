@@ -16,6 +16,7 @@ public struct AccountTariffCardView: View {
     @State private var refreshTrigger = false
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
+    @State private var accountResponse: OctopusAccountResponse?
 
     // MARK: - Types
     enum IntervalType: String, CaseIterable {
@@ -166,25 +167,44 @@ public struct AccountTariffCardView: View {
         }
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
-        // MARK: - Header
-        // IMPORTANT CHANGE: Instead of always calling `handleOnAppear` no matter what,
-        // we only do so if the VM is in `.idle`. This prevents multiple forced reloads
-        // and stops re-entrant calls that cause the freeze.
-        .onAppear {
-            if consumptionVM.fetchState == .idle {
-                handleOnAppear()
+        .onAppear(perform: handleOnAppear)
+        .task {
+            decodeAccountData()
+        }
+        .onChange(of: globalSettings.settings.accountData) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            print("🔄 AccountTariffCardView: Detected new accountData, forcing consumption reload.")
+            decodeAccountData()
+            Task {
+                await consumptionVM.refreshDataFromAPI(force: true)
+                updateAllowedDateRangeAndRecalculate()
             }
         }
         .onChange(of: globalSettings.locale) { _, _ in
             refreshTrigger.toggle()
         }
         .onChange(of: consumptionVM.fetchState) { oldVal, newVal in
-
+            if newVal == .loading && consumptionVM.consumptionRecords.isEmpty {
+                DispatchQueue.main.asyncAfter(wallDeadline: .now() + 8) { [weak consumptionVM] in
+                    guard let consumptionVM else { return }
+                    if consumptionVM.fetchState == .loading
+                        && consumptionVM.consumptionRecords.isEmpty
+                    {
+                        Task { @MainActor in
+                            await consumptionVM.loadData()
+                        }
+                    }
+                }
+            }
         }
+        .onChange(of: consumptionVM.minInterval) { _, _ in
+            updateAllowedDateRangeAndRecalculate()
+        }
+        .id("account-tariff-\(refreshTrigger)")
         .sheet(isPresented: $showingDetails) {
             NavigationView {
                 AccountTariffDetailView(
-                    tariffVM: tariffVM,
+                    tariffVM: TariffViewModel(),
                     consumptionVM: consumptionVM,
                     initialInterval: selectedInterval,
                     initialDate: currentDate
@@ -282,16 +302,6 @@ public struct AccountTariffCardView: View {
             .lastViewedTariffDates[globalSettings.settings.selectedTariffInterval] ?? Date()
     }
 
-    private var accountResponse: OctopusAccountResponse? {
-        guard
-            let accountData = globalSettings.settings.accountData,
-            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
-        else {
-            return nil
-        }
-        return decoded
-    }
-
     private func savePreferences() {
         globalSettings.settings.selectedTariffInterval = selectedInterval.rawValue
         globalSettings.settings.lastViewedTariffDates[selectedInterval.rawValue] = currentDate
@@ -339,6 +349,22 @@ public struct AccountTariffCardView: View {
 
         // We do NOT clamp against minAllowedDate anymore to allow partial earliest intervals
         // This is preserved from the original implementation
+    }
+
+    // MARK: - Account Data Decoding
+    private func decodeAccountData() {
+        guard let accountData = globalSettings.settings.accountData else {
+            accountResponse = nil
+            return
+        }
+
+        // Decode in background
+        DispatchQueue.global(qos: .userInitiated).async {
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+            DispatchQueue.main.async {
+                self.accountResponse = decoded
+            }
+        }
     }
 }
 
