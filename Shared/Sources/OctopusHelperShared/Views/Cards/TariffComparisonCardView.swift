@@ -649,8 +649,31 @@ public struct TariffComparisonCardView: View {
             // Same logic as AccountTariffCardView: clamp to yesterday if data ends earlier
             let rawMax = consumptionVM.maxInterval ?? .distantFuture
             maxAllowedDate = min(rawMax, latestDailyDate)
-        case .weekly, .monthly, .quarterly:
-            maxAllowedDate = consumptionVM.maxInterval
+        case .weekly:
+            // Find the end of the last complete week
+            let weekday = calendar.component(.weekday, from: today)
+            let daysToSubtract = weekday == 1 ? 7 : weekday - 1  // If Sunday, subtract 7, else weekday - 1
+            let lastCompleteWeekEnd =
+                calendar.date(byAdding: .day, value: -daysToSubtract, to: startOfToday) ?? today
+            let rawMax = consumptionVM.maxInterval ?? .distantFuture
+            maxAllowedDate = min(rawMax, lastCompleteWeekEnd)
+        case .monthly:
+            // Find the end of the last complete month
+            let lastDayOfPreviousMonth =
+                calendar.date(from: calendar.dateComponents([.year, .month], from: today)) ?? today
+            let rawMax = consumptionVM.maxInterval ?? .distantFuture
+            maxAllowedDate = min(rawMax, lastDayOfPreviousMonth)
+        case .quarterly:
+            // Find the end of the last complete quarter
+            let currentMonth = calendar.component(.month, from: today)
+            let currentQuarter = ((currentMonth - 1) / 3)
+            let lastQuarterEndMonth = currentQuarter * 3  // 0->0, 1->3, 2->6, 3->9
+            var components = calendar.dateComponents([.year], from: today)
+            components.month = lastQuarterEndMonth + 1  // Add 1 because we want the first day of next period
+            components.day = 1
+            let lastQuarterEnd = calendar.date(from: components) ?? today
+            let rawMax = consumptionVM.maxInterval ?? .distantFuture
+            maxAllowedDate = min(rawMax, lastQuarterEnd)
         }
 
         // Clamp current date if needed using IntervalBoundary

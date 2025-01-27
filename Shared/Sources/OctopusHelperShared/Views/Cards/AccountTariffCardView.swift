@@ -322,16 +322,28 @@ public struct AccountTariffCardView: View {
             billingDay: globalSettings.settings.billingDay
         )
 
+        // For all intervals, use maxInterval from consumption data
+        let rawMax = consumptionVM.maxInterval ?? startOfToday
+
         switch selectedInterval {
         case .daily:
             // For daily view, we use yesterday as the maximum allowed date
             // This ensures we only show complete days
             maxAllowedDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)
 
-        case .weekly, .monthly:
-            // For weekly and monthly, we allow viewing the current incomplete cycle
-            // The boundary.end gives us the end of current week/month cycle
-            maxAllowedDate = currentBoundary.end
+        case .weekly:
+            // For weekly view, find the end of the last complete week
+            let weekday = calendar.component(.weekday, from: today)
+            let daysToSubtract = weekday == 1 ? 7 : weekday - 1  // If Sunday, subtract 7, else weekday - 1
+            let lastCompleteWeekEnd =
+                calendar.date(byAdding: .day, value: -daysToSubtract, to: startOfToday) ?? today
+            maxAllowedDate = min(rawMax, lastCompleteWeekEnd)
+
+        case .monthly:
+            // For monthly view, find the end of the last complete month
+            let lastDayOfPreviousMonth =
+                calendar.date(from: calendar.dateComponents([.year, .month], from: today)) ?? today
+            maxAllowedDate = min(rawMax, lastDayOfPreviousMonth)
         }
 
         // Only clamp against maxAllowedDate to prevent going beyond allowed range
