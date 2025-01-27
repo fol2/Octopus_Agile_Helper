@@ -25,6 +25,15 @@ public struct TariffComparisonDetailView: View {
     @State private var showContent = false
     @State private var selectedInsightTab = 0
 
+    // New state properties for calculations and animation
+    @State private var accountCalculation: TariffViewModel.TariffCalculation?
+    @State private var compareCalculation: TariffViewModel.TariffCalculation?
+    @State private var isCalculating = false
+    @State private var error: Error?
+    @State private var animatedDifference: Double = 0
+    @State private var animatedPercentage: Double = 0
+    @State private var displayNumber: Int = 0
+
     public init(
         selectedPlanCode: String,
         fullTariffCode: String,
@@ -160,11 +169,14 @@ private struct ComparisonInsightCard: View {
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
 
-    // New state properties for calculations
+    // New state properties for calculations and animation
     @State private var accountCalculation: TariffViewModel.TariffCalculation?
     @State private var compareCalculation: TariffViewModel.TariffCalculation?
     @State private var isCalculating = false
     @State private var error: Error?
+    @State private var animatedDifference: Double = 0
+    @State private var animatedPercentage: Double = 0
+    @State private var displayNumber: Int = 0
 
     private func calculateOverlapPeriod() -> (start: Date, end: Date)? {
         // Get consumption data range
@@ -349,6 +361,23 @@ private struct ComparisonInsightCard: View {
         return String(format: "%.1f%% \(costDifference > 0 ? "increase" : "savings")", percentage)
     }
 
+    private func startNumberAnimation() async {
+        let targetValue = Int(round(abs(costDifference) / 100))
+        displayNumber = 0
+        
+        // Calculate step size based on target value
+        let duration: TimeInterval = 1.5  // Match spring animation duration
+        let steps = min(max(targetValue, 20), 50)  // At least 20 steps, max 50 steps
+        let stepDuration = duration / TimeInterval(steps)
+        
+        for step in 1...steps {
+            try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
+            displayNumber = Int(round((Double(step) / Double(steps)) * Double(targetValue)))
+        }
+        // Ensure we end at exact target
+        displayNumber = targetValue
+    }
+
     // MARK: - View Body
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -407,7 +436,7 @@ private struct ComparisonInsightCard: View {
                         Circle()
                             .stroke(Theme.secondaryTextColor.opacity(0.2), lineWidth: 8)
                         Circle()
-                            .trim(from: 0, to: calculateSavingsPercentage())
+                            .trim(from: 0, to: animatedPercentage)
                             .stroke(
                                 costDifference > 0 ? Color.red : Color.green,
                                 style: StrokeStyle(lineWidth: 8, lineCap: .round)
@@ -418,12 +447,27 @@ private struct ComparisonInsightCard: View {
                             Text(costDifference > 0 ? "More" : "Savings")
                                 .font(Theme.captionFont())
                                 .foregroundColor(Theme.secondaryTextColor)
-                            Text("£\(String(format: "%.2f", abs(costDifference) / 100))")
+                            Text("£\(displayNumber)")
                                 .font(Theme.mainFont())
                                 .foregroundColor(costDifference > 0 ? .red : .green)
                         }
                     }
                     .frame(width: 100, height: 100)
+                    .task {
+                        // Reset animations
+                        animatedDifference = 0
+                        animatedPercentage = 0
+                        
+                        try? await Task.sleep(for: .milliseconds(100))
+                        
+                        // Animate to new values
+                        withAnimation(.spring(duration: 1.5, bounce: 0.2)) {
+                            animatedDifference = costDifference
+                            animatedPercentage = calculateSavingsPercentage()
+                        }
+                        // Start number counting animation
+                        await startNumberAnimation()
+                    }
 
                     // Detailed breakdown
                     VStack(alignment: .leading, spacing: 8) {
