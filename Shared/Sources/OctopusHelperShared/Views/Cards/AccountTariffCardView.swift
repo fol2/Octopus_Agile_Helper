@@ -16,6 +16,7 @@ public struct AccountTariffCardView: View {
     @State private var refreshTrigger = false
     @State private var minAllowedDate: Date?
     @State private var maxAllowedDate: Date?
+    @State private var accountResponse: OctopusAccountResponse?
 
     // MARK: - Types
     enum IntervalType: String, CaseIterable {
@@ -167,9 +168,13 @@ public struct AccountTariffCardView: View {
         .rateCardStyle()
         .environment(\.locale, globalSettings.locale)
         .onAppear(perform: handleOnAppear)
+        .task {
+            decodeAccountData()
+        }
         .onChange(of: globalSettings.settings.accountData) { oldValue, newValue in
             guard oldValue != newValue else { return }
             print("🔄 AccountTariffCardView: Detected new accountData, forcing consumption reload.")
+            decodeAccountData()
             Task {
                 await consumptionVM.refreshDataFromAPI(force: true)
                 updateAllowedDateRangeAndRecalculate()
@@ -297,16 +302,6 @@ public struct AccountTariffCardView: View {
             .lastViewedTariffDates[globalSettings.settings.selectedTariffInterval] ?? Date()
     }
 
-    private var accountResponse: OctopusAccountResponse? {
-        guard
-            let accountData = globalSettings.settings.accountData,
-            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
-        else {
-            return nil
-        }
-        return decoded
-    }
-
     private func savePreferences() {
         globalSettings.settings.selectedTariffInterval = selectedInterval.rawValue
         globalSettings.settings.lastViewedTariffDates[selectedInterval.rawValue] = currentDate
@@ -354,6 +349,22 @@ public struct AccountTariffCardView: View {
 
         // We do NOT clamp against minAllowedDate anymore to allow partial earliest intervals
         // This is preserved from the original implementation
+    }
+
+    // MARK: - Account Data Decoding
+    private func decodeAccountData() {
+        guard let accountData = globalSettings.settings.accountData else {
+            accountResponse = nil
+            return
+        }
+
+        // Decode in background
+        DispatchQueue.global(qos: .userInitiated).async {
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+            DispatchQueue.main.async {
+                self.accountResponse = decoded
+            }
+        }
     }
 }
 
