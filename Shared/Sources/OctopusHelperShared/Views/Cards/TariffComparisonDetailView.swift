@@ -336,28 +336,28 @@ private struct ComparisonInsightCard: View {
         return OctopusAccountResponse(number: "manualAccount", properties: [prop])
     }
 
-    private var accountCost: Double {
+    private var accountCostDV: Double {
         guard let calc = accountCalculation else { return 0 }
         return showVAT ? calc.costIncVAT : calc.costExcVAT
     }
 
-    private var compareCost: Double {
+    private var compareCostDV: Double {
         guard let calc = compareCalculation else { return 0 }
         return showVAT ? calc.costIncVAT : calc.costExcVAT
     }
 
     private var costDifference: Double {
-        compareCost - accountCost
+        compareCostDV - accountCostDV
     }
 
     private func calculateSavingsPercentage() -> Double {
-        guard accountCost > 0 else { return 0 }
-        return min(abs(costDifference) / accountCost, 1.0)
+        guard accountCostDV > 0 else { return 0 }
+        return min(abs(costDifference) / accountCostDV, 1.0)
     }
 
     private func calculateSavingsPercentageString() -> String? {
-        guard accountCost > 0 else { return nil }
-        let percentage = abs(costDifference) / accountCost * 100
+        guard accountCostDV > 0 else { return nil }
+        let percentage = abs(costDifference) / accountCostDV * 100
         return String(format: "%.1f%% \(costDifference > 0 ? "increase" : "savings")", percentage)
     }
 
@@ -404,11 +404,11 @@ private struct ComparisonInsightCard: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.red)
                         Text("Error")
-                            .font(Theme.subFont())
+                            .font(Theme.mainFont())
                             .foregroundColor(.red)
                     }
                     Text(error.localizedDescription)
-                        .font(Theme.captionFont())
+                        .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
                 .padding()
@@ -422,7 +422,7 @@ private struct ComparisonInsightCard: View {
                     VStack(spacing: 8) {
                         ProgressView()
                         Text("Calculating costs...")
-                            .font(Theme.captionFont())
+                            .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                     }
                     Spacer()
@@ -445,7 +445,7 @@ private struct ComparisonInsightCard: View {
 
                         VStack(spacing: 4) {
                             Text(costDifference > 0 ? "More" : "Savings")
-                                .font(Theme.captionFont())
+                                .font(Theme.subFont())
                                 .foregroundColor(Theme.secondaryTextColor)
                             Text("£\(displayNumber)")
                                 .font(Theme.mainFont())
@@ -473,18 +473,18 @@ private struct ComparisonInsightCard: View {
                     VStack(alignment: .leading, spacing: 8) {
                         costBreakdownRow(
                             label: "My Account",
-                            cost: accountCost,
+                            cost: accountCostDV,
                             color: Theme.mainColor
                         )
                         costBreakdownRow(
-                            label: "Compared Plan",
-                            cost: compareCost,
+                            label: planName,
+                            cost: compareCostDV,
                             color: Theme.secondaryTextColor
                         )
 
                         if let savingsPercentage = calculateSavingsPercentageString() {
                             Text(savingsPercentage)
-                                .font(Theme.captionFont())
+                                .font(Theme.subFont())
                                 .foregroundColor(Theme.secondaryTextColor)
                         }
                     }
@@ -505,12 +505,24 @@ private struct ComparisonInsightCard: View {
     private func costBreakdownRow(label: String, cost: Double, color: Color) -> some View {
         HStack {
             Text(label)
-                .font(Theme.subFont())
+                .font(Theme.titleFont())
                 .foregroundColor(Theme.secondaryTextColor)
             Spacer()
             Text("£\(String(format: "%.2f", cost / 100))")
-                .font(Theme.subFont())
+                .font(Theme.titleFont())
                 .foregroundColor(color)
+        }
+    }
+
+    private var planName: String {
+        if isManualPlan {
+            return "Manual Plan"
+        } else if let product = selectedProduct,
+            let displayName = product.value(forKey: "display_name") as? String
+        {
+            return displayName
+        } else {
+            return "Compared Plan"
         }
     }
 
@@ -672,11 +684,11 @@ private struct MonthlyComparisonTable: View {
         let id = UUID()
         let month: Date
         let consumption: Double  // kWh
-        let accountCost: Double
-        let compareCost: Double
+        let accountCostDV: Double
+        let compareCostDV: Double
 
         var difference: Double {
-            compareCost - accountCost
+            compareCostDV - accountCostDV
         }
     }
 
@@ -690,8 +702,8 @@ private struct MonthlyComparisonTable: View {
             return MonthlyComparison(
                 month: month,
                 consumption: Double.random(in: 200...400),
-                accountCost: Double.random(in: 8000...15000),
-                compareCost: Double.random(in: 8000...15000)
+                accountCostDV: Double.random(in: 8000...15000),
+                compareCostDV: Double.random(in: 8000...15000)
             )
         }
     }
@@ -732,9 +744,9 @@ private struct MonthlyComparisonTable: View {
                         Text(formatConsumption(data.consumption))
                             .frame(width: 60, alignment: .trailing)
                         Spacer()
-                        Text(formatCurrency(data.accountCost))
+                        Text(formatCurrency(data.accountCostDV))
                             .frame(width: 70, alignment: .trailing)
-                        Text(formatCurrency(data.compareCost))
+                        Text(formatCurrency(data.compareCostDV))
                             .frame(width: 70, alignment: .trailing)
                         Text(formatDifference(data.difference))
                             .frame(width: 70, alignment: .trailing)
