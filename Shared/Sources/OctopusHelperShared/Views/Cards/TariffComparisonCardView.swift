@@ -182,6 +182,7 @@ public struct TariffComparisonCardView: View {
     // For region-based plan selection
     @State private var availablePlans: [NSManagedObject] = []
 
+    @State private var cachedAccountResponse: OctopusAccountResponse?
     @State private var showingDetails = false  // Add this state
 
     @State private var isChangingPlan = false
@@ -298,6 +299,15 @@ public struct TariffComparisonCardView: View {
                 hasInitiallyLoaded = true
             }
         }
+        .task {
+            guard let data = globalSettings.settings.accountData else { return }
+            DispatchQueue.global(qos: .userInitiated).async {
+                let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.cachedAccountResponse = decoded
+                }
+            }
+        }
         .onChange(of: consumptionVM.minInterval) { _, _ in
             updateAllowedDateRange()
         }
@@ -395,8 +405,8 @@ public struct TariffComparisonCardView: View {
         ZStack {
             if consumptionVM.consumptionRecords.isEmpty {
                 noConsumptionView
-            } else if !compareSettings.settings.isManualPlan,
-                compareSettings.settings.selectedPlanCode.isEmpty
+            } else if !compareSettings.settings.isManualPlan
+                && compareSettings.settings.selectedPlanCode.isEmpty
             {
                 noPlanSelectedView
             } else if selectedInterval == .daily && !hasOverlapInDaily {
@@ -797,12 +807,15 @@ public struct TariffComparisonCardView: View {
         if !hasAccountInfo { return }
         guard !consumptionVM.consumptionRecords.isEmpty else { return }
 
+        guard let accountData = getAccountResponse() else {
+            return
+        }
         do {
             await accountTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "savedAccount",
                 intervalType: selectedInterval.vmInterval,
-                accountData: getAccountResponse(),
+                accountData: accountData,
                 partialStart: start,
                 partialEnd: end,
                 isChangingPlan: isChangingPlan
@@ -882,12 +895,40 @@ public struct TariffComparisonCardView: View {
     }
 
     private func getAccountResponse() -> OctopusAccountResponse? {
-        guard let data = globalSettings.settings.accountData,
-            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
+        // Instead of decoding synchronously each time, decode once in background and store in @State
+        guard
+            let cached = cachedAccountResponse
+                ?? decodeAccountDataSynchronouslyIfNeeded()
         else {
             return nil
         }
-        return decoded
+        return cached
+    }
+
+    private func decodeAccountDataSynchronouslyIfNeeded() -> OctopusAccountResponse? {
+        // If we absolutely need a fallback decode, do so off the main thread:
+        // In practice, you can do what was done in AccountTariffCardView,
+        // i.e. decode in .task or .onChange, then store in cachedAccountResponse
+        // For minimal diff, we do a quick background decode:
+        guard let accountData = globalSettings.settings.accountData else {
+            return nil
+        }
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: OctopusAccountResponse? = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: accountData)
+            result = decoded
+            semaphore.signal()
+        }
+        // Wait briefly so we can return synchronously
+        // This is still not ideal, but a "minimal diff" approach:
+        _ = semaphore.wait(timeout: .now() + 2.0)
+        if let final = result {
+            DispatchQueue.main.async {
+                self.cachedAccountResponse = final
+            }
+        }
+        return result
     }
 
     // MARK: - Helper for Overlap
@@ -1932,7 +1973,6 @@ private struct ComparisonCostPlaceholderView: View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .foregroundColor(Theme.icon.opacity(0.5))
-                .imageScale(.small)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(label)
