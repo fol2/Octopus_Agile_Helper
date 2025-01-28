@@ -119,7 +119,9 @@ public struct TariffComparisonDetailView: View {
                     error: monthlyCalculationError,
                     showVAT: globalSettings.settings.showRatesWithVAT,
                     comparedPlanName: comparedPlanName,
-                    overlapDateRange: monthlyCalculations?.dateRange
+                    overlapDateRange: monthlyCalculations?.dateRange,
+                    consumptionStart: consumptionVM.minInterval,
+                    consumptionEnd: consumptionVM.maxInterval
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -541,10 +543,34 @@ private struct ComparisonInsightCard: View {
     let showVAT: Bool
     let comparedPlanName: String
     let overlapDateRange: (start: Date, end: Date)?
+    let consumptionStart: Date?
+    let consumptionEnd: Date?
 
     // For animated difference gauge
     @State private var animatedPercentage: Double = 0
     @State private var displayNumber: Int = 0
+
+    init(
+        accountTotals: TariffViewModel.TariffCalculation?,
+        compareTotals: TariffViewModel.TariffCalculation?,
+        isCalculating: Bool,
+        error: Error?,
+        showVAT: Bool,
+        comparedPlanName: String,
+        overlapDateRange: (start: Date, end: Date)?,
+        consumptionStart: Date?,
+        consumptionEnd: Date?
+    ) {
+        self.accountTotals = accountTotals
+        self.compareTotals = compareTotals
+        self.isCalculating = isCalculating
+        self.error = error
+        self.showVAT = showVAT
+        self.comparedPlanName = comparedPlanName
+        self.overlapDateRange = overlapDateRange
+        self.consumptionStart = consumptionStart
+        self.consumptionEnd = consumptionEnd
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -553,12 +579,12 @@ private struct ComparisonInsightCard: View {
                 .foregroundColor(Theme.mainTextColor)
 
             // Reintroduce the date range below the title
-            if let range = overlapDateRange {
+            if let dateRange = overlapDateRange, let consumptionEnd = consumptionEnd {
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
                         .font(.system(size: 12))
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.8))
-                    Text(formatDateRange(start: range.start, end: range.end))
+                    Text(formatDateRange(start: dateRange.start, end: consumptionEnd))
                         .font(.system(size: 14))
                         .foregroundColor(Theme.secondaryTextColor)
                 }
