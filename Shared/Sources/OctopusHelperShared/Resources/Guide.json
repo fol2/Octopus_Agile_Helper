@@ -1,12 +1,310 @@
 {
-  "title": "Guide",
-  "tldr": "Log in to your Octopus Energy account, locate your API Key, MPAN, and Serial Number within the API access section, and manually copy them into the fields provided. You may need to switch between windows to gather all required information.",
-  "heading": "How to Find Your Details:",
-  "steps": [
-    "Log in to your Octopus Energy account using the link above.",
-    "Once logged in, locate your API Key, MPAN, and Serial Number in the ‘API access’ section.",
-    "Copy these details into the corresponding fields.",
-    "You may need to switch between windows or tabs to collect all the required information.",
-    "We do not automatically extract these details from your Octopus Energy account, as doing so would violate their terms of service."
-  ]
+  "title": {
+    "en": "Guide",
+    "zh-Hant": "指南",
+    "zh-Hans": "指南",
+    "es": "Guía",
+    "fr": "Guide",
+    "de": "Anleitung",
+    "it": "Guida",
+    "ja": "ガイド",
+    "ko": "가이드",
+    "pt-PT": "Guia",
+    "nl": "Handleiding",
+    "pl": "Przewodnik",
+    "ru": "Руководство",
+    "tr": "Kılavuz",
+    "ar": "دليل",
+    "cs": "Průvodce",
+    "da": "Vejledning",
+    "fi": "Opas",
+    "el": "Οδηγός",
+    "he": "מדריך",
+    "hi": "मार्गदर्शिका",
+    "hu": "Útmutató",
+    "id": "Panduan",
+    "nb": "Veiledning",
+    "ro": "Ghid",
+    "sk": "Príručka",
+    "sv": "Guide",
+    "th": "คู่มือ",
+    "uk": "Посібник",
+    "vi": "Hướng dẫn"
+  },
+  "tldr": {
+    "en": "Log in to your Octopus Energy account, locate your API Key and Account Number within the API access section and user details, and manually copy them into the fields provided. You may need to switch between windows to gather all required information.",
+    "zh-Hant": "登入您的 Octopus Energy 帳戶，在 API 存取區段和用戶詳細資料中找到您的 API 金鑰和帳戶號碼，並手動將它們複製到提供的欄位中。您可能需要在視窗之間切換以收集所有必要資訊。",
+    "zh-Hans": "登录您的 Octopus Energy 账户，在 API 访问部分和用户详细信息中找到您的 API 密钥和账户号码，并手动将它们复制到提供的字段中。您可能需要在窗口之间切换以收集所有必要信息。",
+    "es": "Inicie sesión en su cuenta de Octopus Energy, localice su Clave API y Número de Cuenta en la sección de acceso API y detalles de usuario, y cópielos manualmente en los campos proporcionados. Es posible que necesite cambiar entre ventanas para recopilar toda la información requerida.",
+    "fr": "Connectez-vous à votre compte Octopus Energy, localisez votre Clé API et Numéro de Compte dans la section d'accès API et les détails utilisateur, et copiez-les manuellement dans les champs fournis. Vous devrez peut-être basculer entre les fenêtres pour rassembler toutes les informations requises.",
+    "de": "Melden Sie sich bei Ihrem Octopus Energy-Konto an, finden Sie Ihren API-Schlüssel und Ihre Kontonummer im API-Zugangsbereich und in den Benutzerdetails, und kopieren Sie diese manuell in die bereitgestellten Felder. Sie müssen möglicherweise zwischen Fenstern wechseln, um alle erforderlichen Informationen zu sammeln.",
+    "it": "Accedi al tuo account Octopus Energy, trova la tua Chiave API e il Numero di Account nella sezione di accesso API e nei dettagli utente, e copiali manualmente nei campi forniti. Potrebbe essere necessario passare da una finestra all'altra per raccogliere tutte le informazioni richieste.",
+    "ja": "Octopus Energyアカウントにログインし、APIアクセスセクションとユーザー詳細でAPIキーとアカウント番号を見つけ、提供されたフィールドに手動でコピーしてください。必要な情報をすべて収集するために、ウィンドウを切り替える必要がある場合があります。",
+    "ko": "Octopus Energy 계정에 로그인하여 API 액세스 섹션과 사용자 세부 정보에서 API 키와 계정 번호를 찾아 제공된 필드에 수동으로 복사하세요. 필요한 모든 정보를 수집하기 위해 창 간에 전환해야 할 수 있습니다.",
+    "pt-PT": "Entre na sua conta Octopus Energy, localize sua Chave API e Número de Conta na seção de acesso API e detalhes do usuário, e copie-os manualmente para os campos fornecidos. Você pode precisar alternar entre janelas para coletar todas as informações necessárias.",
+    "nl": "Log in op uw Octopus Energy-account, zoek uw API-sleutel en accountnummer in de API-toegangssectie en gebruikersgegevens, en kopieer deze handmatig naar de opgegeven velden. U moet mogelijk tussen vensters schakelen om alle vereiste informatie te verzamelen.",
+    "pl": "Zaloguj się na swoje konto Octopus Energy, znajdź swój Klucz API i Numer Konta w sekcji dostępu API i szczegółach użytkownika, i ręcznie skopiuj je do podanych pól. Może być konieczne przełączanie się między oknami, aby zebrać wszystkie wymagane informacje.",
+    "ru": "Войдите в свою учетную запись Octopus Energy, найдите свой API-ключ и номер счета в разделе доступа к API и данных пользователя, и вручную скопируйте их в предоставленные поля. Возможно, вам потребуется переключаться между окнами для сбора всей необходимой информации.",
+    "tr": "Octopus Energy hesabınıza giriş yapın, API erişim bölümünde ve kullanıcı detaylarında API Anahtarınızı ve Hesap Numaranızı bulun ve bunları sağlanan alanlara manuel olarak kopyalayın. Gerekli tüm bilgileri toplamak için pencereler arasında geçiş yapmanız gerekebilir.",
+    "ar": "قم بتسجيل الدخول إلى حساب Octopus Energy الخاص بك، وحدد موقع مفتاح API ورقم الحساب في قسم الوصول إلى API وتفاصيل المستخدم، وانسخهما يدويًا في الحقول المتوفرة. قد تحتاج إلى التبديل بين النوافذ لجمع كل المعلومات المطلوبة.",
+    "cs": "Přihlaste se ke svému účtu Octopus Energy, najděte svůj API klíč a číslo účtu v sekci přístupu k API a detailech uživatele a ručně je zkopírujte do poskytnutých polí. Pro shromáždění všech požadovaných informací může být nutné přepínat mezi okny.",
+    "da": "Log ind på din Octopus Energy-konto, find din API-nøgle og kontonummer i API-adgangsafsnittet og brugeroplysninger, og kopiér dem manuelt til de angivne felter. Du skal muligvis skifte mellem vinduer for at indsamle alle nødvendige oplysninger.",
+    "fi": "Kirjaudu Octopus Energy -tilillesi, etsi API-avaimesi ja tilinumerosi API-käyttöosiosta ja käyttäjätiedoista, ja kopioi ne manuaalisesti annettuihin kenttiin. Saatat joutua vaihtamaan ikkunoiden välillä kerätäksesi kaikki tarvittavat tiedot.",
+    "el": "Συνδεθείτε στον λογαριασμό σας στην Octopus Energy, εντοπίστε το Κλειδί API και τον Αριθμό Λογαριασμού σας στην ενότητα πρόσβασης API και στα στοιχεία χρήστη, και αντιγράψτε τα χειροκίνητα στα παρεχόμενα πεδία. Ίσως χρειαστεί να εναλλάσσετε μεταξύ παραθύρων για να συγκεντρώσετε όλες τις απαιτούμενες πληροφορίες.",
+    "he": "התחבר לחשבון Octopus Energy שלך, אתר את מפתח ה-API ומספר החשבון שלך באזור גישת ה-API ופרטי המשתמש, והעתק אותם ידנית לשדות המסופקים. ייתכן שתצטרך לעבור בין חלונות כדי לאסוף את כל המידע הנדרש.",
+    "hi": "अपने Octopus Energy खाते में लॉग इन करें, API एक्सेस सेक्शन और उपयोगकर्ता विवरण में अपनी API कुंजी और खाता संख्या ढूंढें, और उन्हें दिए गए फ़ील्ड में मैन्युअल रूप से कॉपी करें। सभी आवश्यक जानकारी एकत्र करने के लिए आपको विंडोज़ के बीच स्विच करने की आवश्यकता हो सकती है।",
+    "hu": "Jelentkezzen be Octopus Energy fiókjába, keresse meg API kulcsát és számlaszámát az API hozzáférési részben és a felhasználói adatokban, majd másolja be őket manuálisan a megadott mezőkbe. Előfordulhat, hogy az ablakok között kell váltania az összes szükséges információ összegyűjtéséhez.",
+    "id": "Masuk ke akun Octopus Energy Anda, temukan Kunci API dan Nomor Akun Anda di bagian akses API dan detail pengguna, dan salin secara manual ke dalam bidang yang disediakan. Anda mungkin perlu beralih antar jendela untuk mengumpulkan semua informasi yang diperlukan.",
+    "nb": "Logg inn på Octopus Energy-kontoen din, finn API-nøkkelen og kontonummeret ditt i API-tilgangsdelen og brukerdetaljene, og kopier dem manuelt inn i de angitte feltene. Du må kanskje bytte mellom vinduer for å samle all nødvendig informasjon.",
+    "ro": "Conectați-vă la contul dvs. Octopus Energy, localizați Cheia API și Numărul de Cont în secțiunea de acces API și detaliile utilizatorului, și copiați-le manual în câmpurile furnizate. Este posibil să fie nevoie să comutați între ferestre pentru a colecta toate informațiile necesare.",
+    "sk": "Prihláste sa do svojho účtu Octopus Energy, nájdite svoj API kľúč a číslo účtu v sekcii prístupu k API a detailoch používateľa a manuálne ich skopírujte do poskytnutých polí. Na zhromaždenie všetkých potrebných informácií môže byť potrebné prepínať medzi oknami.",
+    "sv": "Logga in på ditt Octopus Energy-konto, hitta din API-nyckel och kontonummer i API-åtkomstavsnittet och användaruppgifterna, och kopiera dem manuellt till de angivna fälten. Du kan behöva växla mellan fönster för att samla all nödvändig information.",
+    "th": "เข้าสู่ระบบบัญชี Octopus Energy ของคุณ ค้นหาคีย์ API และหมายเลขบัญชีของคุณในส่วนการเข้าถึง API และรายละเอียดผู้ใช้ และคัดลอกลงในฟิลด์ที่ให้ไว้ด้วยตนเอง คุณอาจต้องสลับระหว่างหน้าต่างเพื่อรวบรวมข้อมูลที่จำเป็นทั้งหมด",
+    "uk": "Увійдіть у свій обліковий запис Octopus Energy, знайдіть свій API-ключ та номер рахунку в розділі доступу до API та деталях користувача, та вручну скопіюйте їх у надані поля. Можливо, вам доведеться перемикатися між вікнами, щоб зібрати всю необхідну інформацію.",
+    "vi": "Đăng nhập vào tài khoản Octopus Energy của bạn, tìm Khóa API và Số Tài khoản trong phần truy cập API và chi tiết người dùng, và sao chép chúng vào các trường được cung cấp. Bạn có thể cần chuyển đổi giữa các cửa sổ để thu thập tất cả thông tin cần thiết."
+  },
+  "heading": {
+    "en": "How to Find Your Details:",
+    "zh-Hant": "如何找到您的詳細資料：",
+    "zh-Hans": "如何找到您的详细信息：",
+    "es": "Cómo encontrar sus datos:",
+    "fr": "Comment trouver vos informations :",
+    "de": "So finden Sie Ihre Details:",
+    "it": "Come trovare i tuoi dati:",
+    "ja": "詳細情報の確認方法：",
+    "ko": "세부 정보 찾는 방법:",
+    "pt-PT": "Como encontrar os seus detalhes:",
+    "nl": "Zo vindt u uw gegevens:",
+    "pl": "Jak znaleźć swoje dane:",
+    "ru": "Как найти ваши данные:",
+    "tr": "Bilgilerinizi Nasıl Bulabilirsiniz:",
+    "ar": "كيفية العثور على تفاصيلك:",
+    "cs": "Jak najít vaše údaje:",
+    "da": "Sådan finder du dine oplysninger:",
+    "fi": "Näin löydät tietosi:",
+    "el": "Πώς να βρείτε τα στοιχεία σας:",
+    "he": "כיצד למצוא את הפרטים שלך:",
+    "hi": "अपनी जानकारी कैसे खोजें:",
+    "hu": "Hogyan találja meg adatait:",
+    "id": "Cara Menemukan Detail Anda:",
+    "nb": "Slik finner du detaljene dine:",
+    "ro": "Cum să găsiți detaliile dvs.:",
+    "sk": "Ako nájsť vaše údaje:",
+    "sv": "Så här hittar du dina uppgifter:",
+    "th": "วิธีค้นหาข้อมูลของคุณ:",
+    "uk": "Як знайти ваші дані:",
+    "vi": "Cách tìm thông tin của bạn:"
+  },
+  "steps": {
+    "en": [
+      "Log in to your Octopus Energy account using the links above.",
+      "Once logged in, locate your API Key and Account Number in the 'API access' section.",
+      "Copy these details into the corresponding fields.",
+      "You may need to switch between windows or tabs to collect all the required information.",
+      "We do not automatically extract these details from your Octopus Energy account, as doing so would violate their terms of service."
+    ],
+    "zh-Hant": [
+      "使用上方的連結登入您的 Octopus Energy 帳戶。",
+      "登入後，在「API 存取」部分找到您的 API 金鑰和帳戶號碼。",
+      "將這些詳細資料複製到相應的欄位中。",
+      "您可能需要在視窗或分頁之間切換以收集所有必要資訊。",
+      "我們不會自動從您的 Octopus Energy 帳戶提取這些詳細資料，因為這樣做會違反其服務條款。"
+    ],
+    "zh-Hans": [
+      "使用上方的链接登录您的 Octopus Energy 账户。",
+      "登录后，在“API 访问”部分找到您的 API 密钥和账户号码。",
+      "将这些详细信息复制到相应的字段中。",
+      "您可能需要在窗口或标签页之间切换以收集所有必要信息。",
+      "我们不会自动从您的 Octopus Energy 账户提取这些详细信息，因为这样做会违反其服务条款。"
+    ],
+    "es": [
+      "Inicie sesión en su cuenta de Octopus Energy usando los enlaces anteriores.",
+      "Una vez iniciada la sesión, localice su Clave API y Número de Cuenta en la sección 'acceso API'.",
+      "Copie estos detalles en los campos correspondientes.",
+      "Es posible que necesite cambiar entre ventanas o pestañas para recopilar toda la información requerida.",
+      "No extraemos automáticamente estos detalles de su cuenta de Octopus Energy, ya que hacerlo violaría sus términos de servicio."
+    ],
+    "fr": [
+      "Connectez-vous à votre compte Octopus Energy en utilisant les liens ci-dessus.",
+      "Une fois connecté, localisez votre Clé API et Numéro de Compte dans la section 'accès API'.",
+      "Copiez ces informations dans les champs correspondants.",
+      "Vous devrez peut-être basculer entre les fenêtres ou les onglets pour collecter toutes les informations requises.",
+      "Nous n'extrayons pas automatiquement ces détails de votre compte Octopus Energy, car cela violerait leurs conditions de service."
+    ],
+    "de": [
+      "Melden Sie sich über die obigen Links bei Ihrem Octopus Energy-Konto an.",
+      "Sobald Sie angemeldet sind, finden Sie Ihren API-Schlüssel und Ihre Kontonummer im Bereich 'API-Zugriff'.",
+      "Kopieren Sie diese Details in die entsprechenden Felder.",
+      "Möglicherweise müssen Sie zwischen Fenstern oder Tabs wechseln, um alle erforderlichen Informationen zu sammeln.",
+      "Wir extrahieren diese Details nicht automatisch aus Ihrem Octopus Energy-Konto, da dies gegen deren Nutzungsbedingungen verstoßen würde."
+    ],
+    "it": [
+      "Accedi al tuo account Octopus Energy utilizzando i link sopra.",
+      "Una volta effettuato l'accesso, trova la tua Chiave API e il Numero di Account nella sezione 'accesso API'.",
+      "Copia questi dettagli nei campi corrispondenti.",
+      "Potrebbe essere necessario passare da una finestra o scheda all'altra per raccogliere tutte le informazioni richieste.",
+      "Non estraiamo automaticamente questi dettagli dal tuo account Octopus Energy, poiché ciò violerebbe i loro termini di servizio."
+    ],
+    "ja": [
+      "上記のリンクを使用してOctopus Energyアカウントにログインします。",
+      "ログイン後、'APIアクセス'セクションでAPIキーとアカウント番号を確認します。",
+      "これらの詳細を対応するフィールドにコピーします。",
+      "必要な情報をすべて収集するために、ウィンドウやタブを切り替える必要がある場合があります。",
+      "利用規約に違反するため、Octopus Energyアカウントからこれらの詳細を自動的に抽出することはありません。"
+    ],
+    "ko": [
+      "위의 링크를 사용하여 Octopus Energy 계정에 로그인하세요.",
+      "로그인 후, 'API 액세스' 섹션에서 API 키와 계정 번호를 찾으세요.",
+      "이 정보를 해당 필드에 복사하세요.",
+      "필요한 모든 정보를 수집하기 위해 창이나 탭 간에 전환해야 할 수 있습니다.",
+      "서비스 약관을 위반하므로 Octopus Energy 계정에서 이 정보를 자동으로 추출하지 않습니다."
+    ],
+    "pt-PT": [
+      "Inicie sessão na sua conta Octopus Energy usando os links acima.",
+      "Depois de iniciar sessão, localize a sua Chave API e Número de Conta na secção 'acesso API'.",
+      "Copie estes detalhes para os campos correspondentes.",
+      "Pode precisar alternar entre janelas ou separadores para recolher todas as informações necessárias.",
+      "Não extraímos automaticamente estes detalhes da sua conta Octopus Energy, pois isso violaria os seus termos de serviço."
+    ],
+    "nl": [
+      "Log in op uw Octopus Energy-account via de bovenstaande links.",
+      "Zodra u bent ingelogd, zoek uw API-sleutel en accountnummer in het gedeelte 'API-toegang'.",
+      "Kopieer deze gegevens naar de bijbehorende velden.",
+      "U moet mogelijk tussen vensters of tabbladen schakelen om alle vereiste informatie te verzamelen.",
+      "We halen deze gegevens niet automatisch op uit uw Octopus Energy-account, omdat dit in strijd zou zijn met hun servicevoorwaarden."
+    ],
+    "pl": [
+      "Zaloguj się na swoje konto Octopus Energy, korzystając z powyższych linków.",
+      "Po zalogowaniu znajdź swój Klucz API i Numer Konta w sekcji 'dostęp API'.",
+      "Skopiuj te dane do odpowiednich pól.",
+      "Może być konieczne przełączanie się między oknami lub kartami, aby zebrać wszystkie wymagane informacje.",
+      "Nie pobieramy automatycznie tych danych z Twojego konta Octopus Energy, ponieważ naruszałoby to ich warunki korzystania z usługi."
+    ],
+    "ru": [
+      "Войдите в свою учетную запись Octopus Energy, используя ссылки выше.",
+      "После входа найдите свой API-ключ и номер счета в разделе 'доступ к API'.",
+      "Скопируйте эти данные в соответствующие поля.",
+      "Возможно, вам потребуется переключаться между окнами или вкладками для сбора всей необходимой информации.",
+      "Мы не извлекаем эти данные автоматически из вашей учетной записи Octopus Energy, так как это нарушило бы их условия предоставления услуг."
+    ],
+    "tr": [
+      "Yukarıdaki bağlantıları kullanarak Octopus Energy hesabınıza giriş yapın.",
+      "Giriş yaptıktan sonra, 'API erişimi' bölümünde API Anahtarınızı ve Hesap Numaranızı bulun.",
+      "Bu bilgileri ilgili alanlara kopyalayın.",
+      "Gerekli tüm bilgileri toplamak için pencereler veya sekmeler arasında geçiş yapmanız gerekebilir.",
+      "Hizmet şartlarını ihlal edeceği için bu bilgileri Octopus Energy hesabınızdan otomatik olarak çıkarmıyoruz."
+    ],
+    "ar": [
+      "قم بتسجيل الدخول إلى حساب Octopus Energy الخاص بك باستخدام الروابط أعلاه.",
+      "بعد تسجيل الدخول، حدد موقع مفتاح API ورقم الحساب في قسم 'الوصول إلى API'.",
+      "انسخ هذه التفاصيل في الحقول المقابلة.",
+      "قد تحتاج إلى التبديل بين النوافذ أو علامات التبويب لجمع كل المعلومات المطلوبة.",
+      "نحن لا نستخرج هذه التفاصيل تلقائياً من حساب Octopus Energy الخاص بك، لأن القيام بذلك سينتهك شروط الخدمة الخاصة بهم."
+    ],
+    "cs": [
+      "Přihlaste se ke svému účtu Octopus Energy pomocí výše uvedených odkazů.",
+      "Po přihlášení najděte svůj API klíč a číslo účtu v sekci 'přístup k API'.",
+      "Zkopírujte tyto údaje do příslušných polí.",
+      "Pro shromáždění všech požadovaných informací může být nutné přepínat mezi okny nebo záložkami.",
+      "Tyto údaje automaticky neextrahujeme z vašeho účtu Octopus Energy, protože by to porušovalo jejich podmínky služby."
+    ],
+    "da": [
+      "Log ind på din Octopus Energy-konto ved hjælp af linkene ovenfor.",
+      "Når du er logget ind, find din API-nøgle og kontonummer i sektionen 'API-adgang'.",
+      "Kopiér disse oplysninger til de tilsvarende felter.",
+      "Du skal muligvis skifte mellem vinduer eller faner for at indsamle alle de nødvendige oplysninger.",
+      "Vi udtrækker ikke automatisk disse oplysninger fra din Octopus Energy-konto, da dette ville overtræde deres servicevilkår."
+    ],
+    "fi": [
+      "Kirjaudu Octopus Energy -tilillesi yllä olevien linkkien kautta.",
+      "Kun olet kirjautunut sisään, etsi API-avaimesi ja tilinumerosi 'API-käyttöoikeus' -osiosta.",
+      "Kopioi nämä tiedot vastaaviin kenttiin.",
+      "Saatat joutua vaihtamaan ikkunoiden tai välilehtien välillä kerätäksesi kaikki tarvittavat tiedot.",
+      "Emme hae näitä tietoja automaattisesti Octopus Energy -tililtäsi, sillä se rikkoisi heidän käyttöehtojaan."
+    ],
+    "el": [
+      "Συνδεθείτε στον λογαριασμό σας Octopus Energy, εντοπίστε το Κλειδί API και τον Αριθμό Λογαριασμού σας στην ενότητα 'πρόσβαση API'.",
+      "Αφού συνδεθείτε, εντοπίστε το Κλειδί API και τον Αριθμό Λογαριασμού σας στην ενότητα 'πρόσβαση API'.",
+      "Αντιγράψτε αυτά τα στοιχεία στα αντίστοιχα πεδία.",
+      "Ίσως χρειαστεί να εναλλάσσετε μεταξύ παραθύρων ή καρτελών για να συλλέξετε όλες τις απαιτούμενες πληροφορίες.",
+      "Δεν εξάγουμε αυτόματα αυτά τα στοιχεία από τον λογαριασμό σας Octopus Energy, καθώς κάτι τέτοιο θα παραβίαζε τους όρους παροχής υπηρεσιών τους."
+    ],
+    "he": [
+      "התחבר לחשבון Octopus Energy שלך באמצעות הקישורים שלמעלה.",
+      "לאחר ההתחברות, אתר את מפתח ה-API ומספר החשבון שלך בסעיף 'גישת API'.",
+      "העתק פרטים אלה לשדות המתאימים.",
+      "ייתכן שתצטרך לעבור בין חלונות או כרטיסיות כדי לאסוף את כל המידע הנדרש.",
+      "איננו מחלצים פרטים אלה באופן אוטומטי מחשבון Octopus Energy שלך, מכיוון שזה יפר את תנאי השירות שלהם."
+    ],
+    "hi": [
+      "ऊपर दिए गए लिंक का उपयोग करके अपने Octopus Energy खाते में लॉग इन करें।",
+      "लॉग इन करने के बाद, 'API एक्सेस' सेक्शन में अपनी API कुंजी और खाता संख्या ढूंढें।",
+      "इन विवरणों को संबंधित फ़ील्ड में कॉपी करें।",
+      "सभी आवश्यक जानकारी एकत्र करने के लिए आपको विंडो या टैब के बीच स्विच करना पड़ सकता है।",
+      "हम आपके Octopus Energy खाते से इन विवरणों को स्वचालित रूप से नहीं निकालते हैं, क्योंकि ऐसा करना उनकी सेवा शर्तों का उल्लंघन होगा।"
+    ],
+    "hu": [
+      "Jelentkezzen be Octopus Energy fiókjába a fenti linkek használatával.",
+      "Bejelentkezés után keresse meg API kulcsát és számlaszámát az 'API hozzáférés' részben.",
+      "Másolja ezeket az adatokat a megfelelő mezőkbe.",
+      "Előfordulhat, hogy az ablakok vagy fülek között kell váltania az összes szükséges információ összegyűjtéséhez.",
+      "Nem vonjuk ki automatikusan ezeket az adatokat az Ön Octopus Energy fiókjából, mivel ez megsértené a szolgáltatási feltételeiket."
+    ],
+    "id": [
+      "Masuk ke akun Octopus Energy Anda menggunakan tautan di atas.",
+      "Setelah masuk, temukan Kunci API dan Nomor Akun Anda di bagian 'akses API'.",
+      "Salin detail ini ke dalam bidang yang sesuai.",
+      "Anda mungkin perlu beralih antara jendela atau tab untuk mengumpulkan semua informasi yang diperlukan.",
+      "Kami tidak mengekstrak detail ini secara otomatis dari akun Octopus Energy Anda, karena hal tersebut akan melanggar ketentuan layanan mereka."
+    ],
+    "nb": [
+      "Logg inn på Octopus Energy-kontoen din ved å bruke lenkene ovenfor.",
+      "Når du er logget inn, finn API-nøkkelen og kontonummeret ditt i 'API-tilgang'-seksjonen.",
+      "Kopier disse detaljene til de tilsvarende feltene.",
+      "Du må kanskje bytte mellom vinduer eller faner for å samle all nødvendig informasjon.",
+      "Vi henter ikke ut disse detaljene automatisk fra Octopus Energy-kontoen din, da dette ville bryte med deres tjenestevilkår."
+    ],
+    "ro": [
+      "Conectați-vă la contul dvs. Octopus Energy folosind linkurile de mai sus.",
+      "După conectare, localizați Cheia API și Numărul de Cont în secțiunea 'acces API'.",
+      "Copiați aceste detalii în câmpurile corespunzătoare.",
+      "Este posibil să fie nevoie să comutați între ferestre sau file pentru a colecta toate informațiile necesare.",
+      "Nu extragem automat aceste detalii din contul dvs. Octopus Energy, deoarece acest lucru ar încălca termenii lor de serviciu."
+    ],
+    "sk": [
+      "Prihláste sa do svojho účtu Octopus Energy pomocou vyššie uvedených odkazov.",
+      "Po prihlásení nájdite svoj API kľúč a číslo účtu v sekcii 'prístup k API'.",
+      "Skopírujte tieto údaje do príslušných polí.",
+      "Na zhromaždenie všetkých potrebných informácií môže byť potrebné prepínať medzi oknami alebo kartami.",
+      "Tieto údaje automaticky neextrahujeme z vášho účtu Octopus Energy, pretože by to porušovalo ich podmienky služby."
+    ],
+    "sv": [
+      "Logga in på ditt Octopus Energy-konto med länkarna ovan.",
+      "När du är inloggad, hitta din API-nyckel och kontonummer i sektionen 'API-åtkomst'.",
+      "Kopiera dessa uppgifter till motsvarande fält.",
+      "Du kan behöva växla mellan fönster eller flikar för att samla all nödvändig information.",
+      "Vi extraherar inte dessa uppgifter automatiskt från ditt Octopus Energy-konto, eftersom det skulle bryta mot deras användarvillkor."
+    ],
+    "th": [
+      "เข้าสู่ระบบบัญชี Octopus Energy ของคุณโดยใช้ลิงก์ด้านบน",
+      "เมื่อเข้าสู่ระบบแล้ว ค้นหาคีย์ API และหมายเลขบัญชีของคุณในส่วน 'การเข้าถึง API'",
+      "คัดลอกรายละเอียดเหล่านี้ลงในช่องที่เกี่ยวข้อง",
+      "คุณอาจต้องสลับระหว่างหน้าต่างหรือแท็บเพื่อรวบรวมข้อมูลที่จำเป็นทั้งหมด",
+      "เราไม่ได้ดึงรายละเอียดเหล่านี้โดยอัตโนมัติจากบัญชี Octopus Energy ของคุณ เนื่องจากการทำเช่นนั้นจะละเมิดข้อกำหนดในการให้บริการของพวกเขา"
+    ],
+    "uk": [
+      "Увійдіть у свій обліковий запис Octopus Energy, знайдіть свій API-ключ та номер рахунку в розділі 'доступ до API'.",
+      "Після входу знайдіть свій API-ключ та номер рахунку в розділі 'доступ до API'.",
+      "Скопіюйте ці дані у відповідні поля.",
+      "Можливо, вам доведеться перемикатися між вікнами або вкладками, щоб зібрати всю необхідну інформацію.",
+      "Ми не витягуємо ці дані автоматично з вашого облікового запису Octopus Energy, оскільки це порушило б їхні умови надання послуг."
+    ],
+    "vi": [
+      "Đăng nhập vào tài khoản Octopus Energy của bạn bằng các liên kết ở trên.",
+      "Sau khi đăng nhập, tìm Khóa API và Số Tài khoản của bạn trong phần 'truy cập API'.",
+      "Sao chép các chi tiết này vào các trường tương ứng.",
+      "Bạn có thể cần chuyển đổi giữa các cửa sổ hoặc tab để thu thập tất cả thông tin cần thiết.",
+      "Chúng tôi không tự động trích xuất các chi tiết này từ tài khoản Octopus Energy của bạn, vì làm như vậy sẽ vi phạm điều khoản dịch vụ của họ."
+    ]
+  }
 }

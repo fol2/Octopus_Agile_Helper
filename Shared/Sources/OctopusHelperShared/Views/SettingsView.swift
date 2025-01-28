@@ -37,7 +37,7 @@ private final class BundleToken {}
 private struct GDPRData: Codable {
     let title: String
     let sections: [GDPRSection]
-    let `tldr`: String
+    let tldr: [String: String]
     let introduction: String
 }
 
@@ -49,6 +49,7 @@ private struct GDPRSection: Codable {
 // MARK: - GDPR Declaration ViewModel
 private class GDPRViewModel: ObservableObject {
     @Published var gdprData: GDPRData?
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
 
     init() {
         loadGDPRJSON()
@@ -76,6 +77,7 @@ private class GDPRViewModel: ObservableObject {
 // MARK: - GDPRDeclarationView
 struct GDPRDeclarationView: View {
     @StateObject private var viewModel = GDPRViewModel()
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -84,9 +86,13 @@ struct GDPRDeclarationView: View {
                 Text(LocalizedStringKey("TL;DR"))
                     .font(Theme.secondaryFont().bold())
                     .foregroundColor(Theme.mainTextColor)
-                Text(LocalizedStringKey(gdprData.tldr))
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
+                Text(
+                    LocalizedStringKey(
+                        gdprData.tldr[globalSettings.settings.selectedLanguage.rawValue]
+                            ?? gdprData.tldr["en"] ?? "")
+                )
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
 
                 Divider()
                     .padding(.vertical, 8)
@@ -130,15 +136,16 @@ private struct SupplyPoint: Codable {
 
 // MARK: - Guide Data Model
 private struct GuideData: Codable {
-    let title: String
-    let tldr: String
-    let heading: String
-    let steps: [String]
+    let title: [String: String]
+    let tldr: [String: String]
+    let heading: [String: String]
+    let steps: [String: [String]]
 }
 
 // MARK: - Guide ViewModel
 private class GuideViewModel: ObservableObject {
     @Published var guideData: GuideData?
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
 
     init() {
         loadGuideJSON()
@@ -166,6 +173,7 @@ private class GuideViewModel: ObservableObject {
 // MARK: - GuideView
 struct GuideView: View {
     @StateObject private var viewModel = GuideViewModel()
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -174,19 +182,30 @@ struct GuideView: View {
                 Text(LocalizedStringKey("TL;DR"))
                     .font(Theme.secondaryFont().bold())
                     .foregroundColor(Theme.mainTextColor)
-                Text(LocalizedStringKey(guideData.tldr))
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
+                Text(
+                    LocalizedStringKey(
+                        guideData.tldr[globalSettings.settings.selectedLanguage.rawValue]
+                            ?? guideData.tldr["en"] ?? "")
+                )
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
 
                 Divider()
                     .padding(.vertical, 8)
 
                 // Main content
-                Text(LocalizedStringKey(guideData.heading))
-                    .font(Theme.secondaryFont())
-                    .foregroundColor(Theme.mainTextColor)
+                Text(
+                    LocalizedStringKey(
+                        guideData.heading[globalSettings.settings.selectedLanguage.rawValue]
+                            ?? guideData.heading["en"] ?? "")
+                )
+                .font(Theme.secondaryFont())
+                .foregroundColor(Theme.mainTextColor)
 
-                ForEach(Array(guideData.steps.enumerated()), id: \.offset) { index, step in
+                let steps =
+                    guideData.steps[globalSettings.settings.selectedLanguage.rawValue]
+                    ?? guideData.steps["en"] ?? []
+                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                     Text(LocalizedStringKey("\(index + 1). \(step)"))
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)

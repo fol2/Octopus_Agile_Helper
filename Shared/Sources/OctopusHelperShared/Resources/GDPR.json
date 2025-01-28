@@ -1,14 +1,45 @@
 {
-    "tldr": "We only collect and store the minimal data required to provide energy usage insights. Your API key and meter details remain on your device, and you can remove them at any time. By entering this data, you consent to the terms outlined in this declaration and the Octopus Energy API Terms of Service. This is a short summary—please read the full declaration below.",
-    "title": "GDPR (UK) and Data Usage Declaration",
-    "introduction": "We are committed to protecting your personal data and ensuring compliance with all relevant data protection legislation, including the United Kingdom General Data Protection Regulation (\"UK GDPR\") and the Data Protection Act 2018, collectively referred to as \"the legislation.\" This document outlines how and why we process, store, and share your personal information when you use our application. If you have any questions regarding this declaration or our data-handling practices, please contact our Data Protection Officer at fol2hk@gmail.com.",
+    "tldr": {
+        "en": "This app does not collect any personal data. Your API key and account details are stored exclusively on your device and in your private iCloud account. You maintain full control and can remove this data at any time. This is a short summary—please read the full declaration below.",
+        "zh-Hant": "本應用程式不收集任何個人資料。您的 API 金鑰和帳戶詳細資料僅儲存在您的裝置和私人 iCloud 帳戶中。您保持完全控制權，可以隨時刪除這些資料。這是簡短摘要—請閱讀下方完整聲明。",
+        "zh-Hans": "本应用程序不收集任何个人数据。您的 API 密钥和账户详细信息仅存储在您的设备和私人 iCloud 账户中。您保持完全控制权，可以随时删除这些数据。这是简短摘要—请阅读下方完整声明。",
+        "es": "Esta aplicación no recopila datos personales. Su clave API y detalles de cuenta se almacenan exclusivamente en su dispositivo y en su cuenta privada de iCloud. Usted mantiene el control total y puede eliminar estos datos en cualquier momento. Este es un resumen breve—por favor lea la declaración completa a continuación.",
+        "fr": "Cette application ne collecte aucune donnée personnelle. Votre clé API et les détails de votre compte sont stockés exclusivement sur votre appareil et dans votre compte iCloud privé. Vous gardez le contrôle total et pouvez supprimer ces données à tout moment. Ceci est un bref résumé—veuillez lire la déclaration complète ci-dessous.",
+        "de": "Diese App sammelt keine persönlichen Daten. Ihr API-Schlüssel und Ihre Kontodaten werden ausschließlich auf Ihrem Gerät und in Ihrem privaten iCloud-Konto gespeichert. Sie behalten die volle Kontrolle und können diese Daten jederzeit entfernen. Dies ist eine kurze Zusammenfassung—bitte lesen Sie die vollständige Erklärung unten.",
+        "it": "Questa app non raccoglie dati personali. La tua chiave API e i dettagli del tuo account sono memorizzati esclusivamente sul tuo dispositivo e nel tuo account iCloud privato. Mantieni il pieno controllo e puoi rimuovere questi dati in qualsiasi momento. Questo è un breve riassunto—leggi la dichiarazione completa sotto.",
+        "ja": "このアプリは個人データを収集しません。APIキーとアカウントの詳細は、お使いのデバイスとプライベートiCloudアカウントにのみ保存されます。完全な制御を維持し、いつでもこれらのデータを削除できます。これは簡単な要約です—以下の完全な宣言をお読みください。",
+        "ko": "이 앱은 개인 데이터를 수집하지 않습니다. API 키와 계정 세부 정보는 귀하의 기기와 개인 iCloud 계정에만 저장됩니다. 귀하는 완전한 제어권을 유지하며 언제든지 이 데이터를 제거할 수 있습니다. 이는 간단한 요약입니다—아래의 전체 선언을 읽어주세요.",
+        "pt-PT": "Este aplicativo não coleta dados pessoais. Sua chave API e detalhes da conta são armazenados exclusivamente em seu dispositivo e em sua conta privada do iCloud. Você mantém controle total e pode remover esses dados a qualquer momento. Este é um breve resumo—por favor, leia a declaração completa abaixo.",
+        "nl": "Deze app verzamelt geen persoonlijke gegevens. Uw API-sleutel en accountgegevens worden uitsluitend opgeslagen op uw apparaat en in uw privé iCloud-account. U behoudt volledige controle en kunt deze gegevens op elk moment verwijderen. Dit is een korte samenvatting—lees de volledige verklaring hieronder.",
+        "pl": "Ta aplikacja nie zbiera żadnych danych osobowych. Twój klucz API i szczegóły konta są przechowywane wyłącznie na Twoim urządzeniu i w prywatnym koncie iCloud. Zachowujesz pełną kontrolę i możesz usunąć te dane w dowolnym momencie. To krótkie podsumowanie—przeczytaj pełną deklarację poniżej.",
+        "ru": "Это приложение не собирает личные данные. Ваш API-ключ и данные учетной записи хранятся исключительно на вашем устройстве и в вашей личной учетной записи iCloud. Вы сохраняете полный контроль и можете удалить эти данные в любое время. Это краткое резюме—пожалуйста, прочтите полную декларацию ниже.",
+        "tr": "Bu uygulama kişisel veri toplamaz. API anahtarınız ve hesap bilgileriniz yalnızca cihazınızda ve özel iCloud hesabınızda saklanır. Tam kontrol sizde kalır ve bu verileri istediğiniz zaman kaldırabilirsiniz. Bu kısa bir özettir—lütfen aşağıdaki tam bildirimi okuyun.",
+        "ar": "هذا التطبيق لا يجمع أي بيانات شخصية. يتم تخزين مفتاح API وتفاصيل حسابك حصريًا على جهازك وفي حساب iCloud الخاص بك. تحتفظ بالتحكم الكامل ويمكنك إزالة هذه البيانات في أي وقت. هذا ملخص موجز—يرجى قراءة الإعلان الكامل أدناه.",
+        "cs": "Tato aplikace neshromažďuje žádné osobní údaje. Váš API klíč a údaje o účtu jsou uloženy výhradně na vašem zařízení a ve vašem soukromém účtu iCloud. Zachováváte si plnou kontrolu a můžete tato data kdykoli odstranit. Toto je stručné shrnutí—přečtěte si prosím úplné prohlášení níže.",
+        "da": "Denne app indsamler ikke personlige data. Din API-nøgle og kontooplysninger gemmes udelukkende på din enhed og i din private iCloud-konto. Du bevarer fuld kontrol og kan fjerne disse data når som helst. Dette er et kort resumé—læs venligst den fulde erklæring nedenfor.",
+        "fi": "Tämä sovellus ei kerää henkilökohtaisia tietoja. API-avaimesi ja tilitietosi tallennetaan yksinomaan laitteeseesi ja yksityiseen iCloud-tiliisi. Säilytät täyden hallinnan ja voit poistaa nämä tiedot milloin tahansa. Tämä on lyhyt yhteenveto—lue täydellinen ilmoitus alta.",
+        "el": "Αυτή η εφαρμογή δεν συλλέγει προσωπικά δεδομένα. Το κλειδί API και τα στοιχεία του λογαριασμού σας αποθηκεύονται αποκλειστικά στη συσκευή σας και στον ιδιωτικό σας λογαριασμό iCloud. Διατηρείτε πλήρη έλεγχο και μπορείτε να αφαιρέσετε αυτά τα δεδομένα ανά πάσα στιγμή. Αυτή είναι μια σύντομη περίληψη—παρακαλούμε διαβάστε την πλήρη δήλωση παρακάτω.",
+        "he": "אפליקציה זו אינה אוספת נתונים אישיים. מפתח ה-API ופרטי החשבון שלך מאוחסנים באופן בלעדי במכשיר שלך ובחשבון iCloud הפרטי שלך. אתה שומר על שליטה מלאה ויכול להסיר נתונים אלה בכל עת. זהו סיכום קצר—אנא קרא את ההצהרה המלאה למטה.",
+        "hi": "यह ऐप कोई व्यक्तिगत डेटा एकत्र नहीं करता है। आपकी API कुंजी और खाता विवरण केवल आपके डिवाइस और आपके निजी iCloud खाते में संग्रहीत किए जाते हैं। आप पूर्ण नियंत्रण बनाए रखते हैं और किसी भी समय इस डेटा को हटा सकते हैं। यह एक संक्षिप्त सारांश है—कृपया नीचे पूर्ण घोषणा पढ़ें।",
+        "hu": "Ez az alkalmazás nem gyűjt személyes adatokat. Az API kulcsa és fiókadatai kizárólag az eszközén és privát iCloud-fiókjában tárolódnak. Ön teljes ellenőrzést tart fenn, és bármikor eltávolíthatja ezeket az adatokat. Ez egy rövid összefoglaló—kérjük, olvassa el az alábbi teljes nyilatkozatot.",
+        "id": "Aplikasi ini tidak mengumpulkan data pribadi. Kunci API dan detail akun Anda disimpan secara eksklusif di perangkat Anda dan di akun iCloud pribadi Anda. Anda mempertahankan kendali penuh dan dapat menghapus data ini kapan saja. Ini adalah ringkasan singkat—silakan baca deklarasi lengkap di bawah.",
+        "nb": "Denne appen samler ikke inn personlige data. Din API-nøkkel og kontodetaljene dine lagres eksklusivt på enheten din og i din private iCloud-konto. Du beholder full kontroll og kan fjerne disse dataene når som helst. Dette er et kort sammendrag—vennligst les hele erklæringen nedenfor.",
+        "ro": "Această aplicație nu colectează date personale. Cheia dvs. API și detaliile contului sunt stocate exclusiv pe dispozitivul dvs. și în contul dvs. privat iCloud. Păstrați controlul complet și puteți elimina aceste date în orice moment. Acesta este un rezumat scurt—vă rugăm să citiți declarația completă de mai jos.",
+        "sk": "Táto aplikácia nezbiera žiadne osobné údaje. Váš API kľúč a údaje o účte sú uložené výhradne vo vašom zariadení a vo vašom súkromnom účte iCloud. Zachovávate si úplnú kontrolu a môžete tieto údaje kedykoľvek odstrániť. Toto je stručné zhrnutie—prečítajte si prosím úplné vyhlásenie nižšie.",
+        "sv": "Denna app samlar inte in några personuppgifter. Din API-nyckel och kontouppgifter lagras uteslutande på din enhet och i ditt privata iCloud-konto. Du behåller full kontroll och kan ta bort dessa data när som helst. Detta är en kort sammanfattning—vänligen läs hela deklarationen nedan.",
+        "th": "แอปนี้ไม่เก็บรวบรวมข้อมูลส่วนบุคคล คีย์ API และรายละเอียดบัญชีของคุณถูกเก็บไว้เฉพาะในอุปกรณ์ของคุณและในบัญชี iCloud ส่วนตัวของคุณเท่านั้น คุณยังคงมีการควบคุมอย่างเต็มที่และสามารถลบข้อมูลเหล่านี้ได้ทุกเมื่อ นี่เป็นเพียงสรุปสั้นๆ—โปรดอ่านคำประกาศฉบับเต็มด้านล่าง",
+        "uk": "Цей додаток не збирає особисті дані. Ваш API-ключ та дані облікового запису зберігаються виключно на вашому пристрої та у вашому приватному обліковому записі iCloud. Ви зберігаєте повний контроль і можете видалити ці дані в будь-який час. Це короткий підсумок—будь ласка, прочитайте повну декларацію нижче.",
+        "vi": "Ứng dụng này không thu thập bất kỳ dữ liệu cá nhân nào. Khóa API và chi tiết tài khoản của bạn được lưu trữ độc quyền trên thiết bị của bạn và trong tài khoản iCloud riêng của bạn. Bạn duy trì quyền kiểm soát hoàn toàn và có thể xóa dữ liệu này bất cứ lúc nào. Đây là bản tóm tắt ngắn—vui lòng đọc tuyên bố đầy đủ bên dưới."
+    },
+    "title": "Data Storage Declaration",
+    "introduction": "This application operates as a local client only. We do not collect, process, or store any personal data. All information you enter remains exclusively on your devices through Apple's iCloud synchronization. There is no mechanism for developers or third parties to access your data. If you have any questions, please contact us at octomiser@eugnel.com.",
     "sections": [
       {
-        "heading": "1. Scope and Purpose",
+        "heading": "1. Data Handling",
         "body": [
-          "We only collect the information necessary to authenticate, retrieve, and display your energy usage data, including but not limited to your API key and meter details.",
-          "By entering your details, you confirm that you have read, understood, and agree to the terms of this Declaration, and you consent to the processing of your personal data in the manner described herein.",
-          "The purpose of this processing is strictly limited to providing you with relevant energy consumption insights and functionalities within this application."
+          "The app functions as a local client - we do not have servers or data collection mechanisms.",
+          "Any data you choose to enter (API key, meter details) is stored only on your Apple devices using iCloud synchronization.",
+          "This data never leaves your personal iCloud account and is protected by Apple's security infrastructure."
         ]
       },
       {
@@ -21,16 +52,18 @@
       {
         "heading": "3.Data Storage and Security",
         "body": [
-          "Your API key and meter details are stored securely on your device only, safeguarded by your device’s inherent security features such as Face ID, Touch ID, or passcodes.",
-          "We do not transmit your API key and meter details to our servers; they are never stored or shared with our developers, affiliates, or third parties unless required by law.",
-          "Technical and organisational measures are in place to prevent unauthorised access, disclosure, alteration, or destruction of your data."
+          "Your data is protected by:",
+          "- Apple's iCloud security infrastructure",
+          "- Your device security (Face ID/Touch ID/Passcode)",
+          "- iOS app sandboxing restrictions",
+          "Even the developer cannot access your iCloud-stored data."
         ]
       },
       {
         "heading": "4. Data Sharing and Authorisation",
         "body": [
           "By providing your API key and meter details, you authorise Octopus Energy to share your energy consumption data with this application for the purposes specified in Section 1.",
-          "We do not share your data with any third parties beyond what is essential for the application’s core functionality, unless compelled by court order or other legal obligation."
+          "We do not share your data with any third parties beyond what is essential for the application's core functionality, unless compelled by court order or other legal obligation."
         ]
       },
       {
@@ -43,17 +76,16 @@
       {
         "heading": "6. Your Rights",
         "body": [
-          "Right of Access: You have the right to request copies of the personal data we hold about you.",
-          "Right to Rectification: You have the right to request that any inaccurate information be corrected without undue delay.",
-          "Right to Erasure: You have the right to request the deletion of your personal data at any time, and we will honour such requests in accordance with the legislation.",
-          "Right to Withdraw Consent: You may withdraw your consent at any time. Doing so will affect your ability to use certain features of this application.",
-          "Right to Lodge a Complaint: If you believe we are processing your data unlawfully, you have the right to lodge a complaint with the Information Commissioner’s Office (ICO) or another competent supervisory authority."
+          "Full Data Control: You can view, edit, or delete all app data at any time through:",
+          "- The app's settings interface",
+          "- iOS Settings > [Your Name] > iCloud > Manage Storage",
+          "Deleting the app will remove all associated data from your devices and iCloud."
         ]
       },
       {
         "heading": "7. Octopus Energy API Terms of Service",
         "body": [
-          "By entering your API key and meter details, you confirm that you have read and agree to the Octopus Energy API Terms of Service, which govern the access and usage of Octopus Energy’s platform.",
+          "By entering your API key and meter details, you confirm that you have read and agree to the Octopus Energy API Terms of Service, which govern the access and usage of Octopus Energy's platform.",
           "This Declaration supplements, but does not replace, any separate agreement you may have with Octopus Energy regarding their services."
         ]
       },
