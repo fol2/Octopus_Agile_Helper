@@ -2527,6 +2527,9 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
     private let label: () -> Label
     private let content: () -> Content
     @State private var isExpanded = false
+    // Add these new states
+    @State private var lastInteractionTime = Date()
+    @State private var autoCollapseTask: Task<Void, Never>?
 
     init(
         @ViewBuilder label: @escaping () -> Label,
@@ -2536,11 +2539,34 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
         self.content = content
     }
 
+    private func startAutoCollapseTimer() {
+        // Cancel any existing timer
+        autoCollapseTask?.cancel()
+
+        // Start new timer
+        autoCollapseTask = Task {
+            try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)  // 5 seconds
+
+            // Check if 5 seconds have passed since last interaction
+            if Date().timeIntervalSince(lastInteractionTime) >= 5 {
+                await MainActor.run {
+                    withAnimation(.spring(duration: 0.3)) {
+                        isExpanded = false
+                    }
+                }
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Button {
+                lastInteractionTime = Date()
                 withAnimation(.spring(duration: 0.3)) {
                     isExpanded.toggle()
+                }
+                if isExpanded {
+                    startAutoCollapseTimer()
                 }
             } label: {
                 HStack {
@@ -2564,7 +2590,16 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
                 content()
                     .padding(.vertical, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+                    // Add gesture to track interaction with content
+                    .onTapGesture {
+                        lastInteractionTime = Date()
+                        startAutoCollapseTimer()
+                    }
             }
+        }
+        // Clean up timer when view disappears
+        .onDisappear {
+            autoCollapseTask?.cancel()
         }
     }
 }
