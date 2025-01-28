@@ -1,7 +1,7 @@
 import Combine
 import CoreData
-import SwiftUI
 import OctopusHelperShared
+import SwiftUI
 
 public struct CurrentRateCardView: View {
     // MARK: - Dependencies
@@ -32,7 +32,7 @@ public struct CurrentRateCardView: View {
         return allRates.filter { rate in
             guard let validFrom = rate.value(forKey: "valid_from") as? Date else { return false }
             return validFrom >= startOfDay && validFrom < endOfDay
-        }.sorted { 
+        }.sorted {
             let date1 = $0.value(forKey: "valid_from") as? Date ?? .distantPast
             let date2 = $1.value(forKey: "valid_from") as? Date ?? .distantPast
             return date1 < date2
@@ -48,7 +48,8 @@ public struct CurrentRateCardView: View {
         let now = Date()
         return viewModel.allRates(for: productCode).first { rate in
             guard let start = rate.value(forKey: "valid_from") as? Date,
-                  let end = rate.value(forKey: "valid_to") as? Date else { return false }
+                let end = rate.value(forKey: "valid_to") as? Date
+            else { return false }
             return start <= now && end > now
         }
     }
@@ -59,7 +60,8 @@ public struct CurrentRateCardView: View {
             // Header row with left icon + title + "more" icon on right
             HStack(alignment: .center) {
                 if viewModel.isLoading(for: productCode)
-                   && viewModel.allRates(for: productCode).isEmpty {
+                    && viewModel.allRates(for: productCode).isEmpty
+                {
                     ProgressView("Loading Rates...")
                         .font(Theme.subFont())
                 } else if let def = CardRegistry.shared.definition(for: .currentRate) {
@@ -80,7 +82,8 @@ public struct CurrentRateCardView: View {
 
             // Content
             if viewModel.isLoading(for: productCode)
-               && viewModel.allRates(for: productCode).isEmpty {
+                && viewModel.allRates(for: productCode).isEmpty
+            {
                 // Show a bigger spinner if no rates loaded yet
                 ProgressView().padding(.vertical, 12)
             } else if let currentRate = getCurrentRate() {
@@ -88,8 +91,10 @@ public struct CurrentRateCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
                         let parts = viewModel.formatRate(
-                            excVAT: currentRate.value(forKey: "value_excluding_vat") as? Double ?? 0,
-                            incVAT: currentRate.value(forKey: "value_including_vat") as? Double ?? 0,
+                            excVAT: currentRate.value(forKey: "value_excluding_vat") as? Double
+                                ?? 0,
+                            incVAT: currentRate.value(forKey: "value_including_vat") as? Double
+                                ?? 0,
                             showRatesInPounds: globalSettings.settings.showRatesInPounds,
                             showRatesWithVAT: globalSettings.settings.showRatesWithVAT
                         )
@@ -133,7 +138,7 @@ public struct CurrentRateCardView: View {
         .onReceive(refreshManager.$halfHourTick) { tickTime in
             guard tickTime != nil else { return }
             clockIconTrigger = Date()  // Update clock icon
-            refreshTrigger.toggle()    // Force UI update
+            refreshTrigger.toggle()  // Force UI update
         }
         // Also re-render if app becomes active
         .onReceive(refreshManager.$sceneActiveTick) { _ in

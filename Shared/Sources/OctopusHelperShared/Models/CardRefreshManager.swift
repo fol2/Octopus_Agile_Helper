@@ -1,5 +1,5 @@
-import SwiftUI
 import Combine
+import SwiftUI
 
 /// A simple shared manager that lets all "cards" subscribe
 /// to the same .onReceive timers and scene-phase triggers.
@@ -17,7 +17,8 @@ public class CardRefreshManager: ObservableObject {
 
     public init() {
         // 1) Start a timer every second
-        timerCancellable = Timer
+        timerCancellable =
+            Timer
             .publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -44,4 +45,4 @@ public class CardRefreshManager: ObservableObject {
             }
         }
     }
-} 
+}

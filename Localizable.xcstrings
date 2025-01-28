@@ -4,10 +4,10 @@
     "--" : {
 
     },
-    "/kWh" : {
-      "shouldTranslate" : false
-    },
     "%.2f kWh at" : {
+
+    },
+    "%@" : {
 
     },
     "%@\n%@" : {
@@ -835,9 +835,6 @@
       }
     },
     "%@ to" : {
-
-    },
-    "%@/kWh" : {
 
     },
     "%lld" : {
@@ -3113,12 +3110,6 @@
     "Avg. Rate (inc. VAT): %@" : {
 
     },
-    "Calculate Account Costs" : {
-
-    },
-    "Calculate Single Tariff" : {
-
-    },
     "Calculation Results" : {
 
     },
@@ -5368,6 +5359,9 @@
 
     },
     "Database Viewer" : {
+
+    },
+    "Date Range Calculation" : {
 
     },
     "Debug" : {
@@ -8640,6 +8634,9 @@
           }
         }
       }
+    },
+    "Interval" : {
+
     },
     "Language" : {
       "localizations" : {
@@ -21122,6 +21119,12 @@
           }
         }
       }
+    },
+    "Window End" : {
+
+    },
+    "Window Start" : {
+
     },
     "You can choose length of period to average and how many rates to show" : {
       "extractionState" : "stale",

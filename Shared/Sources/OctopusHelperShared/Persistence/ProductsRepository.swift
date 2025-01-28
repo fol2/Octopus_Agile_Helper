@@ -94,7 +94,7 @@ public final class ProductsRepository: ObservableObject {
 
         // Store successful fetch timestamp
         UserDefaults.standard.set(Date(), forKey: lastFetchKey)
-        
+
         return finalEntities
     }
 
@@ -104,7 +104,8 @@ public final class ProductsRepository: ObservableObject {
     /// - Parameter productCode: e.g. "VAR-22-11-01"
     /// - Throws: Network/decoding errors
     /// - Returns: A fully decoded OctopusSingleProductDetail object (not stored by default).
-    public func fetchProductDetail(_ productCode: String) async throws -> OctopusSingleProductDetail {
+    public func fetchProductDetail(_ productCode: String) async throws -> OctopusSingleProductDetail
+    {
         try await apiClient.fetchSingleProductDetail(productCode)
     }
 
@@ -132,7 +133,7 @@ public final class ProductsRepository: ObservableObject {
 
     /// Ensures a specific product code exists in Core Data. If not found locally,
     /// it fetches from the API (GET /products/<code>/) and upserts the data.
-    /// 
+    ///
     /// This method is specifically designed to create a ProductEntity from a ProductDetail
     /// response when we don't have access to the full product list. It synthesizes the
     /// necessary ProductEntity fields from the detail response, which is useful for:
@@ -161,7 +162,7 @@ public final class ProductsRepository: ObservableObject {
             OctopusProductItem(
                 code: detail.code,
                 direction: detail.direction ?? (detail.single_register_electricity_tariffs == nil
-                    && detail.single_register_gas_tariffs == nil ? "UNKNOWN" : "IMPORT"),
+                        && detail.single_register_gas_tariffs == nil ? "UNKNOWN" : "IMPORT"),
                 full_name: detail.full_name,
                 display_name: detail.display_name,
                 description: detail.description,
@@ -184,13 +185,13 @@ public final class ProductsRepository: ObservableObject {
                 brand: detail.brand
             )
         ])
-        
+
         // 4) Upsert the tariff details
         _ = try await ProductDetailRepository.shared.upsertProductDetail(json: detail, code: productCode)
         return upserted
     }
 
-    /// Ensures multiple tariff codes exist as product codes in Core Data. 
+    /// Ensures multiple tariff codes exist as product codes in Core Data.
     /// E.g. from an account's "E-1R-AGILE-24-04-03-H", we derive "AGILE-24-04-03".
     /// We skip duplicates if they're already stored.
     /// - Parameter tariffCodes: e.g. ["E-1R-AGILE-24-04-03-H", "E-1R-SILVER-24-12-31-A"]
@@ -255,7 +256,7 @@ public final class ProductsRepository: ObservableObject {
             // 4) Save changes once at the end
             try self.context.save()
             print("💾 成功保存到Core Data")
-            
+
             // 发送合并通知以确保其他上下文能看到更改
             NotificationCenter.default.post(
                 name: NSManagedObjectContext.didSaveObjectsNotification,
@@ -280,16 +281,16 @@ public final class ProductsRepository: ObservableObject {
         productEntity.setValue(item.is_green,     forKey: "is_green")
         productEntity.setValue(item.is_tracker,   forKey: "is_tracker")
         productEntity.setValue(item.is_prepay,    forKey: "is_prepay")
-        
+
         // Convert Boolean to String as per Core Data model requirement
         productEntity.setValue(item.is_business ? "true" : "false", forKey: "is_business")
-        
+
         // Use correct attribute name "is_stricted" from Core Data model
         productEntity.setValue(item.is_restricted, forKey: "is_stricted")
 
         productEntity.setValue(item.term,         forKey: "term")
         productEntity.setValue(item.brand,        forKey: "brand")
-        
+
         // Handle optional dates with nil coalescing
         productEntity.setValue(item.available_from ?? Date.distantPast, forKey: "available_from")
         productEntity.setValue(item.available_to ?? Date.distantFuture, forKey: "available_to")
@@ -302,12 +303,14 @@ public final class ProductsRepository: ObservableObject {
         }
     }
 
-    /// Extracts a short code from a tariff code, e.g. "E-1R-AGILE-24-04-03-H" -> "AGILE-24-04-03".
-    /// If it doesn't contain "AGILE" or a known pattern, you can adjust your logic as needed.
+    /// Extracts a short code from a tariff code by removing 2 parts from front and 1 from end
+    /// e.g. "E-1R-OE-FIX-14M-25-01-08-H" -> "OE-FIX-14M-25-01-08"
     private func productCodeFromTariff(_ tariffCode: String) -> String? {
-        // e.g. "E-1R-AGILE-24-04-03-H"
         let parts = tariffCode.components(separatedBy: "-")
-        guard parts.count >= 6 else { return nil }
+        // Need at least 4 parts (2 prefix + 1 main + 1 suffix)
+        guard parts.count >= 4 else { return nil }
+
+        // Remove first 2 parts and last part
         return parts[2...5].joined(separator: "-") // e.g. "AGILE-24-04-03"
     }
 

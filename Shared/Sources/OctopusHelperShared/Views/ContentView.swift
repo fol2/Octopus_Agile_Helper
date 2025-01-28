@@ -7,7 +7,6 @@
 
 import Combine
 import CoreData
-import OctopusHelperShared
 import SwiftUI
 
 /// A preference key to track the vertical offset in a ScrollView.
@@ -41,12 +40,9 @@ public struct ContentView: View {
     @EnvironmentObject var globalTimer: GlobalTimer
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @EnvironmentObject var ratesVM: RatesViewModel
-    @StateObject private var consumptionVM = ConsumptionViewModel()
+    @StateObject private var consumptionVM: ConsumptionViewModel
     @StateObject private var viewModel = ContentViewModel()
-    let hasAgileCards: Bool  // Now passed in from AppMain
-
-    // Store each card's VM in a dictionary keyed by `CardType`
-    @State private var cardViewModels: [CardType: Any] = [:]  // For other cards only
+    let hasAgileCards: Bool
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -67,8 +63,10 @@ public struct ContentView: View {
 
     public init(hasAgileCards: Bool) {
         self.hasAgileCards = hasAgileCards
-        // Initialize view models
-        _consumptionVM = StateObject(wrappedValue: ConsumptionViewModel())
+        // Initialize view models with a temporary GlobalSettingsManager
+        // This will be replaced by the environment object when the view appears
+        _consumptionVM = StateObject(
+            wrappedValue: ConsumptionViewModel(globalSettingsManager: GlobalSettingsManager()))
         _viewModel = StateObject(wrappedValue: ContentViewModel())
     }
 
@@ -77,24 +75,22 @@ public struct ContentView: View {
             ScrollView(.vertical, showsIndicators: true) {
                 // The main content (cards)
                 VStack(spacing: 0) {
+                    let deps = CardDependencies.createDependencies(
+                        ratesViewModel: ratesVM,
+                        consumptionViewModel: consumptionVM,
+                        globalTimer: globalTimer,
+                        globalSettings: globalSettings
+                    )
+
                     ForEach(sortedCardConfigs()) { config in
-                        if config.isEnabled {
-                            if let definition = CardRegistry.shared.definition(for: config.cardType)
-                            {
-                                if config.isPurchased || !definition.isPremium {
-                                    if config.cardType == .currentRate || config.cardType == .lowestUpcoming || config.cardType == .highestUpcoming || config.cardType == .averageUpcoming || config.cardType == .interactiveChart {
-                                        // Use the same ratesVM for all rate-related cards
-                                        definition.makeView(ratesVM)
-                                    } else if let vm = cardViewModels[config.cardType] {
-                                        definition.makeView(vm)
-                                    } else {
-                                        Text("No VM found")
-                                            .foregroundColor(.red)
-                                    }
-                                } else {
-                                    CardLockedView(definition: definition, config: config)
-                                        .environment(\.locale, globalSettings.locale)
-                                }
+                        if config.isEnabled,
+                            let definition = CardRegistry.shared.definition(for: config.cardType)
+                        {
+                            if config.isPurchased || !definition.isPremium {
+                                definition.makeView(deps)
+                            } else {
+                                CardLockedView(definition: definition, config: config)
+                                    .environment(\.locale, globalSettings.locale)
                             }
                         }
                     }
@@ -126,7 +122,9 @@ public struct ContentView: View {
                         NavigationLink {
                             SettingsView(didFinishEditing: {
                                 Task {
-                                    await ratesVM.setAgileProductFromAccountOrFallback(globalSettings: globalSettings)
+                                    // Refresh rates data
+                                    await ratesVM.setAgileProductFromAccountOrFallback(
+                                        globalSettings: globalSettings)
                                     if !ratesVM.currentAgileCode.isEmpty {
                                         await ratesVM.initializeProducts()
                                     }
@@ -152,7 +150,10 @@ public struct ContentView: View {
             }
             .refreshable {
                 await withTaskGroup(of: Void.self) { group in
-                    group.addTask { await ratesVM.refreshRates(productCode: ratesVM.currentAgileCode, force: true) }
+                    group.addTask {
+                        await ratesVM.refreshRates(
+                            productCode: ratesVM.currentAgileCode, force: true)
+                    }
                     group.addTask { await consumptionVM.refreshDataFromAPI(force: true) }
                 }
             }
@@ -187,7 +188,7 @@ public struct ContentView: View {
                         }
                     }
                 }
-                
+
                 // Check consumption at 12:00 (noon)
                 // This is when we start expecting previous day's data
                 if hour == 12, minute == 0, second == 0 {
@@ -197,16 +198,34 @@ public struct ContentView: View {
                 }
             }
             .onAppear {
-                // Create VMs for non-rate cards only
-                for cardType in CardType.allCases {
-                    if cardType == .electricityConsumption {  // Only create VM for non-rate cards
-                        if cardViewModels[cardType] == nil {
-                            let newVM = CardRegistry.shared.createViewModel(for: cardType)
-                            cardViewModels[cardType] = newVM
-                        }
+                // Update ConsumptionViewModel with the environment GlobalSettingsManager
+                consumptionVM.updateGlobalSettingsManager(globalSettings)
+                Task { await consumptionVM.loadData() }
+            }
+            // Track all settings changes that affect consumption data loading
+            .onChange(of: [
+                globalSettings.settings.accountData != nil,
+                globalSettings.settings.apiKey.isEmpty,
+                globalSettings.settings.electricityMPAN != nil,
+                globalSettings.settings.electricityMeterSerialNumber != nil,
+            ]) { oldValue, newValue in
+                print("🔄 ContentView: Settings changed that affect consumption")
+                print("  - API Key present: \(!globalSettings.settings.apiKey.isEmpty)")
+                print("  - MPAN present: \(globalSettings.settings.electricityMPAN != nil)")
+                print(
+                    "  - Serial present: \(globalSettings.settings.electricityMeterSerialNumber != nil)"
+                )
+                print("  - Account data present: \(globalSettings.settings.accountData != nil)")
+
+                // Only load data if we have all required settings
+                if !globalSettings.settings.apiKey.isEmpty
+                    && globalSettings.settings.electricityMPAN != nil
+                    && globalSettings.settings.electricityMeterSerialNumber != nil
+                {
+                    Task {
+                        await consumptionVM.loadData()
                     }
                 }
-                Task { await consumptionVM.loadData() }
             }
         }
     }
@@ -214,19 +233,20 @@ public struct ContentView: View {
     // MARK: - Helper Methods
     private var aggregateColor: Color {
         // If no API key/account info, only consider rates state
-        let hasAccountInfo = !globalSettings.settings.apiKey.isEmpty && 
-                           globalSettings.settings.electricityMPAN != nil && 
-                           globalSettings.settings.electricityMeterSerialNumber != nil
+        let hasAccountInfo =
+            !globalSettings.settings.apiKey.isEmpty
+            && globalSettings.settings.electricityMPAN != nil
+            && globalSettings.settings.electricityMeterSerialNumber != nil
 
         switch (ratesVM.fetchState, consumptionVM.fetchState) {
         case (.failure(_), _),
-             (_, .failure(_)) where hasAccountInfo:
+            (_, .failure(_)) where hasAccountInfo:
             return .red
         case (.loading, _),
-             (_, .loading) where hasAccountInfo:
+            (_, .loading) where hasAccountInfo:
             return .blue
         case (.partial, _),
-             (_, .partial) where hasAccountInfo:
+            (_, .partial) where hasAccountInfo:
             return .orange
         case (.success, _) where !hasAccountInfo:
             // Only check rates success if no account info

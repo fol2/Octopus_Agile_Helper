@@ -287,6 +287,16 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
         }
     }
 
+    /// Get the highest rate for a specific tariff (considering all rates)
+    public func highestRate(tariffCode: String) async throws -> NSManagedObject? {
+        let rates = try await repository.fetchRatesByTariffCode(tariffCode)
+        return rates.max { a, b in
+            let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            return aValue < bValue
+        }
+    }
+
     // ------------------------------------------------------
 
     // MARK: - New Rate Fetching Logic
@@ -476,13 +486,10 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
             if totalPages > 1 {
                 // Phase 2: Background fetch (ORANGE state)
                 withAnimation {
-                    self.fetchState = .partial
                     state.isLoading = true
+                    self.fetchState = .partial
                 }
                 productStates[productCode] = state
-
-                // Wait for background fetch to complete
-                try await repository.waitForBackgroundFetch()
 
                 // After background fetch completes, get all rates
                 let allRates = try await repository.fetchRatesByTariffCode(tCode, pastHours: 48)
@@ -608,9 +615,6 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
                         self.fetchState = .partial
                     }
                     productStates[productCode] = state
-
-                    // Wait for background fetch to complete
-                    try await repository.waitForBackgroundFetch()
 
                     // After background fetch completes, get all rates
                     let allRates = try await repository.fetchRatesByTariffCode(productCode)

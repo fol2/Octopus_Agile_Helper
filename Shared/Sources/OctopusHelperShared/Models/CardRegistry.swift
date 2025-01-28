@@ -1,130 +1,117 @@
 import SwiftUI
 
-/// Identifies which plan(s) a given card supports.
-public enum SupportedPlan: String, Codable {
-    case agile
-    case flux
-    case any
-}
-
-public struct MediaItem {
-    public let localName: String?
-    public let remoteURL: URL?
-    public let youtubeID: String?
-    public let caption: LocalizedStringKey?
-
-    public var isVideo: Bool {
-        if youtubeID != nil { return true }
-        if let localName = localName {
-            return Bundle.main.url(forResource: localName, withExtension: "mp4") != nil
-        }
-        if let remoteURL = remoteURL {
-            let pathExtension = remoteURL.pathExtension.lowercased()
-            return ["mp4", "mov", "m4v"].contains(pathExtension)
-        }
-        return false
-    }
-
-    public init(
-        localName: String? = nil,
-        remoteURL: URL? = nil,
-        youtubeID: String? = nil,
-        caption: LocalizedStringKey? = nil
-    ) {
-        self.localName = localName
-        self.remoteURL = remoteURL
-        self.youtubeID = youtubeID
-        self.caption = caption
-    }
-}
-
+/// Card Type Registration Guide
+///
+/// When adding a new card type to the system, follow these guidelines:
+///
+/// 1. Naming Convention:
+/// - Use camelCase
+/// - Be descriptive but concise
+/// - Focus on the card's primary function
+/// - Examples: currentRate, lowestUpcoming, dailyUsage
+///
+/// 2. Organization:
+/// - Group related cards together
+/// - Keep rate-related cards together
+/// - Keep usage-related cards together
+/// - Keep analysis cards together
+///
+/// 3. Implementation Steps:
+/// - Add new case here in CardType enum
+/// - Create corresponding view file in Cards directory
+/// - Register card in registerAllCards() function
+/// - Follow CardDefinition template for registration
+///
+/// 4. Best Practices:
+/// - Ensure unique, descriptive names
+/// - Consider future extensibility
+/// - Document any special requirements
+/// - Maintain logical grouping
+///
+/// Example:
+///     case dailyUsage     // Shows daily electricity usage
+///     case weeklyAnalysis // Provides weekly usage analysis
+///     case costComparison // Compares costs between tariffs
+///
+/// Identifies which card type is being used
 public enum CardType: String, Codable, CaseIterable, Equatable {
+    case interactiveChart
     case currentRate
     case lowestUpcoming
     case highestUpcoming
     case averageUpcoming
-    case interactiveChart
-    case electricityConsumption
+    case accountTariff
+    case tariffComparison
 }
 
-/// Identifies a single card's metadata and how to produce its SwiftUI view
-public final class CardDefinition {
-    public let id: CardType
-    public let displayNameKey: String
-    public let descriptionKey: String
-    public let isPremium: Bool
-    public let makeView: (Any) -> AnyView
-    public let makeWidgetView: (Any) -> AnyView
-    public let iconName: String
-    public let defaultIsEnabled: Bool
-    public let defaultIsPurchased: Bool
-    public let defaultSortOrder: Int
-    public let mediaItems: [MediaItem]
-    public let learnMoreURL: URL?
-    public let supportedPlans: [SupportedPlan]
-
-    public init(
-        id: CardType,
-        displayNameKey: String,
-        descriptionKey: String,
-        isPremium: Bool,
-        makeView: @escaping (Any) -> AnyView,
-        makeWidgetView: @escaping (Any) -> AnyView,
-        iconName: String,
-        defaultIsEnabled: Bool = true,
-        defaultIsPurchased: Bool = true,
-        defaultSortOrder: Int,
-        mediaItems: [MediaItem] = [],
-        learnMoreURL: URL? = nil,
-        supportedPlans: [SupportedPlan] = [.any]
-    ) {
-        self.id = id
-        self.displayNameKey = displayNameKey
-        self.descriptionKey = descriptionKey
-        self.isPremium = isPremium
-        self.makeView = makeView
-        self.makeWidgetView = makeWidgetView
-        self.iconName = iconName
-        self.defaultIsEnabled = defaultIsEnabled
-        self.defaultIsPurchased = defaultIsPurchased
-        self.defaultSortOrder = defaultSortOrder
-        self.mediaItems = mediaItems
-        self.learnMoreURL = learnMoreURL
-        self.supportedPlans = supportedPlans
-    }
-}
-
-/// Central registry for all card definitions and metadata
-public final class CardRegistry: ObservableObject {
-    public static let shared = CardRegistry()
-
-    // A dictionary mapping CardType -> CardDefinition
-    private var definitions: [CardType: CardDefinition] = [:]
-    private var timer: GlobalTimer?
-    
-    @Published public private(set) var isReady: Bool = false
-    
-    private init() {
-        // Register all cards automatically on initialization
-        registerAllCards()
-        // Set ready state after initialization
-        self.isReady = true
-    }
-    
-    public func updateTimer(_ timer: GlobalTimer) {
-        self.timer = timer
-    }
-
-    /// Register all standard cards automatically
-    private func registerAllCards() {
+extension CardRegistry {
+    /// Card Registration Guide
+    ///
+    /// This function registers all standard cards in the application. Follow this template when adding new cards:
+    ///
+    /// register(
+    ///     CardDefinition(
+    ///         // REQUIRED: Unique identifier for the card
+    ///         id: .cardIdentifier,
+    ///
+    ///         // REQUIRED: Display name shown to users (localized)
+    ///         displayNameKey: "Card Name",
+    ///
+    ///         // REQUIRED: Detailed description of card functionality (localized)
+    ///         descriptionKey: "Description of what this card does and its value to users.",
+    ///
+    ///         // REQUIRED: Whether this is a premium feature
+    ///         isPremium: false,
+    ///
+    ///         // REQUIRED: Main view builder - must return AnyView
+    ///         makeView: { deps in
+    ///             AnyView(YourCardView(viewModel: deps.requiredViewModel))
+    ///         },
+    ///
+    ///         // REQUIRED: Widget view builder - use EmptyView if no widget
+    ///         makeWidgetView: { _ in AnyView(EmptyView()) },
+    ///
+    ///         // REQUIRED: SF Symbol name for card icon
+    ///         iconName: "symbol.name",
+    ///
+    ///         // REQUIRED: Default position in card list (1-based)
+    ///         defaultSortOrder: nextAvailableOrder,
+    ///
+    ///         // OPTIONAL: Help/documentation images
+    ///         mediaItems: [
+    ///             MediaItem(
+    ///                 localName: "imgCardInfo",
+    ///                 caption: LocalizedStringKey("Main feature description")
+    ///             ),
+    ///             MediaItem(
+    ///                 localName: "imgCardInfo2",
+    ///                 caption: LocalizedStringKey("Additional feature or setting description")
+    ///             ),
+    ///         ],
+    ///
+    ///         // REQUIRED: Compatible tariff plans ([.agile], [.any], etc.)
+    ///         supportedPlans: [.agile]
+    ///     )
+    /// )
+    ///
+    /// Best Practices:
+    /// - Use descriptive IDs that reflect the card's primary function
+    /// - Provide clear, user-focused descriptions
+    /// - Include helpful media items for premium features
+    /// - Maintain logical sort order with existing cards
+    /// - Ensure view models are properly injected through dependencies
+    ///
+    internal func registerAllCards() {
         register(
             CardDefinition(
                 id: .currentRate,
                 displayNameKey: "Current Rate",
                 descriptionKey: "Shows the current electricity rate and when it changes.",
                 isPremium: false,
-                makeView: { [self] vm in makeRatesView(vm, .currentRate) },
-                makeWidgetView: { [self] vm in makeRatesView(vm, .currentRate) },
+                makeView: { deps in
+                    AnyView(CurrentRateCardView(viewModel: deps.ratesViewModel))
+                },
+                makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "clock",
                 defaultSortOrder: 1,
                 mediaItems: [
@@ -147,7 +134,9 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Lowest Upcoming Rates",
                 descriptionKey: "Shows upcoming times with the cheapest electricity rates.",
                 isPremium: false,
-                makeView: { [self] vm in makeRatesView(vm, .lowestUpcoming) },
+                makeView: { deps in
+                    AnyView(LowestUpcomingRateCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.down",
                 defaultSortOrder: 2,
@@ -171,7 +160,9 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Highest Upcoming Rates",
                 descriptionKey: "Warns you of upcoming peak pricing times.",
                 isPremium: false,
-                makeView: { [self] vm in makeRatesView(vm, .highestUpcoming) },
+                makeView: { deps in
+                    AnyView(HighestUpcomingRateCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.up",
                 defaultSortOrder: 3,
@@ -193,9 +184,12 @@ public final class CardRegistry: ObservableObject {
             CardDefinition(
                 id: .averageUpcoming,
                 displayNameKey: "Average Upcoming Rates",
-                descriptionKey: "Shows the average cost over selected periods or the next 10 lowest windows.",
+                descriptionKey:
+                    "Shows the average cost over selected periods or the next 10 lowest windows.",
                 isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .averageUpcoming) },
+                makeView: { deps in
+                    AnyView(AverageUpcomingRateCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.fill",
                 defaultSortOrder: 4,
@@ -206,7 +200,8 @@ public final class CardRegistry: ObservableObject {
                     ),
                     MediaItem(
                         localName: "imgAvgRateInfo2",
-                        caption: LocalizedStringKey("You can choose length of period to average and how many rates to show")
+                        caption: LocalizedStringKey(
+                            "You can choose length of period to average and how many rates to show")
                     ),
                 ],
                 supportedPlans: [.agile]
@@ -219,18 +214,24 @@ public final class CardRegistry: ObservableObject {
                 displayNameKey: "Interactive Rates",
                 descriptionKey: "A dynamic line chart showing rates, best time ranges, and more.",
                 isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .interactiveChart) },
+                makeView: { deps in
+                    AnyView(InteractiveLineChartCardView(viewModel: deps.ratesViewModel))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.xyaxis.line",
                 defaultSortOrder: 5,
                 mediaItems: [
                     MediaItem(
                         localName: "imgChartRateInfo",
-                        caption: LocalizedStringKey("An interactive chart to see rates over time, also shows best time ranges")
+                        caption: LocalizedStringKey(
+                            "An interactive chart to see rates over time, also shows best time ranges"
+                        )
                     ),
                     MediaItem(
                         localName: "imgChartRateInfo2",
-                        caption: LocalizedStringKey("You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards")
+                        caption: LocalizedStringKey(
+                            "You can customise the best time ranges for example set the average hours and how many in the list, which we've learnt from average rates cards"
+                        )
                     ),
                 ],
                 supportedPlans: [.agile]
@@ -239,71 +240,49 @@ public final class CardRegistry: ObservableObject {
 
         register(
             CardDefinition(
-                id: .electricityConsumption,
-                displayNameKey: "Electricity Consumption",
-                descriptionKey: "View recent electricity usage from Octopus API.",
+                id: .accountTariff,
+                displayNameKey: "Account Tariff",
+                descriptionKey:
+                    "View your account's tariff costs with daily, weekly, and monthly breakdowns.",
                 isPremium: true,
-                makeView: { [self] vm in makeRatesView(vm, .electricityConsumption) },
+                makeView: { deps in
+                    AnyView(
+                        AccountTariffCardView(
+                            viewModel: deps.ratesViewModel, consumptionVM: deps.consumptionViewModel
+                        ))
+                },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
-                iconName: "bolt.fill",
-                defaultIsEnabled: false,
-                defaultIsPurchased: false,
+                iconName: "chart.bar.doc.horizontal",
                 defaultSortOrder: 6,
                 mediaItems: [],
                 supportedPlans: [.any]
             )
         )
-    }
 
-    public func register(_ definition: CardDefinition) {
-        definitions[definition.id] = definition
-    }
-
-    /// Public accessor to fetch a card definition (if it exists)
-    public func definition(for type: CardType) -> CardDefinition? {
-        definitions[type]
-    }
-
-    // Helper function for safe view model casting
-    private func makeRatesView(_ vm: Any, _ viewType: CardType) -> AnyView {
-        switch viewType {
-            case .electricityConsumption:
-                if let viewModel = vm as? ConsumptionViewModel {
-                    return AnyView(ElectricityConsumptionCardView(viewModel: viewModel))
-                }
-            default:
-                if let viewModel = vm as? RatesViewModel {
-                    switch viewType {
-                        case .currentRate:
-                            return AnyView(CurrentRateCardView(viewModel: viewModel))
-                        case .lowestUpcoming:
-                            return AnyView(LowestUpcomingRateCardView(viewModel: viewModel))
-                        case .highestUpcoming:
-                            return AnyView(HighestUpcomingRateCardView(viewModel: viewModel))
-                        case .averageUpcoming:
-                            return AnyView(AverageUpcomingRateCardView(viewModel: viewModel))
-                        case .interactiveChart:
-                            return AnyView(InteractiveLineChartCardView(viewModel: viewModel))
-                        case .electricityConsumption:
-                            break
-                    }
-                }
-        }
-        return AnyView(
-            Text("Error: Invalid view model type")
-                .foregroundColor(.red)
-                .font(Theme.secondaryFont())
+        register(
+            CardDefinition(
+                id: .tariffComparison,
+                displayNameKey: "Tariff Comparison",
+                descriptionKey:
+                    "Compare your current account cost with another plan or a manual rate.",
+                isPremium: true,  // or false if you prefer
+                makeView: { deps in
+                    AnyView(
+                        TariffComparisonCardView(
+                            consumptionVM: deps.consumptionViewModel,  // We'll need consumption data
+                            ratesVM: deps.ratesViewModel,  // If we want fallback or custom logic
+                            globalSettings: deps.globalSettings
+                        )
+                    )
+                },
+                makeWidgetView: { _ in AnyView(EmptyView()) },
+                iconName: "rectangle.split.3x1.fill",
+                defaultIsEnabled: true,  // Make sure it's enabled by default
+                defaultIsPurchased: true,  // Make sure it's purchased by default
+                defaultSortOrder: 7,  // after your existing cards
+                mediaItems: [],
+                supportedPlans: [.any]  // or [.agile], .any is fine if we allow any plan
+            )
         )
-    }
-
-    // MARK: - Public API
-    @MainActor
-    public func createViewModel(for type: CardType) -> Any {
-        switch type {
-            case .electricityConsumption:
-                return ConsumptionViewModel()
-            default:
-                return RatesViewModel(globalTimer: timer ?? GlobalTimer())
-        }
     }
 }

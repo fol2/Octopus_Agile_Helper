@@ -122,6 +122,7 @@ public struct GlobalSettings: Codable, Equatable {
     public var regionInput: String  // Can be either postcode or region code
     public var apiKey: String
     public var selectedLanguage: Language
+    public var billingDay: Int
     public var showRatesInPounds: Bool
     public var showRatesWithVAT: Bool
     public var cardSettings: [CardConfig]
@@ -135,6 +136,14 @@ public struct GlobalSettings: Codable, Equatable {
 
     /// Optionally store the entire account JSON (raw) for reference or debugging
     public var accountData: Data?
+
+    // Fields for tariff view preferences
+    public var selectedTariffInterval: String
+    public var lastViewedTariffDates: [String: Date]
+
+    // New fields for comparison tariff view preferences
+    public var selectedComparisonInterval: String
+    public var lastViewedComparisonDates: [String: Date]
 
     /// The effective region to use for API calls - returns "H" if regionInput is empty
     public var effectiveRegion: String {
@@ -164,6 +173,7 @@ public struct GlobalSettings: Codable, Equatable {
         regionInput: String,
         apiKey: String,
         selectedLanguage: Language,
+        billingDay: Int = 1,
         showRatesInPounds: Bool,
         showRatesWithVAT: Bool,
         cardSettings: [CardConfig],
@@ -171,11 +181,16 @@ public struct GlobalSettings: Codable, Equatable {
         electricityMPAN: String? = nil,
         electricityMeterSerialNumber: String? = nil,
         accountNumber: String? = nil,
-        accountData: Data? = nil
+        accountData: Data? = nil,
+        selectedTariffInterval: String = "DAILY",
+        lastViewedTariffDates: [String: Date] = [:],
+        selectedComparisonInterval: String = "DAILY",
+        lastViewedComparisonDates: [String: Date] = [:]
     ) {
         self.regionInput = regionInput
         self.apiKey = apiKey
         self.selectedLanguage = selectedLanguage
+        self.billingDay = billingDay
         self.showRatesInPounds = showRatesInPounds
         self.showRatesWithVAT = showRatesWithVAT
         self.cardSettings = cardSettings
@@ -184,18 +199,27 @@ public struct GlobalSettings: Codable, Equatable {
         self.electricityMeterSerialNumber = electricityMeterSerialNumber
         self.accountNumber = accountNumber
         self.accountData = accountData
+        self.selectedTariffInterval = selectedTariffInterval
+        self.lastViewedTariffDates = lastViewedTariffDates
+        self.selectedComparisonInterval = selectedComparisonInterval
+        self.lastViewedComparisonDates = lastViewedComparisonDates
     }
 
     // MARK: - Equatable
     public static func == (lhs: GlobalSettings, rhs: GlobalSettings) -> Bool {
         lhs.regionInput == rhs.regionInput && lhs.apiKey == rhs.apiKey
             && lhs.selectedLanguage == rhs.selectedLanguage
+            && lhs.billingDay == rhs.billingDay
             && lhs.showRatesInPounds == rhs.showRatesInPounds
             && lhs.showRatesWithVAT == rhs.showRatesWithVAT && lhs.cardSettings == rhs.cardSettings
             && lhs.currentAgileCode == rhs.currentAgileCode
             && lhs.electricityMPAN == rhs.electricityMPAN
             && lhs.electricityMeterSerialNumber == rhs.electricityMeterSerialNumber
             && lhs.accountNumber == rhs.accountNumber && lhs.accountData == rhs.accountData
+            && lhs.selectedTariffInterval == rhs.selectedTariffInterval
+            && lhs.lastViewedTariffDates == rhs.lastViewedTariffDates
+            && lhs.selectedComparisonInterval == rhs.selectedComparisonInterval
+            && lhs.lastViewedComparisonDates == rhs.lastViewedComparisonDates
     }
 }
 
@@ -205,6 +229,7 @@ extension GlobalSettings {
         regionInput: "",
         apiKey: "",
         selectedLanguage: .english,
+        billingDay: 1,
         showRatesInPounds: false,
         showRatesWithVAT: true,
         cardSettings: [],
@@ -212,7 +237,11 @@ extension GlobalSettings {
         electricityMPAN: nil,
         electricityMeterSerialNumber: nil,
         accountNumber: nil,
-        accountData: nil
+        accountData: nil,
+        selectedTariffInterval: "DAILY",
+        lastViewedTariffDates: [:],
+        selectedComparisonInterval: "DAILY",
+        lastViewedComparisonDates: [:]
     )
 }
 
@@ -220,11 +249,14 @@ extension GlobalSettings {
 public class GlobalSettingsManager: ObservableObject {
     private var isSaving = false
     private var isLoading = false  // New flag to track loading state
+    private var isBatchUpdating = false  // New flag for batch updates
+    private let saveQueue = DispatchQueue(
+        label: "com.jamesto.octopus-agile-helper.settings-save", qos: .utility)
 
     @Published public var settings: GlobalSettings {
         didSet {
-            // Skip saving if we're loading or already saving
-            guard !isLoading && !isSaving else { return }
+            // Skip saving if we're loading, already saving, or in a batch update
+            guard !isLoading && !isSaving && !isBatchUpdating else { return }
 
             isSaving = true
 
@@ -235,7 +267,7 @@ public class GlobalSettingsManager: ObservableObject {
                 )
             }
 
-            saveSettings()
+            saveSettingsAsync()
             if oldValue.selectedLanguage != settings.selectedLanguage {
                 locale = settings.selectedLanguage.locale
             }
@@ -267,6 +299,7 @@ public class GlobalSettingsManager: ObservableObject {
                 regionInput: "",
                 apiKey: "",
                 selectedLanguage: matchedLanguage,
+                billingDay: 1,
                 showRatesInPounds: false,
                 showRatesWithVAT: true,
                 cardSettings: [],
@@ -274,7 +307,11 @@ public class GlobalSettingsManager: ObservableObject {
                 electricityMPAN: nil,
                 electricityMeterSerialNumber: nil,
                 accountNumber: nil,
-                accountData: nil
+                accountData: nil,
+                selectedTariffInterval: "DAILY",
+                lastViewedTariffDates: [:],
+                selectedComparisonInterval: "DAILY",
+                lastViewedComparisonDates: [:]
             )
             self.locale = matchedLanguage.locale
         }
@@ -303,19 +340,22 @@ public class GlobalSettingsManager: ObservableObject {
     // MARK: - Merge Missing Cards Example
     // -------------------------------------------
     private func mergeMissingCards() {
-        // This is just sample logic. If you don't have a CardRegistry, remove or adapt.
+        // Get the shared registry instance
         let registry = CardRegistry.shared
         var changed = false
 
+        // Get existing card types
         let existingTypes = Set(settings.cardSettings.map { $0.cardType })
 
+        // Add any missing cards from the registry
         for cardType in CardType.allCases {
             if let definition = registry.definition(for: cardType),
                 !existingTypes.contains(cardType)
             {
+                // Create new card config with registry defaults
                 let newConfig = CardConfig(
                     id: UUID(),
-                    cardType: definition.id,  // or cardType if you prefer
+                    cardType: cardType,  // Use cardType directly
                     isEnabled: definition.defaultIsEnabled,
                     isPurchased: definition.defaultIsPurchased,
                     sortOrder: definition.defaultSortOrder
@@ -323,10 +363,19 @@ public class GlobalSettingsManager: ObservableObject {
 
                 settings.cardSettings.append(newConfig)
                 changed = true
+
+                DebugLogger.debug(
+                    "Added missing card: \(cardType.rawValue)", component: .stateChanges)
             }
         }
 
+        // Sort cards by their sort order
         settings.cardSettings.sort { $0.sortOrder < $1.sortOrder }
+
+        if changed {
+            DebugLogger.debug(
+                "Updated card settings after merging missing cards", component: .stateChanges)
+        }
     }
 
     // -------------------------------------------
@@ -345,6 +394,7 @@ public class GlobalSettingsManager: ObservableObject {
             sharedDefaults?.set(settings.regionInput, forKey: "selected_postcode")
             sharedDefaults?.set(settings.apiKey, forKey: "api_key")
             sharedDefaults?.set(settings.selectedLanguage.rawValue, forKey: "selected_language")
+            sharedDefaults?.set(settings.billingDay, forKey: "billing_day")
             sharedDefaults?.set(settings.showRatesInPounds, forKey: "show_rates_in_pounds")
             sharedDefaults?.set(settings.showRatesWithVAT, forKey: "show_rates_with_vat")
             sharedDefaults?.set(settings.currentAgileCode, forKey: "current_agile_code")
@@ -353,6 +403,12 @@ public class GlobalSettingsManager: ObservableObject {
                 settings.electricityMeterSerialNumber, forKey: "meter_serial_number")
             sharedDefaults?.set(settings.accountNumber, forKey: "account_number")
             sharedDefaults?.set(settings.accountData, forKey: "account_data")
+            sharedDefaults?.set(settings.selectedTariffInterval, forKey: "selected_tariff_interval")
+            sharedDefaults?.set(settings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
+            sharedDefaults?.set(
+                settings.selectedComparisonInterval, forKey: "selected_comparison_interval")
+            sharedDefaults?.set(
+                settings.lastViewedComparisonDates, forKey: "last_viewed_comparison_dates")
 
             // Notify widget of changes
             #if !WIDGET
@@ -363,6 +419,77 @@ public class GlobalSettingsManager: ObservableObject {
                     }
                 }
             #endif
+        }
+    }
+
+    // MARK: - Async Settings Save
+    private func saveSettingsAsync() {
+        let currentSettings = self.settings
+        saveQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            // Encode settings in background
+            guard let encoded = try? JSONEncoder().encode(currentSettings) else {
+                print("⚠️ Failed to encode settings")
+                return
+            }
+
+            // Save to standard UserDefaults (thread-safe)
+            UserDefaults.standard.set(encoded, forKey: self.userDefaultsKey)
+
+            // Save to shared UserDefaults for widget access
+            let sharedDefaults = UserDefaults(suiteName: "group.com.jamesto.octopus-agile-helper")
+            sharedDefaults?.set(encoded, forKey: "user_settings")
+
+            // Also save individual values for easier widget access
+            sharedDefaults?.set(currentSettings.regionInput, forKey: "selected_postcode")
+            sharedDefaults?.set(currentSettings.apiKey, forKey: "api_key")
+            sharedDefaults?.set(
+                currentSettings.selectedLanguage.rawValue, forKey: "selected_language")
+            sharedDefaults?.set(currentSettings.billingDay, forKey: "billing_day")
+            sharedDefaults?.set(currentSettings.showRatesInPounds, forKey: "show_rates_in_pounds")
+            sharedDefaults?.set(currentSettings.showRatesWithVAT, forKey: "show_rates_with_vat")
+            sharedDefaults?.set(currentSettings.currentAgileCode, forKey: "current_agile_code")
+            sharedDefaults?.set(currentSettings.electricityMPAN, forKey: "electricity_mpan")
+            sharedDefaults?.set(
+                currentSettings.electricityMeterSerialNumber, forKey: "meter_serial_number")
+            sharedDefaults?.set(currentSettings.accountNumber, forKey: "account_number")
+            sharedDefaults?.set(currentSettings.accountData, forKey: "account_data")
+            sharedDefaults?.set(
+                currentSettings.selectedTariffInterval, forKey: "selected_tariff_interval")
+            sharedDefaults?.set(
+                currentSettings.lastViewedTariffDates, forKey: "last_viewed_tariff_dates")
+            sharedDefaults?.set(
+                currentSettings.selectedComparisonInterval, forKey: "selected_comparison_interval")
+            sharedDefaults?.set(
+                currentSettings.lastViewedComparisonDates, forKey: "last_viewed_comparison_dates")
+
+            // Notify widget of changes on main thread
+            DispatchQueue.main.async {
+                #if !WIDGET
+                    if let widgetCenter = NSClassFromString("WidgetCenter") as? NSObject {
+                        let selector = NSSelectorFromString("reloadAllTimelines")
+                        if widgetCenter.responds(to: selector) {
+                            widgetCenter.perform(selector)
+                        }
+                    }
+                #endif
+            }
+        }
+    }
+
+    // MARK: - Batch Updates
+    public func batchUpdate(_ updates: () -> Void) {
+        isBatchUpdating = true
+        let oldSettings = settings
+
+        updates()
+
+        isBatchUpdating = false
+
+        // Only save if settings actually changed
+        if oldSettings != settings {
+            saveSettings()
         }
     }
 }

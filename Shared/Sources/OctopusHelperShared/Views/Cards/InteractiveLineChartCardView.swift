@@ -2,8 +2,8 @@ import Charts
 import Combine
 import CoreData
 import Foundation
-import SwiftUI
 import OctopusHelperShared
+import SwiftUI
 
 // MARK: - Tooltip Width Preference Key
 private struct TooltipWidthKey: PreferenceKey {
@@ -128,7 +128,7 @@ public struct InteractiveLineChartCardView: View {
         }
         .onAppear {
             // Update "now" & recalc when card first appears
-            now = Date()  
+            now = Date()
             recalcBarWidthAndPrintOnce()
         }
         .rateCardStyle()
@@ -169,7 +169,8 @@ extension InteractiveLineChartCardView {
                 Spacer()
                 // If no data while isLoading => big spinner
                 if viewModel.isLoading(for: productCode)
-                   && filteredRates.isEmpty {
+                    && filteredRates.isEmpty
+                {
                     ProgressView("Loading...")
                         .font(Theme.subFont())
                 } else {
@@ -231,9 +232,11 @@ extension InteractiveLineChartCardView {
                 if let validFrom = rate.value(forKey: "valid_from") as? Date {
                     BarMark(
                         x: .value("Time", validFrom),
-                        y: .value("Price", globalSettings.settings.showRatesWithVAT ? 
-                            (rate.value(forKey: "value_including_vat") as? Double ?? 0) :
-                            (rate.value(forKey: "value_excluding_vat") as? Double ?? 0)),
+                        y: .value(
+                            "Price",
+                            globalSettings.settings.showRatesWithVAT
+                                ? (rate.value(forKey: "value_including_vat") as? Double ?? 0)
+                                : (rate.value(forKey: "value_excluding_vat") as? Double ?? 0)),
                         width: .fixed(barWidth)
                     )
                     .cornerRadius(3)
@@ -496,16 +499,18 @@ extension InteractiveLineChartCardView {
     private var filteredRates: [NSManagedObject] {
         let now = Date()
         let allRates = viewModel.allRates(for: productCode)
-        return allRates.filter { 
+        return allRates.filter {
             guard let validFrom = $0.value(forKey: "valid_from") as? Date,
-                  let validTo   = $0.value(forKey: "valid_to")   as? Date else { return false }
-            return validFrom >= now.addingTimeInterval(-3600) && validFrom <= now.addingTimeInterval(48 * 3600)
+                let validTo = $0.value(forKey: "valid_to") as? Date
+            else { return false }
+            return validFrom >= now.addingTimeInterval(-3600)
+                && validFrom <= now.addingTimeInterval(48 * 3600)
         }
-            .sorted { 
-                let date1 = $0.value(forKey: "valid_from") as? Date ?? .distantPast
-                let date2 = $1.value(forKey: "valid_from") as? Date ?? .distantPast
-                return date1 < date2
-            }
+        .sorted {
+            let date1 = $0.value(forKey: "valid_from") as? Date ?? .distantPast
+            let date2 = $1.value(forKey: "valid_from") as? Date ?? .distantPast
+            return date1 < date2
+        }
     }
 
     private var yRange: (Double, Double) {
@@ -518,9 +523,9 @@ extension InteractiveLineChartCardView {
 
     private var xDomain: ClosedRange<Date> {
         guard let earliest = filteredRates.first?.value(forKey: "valid_from") as? Date,
-              let lastRate = filteredRates.last,
-              let lastValidTo = lastRate.value(forKey: "valid_to") as? Date,
-              let lastValidFrom = lastRate.value(forKey: "valid_from") as? Date
+            let lastRate = filteredRates.last,
+            let lastValidTo = lastRate.value(forKey: "valid_to") as? Date,
+            let lastValidFrom = lastRate.value(forKey: "valid_from") as? Date
         else {
             return now...(now.addingTimeInterval(3600))
         }
@@ -557,13 +562,16 @@ extension InteractiveLineChartCardView {
     }
 
     private func findCurrentRatePeriod(_ date: Date) -> (start: Date, price: Double)? {
-        let relevant = filteredRates // already filtered for productCode
+        let relevant = filteredRates  // already filtered for productCode
         // e.g. let relevant = viewModel.allRates(for: productCode)
-        guard let rate = relevant.first(where: { r in
-            guard let start = r.value(forKey: "valid_from") as? Date,
-                  let end = r.value(forKey: "valid_to") as? Date else { return false }
-            return date >= start && date < end
-        }) else {
+        guard
+            let rate = relevant.first(where: { r in
+                guard let start = r.value(forKey: "valid_from") as? Date,
+                    let end = r.value(forKey: "valid_to") as? Date
+                else { return false }
+                return date >= start && date < end
+            })
+        else {
             return nil
         }
         if let start = rate.value(forKey: "valid_from") as? Date {
@@ -575,8 +583,12 @@ extension InteractiveLineChartCardView {
     private func findNearestPrice(_ date: Date) -> Double? {
         filteredRates.min {
             abs(($0.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(date))
-                < abs(($1.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(date))
-        }?.value(forKey: globalSettings.settings.showRatesWithVAT ? "value_including_vat" : "value_excluding_vat") as? Double
+                < abs(
+                    ($1.value(forKey: "valid_from") as? Date ?? .distantPast).timeIntervalSince(
+                        date))
+        }?.value(
+            forKey: globalSettings.settings.showRatesWithVAT
+                ? "value_including_vat" : "value_excluding_vat") as? Double
     }
 
     private func clampDateToDataRange(_ date: Date) -> Date {

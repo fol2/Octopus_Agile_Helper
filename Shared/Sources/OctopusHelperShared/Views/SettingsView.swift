@@ -8,7 +8,7 @@ extension Bundle {
         if let bundle = Bundle(identifier: "com.jamesto.OctopusHelperShared") {
             return bundle
         }
-        
+
         // If that fails, try to get the bundle by module name
         let bundleName = "OctopusHelperShared_OctopusHelperShared"
         let candidates = [
@@ -26,7 +26,7 @@ extension Bundle {
                 return bundle
             }
         }
-        
+
         return Bundle.module
     }
 }
@@ -61,7 +61,7 @@ private class GDPRViewModel: ObservableObject {
             print("GDPR.json not found in bundle.")
             return
         }
-        
+
         do {
             let data = try Data(contentsOf: url)
             let decoded = try JSONDecoder().decode(GDPRData.self, from: data)
@@ -87,10 +87,10 @@ struct GDPRDeclarationView: View {
                 Text(LocalizedStringKey(gdprData.tldr))
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
-                
+
                 Divider()
                     .padding(.vertical, 8)
-                
+
                 // Introduction text
                 Text(LocalizedStringKey(gdprData.introduction))
                     .font(Theme.secondaryFont())
@@ -101,7 +101,7 @@ struct GDPRDeclarationView: View {
                     Text(LocalizedStringKey(section.heading))
                         .font(Theme.secondaryFont().bold())
                         .foregroundColor(Theme.mainTextColor)
-                    
+
                     // Body text
                     ForEach(section.body, id: \.self) { bullet in
                         Text(LocalizedStringKey("• \(bullet)"))
@@ -151,7 +151,7 @@ private class GuideViewModel: ObservableObject {
             print("Guide.json not found in bundle.")
             return
         }
-        
+
         do {
             let data = try Data(contentsOf: url)
             let decoded = try JSONDecoder().decode(GuideData.self, from: data)
@@ -177,15 +177,15 @@ struct GuideView: View {
                 Text(LocalizedStringKey(guideData.tldr))
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
-                
+
                 Divider()
                     .padding(.vertical, 8)
-                
+
                 // Main content
                 Text(LocalizedStringKey(guideData.heading))
                     .font(Theme.secondaryFont())
                     .foregroundColor(Theme.mainTextColor)
-                
+
                 ForEach(Array(guideData.steps.enumerated()), id: \.offset) { index, step in
                     Text(LocalizedStringKey("\(index + 1). \(step)"))
                         .font(Theme.subFont())
@@ -250,6 +250,16 @@ struct APIConfigurationView: View {
     @State private var hasAccountData: Bool = false
     @State private var accountNumberFieldError: String?
     @State private var apiKeyFieldError: String?
+    @State private var isCleaningUp = false
+    @State private var cleanupError: String?
+
+    private func isValidAPIKey(_ key: String) -> Bool {
+        key.starts(with: "sk_live_") && key.count >= 32  // "sk_live_" + 32 chars
+    }
+
+    private func isValidAccountNumber(_ number: String) -> Bool {
+        number.starts(with: "A-") && number.count >= 10  // "A-" + 8 chars
+    }
 
     private func validateInputs() -> Bool {
         var isValid = true
@@ -259,8 +269,8 @@ struct APIConfigurationView: View {
             if globalSettings.settings.apiKey.isEmpty {
                 apiKeyFieldError = "API Key is required"
                 isValid = false
-            } else if !globalSettings.settings.apiKey.hasPrefix("sk_live_") {
-                apiKeyFieldError = "API Key should start with 'sk_live_'"
+            } else if !isValidAPIKey(globalSettings.settings.apiKey) {
+                apiKeyFieldError = "API Key should start with 'sk_live_' followed by 32 characters"
                 isValid = false
             } else {
                 apiKeyFieldError = nil
@@ -270,8 +280,9 @@ struct APIConfigurationView: View {
             if accountNumberInput.isEmpty {
                 accountNumberFieldError = "Account Number is required"
                 isValid = false
-            } else if !accountNumberInput.hasPrefix("A-") {
-                accountNumberFieldError = "Account Number should start with 'A-'"
+            } else if !isValidAccountNumber(accountNumberInput) {
+                accountNumberFieldError =
+                    "Account Number should start with 'A-' followed by 8 characters"
                 isValid = false
             } else {
                 accountNumberFieldError = nil
@@ -290,37 +301,37 @@ struct APIConfigurationView: View {
                         withAnimation(.smooth) {
                             VStack(alignment: .leading, spacing: 0) {
                                 // API Key Section
-                    Text(LocalizedStringKey("API Key"))
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 8)
-                    
-                    HStack {
-                        SecureField(
-                            LocalizedStringKey("API Key"),
-                            text: $globalSettings.settings.apiKey,
-                            prompt: Text(LocalizedStringKey("sk_live_..."))
-                                .foregroundColor(Theme.secondaryTextColor)
-                        )
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 16)
-                        .font(Theme.secondaryFont())
-                        .foregroundColor(Theme.mainTextColor)
+                                Text(LocalizedStringKey("API Key"))
+                                    .font(Theme.subFont())
+                                    .foregroundColor(Theme.secondaryTextColor)
+                                    .padding(.horizontal, 20)
+                                    .padding(.bottom, 8)
+
+                                HStack {
+                                    SecureField(
+                                        LocalizedStringKey("API Key"),
+                                        text: $globalSettings.settings.apiKey,
+                                        prompt: Text(LocalizedStringKey("sk_live_..."))
+                                            .foregroundColor(Theme.secondaryTextColor)
+                                    )
+                                    .textFieldStyle(.plain)
+                                    .padding(.horizontal, 16)
+                                    .font(Theme.secondaryFont())
+                                    .foregroundColor(Theme.mainTextColor)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .onChange(of: globalSettings.settings.apiKey) { _, _ in
                                         withAnimation(.smooth) {
                                             apiKeyFieldError = nil
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical)
-                    .background(
-                        Theme.secondaryBackground
-                            .padding(.horizontal, 20)
-                    )
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical)
+                                .background(
+                                    Theme.secondaryBackground
+                                        .padding(.horizontal, 20)
+                                )
                                 .overlay(alignment: .trailing) {
                                     if let error = apiKeyFieldError {
                                         Label(error, systemImage: "exclamationmark.circle.fill")
@@ -333,25 +344,25 @@ struct APIConfigurationView: View {
                                 }
 
                                 // Account Number Section
-                        Text(LocalizedStringKey("Account Number"))
-                            .font(Theme.subFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 8)
+                                Text(LocalizedStringKey("Account Number"))
+                                    .font(Theme.subFont())
+                                    .foregroundColor(Theme.secondaryTextColor)
+                                    .padding(.horizontal, 20)
+                                    .padding(.bottom, 8)
                                     .padding(.top, 16)
-                        
-                            HStack {
-                                TextField(
-                                    LocalizedStringKey("Account Number"),
-                                    text: $accountNumberInput,
-                                    prompt: Text(LocalizedStringKey("A-XXXXX"))
-                                        .foregroundColor(Theme.secondaryTextColor)
-                                )
-                                .textFieldStyle(.plain)
-                                .padding(.horizontal, 16)
-                                .font(Theme.secondaryFont())
-                                .foregroundColor(Theme.mainTextColor)
-                                .disabled(isFetchingAccount)
+
+                                HStack {
+                                    TextField(
+                                        LocalizedStringKey("Account Number"),
+                                        text: $accountNumberInput,
+                                        prompt: Text(LocalizedStringKey("A-XXXXX"))
+                                            .foregroundColor(Theme.secondaryTextColor)
+                                    )
+                                    .textFieldStyle(.plain)
+                                    .padding(.horizontal, 16)
+                                    .font(Theme.secondaryFont())
+                                    .foregroundColor(Theme.mainTextColor)
+                                    .disabled(isFetchingAccount)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .onChange(of: accountNumberInput) { _, newValue in
@@ -360,39 +371,44 @@ struct APIConfigurationView: View {
                                             fetchError = nil
                                         }
                                     }
-                                
-                                if isFetchingAccount {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
+
+                                    if isFetchingAccount {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle())
                                             .transition(.scale.combined(with: .opacity))
-                                } else {
-                                    Button(action: {
+                                    } else {
+                                        Button(action: {
                                             if validateInputs() {
-                                        Task {
-                                            await confirmAccountNumber()
+                                                Task {
+                                                    await confirmAccountNumber()
                                                 }
+                                            }
+                                        }) {
+                                            Image(systemName: "arrow.right.circle.fill")
+                                                .foregroundColor(
+                                                    isValidAPIKey(globalSettings.settings.apiKey)
+                                                        && isValidAccountNumber(accountNumberInput)
+                                                        ? Theme.mainColor
+                                                        : Theme.secondaryTextColor.opacity(0.3)
+                                                )
                                         }
-                                    }) {
-                                        Image(systemName: "arrow.right.circle.fill")
-                                            .foregroundColor(Theme.mainColor)
-                                    }
                                         .disabled(
-                                            accountNumberInput.isEmpty
-                                                || globalSettings.settings.apiKey.isEmpty
+                                            !isValidAPIKey(globalSettings.settings.apiKey)
+                                                || !isValidAccountNumber(accountNumberInput)
                                         )
                                         .transition(.scale.combined(with: .opacity))
+                                    }
                                 }
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical)
-                            .background(
-                                Theme.secondaryBackground
-                                    .padding(.horizontal, 20)
-                            )
+                                .padding(.horizontal, 20)
+                                .padding(.vertical)
+                                .background(
+                                    Theme.secondaryBackground
+                                        .padding(.horizontal, 20)
+                                )
                                 .overlay(alignment: .trailing) {
                                     if let error = accountNumberFieldError {
                                         Label(error, systemImage: "exclamationmark.circle.fill")
-                                    .foregroundColor(.red)
+                                            .foregroundColor(.red)
                                             .font(Theme.subFont())
                                             .padding(.trailing, 36)
                                             .transition(
@@ -422,10 +438,10 @@ struct APIConfigurationView: View {
                                             Spacer()
 
                                             Image(systemName: "arrow.up.right")
-                            .font(Theme.subFont())
+                                                .font(Theme.subFont())
                                                 .foregroundColor(Theme.mainColor)
                                         }
-                            .padding(.horizontal, 20)
+                                        .padding(.horizontal, 20)
                                         .padding(.vertical, 12)
                                     }
                                     .background(Theme.mainBackground)
@@ -439,7 +455,7 @@ struct APIConfigurationView: View {
                                                 LocalizedStringKey(
                                                     "Get Account Number (Login Required)")
                                             )
-                                .font(Theme.secondaryFont())
+                                            .font(Theme.secondaryFont())
                                             .foregroundColor(Theme.mainColor)
                                             .textCase(.none)
                                             .multilineTextAlignment(.leading)
@@ -455,8 +471,8 @@ struct APIConfigurationView: View {
                                         .padding(.bottom, 30)
                                     }
                                     .background(Theme.mainBackground)
-                            }
-                            .padding(.horizontal, 20)
+                                }
+                                .padding(.horizontal, 20)
                                 .padding(.top, 16)
                             }
                         }
@@ -511,7 +527,7 @@ struct APIConfigurationView: View {
                                                     DetailRow(
                                                         title: "MPAN", value: point.mpan
                                                     )
-                                .padding(.horizontal, 20)
+                                                    .padding(.horizontal, 20)
                                                     .padding(.vertical, 4)
 
                                                     if let meters = point.meters {
@@ -566,7 +582,7 @@ struct APIConfigurationView: View {
 
                                                             VStack(alignment: .leading, spacing: 4)
                                                             {
-                            HStack {
+                                                                HStack {
                                                                     DetailRow(
                                                                         title: "Tariff",
                                                                         value: agreement.tariff_code
@@ -632,7 +648,7 @@ struct APIConfigurationView: View {
                                                                         title: "Valid To",
                                                                         date: validTo
                                                                     )
-                            .padding(.horizontal, 20)
+                                                                    .padding(.horizontal, 20)
                                                                     .padding(.vertical, 4)
                                                                     .foregroundColor(
                                                                         isExpired
@@ -642,8 +658,8 @@ struct APIConfigurationView: View {
                                                                 }
                                                             }
                                                             .padding(.vertical, 8)
-                            .background(
-                                Theme.secondaryBackground
+                                                            .background(
+                                                                Theme.secondaryBackground
                                                                     .opacity(isExpired ? 0.5 : 1)
                                                             )
                                                             .clipShape(
@@ -653,7 +669,7 @@ struct APIConfigurationView: View {
                                                             if agIndex < sortedAgreements.count - 1
                                                             {
                                                                 Divider()
-                                    .padding(.horizontal, 20)
+                                                                    .padding(.horizontal, 20)
                                                                     .padding(.vertical, 8)
                                                                     .opacity(0.3)
                                                             }
@@ -746,13 +762,13 @@ struct APIConfigurationView: View {
                                                                         title: "Tariff",
                                                                         value: agreement.tariff_code
                                                                     )
-                                    
-                                    Spacer()
-                                    
+
+                                                                    Spacer()
+
                                                                     // Status indicator
                                                                     if isExpired {
                                                                         Text("Expired")
-                                        .font(Theme.subFont())
+                                                                            .font(Theme.subFont())
                                                                             .foregroundColor(
                                                                                 .red.opacity(0.8)
                                                                             )
@@ -781,8 +797,8 @@ struct APIConfigurationView: View {
                                                                                     )
                                                                             )
                                                                     }
-                                }
-                                .padding(.horizontal, 20)
+                                                                }
+                                                                .padding(.horizontal, 20)
                                                                 .padding(.vertical, 4)
 
                                                                 if let validFrom = agreement
@@ -807,7 +823,7 @@ struct APIConfigurationView: View {
                                                                         title: "Valid To",
                                                                         date: validTo
                                                                     )
-                            .padding(.horizontal, 20)
+                                                                    .padding(.horizontal, 20)
                                                                     .padding(.vertical, 4)
                                                                     .foregroundColor(
                                                                         isExpired
@@ -851,7 +867,7 @@ struct APIConfigurationView: View {
                     }
 
                     // Remove Account Access button
-                    if !globalSettings.settings.apiKey.isEmpty || !accountNumberInput.isEmpty {
+                    if hasAccountData && globalSettings.settings.accountData != nil {
                         Button(action: {
                             showDeleteAPIKeyWarning = true
                         }) {
@@ -870,27 +886,27 @@ struct APIConfigurationView: View {
                         .padding(.vertical, 16)
                         .padding(.bottom, 30)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 0) {
                         Text(LocalizedStringKey("Guide"))
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                             .padding(.horizontal, 20)
                             .padding(.bottom, 8)
-                        
+
                         GuideView()
                             .padding()
                             .background(Theme.secondaryBackground)
                     }
                     .padding(.bottom, 30)
-                    
+
                     VStack(alignment: .leading, spacing: 0) {
                         Text(LocalizedStringKey("GDPR (UK) and Data Usage Declaration"))
                             .font(Theme.subFont())
                             .foregroundColor(Theme.secondaryTextColor)
                             .padding(.horizontal, 20)
                             .padding(.bottom, 8)
-                        
+
                         GDPRDeclarationView()
                             .padding()
                             .background(Theme.secondaryBackground)
@@ -915,25 +931,44 @@ struct APIConfigurationView: View {
         ) {
             Button(LocalizedStringKey("Cancel"), role: .cancel) {}
             Button(LocalizedStringKey("Delete"), role: .destructive) {
-                // Clear all account-related data
-                withAnimation {
-                    globalSettings.settings.apiKey = ""
-                    globalSettings.settings.accountNumber = nil
-                    accountNumberInput = ""
-                    globalSettings.settings.accountData = nil
-                globalSettings.settings.electricityMPAN = nil
-                globalSettings.settings.electricityMeterSerialNumber = nil
-                    hasAccountData = false
+                Task {
+                    await cleanupAccountData()
                 }
             }
+            .disabled(isCleaningUp)
         } message: {
             Text(
                 LocalizedStringKey(
-                    "This will delete your:\n• API Key\n• Account Number\n• Meter Information\n• Account Data\n\nYou will need to re-enter your account information to access your energy data."
+                    "This will delete your:\n• API Key\n• Account Number\n• Meter Information\n• Account Data\n• Consumption History\n• Tariff Calculations\n\nYou will need to re-enter your account information to access your energy data."
                 ))
         }
+        .alert(
+            LocalizedStringKey("Error"),
+            isPresented: .init(
+                get: { cleanupError != nil },
+                set: { if !$0 { cleanupError = nil } }
+            )
+        ) {
+            Button(LocalizedStringKey("OK"), role: .cancel) {
+                cleanupError = nil
+            }
+        } message: {
+            if let error = cleanupError {
+                Text(LocalizedStringKey(error))
+            }
+        }
+        .overlay {
+            if isCleaningUp {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .tint(.white)
+                    .scaleEffect(1.5)
+            }
+        }
     }
-    
+
     private func confirmAccountNumber() async {
         isFetchingAccount = true
         fetchError = nil
@@ -962,8 +997,8 @@ struct APIConfigurationView: View {
             await MainActor.run {
                 print("❌ Error fetching account: \(error.localizedDescription)")
                 withAnimation(.smooth) {
-            fetchError = error.localizedDescription
-        isFetchingAccount = false
+                    fetchError = error.localizedDescription
+                    isFetchingAccount = false
                     hasAccountData = false
                 }
             }
@@ -1075,6 +1110,58 @@ struct APIConfigurationView: View {
             }
         }
     }
+
+    private func cleanupAccountData() async {
+        isCleaningUp = true
+        cleanupError = nil
+
+        do {
+            // 1. First clear all account-related settings
+            withAnimation {
+                // Clear account credentials
+                globalSettings.settings.apiKey = ""
+                globalSettings.settings.accountNumber = nil
+
+                // Clear account data and related information
+                globalSettings.settings.accountData = nil
+                globalSettings.settings.electricityMPAN = nil
+                globalSettings.settings.electricityMeterSerialNumber = nil
+
+                // Clear view state
+                accountNumberInput = ""
+                hasAccountData = false
+            }
+
+            // 2. Delete consumption and tariff calculation data
+            let context = PersistenceController.shared.container.viewContext
+
+            // Only clean necessary entities
+            let entitiesToDelete = [
+                "TariffCalculationEntity",
+                "EConsumAgile",
+            ]
+
+            for entityName in entitiesToDelete {
+                let fetchReq: NSFetchRequest<NSFetchRequestResult> = NSFetchRequest(
+                    entityName: entityName)
+                let deleteReq = NSBatchDeleteRequest(fetchRequest: fetchReq)
+                try await context.perform {
+                    try context.execute(deleteReq)
+                }
+            }
+
+            // Save context after deletions
+            try await context.perform {
+                try context.save()
+            }
+
+            isCleaningUp = false
+        } catch {
+            print("❌ Error cleaning up account data: \(error)")
+            isCleaningUp = false
+            cleanupError = error.localizedDescription
+        }
+    }
 }
 
 struct RegionLookupView: View {
@@ -1084,14 +1171,14 @@ struct RegionLookupView: View {
     @State private var isLoading = false
     @State private var error: String?
     @Binding var lookupError: String?
-    
+
     // Repository for region lookup
     private let ratesRepo = RatesRepository.shared
-    
+
     // Cache for postcode lookup results
     @AppStorage("postcode_region_cache") private var postcodeRegionCacheData: Data = Data()
     @AppStorage("invalid_postcodes") private var invalidPostcodesData: Data = Data()
-    
+
     private var postcodeRegionCache: [String: String] {
         get {
             (try? JSONDecoder().decode([String: String].self, from: postcodeRegionCacheData)) ?? [:]
@@ -1100,7 +1187,7 @@ struct RegionLookupView: View {
             postcodeRegionCacheData = (try? JSONEncoder().encode(newValue)) ?? Data()
         }
     }
-    
+
     private var invalidPostcodes: Set<String> {
         get {
             (try? JSONDecoder().decode(Set<String>.self, from: invalidPostcodesData)) ?? []
@@ -1109,7 +1196,7 @@ struct RegionLookupView: View {
             invalidPostcodesData = (try? JSONEncoder().encode(newValue)) ?? Data()
         }
     }
-    
+
     var body: some View {
         HStack {
             if isLoading {
@@ -1151,46 +1238,47 @@ struct RegionLookupView: View {
             }
         }
     }
-    
+
     private func lookupRegion() async {
         guard !postcode.isEmpty else { return }
-        
+
         let cleanedPostcode = postcode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        
+
         // Check cache first
         if let cachedRegion = postcodeRegionCache[cleanedPostcode] {
             region = cachedRegion
             lookupError = nil
             return
         }
-        
+
         // Check invalid postcodes
         if invalidPostcodes.contains(cleanedPostcode) {
             lookupError = "Invalid postcode"
             region = nil
             return
         }
-        
+
         // If it's a single letter between A and P, it's a valid region code
         if cleanedPostcode.count == 1,
-           let firstChar = cleanedPostcode.first,
-           firstChar >= "A" && firstChar <= "P" {
+            let firstChar = cleanedPostcode.first,
+            firstChar >= "A" && firstChar <= "P"
+        {
             region = cleanedPostcode
             lookupError = nil
             return
         }
-        
+
         let loadingTask = Task {
             try? await Task.sleep(nanoseconds: 150_000_000)
             if !Task.isCancelled {
                 isLoading = true
             }
         }
-        
+
         error = nil
         region = nil
         lookupError = nil
-        
+
         do {
             if let fetchedRegion = try await ratesRepo.fetchRegionID(for: cleanedPostcode) {
                 self.region = fetchedRegion
@@ -1209,7 +1297,7 @@ struct RegionLookupView: View {
             lookupError = error.localizedDescription
             self.region = nil
         }
-        
+
         loadingTask.cancel()
         isLoading = false
     }
@@ -1303,7 +1391,7 @@ public struct SettingsView: View {
                             .font(Theme.secondaryFont())
                             .foregroundColor(Theme.mainTextColor)
                         Spacer()
-                        if !globalSettings.settings.apiKey.isEmpty {
+                        if globalSettings.settings.accountData != nil {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                         }
@@ -1311,7 +1399,7 @@ public struct SettingsView: View {
                 }
                 .customListRow()
             }
-            
+
             // Only show Region Lookup if we don't have account data
             if globalSettings.settings.accountData == nil {
                 Section(
@@ -1335,18 +1423,22 @@ public struct SettingsView: View {
                             ],
                             linkURL: URL(
                                 string: "https://octopus.energy/blog/regional-pricing-explained/"),
-                            linkText: LocalizedStringKey("How zonal pricing could make bills cheaper")
+                            linkText: LocalizedStringKey(
+                                "How zonal pricing could make bills cheaper")
                         )
                     }
                 ) {
                     ZStack(alignment: .trailing) {
                         let displayValue = Binding(
                             get: {
-                                globalSettings.settings.regionInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                                globalSettings.settings.regionInput.trimmingCharacters(
+                                    in: .whitespacesAndNewlines)
                             },
                             set: { newValue in
                                 // Validate input: either a postcode or a single letter A-P
-                                let cleaned = newValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                                let cleaned = newValue.trimmingCharacters(
+                                    in: .whitespacesAndNewlines
+                                ).uppercased()
                                 if cleaned.isEmpty {
                                     globalSettings.settings.regionInput = cleaned
                                 } else if cleaned.count == 1 && cleaned >= "A" && cleaned <= "P" {
@@ -1358,7 +1450,7 @@ public struct SettingsView: View {
                                 }
                             }
                         )
-                        
+
                         TextField(
                             LocalizedStringKey("Postcode or Region Code"),
                             text: displayValue,
@@ -1373,7 +1465,7 @@ public struct SettingsView: View {
                         .font(Theme.secondaryFont())
                         .foregroundColor(Theme.mainTextColor)
                         .padding(.trailing, 35)
-                        
+
                         HStack(spacing: 4) {
                             let input = globalSettings.settings.regionInput.trimmingCharacters(
                                 in: .whitespacesAndNewlines
@@ -1401,7 +1493,7 @@ public struct SettingsView: View {
                         .padding(.trailing, 8)
                     }
                     .customListRow()
-                    
+
                     let input = globalSettings.settings.regionInput.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ).uppercased()
@@ -1472,6 +1564,36 @@ public struct SettingsView: View {
                 .font(Theme.secondaryFont())
                 .foregroundColor(Theme.mainTextColor)
                 .tint(Theme.secondaryColor)
+                .customListRow()
+            }
+
+            // ----------------------------------
+            // NEW Billing Cycle Day Section
+            // ----------------------------------
+            Section(
+                header: HStack {
+                    Text("Billing Cycle")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .textCase(.none)
+                    Spacer()
+                    InfoButton(
+                        message: LocalizedStringKey(
+                            "Set your billing cycle start day to match your Octopus Energy bill. This helps in accurately tracking your energy costs across billing periods."
+                        ),
+                        title: LocalizedStringKey("Billing Cycle"),
+                        mediaItems: []
+                    )
+                }
+            ) {
+                Stepper(value: $globalSettings.settings.billingDay, in: 1...31) {
+                    Text(
+                        LocalizedStringKey(
+                            "Billing Start Day: \(globalSettings.settings.billingDay)")
+                    )
+                    .font(Theme.secondaryFont())
+                    .foregroundColor(Theme.mainTextColor)
+                }
                 .customListRow()
             }
         }
