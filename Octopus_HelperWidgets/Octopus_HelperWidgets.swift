@@ -248,24 +248,15 @@ final class OctopusWidgetProvider: NSObject, AppIntentTimelineProvider {
         }
     }
 
-    /// Compute next half-hour intervals (±2 min) to create timeline entry points.
+    /// Compute next half-hour intervals to create timeline entry points.
     private func computeRefreshSlots(from initial: Date) -> [Date] {
         var result = [initial]
-        let cal = Calendar.current
         var cursor = initial
 
         for _ in 0..<8 {  // ~4 hours
             cursor = nextHalfHour(from: cursor)
-            // 2 min before
-            if let prev2 = cal.date(byAdding: .minute, value: -2, to: cursor) {
-                result.append(prev2)
-            }
-            // exact half-hour
+            // exact half-hour only
             result.append(cursor)
-            // 2 min after
-            if let plus2 = cal.date(byAdding: .minute, value: 2, to: cursor) {
-                result.append(plus2)
-            }
         }
         return result.sorted()
     }
