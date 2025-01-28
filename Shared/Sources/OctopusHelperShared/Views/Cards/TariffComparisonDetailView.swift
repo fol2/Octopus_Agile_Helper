@@ -450,7 +450,7 @@ extension TariffComparisonDetailView {
         defer { isCalculatingMonthlyRates = false }
 
         do {
-            guard let (startDate, endDate) = calculateOverlapPeriod() else {
+            guard let (startDate, endDate) = getMonthlyTrendRange() else {
                 monthlyRates = []
                 return
             }
@@ -529,6 +529,24 @@ extension TariffComparisonDetailView {
         } catch {
             monthlyRatesError = error
             monthlyRates = []
+        }
+    }
+
+    private func getMonthlyTrendRange() -> (Date, Date)? {
+        if isManualPlan {
+            guard let consumptionStart = consumptionVM.minInterval,
+                let consumptionEnd = consumptionVM.maxInterval
+            else {
+                return nil
+            }
+            return (consumptionStart, consumptionEnd)
+        } else {
+            // For actual plans, use available_from and today
+            guard let availableFrom = selectedProduct?.value(forKey: "available_from") as? Date
+            else {
+                return nil
+            }
+            return (availableFrom, Date())
         }
     }
 }
@@ -741,16 +759,20 @@ private struct ComparisonInsightCard: View {
         let df = DateFormatter()
         df.dateStyle = .medium
 
+        // Adjust end date for display (subtract one day)
+        let displayEndDate = Calendar.current.date(byAdding: .day, value: -1, to: end) ?? end
+
         // If in same year, only show year once
         let calendar = Calendar.current
-        if calendar.component(.year, from: start) == calendar.component(.year, from: end) {
+        if calendar.component(.year, from: start) == calendar.component(.year, from: displayEndDate)
+        {
             df.setLocalizedDateFormatFromTemplate("d MMM")
             let s = df.string(from: start)
             df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
-            let e = df.string(from: end)
+            let e = df.string(from: displayEndDate)
             return "\(s) - \(e)"
         }
-        return "\(df.string(from: start)) - \(df.string(from: end))"
+        return "\(df.string(from: start)) - \(df.string(from: displayEndDate))"
     }
 }
 
@@ -947,8 +969,7 @@ private struct MonthlyTrendsCard: View {
         .chartXScale(range: .plotDimension(padding: 0))
         .chartPlotStyle { plotContent in
             plotContent
-                .padding(.horizontal, 0)
-                .padding(.leading, 16)
+                .padding(.horizontal, 4)
         }
         .chartOverlay { proxy in
             GeometryReader { geo in
