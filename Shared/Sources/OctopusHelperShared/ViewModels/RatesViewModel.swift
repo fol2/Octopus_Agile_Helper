@@ -1166,25 +1166,37 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
 
 extension RatesViewModel {
     /// Returns the earliest `valid_from` and the latest `valid_to` for a given product code.
-    /// If no rates, returns an empty range that won't contain anything.
+    /// If no rates, returns a zero-length range (e.g., `now...now`) to represent empty coverage.
     func coverageInterval(for productCode: String) -> ClosedRange<Date> {
-        guard let state = productStates[productCode], !state.allRates.isEmpty else {
-            return Date.distantFuture...Date.distantPast  // an "empty" range
+        // 1) Check if we have a RatesState and non-empty local rates
+        guard let state = productStates[productCode],
+            !state.allRates.isEmpty
+        else {
+            // Return a degenerate range => coverage check will fail
+            let now = Date()
+            return now...now
         }
-        let all = state.allRates
 
-        // Earliest valid_from
+        // 2) Find the earliest valid_from
         let earliest =
-            all.compactMap {
-                $0.value(forKey: "valid_from") as? Date
-            }.min() ?? .distantFuture
+            state.allRates
+            .compactMap { $0.value(forKey: "valid_from") as? Date }
+            .min() ?? Date()
 
-        // Latest valid_to
+        // 3) Find the latest valid_to
         let latest =
-            all.compactMap {
-                $0.value(forKey: "valid_to") as? Date
-            }.max() ?? .distantPast
+            state.allRates
+            .compactMap { $0.value(forKey: "valid_to") as? Date }
+            .max() ?? Date()
 
-        return earliest...latest
+        // 4) Construct a valid range (earliest <= latest).
+        //    If your data might have open-ended intervals, handle them here.
+        if earliest <= latest {
+            return earliest...latest
+        } else {
+            // If the data is somehow reversed, fallback to zero-length range
+            let now = Date()
+            return now...now
+        }
     }
 }

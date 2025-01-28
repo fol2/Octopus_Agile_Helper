@@ -977,6 +977,10 @@ public struct TariffComparisonCardView: View {
     @MainActor
     private func recalcCompareTariff(start: Date, end: Date) async {
         DebugLogger.debug("🔄 Starting comparison tariff calculation", component: .tariffViewModel)
+
+        // Minimal patch: ensure coverage for the needed date range
+        await ensureRatesCoverage(start: start, end: end)
+
         guard !consumptionVM.consumptionRecords.isEmpty else {
             DebugLogger.debug("⚠️ No consumption records available", component: .tariffViewModel)
             hasDateOverlap = false
@@ -1029,7 +1033,6 @@ public struct TariffComparisonCardView: View {
                         "❌ No tariff code found for product: \(code)", component: .tariffViewModel)
                     throw TariffError.productDetailNotFound(code: code, region: region)
                 }
-
                 currentFullTariffCode = finalCode  // Store the full tariff code
 
                 DebugLogger.debug(
@@ -1049,7 +1052,7 @@ public struct TariffComparisonCardView: View {
                 "❌ Error in recalcCompareTariff: \(error.localizedDescription)",
                 component: .tariffViewModel)
             hasDateOverlap = false
-            currentFullTariffCode = ""  // Clear on error
+            currentFullTariffCode = ""
             await compareTariffVM.calculateCosts(
                 for: currentDate,
                 tariffCode: "",
@@ -2776,6 +2779,35 @@ enum TariffError: LocalizedError, CustomDebugStringConvertible {
             return "API Error: \(e.localizedDescription)"
         case .calculationError(let e):
             return "Calculation Error: \(e.localizedDescription)"
+        }
+    }
+}
+extension TariffComparisonCardView {
+
+    /// Ensures that the local rates fully cover the requested [start ... end] interval.
+    /// If coverage is missing, forces an immediate refresh from the API.
+    fileprivate func ensureRatesCoverage(start: Date, end: Date) async {
+        // 1. Get the stored coverage range for the relevant tariff code
+        //    (defined in Step 3: coverageInterval(for:) within RatesViewModel)
+        let coverage = ratesVM.coverageInterval(for: currentFullTariffCode)
+
+        // 2. Build the user-requested range
+        let requestedInterval = start...end
+
+        // 3. Compare coverage boundaries with requested boundaries
+        let coversLowerBound = coverage.lowerBound <= requestedInterval.lowerBound
+        let coversUpperBound = coverage.upperBound >= requestedInterval.upperBound
+        let fullyCovered = coversLowerBound && coversUpperBound
+
+        // 4. If not fully covered => force fetch
+        if !fullyCovered {
+            print(
+                """
+                ⚠️ ensureRatesCoverage: coverage is [\(coverage.lowerBound) ... \(coverage.upperBound)], \
+                but requested [\(requestedInterval.lowerBound) ... \(requestedInterval.upperBound)] => Fetching now...
+                """)
+
+            await ratesVM.refreshRates(productCode: currentFullTariffCode, force: true)
         }
     }
 }
