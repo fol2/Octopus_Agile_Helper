@@ -5,6 +5,13 @@ import SwiftUI
 public final class ProductDetailRepository: ObservableObject {
     public static let shared = ProductDetailRepository()
 
+    // Cache implementation
+    private let detailCache: NSCache<NSString, NSArray> = {
+        let cache = NSCache<NSString, NSArray>()
+        cache.countLimit = 100  // Limit cache to 100 entries
+        return cache
+    }()
+
     private let context: NSManagedObjectContext
     private let apiClient = OctopusAPIClient.shared
 
@@ -23,25 +30,43 @@ public final class ProductDetailRepository: ObservableObject {
 
     /// Load local detail rows for a given code
     public func loadLocalProductDetail(code: String) async throws -> [NSManagedObject] {
+        // Check cache first
+        if let cached = detailCache.object(forKey: "code_\(code)" as NSString) as? [NSManagedObject]
+        {
+            return cached
+        }
+
         print("loadLocalProductDetail: 🔍 Loading local product detail for code: \(code)")
-        return try await context.perform {
+        let results = try await context.perform {
             let request = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
             request.predicate = NSPredicate(format: "code == %@", code)
             let details = try self.context.fetch(request)
+            // Cache the results
+            self.detailCache.setObject(details as NSArray, forKey: "code_\(code)" as NSString)
             print("loadLocalProductDetail: 📊 Found \(details.count) product details")
 
             return details
         }
+        return results
     }
 
     public func loadLocalProductDetailByTariffCode(tariffCode: String) async throws
         -> [NSManagedObject]
     {
-        try await context.perform {
+        // Check cache first
+        if let cached = detailCache.object(forKey: tariffCode as NSString) as? [NSManagedObject] {
+            return cached
+        }
+
+        let results = try await context.perform {
             let req = NSFetchRequest<NSManagedObject>(entityName: "ProductDetailEntity")
             req.predicate = NSPredicate(format: "tariff_code == %@", tariffCode)
-            return try self.context.fetch(req)
+            let results = try self.context.fetch(req)
+            // Cache the results
+            self.detailCache.setObject(results as NSArray, forKey: tariffCode as NSString)
+            return results
         }
+        return results
     }
 
     /// Fetch all local product details
@@ -88,6 +113,9 @@ public final class ProductDetailRepository: ObservableObject {
     public func upsertProductDetail(json: OctopusSingleProductDetail, code: String) async throws
         -> [NSManagedObject]
     {
+        // Clear cache for this code
+        detailCache.removeObject(forKey: "code_\(code)" as NSString)
+
         print("📝 开始更新/插入产品详情数据...")
         var newDetails: [NSManagedObject] = []
         var totalTariffs = 0
@@ -153,6 +181,13 @@ public final class ProductDetailRepository: ObservableObject {
             try self.context.save()
             print("💾 成功保存到Core Data")
             print("✅ 最终保存的费率详情数量: \(totalTariffs)")
+
+            // Update cache for new/modified tariff codes
+            for detail in newDetails {
+                if let tariffCode = detail.value(forKey: "tariff_code") as? String {
+                    self.detailCache.setObject([detail] as NSArray, forKey: tariffCode as NSString)
+                }
+            }
         }
         return newDetails
     }

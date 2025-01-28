@@ -208,6 +208,8 @@ public struct TariffComparisonCardView: View {
     @State private var calculationError: String? = nil
     @State private var didAutoAdjustRange: Bool = false
 
+    @State private var hasInitialized = false
+
     public init(
         consumptionVM: ConsumptionViewModel,
         ratesVM: RatesViewModel,
@@ -228,7 +230,10 @@ public struct TariffComparisonCardView: View {
             }
             .environment(\.locale, globalSettings.locale)
             .onAppear {
-                handleOnAppear()
+                if !hasInitialized {
+                    handleOnAppear()
+                    hasInitialized = true
+                }
             }
             .task {
                 handleTask()
@@ -2787,6 +2792,11 @@ extension TariffComparisonCardView {
     /// Ensures that the local rates fully cover the requested [start ... end] interval.
     /// If coverage is missing, forces an immediate refresh from the API.
     fileprivate func ensureRatesCoverage(start: Date, end: Date) async {
+        guard !currentFullTariffCode.isEmpty else {
+            DebugLogger.debug(
+                "⏭️ Skipping rate coverage check - empty tariff code", component: .tariffViewModel)
+            return
+        }
         // 1. Get the stored coverage range for the relevant tariff code
         //    (defined in Step 3: coverageInterval(for:) within RatesViewModel)
         let coverage = ratesVM.coverageInterval(for: currentFullTariffCode)

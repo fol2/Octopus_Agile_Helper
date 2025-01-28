@@ -651,7 +651,13 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
     }
 
     /// Public method to refresh rates for a single product
+    private var refreshLocks = [String: NSLock]()
+
     public func refreshRates(productCode: String, force: Bool = false) async {
+        let lock = refreshLocks[productCode] ?? NSLock()
+        defer { lock.unlock() }
+        lock.lock()
+
         // 1) Skip if productCode is empty
         guard !productCode.isEmpty else {
             print("⚠️ Skipping refreshRates: product code is empty")
