@@ -20,38 +20,68 @@ private struct PlanBadgesView: View {
     }
 }
 
-private struct ShinyStarView: View {
-    @State private var isAnimating = false
+private struct PremiumSparkleView: View {
+    @State private var starAngle = Angle.degrees(0)
+    @State private var starScale: CGFloat = 1.0
+    @State private var sparkleTrigger = false
 
     var body: some View {
-        Image(systemName: "star.fill")
-            .foregroundColor(.yellow)
-            .font(Theme.subFont())
-            .overlay(
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.clear, .white.opacity(0.5), .clear]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .rotationEffect(.degrees(45))
-                        .offset(x: isAnimating ? geometry.size.width : -geometry.size.width)
-                        .opacity(0.5)
+        ZStack {
+            // Background glow
+            Image(systemName: "sparkles")
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(
+                    AngularGradient(
+                        gradient: Gradient(colors: [
+                            Theme.secondaryColor,
+                            Theme.mainColor,
+                            Theme.secondaryColor,
+                        ]),
+                        center: .center
+                    )
+                )
+                .blur(radius: 1.5)
+                .scaleEffect(sparkleTrigger ? 1.3 : 0.8)
+                .opacity(sparkleTrigger ? 0.4 : 0.8)
+                .animation(
+                    .easeInOut(duration: 1.8).repeatForever(autoreverses: true),
+                    value: sparkleTrigger
+                )
+
+            // Main sparkle
+            Image(systemName: "sparkle")
+                .symbolRenderingMode(.multicolor)
+                .font(.system(size: 14))
+                .rotationEffect(starAngle)
+                .scaleEffect(starScale)
+                .animation(
+                    .spring(response: 0.3, dampingFraction: 0.2),
+                    value: starScale
+                )
+                .onAppear {
+                    withAnimation(
+                        .easeInOut(duration: 2.8).repeatForever(autoreverses: true)
+                    ) {
+                        starAngle = .degrees(360)
+                    }
+                    sparkleTrigger = true
                 }
-            )
-            .clipShape(Rectangle())
-            .onAppear {
+        }
+        .task {
+            // Random sparkle bursts
+            while true {
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
                 withAnimation(
-                    Animation
-                        .linear(duration: 1.5)
-                        .repeatForever(autoreverses: false)
+                    .interactiveSpring(response: 0.3, dampingFraction: 0.5)
                 ) {
-                    isAnimating = true
+                    starScale = 1.5
+                }
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                withAnimation(.easeOut(duration: 0.4)) {
+                    starScale = 1.0
                 }
             }
+        }
     }
 }
 
@@ -74,7 +104,7 @@ struct InfoSheet: View {
 
                     if viewModel.isPremium {
                         HStack {
-                            ShinyStarView()
+                            PremiumSparkleView()
                             Text(LocalizedStringKey("Premium Feature"))
                                 .font(Theme.titleFont())
                                 .foregroundColor(Theme.mainTextColor)
@@ -84,9 +114,11 @@ struct InfoSheet: View {
                         .padding(.horizontal, 20)
                     }
 
-                    PlanBadgesView(supportedPlans: viewModel.supportedPlans)
-                        .padding(.bottom, 8)
-                        .padding(.horizontal, 20)
+                    if viewModel.isCard {
+                        PlanBadgesView(supportedPlans: viewModel.supportedPlans)
+                            .padding(.bottom, 8)
+                            .padding(.horizontal, 20)
+                    }
 
                     Text(viewModel.message)
                         .font(Theme.secondaryFont())

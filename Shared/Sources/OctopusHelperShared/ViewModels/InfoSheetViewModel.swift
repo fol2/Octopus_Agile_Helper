@@ -10,6 +10,7 @@ final class InfoSheetViewModel: ObservableObject {
     let linkText: LocalizedStringKey?
     let isPremium: Bool
     let supportedPlans: [SupportedPlan]
+    let isCard: Bool
 
     init(
         title: LocalizedStringKey,
@@ -18,7 +19,8 @@ final class InfoSheetViewModel: ObservableObject {
         linkURL: URL? = nil,
         linkText: LocalizedStringKey? = nil,
         isPremium: Bool = false,
-        supportedPlans: [SupportedPlan] = [.any]
+        supportedPlans: [SupportedPlan] = [.any],
+        isCard: Bool = false
     ) {
         self.title = title
         self.message = message
@@ -27,6 +29,7 @@ final class InfoSheetViewModel: ObservableObject {
         self.linkText = linkText
         self.isPremium = isPremium
         self.supportedPlans = supportedPlans
+        self.isCard = isCard
     }
 
     convenience init(from definition: CardDefinition) {
@@ -37,7 +40,8 @@ final class InfoSheetViewModel: ObservableObject {
             linkURL: definition.learnMoreURL,
             linkText: "Learn more",
             isPremium: definition.isPremium,
-            supportedPlans: definition.supportedPlans
+            supportedPlans: definition.supportedPlans,
+            isCard: true
         )
     }
 }
