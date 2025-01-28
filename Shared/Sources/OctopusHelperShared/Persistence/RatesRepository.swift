@@ -613,4 +613,29 @@ public final class RatesRepository: ObservableObject {
             try await task.value
         }
     }
+
+    /// Get the latest standing charge values for a tariff code
+    /// Returns a tuple of (excluding VAT, including VAT) values, or nil if no standing charge found
+    public func getLatestStandingCharge(tariffCode: String) async throws -> (
+        excVAT: Double, incVAT: Double
+    )? {
+        let charges = try await fetchStandingChargesByTariffCode(tariffCode)
+
+        // Find the most recent standing charge
+        let latestCharge = charges.max { a, b in
+            let aDate = a.value(forKey: "valid_from") as? Date ?? .distantPast
+            let bDate = b.value(forKey: "valid_from") as? Date ?? .distantPast
+            return aDate < bDate
+        }
+
+        // Extract the values if found
+        if let charge = latestCharge,
+            let excVAT = charge.value(forKey: "value_excluding_vat") as? Double,
+            let incVAT = charge.value(forKey: "value_including_vat") as? Double
+        {
+            return (excVAT: excVAT, incVAT: incVAT)
+        }
+
+        return nil
+    }
 }

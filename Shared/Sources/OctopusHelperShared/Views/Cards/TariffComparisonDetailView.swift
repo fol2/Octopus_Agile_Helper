@@ -260,19 +260,16 @@ private struct ComparisonInsightCard: View {
             return
         }
 
-        // Get standing charges from RatesViewModel
+        // Get standing charges using the new repository function
         let standingCharges =
             if isManualPlan {
-                (manualStandingChargePencePerDay, manualStandingChargePencePerDay)
-            } else if let currentStandingCharge = ratesVM.currentStandingCharge(
+                (excVAT: manualStandingChargePencePerDay, incVAT: manualStandingChargePencePerDay)
+            } else if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
                 tariffCode: fullTariffCode)
             {
-                (
-                    currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0,
-                    currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0
-                )
+                charges
             } else {
-                (0.0, 0.0)
+                (excVAT: 0.0, incVAT: 0.0)
             }
 
         DebugLogger.shared.log(
@@ -284,8 +281,8 @@ private struct ComparisonInsightCard: View {
                 "selectedPlanCode": selectedPlanCode,
                 "fullTariffCode": fullTariffCode,
                 "showVAT": showVAT,
-                "standingChargeExcVAT": String(standingCharges.0),
-                "standingChargeIncVAT": String(standingCharges.1),
+                "standingChargeExcVAT": String(standingCharges.excVAT),
+                "standingChargeIncVAT": String(standingCharges.incVAT),
             ]
         )
 
@@ -640,16 +637,21 @@ private struct RateAnalysisCard: View {
     let isManualPlan: Bool
     let manualStandingChargePencePerDay: Double
     let fullTariffCode: String
+    @State private var currentStandingCharge: Double = 0.0
 
-    private func getCurrentStandingCharge() -> Double {
+    private func loadStandingCharge() async {
         // Early return for manual plan
         if isManualPlan {
-            return manualStandingChargePencePerDay
+            currentStandingCharge = manualStandingChargePencePerDay
+            return
         }
 
-        // Get standing charge from rates view model
-        guard let currentStandingCharge = ratesVM.currentStandingCharge(tariffCode: fullTariffCode)
-        else {
+        // Get standing charge from repository
+        if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
+            tariffCode: fullTariffCode)
+        {
+            currentStandingCharge = showVAT ? charges.incVAT : charges.excVAT
+        } else {
             DebugLogger.shared.log(
                 "⚠️ No standing charge found",
                 details: [
@@ -657,16 +659,10 @@ private struct RateAnalysisCard: View {
                     "isManualPlan": String(isManualPlan),
                 ]
             )
-            return 0.0
+            currentStandingCharge = 0.0
         }
 
-        // Extract value based on VAT setting
-        let value =
-            showVAT
-            ? (currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0)
-            : (currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0)
-
-        if value == 0.0 {
+        if currentStandingCharge == 0.0 {
             DebugLogger.shared.log(
                 "⚠️ Standing charge value is 0",
                 details: [
@@ -675,8 +671,6 @@ private struct RateAnalysisCard: View {
                 ]
             )
         }
-
-        return value
     }
 
     var body: some View {
@@ -707,7 +701,7 @@ private struct RateAnalysisCard: View {
 
                     rateRow(
                         label: "Standing Charge",
-                        value: getCurrentStandingCharge(),
+                        value: currentStandingCharge,
                         icon: "clock",
                         isDaily: true
                     )
@@ -720,6 +714,9 @@ private struct RateAnalysisCard: View {
                 .fill(Theme.mainBackground)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
+        .task {
+            await loadStandingCharge()
+        }
     }
 
     private func extractRates(from calc: TariffViewModel.TariffCalculation) -> (
