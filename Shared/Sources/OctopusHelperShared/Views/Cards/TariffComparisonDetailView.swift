@@ -13,11 +13,10 @@ public struct TariffComparisonDetailView: View {
     let manualRatePencePerKWh: Double
     let manualStandingChargePencePerDay: Double
     let selectedProduct: NSManagedObject?
-    let standingChargeExcVAT: Double
-    let standingChargeIncVAT: Double
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
     @ObservedObject var consumptionVM: ConsumptionViewModel
+    @ObservedObject var ratesVM: RatesViewModel
     @Binding var currentDate: Date
     @Binding var selectedInterval: CompareIntervalType
     @Binding var overlapStart: Date?
@@ -43,11 +42,10 @@ public struct TariffComparisonDetailView: View {
         manualRatePencePerKWh: Double,
         manualStandingChargePencePerDay: Double,
         selectedProduct: NSManagedObject?,
-        standingChargeExcVAT: Double,
-        standingChargeIncVAT: Double,
         globalSettings: GlobalSettingsManager,
         compareTariffVM: TariffViewModel,
         consumptionVM: ConsumptionViewModel,
+        ratesVM: RatesViewModel,
         currentDate: Binding<Date>,
         selectedInterval: Binding<CompareIntervalType>,
         overlapStart: Binding<Date?>,
@@ -59,11 +57,10 @@ public struct TariffComparisonDetailView: View {
         self.manualRatePencePerKWh = manualRatePencePerKWh
         self.manualStandingChargePencePerDay = manualStandingChargePencePerDay
         self.selectedProduct = selectedProduct
-        self.standingChargeExcVAT = standingChargeExcVAT
-        self.standingChargeIncVAT = standingChargeIncVAT
         self.globalSettings = globalSettings
         self.compareTariffVM = compareTariffVM
         self.consumptionVM = consumptionVM
+        self.ratesVM = ratesVM
         self._currentDate = currentDate
         self._selectedInterval = selectedInterval
         self._overlapStart = overlapStart
@@ -86,8 +83,11 @@ public struct TariffComparisonDetailView: View {
                     isManualPlan: isManualPlan,
                     selectedPlanCode: selectedPlanCode,
                     fullTariffCode: fullTariffCode,
+                    manualRatePencePerKWh: manualRatePencePerKWh,
+                    manualStandingChargePencePerDay: manualStandingChargePencePerDay,
                     globalSettings: globalSettings,
-                    compareTariffVM: compareTariffVM
+                    compareTariffVM: compareTariffVM,
+                    ratesVM: ratesVM
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -95,12 +95,11 @@ public struct TariffComparisonDetailView: View {
                 // Rate Analysis Card
                 RateAnalysisCard(
                     compareTariffVM: compareTariffVM,
+                    ratesVM: ratesVM,
                     showVAT: globalSettings.settings.showRatesWithVAT,
                     isManualPlan: isManualPlan,
                     manualStandingChargePencePerDay: manualStandingChargePencePerDay,
-                    fullTariffCode: fullTariffCode,
-                    standingChargeExcVAT: standingChargeExcVAT,
-                    standingChargeIncVAT: standingChargeIncVAT
+                    fullTariffCode: fullTariffCode
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -177,8 +176,11 @@ private struct ComparisonInsightCard: View {
     let isManualPlan: Bool
     let selectedPlanCode: String
     let fullTariffCode: String
+    let manualRatePencePerKWh: Double
+    let manualStandingChargePencePerDay: Double
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
+    @ObservedObject var ratesVM: RatesViewModel
 
     // New state properties for calculations and animation
     @State private var accountCalculation: TariffViewModel.TariffCalculation?
@@ -258,6 +260,35 @@ private struct ComparisonInsightCard: View {
             return
         }
 
+        // Get standing charges from RatesViewModel
+        let standingCharges =
+            if isManualPlan {
+                (manualStandingChargePencePerDay, manualStandingChargePencePerDay)
+            } else if let currentStandingCharge = ratesVM.currentStandingCharge(
+                tariffCode: fullTariffCode)
+            {
+                (
+                    currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0,
+                    currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0
+                )
+            } else {
+                (0.0, 0.0)
+            }
+
+        DebugLogger.shared.log(
+            "🔄 Starting cost calculation",
+            details: [
+                "startDate": startDate.description,
+                "endDate": endDate.description,
+                "isManualPlan": isManualPlan,
+                "selectedPlanCode": selectedPlanCode,
+                "fullTariffCode": fullTariffCode,
+                "showVAT": showVAT,
+                "standingChargeExcVAT": String(standingCharges.0),
+                "standingChargeIncVAT": String(standingCharges.1),
+            ]
+        )
+
         isCalculating = true
         defer { isCalculating = false }
 
@@ -266,8 +297,19 @@ private struct ComparisonInsightCard: View {
             let accountData: OctopusAccountResponse?
             if let rawData = globalSettings.settings.accountData {
                 accountData = try JSONDecoder().decode(OctopusAccountResponse.self, from: rawData)
+                DebugLogger.shared.log(
+                    "📊 Account data loaded",
+                    details: [
+                        "accountNumber": accountData?.number ?? "N/A",
+                        "propertiesCount": String(accountData?.properties.count ?? 0),
+                    ]
+                )
             } else {
                 accountData = nil
+                DebugLogger.shared.log(
+                    "⚠️ No account data available",
+                    details: ["status": "No account data found"]
+                )
             }
 
             // Calculate for account tariff
@@ -281,21 +323,42 @@ private struct ComparisonInsightCard: View {
             )
             if let calc = compareTariffVM.currentCalculation {
                 accountCalculation = calc
+                DebugLogger.shared.log(
+                    "💰 Account tariff calculation completed",
+                    details: [
+                        "totalKWh": String(calc.totalKWh),
+                        "costExcVAT": String(calc.costExcVAT),
+                        "costIncVAT": String(calc.costIncVAT),
+                        "avgRateExcVAT": String(calc.averageUnitRateExcVAT),
+                        "avgRateIncVAT": String(calc.averageUnitRateIncVAT),
+                        "standingChargeExcVAT": String(calc.standingChargeExcVAT),
+                        "standingChargeIncVAT": String(calc.standingChargeIncVAT),
+                        "configuredStandingChargeExcVAT": String(standingCharges.0),
+                        "configuredStandingChargeIncVAT": String(standingCharges.1),
+                    ]
+                )
+            } else {
+                DebugLogger.shared.log(
+                    "⚠️ No account calculation results",
+                    details: ["status": "No calculation available"]
+                )
             }
 
             // Calculate for comparison tariff
             let tariffCode = isManualPlan ? "manualPlan" : fullTariffCode
             let compareAccountData = isManualPlan ? buildMockAccountResponseForManual() : nil
 
-            // Log the tariff code we're trying to calculate
-            DebugLogger.shared.log(
-                "🔄 Calculating costs for tariff",
-                details: [
-                    "tariffCode": tariffCode,
-                    "startDate": startDate.description,
-                    "endDate": endDate.description,
-                ]
-            )
+            if isManualPlan {
+                DebugLogger.shared.log(
+                    "📝 Manual plan details",
+                    details: [
+                        "manualRatePencePerKWh": String(manualRatePencePerKWh),
+                        "manualStandingChargePencePerDay": String(manualStandingChargePencePerDay),
+                        "standingChargeExcVAT": String(standingCharges.0),
+                        "standingChargeIncVAT": String(standingCharges.1),
+                    ]
+                )
+            }
 
             await compareTariffVM.calculateCosts(
                 for: startDate,
@@ -307,6 +370,38 @@ private struct ComparisonInsightCard: View {
             )
             if let calc = compareTariffVM.currentCalculation {
                 compareCalculation = calc
+                DebugLogger.shared.log(
+                    "💰 Compare tariff calculation completed",
+                    details: [
+                        "tariffCode": tariffCode,
+                        "totalKWh": String(calc.totalKWh),
+                        "costExcVAT": String(calc.costExcVAT),
+                        "costIncVAT": String(calc.costIncVAT),
+                        "avgRateExcVAT": String(calc.averageUnitRateExcVAT),
+                        "avgRateIncVAT": String(calc.averageUnitRateIncVAT),
+                        "standingChargeExcVAT": String(calc.standingChargeExcVAT),
+                        "standingChargeIncVAT": String(calc.standingChargeIncVAT),
+                    ]
+                )
+
+                // Log cost comparison
+                let costDiff =
+                    (showVAT ? calc.costIncVAT : calc.costExcVAT)
+                    - (showVAT
+                        ? accountCalculation?.costIncVAT ?? 0 : accountCalculation?.costExcVAT ?? 0)
+                DebugLogger.shared.log(
+                    "💡 Cost comparison",
+                    details: [
+                        "difference": String(costDiff),
+                        "percentageDifference": String(calculateSavingsPercentage() * 100),
+                        "showingVAT": String(showVAT),
+                    ]
+                )
+            } else {
+                DebugLogger.shared.log(
+                    "⚠️ No comparison calculation results",
+                    details: ["status": "No calculation available"]
+                )
             }
         } catch let apiError as OctopusAPIError {
             self.error = apiError
@@ -559,12 +654,49 @@ private struct ComparisonInsightCard: View {
 // MARK: - Rate Analysis Card
 private struct RateAnalysisCard: View {
     @ObservedObject var compareTariffVM: TariffViewModel
+    @ObservedObject var ratesVM: RatesViewModel
     let showVAT: Bool
     let isManualPlan: Bool
     let manualStandingChargePencePerDay: Double
     let fullTariffCode: String
-    let standingChargeExcVAT: Double
-    let standingChargeIncVAT: Double
+
+    private func getCurrentStandingCharge() -> Double {
+        // Early return for manual plan
+        if isManualPlan {
+            return manualStandingChargePencePerDay
+        }
+
+        // Get standing charge from rates view model
+        guard let currentStandingCharge = ratesVM.currentStandingCharge(tariffCode: fullTariffCode)
+        else {
+            DebugLogger.shared.log(
+                "⚠️ No standing charge found",
+                details: [
+                    "tariffCode": fullTariffCode,
+                    "isManualPlan": String(isManualPlan),
+                ]
+            )
+            return 0.0
+        }
+
+        // Extract value based on VAT setting
+        let value =
+            showVAT
+            ? (currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0)
+            : (currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0)
+
+        if value == 0.0 {
+            DebugLogger.shared.log(
+                "⚠️ Standing charge value is 0",
+                details: [
+                    "tariffCode": fullTariffCode,
+                    "showVAT": String(showVAT),
+                ]
+            )
+        }
+
+        return value
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -591,14 +723,10 @@ private struct RateAnalysisCard: View {
                         value: rates.highest,
                         icon: "arrow.up.circle"
                     )
-                    // Use cached standing charge
-                    let dailyStandingCharge =
-                        isManualPlan
-                        ? manualStandingChargePencePerDay
-                        : (showVAT ? standingChargeIncVAT : standingChargeExcVAT)
+
                     rateRow(
                         label: "Standing Charge",
-                        value: dailyStandingCharge,
+                        value: getCurrentStandingCharge(),
                         icon: "clock",
                         isDaily: true
                     )
@@ -645,6 +773,16 @@ private struct RateAnalysisCard: View {
                 .font(Theme.subFont())
                 .foregroundColor(Theme.mainTextColor)
         }
+    }
+
+    private func logStandingChargeError(_ error: String, details: [String: String] = [:]) {
+        DebugLogger.shared.log(
+            "⚠️ Standing charge error: \(error)",
+            details: details.merging([
+                "tariffCode": fullTariffCode,
+                "isManualPlan": String(isManualPlan),
+            ]) { (_, new) in new }
+        )
     }
 }
 

@@ -343,11 +343,10 @@ public struct TariffComparisonCardView: View {
             manualStandingChargePencePerDay: compareSettings.settings
                 .manualStandingChargePencePerDay,
             selectedProduct: selectedProduct,
-            standingChargeExcVAT: charges.excVAT,
-            standingChargeIncVAT: charges.incVAT,
             globalSettings: globalSettings,
             compareTariffVM: compareTariffVM,
             consumptionVM: consumptionVM,
+            ratesVM: ratesVM,
             currentDate: $currentDate,
             selectedInterval: $selectedInterval,
             overlapStart: $overlapStart,
