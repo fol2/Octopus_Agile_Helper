@@ -3,38 +3,70 @@ import CoreData
 import OctopusHelperShared
 import SwiftUI
 
+/// Main Detail View
 @available(iOS 17.0, *)
-// MARK: - Main Detail View
 public struct TariffComparisonDetailView: View {
     @Environment(\.dismiss) var dismiss
+
+    // MARK: - Input Properties
     let selectedPlanCode: String
     let fullTariffCode: String
     let isManualPlan: Bool
     let manualRatePencePerKWh: Double
     let manualStandingChargePencePerDay: Double
     let selectedProduct: NSManagedObject?
+
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
     @ObservedObject var consumptionVM: ConsumptionViewModel
     @ObservedObject var ratesVM: RatesViewModel
+
     @Binding var currentDate: Date
     @Binding var selectedInterval: CompareIntervalType
     @Binding var overlapStart: Date?
     @Binding var overlapEnd: Date?
 
-    // Add new states for animations
+    // MARK: - State for Calculations & Data
     @State private var showContent = false
-    @State private var selectedInsightTab = 0
 
-    // New state properties for calculations and animation
-    @State private var accountCalculation: TariffViewModel.TariffCalculation?
-    @State private var compareCalculation: TariffViewModel.TariffCalculation?
-    @State private var isCalculating = false
-    @State private var error: Error?
-    @State private var animatedDifference: Double = 0
-    @State private var animatedPercentage: Double = 0
-    @State private var displayNumber: Int = 0
+    /// Holds the official account data (decoded from JSON in GlobalSettings)
+    @State private var accountData: OctopusAccountResponse? = nil
 
+    /// The combined monthly calculations for both "savedAccount" and "compare" tariff
+    @State private var monthlyCalculations: MonthlyCalculationsData? = nil
+    @State private var isCalculatingMonthly = false
+    @State private var monthlyCalculationError: Error? = nil
+
+    /// Summaries for the entire overlap period (sums of monthly)
+    @State private var accountTotals: TariffViewModel.TariffCalculation?
+    @State private var compareTotals: TariffViewModel.TariffCalculation?
+
+    /// Rate analysis data
+    @State private var isFetchingRateAnalysis = false
+    @State private var rateAnalysisError: Error? = nil
+    @State private var currentStandingCharge: Double = 0.0
+    @State private var highestRate: Double = 0.0
+    @State private var lowestRate: Double = 0.0
+
+    /// For monthly trends chart
+    @State private var monthlyRates: [MonthlyRate] = []
+    @State private var isCalculatingMonthlyRates = false
+    @State private var monthlyRatesError: Error? = nil
+
+    /// Helper for showing a user-friendly name of the compared plan
+    private var comparedPlanName: String {
+        if isManualPlan {
+            return "Manual Plan"
+        } else if let product = selectedProduct,
+            let displayName = product.value(forKey: "display_name") as? String
+        {
+            return displayName
+        } else {
+            return "Compared Plan"
+        }
+    }
+
+    // MARK: - Initialization
     public init(
         selectedPlanCode: String,
         fullTariffCode: String,
@@ -57,19 +89,23 @@ public struct TariffComparisonDetailView: View {
         self.manualRatePencePerKWh = manualRatePencePerKWh
         self.manualStandingChargePencePerDay = manualStandingChargePencePerDay
         self.selectedProduct = selectedProduct
+
         self.globalSettings = globalSettings
         self.compareTariffVM = compareTariffVM
         self.consumptionVM = consumptionVM
         self.ratesVM = ratesVM
+
         self._currentDate = currentDate
         self._selectedInterval = selectedInterval
         self._overlapStart = overlapStart
         self._overlapEnd = overlapEnd
     }
 
+    // MARK: - Body
     public var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+
                 // Header
                 headerSection
                     .opacity(showContent ? 1 : 0)
@@ -77,45 +113,52 @@ public struct TariffComparisonDetailView: View {
 
                 // Quick Comparison Card
                 ComparisonInsightCard(
+                    accountTotals: accountTotals,
+                    compareTotals: compareTotals,
+                    isCalculating: isCalculatingMonthly,
+                    error: monthlyCalculationError,
                     showVAT: globalSettings.settings.showRatesWithVAT,
-                    consumptionVM: consumptionVM,
-                    selectedProduct: selectedProduct,
-                    isManualPlan: isManualPlan,
-                    selectedPlanCode: selectedPlanCode,
-                    fullTariffCode: fullTariffCode,
-                    manualRatePencePerKWh: manualRatePencePerKWh,
-                    manualStandingChargePencePerDay: manualStandingChargePencePerDay,
-                    globalSettings: globalSettings,
-                    compareTariffVM: compareTariffVM,
-                    ratesVM: ratesVM
+                    comparedPlanName: comparedPlanName,
+                    overlapDateRange: monthlyCalculations?.dateRange
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
 
                 // Rate Analysis Card
                 RateAnalysisCard(
-                    compareTariffVM: compareTariffVM,
-                    ratesVM: ratesVM,
-                    showVAT: globalSettings.settings.showRatesWithVAT,
                     isManualPlan: isManualPlan,
                     manualStandingChargePencePerDay: manualStandingChargePencePerDay,
-                    fullTariffCode: fullTariffCode
+                    fullTariffCode: fullTariffCode,
+                    currentStandingCharge: currentStandingCharge,
+                    highestRate: highestRate,
+                    lowestRate: lowestRate,
+                    compareTotals: compareTotals,
+                    isFetching: isFetchingRateAnalysis,
+                    error: rateAnalysisError,
+                    showVAT: globalSettings.settings.showRatesWithVAT
+                )
+                .opacity(showContent ? 1 : 0)
+                .offset(y: showContent ? 0 : 20)
+
+                // Monthly Comparison Table
+                MonthlyComparisonTable(
+                    monthlyCalculations: monthlyCalculations,
+                    isCalculating: isCalculatingMonthly,
+                    showVAT: globalSettings.settings.showRatesWithVAT
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
 
                 // Monthly Trends Card
                 MonthlyTrendsCard(
-                    compareTariffVM: compareTariffVM,
-                    consumptionVM: consumptionVM,
-                    showVAT: globalSettings.settings.showRatesWithVAT,
-                    selectedProduct: selectedProduct,
+                    monthlyRates: monthlyRates,
                     isManualPlan: isManualPlan,
                     manualRatePencePerKWh: manualRatePencePerKWh,
-                    fullTariffCode: fullTariffCode
+                    showVAT: globalSettings.settings.showRatesWithVAT
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
+
             }
             .padding(.horizontal)
             .padding(.top)
@@ -145,6 +188,23 @@ public struct TariffComparisonDetailView: View {
                 showContent = true
             }
         }
+        // Load data in a single task
+        .task {
+            // 1) Load account data from GlobalSettings
+            if let rawData = globalSettings.settings.accountData {
+                self.accountData = try? JSONDecoder().decode(
+                    OctopusAccountResponse.self, from: rawData)
+            }
+
+            // 2) Calculate monthly data for "savedAccount" vs. "compare"
+            await calculateMonthlyData()
+
+            // 3) Fetch rate analysis data
+            await fetchRateAnalysis()
+
+            // 4) Calculate monthly average rates for the chart
+            await calculateMonthlyRates()
+        }
     }
 
     // MARK: - Header Section
@@ -168,154 +228,102 @@ public struct TariffComparisonDetailView: View {
     }
 }
 
-// MARK: - Comparison Insight Card
-@MainActor
-private struct ComparisonInsightCard: View {
-    private let calculationRepository = TariffCalculationRepository(
-        consumptionRepository: .shared,
-        ratesRepository: .shared
-    )
-    let showVAT: Bool
-    @ObservedObject var consumptionVM: ConsumptionViewModel
-    let selectedProduct: NSManagedObject?
-    let isManualPlan: Bool
-    let selectedPlanCode: String
-    let fullTariffCode: String
-    let manualRatePencePerKWh: Double
-    let manualStandingChargePencePerDay: Double
-    @ObservedObject var globalSettings: GlobalSettingsManager
-    @ObservedObject var compareTariffVM: TariffViewModel
-    @ObservedObject var ratesVM: RatesViewModel
+// MARK: - Parent-Level Data Structures & Methods
+@available(iOS 17.0, *)
+extension TariffComparisonDetailView {
 
-    // New state properties for calculations and animation
-    @State private var accountCalculation: TariffViewModel.TariffCalculation?
-    @State private var compareCalculation: TariffViewModel.TariffCalculation?
-    @State private var isCalculating = false
-    @State private var error: Error?
-    @State private var animatedDifference: Double = 0
-    @State private var animatedPercentage: Double = 0
-    @State private var displayNumber: Int = 0
+    /// Used to hold the final monthly calculations for both account & compare tariffs.
+    struct MonthlyCalculationsData {
+        let months: [(start: Date, end: Date)]
+        let accountCalculations: [NSManagedObject]
+        let compareCalculations: [NSManagedObject]
+        let dateRange: (start: Date, end: Date)
 
-    private func calculateOverlapPeriod() -> (start: Date, end: Date)? {
-        // Get consumption data range
-        guard let consumptionStart = consumptionVM.minInterval,
+        // We can easily compute the overall sums (for the entire date range)
+        var accountTotals: TariffViewModel.TariffCalculation {
+            sumMonthlyCalculations(accountCalculations)
+        }
+        var compareTotals: TariffViewModel.TariffCalculation {
+            sumMonthlyCalculations(compareCalculations)
+        }
+    }
+
+    /// Builds a mock account response for manual plans.
+    private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
+        let now = Date()
+        let dateFormatter = ISO8601DateFormatter()
+        let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
+        let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
+
+        let manualAgreement = OctopusAgreement(
+            tariff_code: "MANUAL",
+            valid_from: fromStr,
+            valid_to: toStr)
+        let mp = OctopusElectricityMP(
+            mpan: "0000000000000",
+            meters: [OctopusElecMeter(serial_number: "MANUAL")],
+            agreements: [manualAgreement]
+        )
+        let prop = OctopusProperty(
+            id: 0,
+            electricity_meter_points: [mp],
+            gas_meter_points: nil,
+            address_line_1: nil,
+            moved_in_at: nil,
+            postcode: nil
+        )
+        return OctopusAccountResponse(number: "manualAccount", properties: [prop])
+    }
+
+    /// Determines the overall overlap period from consumption data / product availability.
+    private func calculateOverlapPeriod() -> (Date, Date)? {
+        guard
+            let consumptionStart = consumptionVM.minInterval,
             let consumptionEnd = consumptionVM.maxInterval
         else {
-            DebugLogger.shared.log(
-                "⚠️ calculatedOverlapPeriod: Missing consumption data",
-                details: [
-                    "minInterval": String(describing: consumptionVM.minInterval),
-                    "maxInterval": String(describing: consumptionVM.maxInterval),
-                ]
-            )
             return nil
         }
 
-        // Calculate start date
         let startDate: Date
         if isManualPlan {
             startDate = consumptionStart
-            DebugLogger.shared.log(
-                "📅 Using manual plan start date",
-                details: ["startDate": startDate]
-            )
         } else if let product = selectedProduct,
             let availableFrom = product.value(forKey: "available_from") as? Date
         {
             startDate = max(consumptionStart, availableFrom)
-            DebugLogger.shared.log(
-                "📅 Using product start date",
-                details: [
-                    "startDate": startDate,
-                    "availableFrom": availableFrom,
-                    "consumptionStart": consumptionStart,
-                ]
-            )
         } else {
             startDate = consumptionStart
-            DebugLogger.shared.log(
-                "📅 Using consumption start date",
-                details: ["startDate": startDate]
-            )
         }
 
-        // For end date, we use consumptionEnd for calculation
-        // but display the previous day since consumptionEnd represents the end of that day's data
-        let calendar = Calendar.current
-        let displayEndDate =
-            calendar.date(byAdding: .day, value: -1, to: consumptionEnd) ?? consumptionEnd
+        // The "endDate" for cost calculations is consumptionEnd (which typically means
+        // data up to the end of that day).
+        // We'll keep it simple and just use consumptionEnd as final.
+        let endDate = consumptionEnd
 
-        DebugLogger.shared.log(
-            "📅 End date",
-            details: [
-                "consumptionEnd": consumptionEnd,
-                "displayEndDate": displayEndDate,
-            ]
-        )
-
-        return (startDate, displayEndDate)
+        return (startDate, endDate)
     }
 
-    private func calculateCosts() async {
-        guard let (startDate, endDate) = calculateOverlapPeriod() else {
-            DebugLogger.shared.log(
-                "⚠️ No valid overlap period found",
-                details: ["error": "Could not calculate overlap period"]
-            )
-            return
-        }
-
-        // Get standing charges using the new repository function
-        let standingCharges =
-            if isManualPlan {
-                (excVAT: manualStandingChargePencePerDay, incVAT: manualStandingChargePencePerDay)
-            } else if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
-                tariffCode: fullTariffCode)
-            {
-                charges
-            } else {
-                (excVAT: 0.0, incVAT: 0.0)
-            }
-
-        DebugLogger.shared.log(
-            "🔄 Starting cost calculation",
-            details: [
-                "startDate": startDate.description,
-                "endDate": endDate.description,
-                "isManualPlan": isManualPlan,
-                "selectedPlanCode": selectedPlanCode,
-                "fullTariffCode": fullTariffCode,
-                "showVAT": showVAT,
-                "standingChargeExcVAT": String(standingCharges.excVAT),
-                "standingChargeIncVAT": String(standingCharges.incVAT),
-            ]
-        )
-
-        isCalculating = true
-        defer { isCalculating = false }
+    /// Calculates the monthly breakdown for both "savedAccount" and "compareTariff", storing
+    /// everything in `monthlyCalculations`, plus sets `accountTotals` and `compareTotals`.
+    private func calculateMonthlyData() async {
+        isCalculatingMonthly = true
+        defer { isCalculatingMonthly = false }
 
         do {
-            // Get account data for savedAccount tariff
-            let accountData: OctopusAccountResponse?
-            if let rawData = globalSettings.settings.accountData {
-                accountData = try JSONDecoder().decode(OctopusAccountResponse.self, from: rawData)
-                DebugLogger.shared.log(
-                    "📊 Account data loaded",
-                    details: [
-                        "accountNumber": accountData?.number ?? "N/A",
-                        "propertiesCount": String(accountData?.properties.count ?? 0),
-                    ]
-                )
-            } else {
-                accountData = nil
-                DebugLogger.shared.log(
-                    "⚠️ No account data available",
-                    details: ["status": "No account data found"]
-                )
+            guard let (startDate, endDate) = calculateOverlapPeriod() else {
+                monthlyCalculations = nil
+                accountTotals = nil
+                compareTotals = nil
+                return
             }
 
-            // Calculate for account tariff
             let months = breakdownDateRangeIntoMonths(start: startDate, end: endDate)
+
+            // Prepare relevant tariff code
+            let compareTariffCode = isManualPlan ? "manualPlan" : fullTariffCode
+            let compareAccountData = isManualPlan ? buildMockAccountResponseForManual() : nil
+
+            // 1) Account tariff
             let storedAccountCalcs = try await fetchStoredMonthlyCalculations(
                 months: months,
                 tariffCode: "savedAccount"
@@ -326,258 +334,242 @@ private struct ComparisonInsightCard: View {
                 tariffCode: "savedAccount",
                 accountData: accountData
             )
-            accountCalculation = sumMonthlyCalculations(allAccountCalcs)
 
-            // Calculate for comparison tariff
-            let tariffCode = isManualPlan ? "manualPlan" : fullTariffCode
-            let compareAccountData = isManualPlan ? buildMockAccountResponseForManual() : nil
-
+            // 2) Compare tariff
             let storedCompareCalcs = try await fetchStoredMonthlyCalculations(
                 months: months,
-                tariffCode: tariffCode
+                tariffCode: compareTariffCode
             )
             let allCompareCalcs = try await calculateMissingMonths(
                 months: months,
                 storedCalculations: storedCompareCalcs,
-                tariffCode: tariffCode,
+                tariffCode: compareTariffCode,
                 accountData: compareAccountData
             )
-            compareCalculation = sumMonthlyCalculations(allCompareCalcs)
 
-            // Log results
-            if let acct = accountCalculation {
-                DebugLogger.shared.log(
-                    "💰 Account tariff calculation completed",
-                    details: [
-                        "totalKWh": String(acct.totalKWh),
-                        "costExcVAT": String(acct.costExcVAT),
-                        "costIncVAT": String(acct.costIncVAT),
-                        "avgRateExcVAT": String(acct.averageUnitRateExcVAT),
-                        "avgRateIncVAT": String(acct.averageUnitRateIncVAT),
-                        "standingChargeExcVAT": String(acct.standingChargeExcVAT),
-                        "standingChargeIncVAT": String(acct.standingChargeIncVAT),
-                    ]
-                )
-            }
-
-            if let comp = compareCalculation {
-                DebugLogger.shared.log(
-                    "💰 Compare tariff calculation completed",
-                    details: [
-                        "tariffCode": tariffCode,
-                        "totalKWh": String(comp.totalKWh),
-                        "costExcVAT": String(comp.costExcVAT),
-                        "costIncVAT": String(comp.costIncVAT),
-                        "avgRateExcVAT": String(comp.averageUnitRateExcVAT),
-                        "avgRateIncVAT": String(comp.averageUnitRateIncVAT),
-                        "standingChargeExcVAT": String(comp.standingChargeExcVAT),
-                        "standingChargeIncVAT": String(comp.standingChargeIncVAT),
-                    ]
-                )
-            }
-
-            // Log cost comparison
-            let costDiff = costDifference
-            DebugLogger.shared.log(
-                "💡 Cost comparison",
-                details: [
-                    "difference": String(costDiff),
-                    "percentageDifference": String(calculateSavingsPercentage() * 100),
-                    "showingVAT": String(showVAT),
-                ]
+            let newData = MonthlyCalculationsData(
+                months: months,
+                accountCalculations: allAccountCalcs,
+                compareCalculations: allCompareCalcs,
+                dateRange: (startDate, endDate)
             )
-        } catch let apiError as OctopusAPIError {
-            self.error = apiError
-            DebugLogger.shared.log(
-                "❌ API Error calculating costs",
-                details: [
-                    "error": apiError.localizedDescription,
-                    "errorType": "OctopusAPIError",
-                ]
-            )
+
+            self.monthlyCalculations = newData
+            self.accountTotals = newData.accountTotals
+            self.compareTotals = newData.compareTotals
+
         } catch {
-            self.error = error
-            DebugLogger.shared.log(
-                "❌ Error calculating costs",
-                details: [
-                    "error": error.localizedDescription,
-                    "errorType": String(describing: type(of: error)),
-                ]
-            )
+            monthlyCalculationError = error
+            monthlyCalculations = nil
+            accountTotals = nil
+            compareTotals = nil
         }
     }
 
-    private func buildMockAccountResponseForManual() -> OctopusAccountResponse {
-        let now = Date()
-        let dateFormatter = ISO8601DateFormatter()
-        let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
-        let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
-        let manualAgreement = OctopusAgreement(
-            tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
-        let mp = OctopusElectricityMP(
-            mpan: "0000000000000",
-            meters: [OctopusElecMeter(serial_number: "MANUAL")],
-            agreements: [manualAgreement]
-        )
-        let prop = OctopusProperty(
-            id: 0, electricity_meter_points: [mp], gas_meter_points: nil, address_line_1: nil,
-            moved_in_at: nil, postcode: nil)
-        return OctopusAccountResponse(number: "manualAccount", properties: [prop])
-    }
+    /// Fetches standing charge, highest rate, and lowest rate for the chosen tariff.
+    private func fetchRateAnalysis() async {
+        isFetchingRateAnalysis = true
+        defer { isFetchingRateAnalysis = false }
 
-    private var accountCostDV: Double {
-        guard let calc = accountCalculation else { return 0 }
-        return showVAT ? calc.costIncVAT : calc.costExcVAT
-    }
+        do {
+            // 1) Standing charge
+            if isManualPlan {
+                currentStandingCharge = manualStandingChargePencePerDay
+            } else if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
+                tariffCode: fullTariffCode)
+            {
+                currentStandingCharge =
+                    globalSettings.settings.showRatesWithVAT
+                    ? charges.incVAT : charges.excVAT
+            }
 
-    private var compareCostDV: Double {
-        guard let calc = compareCalculation else { return 0 }
-        return showVAT ? calc.costIncVAT : calc.costExcVAT
-    }
+            // 2) Highest / lowest rate
+            if !isManualPlan {
+                if let rates = try? await RatesRepository.shared.fetchRatesByTariffCode(
+                    fullTariffCode)
+                {
+                    let showVAT = globalSettings.settings.showRatesWithVAT
 
-    private var costDifference: Double {
-        compareCostDV - accountCostDV
-    }
+                    // Highest
+                    if let highest = rates.max(by: { a, b in
+                        let aVal =
+                            (a.value(
+                                forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                                as? Double) ?? 0
+                        let bVal =
+                            (b.value(
+                                forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                                as? Double) ?? 0
+                        return aVal < bVal
+                    }),
+                        let highestVal = highest.value(
+                            forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                            as? Double
+                    {
+                        highestRate = highestVal
+                    }
 
-    private func calculateSavingsPercentage() -> Double {
-        guard accountCostDV > 0 else { return 0 }
-        return min(abs(costDifference) / accountCostDV, 1.0)
-    }
+                    // Lowest
+                    if let lowest = rates.min(by: { a, b in
+                        let aVal =
+                            (a.value(
+                                forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                                as? Double) ?? 999_999
+                        let bVal =
+                            (b.value(
+                                forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                                as? Double) ?? 999_999
+                        return aVal < bVal
+                    }),
+                        let lowestVal = lowest.value(
+                            forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                            as? Double
+                    {
+                        lowestRate = lowestVal
+                    }
+                }
+            }
 
-    private func calculateSavingsPercentageString() -> String? {
-        guard accountCostDV > 0 else { return nil }
-        let percentage = abs(costDifference) / accountCostDV * 100
-        return String(format: "%.1f%% \(costDifference > 0 ? "increase" : "savings")", percentage)
-    }
-
-    private func startNumberAnimation() async {
-        let targetValue = Int(round(abs(costDifference) / 100))
-        displayNumber = 0
-
-        // Calculate step size based on target value
-        let duration: TimeInterval = 1.5  // Match spring animation duration
-        let steps = min(max(targetValue, 20), 50)  // At least 20 steps, max 50 steps
-        let stepDuration = duration / TimeInterval(steps)
-
-        for step in 1...steps {
-            try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
-            displayNumber = Int(round((Double(step) / Double(steps)) * Double(targetValue)))
+        } catch {
+            rateAnalysisError = error
         }
-        // Ensure we end at exact target
-        displayNumber = targetValue
     }
 
-    // MARK: - View Body
+    // MARK: Monthly Trend Chart Data
+    struct MonthlyRate: Identifiable {
+        let id = UUID()
+        let month: Date
+        let averageRate: Double
+    }
+
+    /// Calculates the monthly average rates (time-weighted) for display in the bar chart.
+    private func calculateMonthlyRates() async {
+        isCalculatingMonthlyRates = true
+        defer { isCalculatingMonthlyRates = false }
+
+        do {
+            guard let (startDate, endDate) = calculateOverlapPeriod() else {
+                monthlyRates = []
+                return
+            }
+
+            var result: [MonthlyRate] = []
+            let calendar = Calendar.current
+
+            // Step through each month in [startDate, endDate]
+            var currentDate = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: startDate))!
+            while currentDate <= endDate {
+                let monthEnd = calendar.date(byAdding: .month, value: 1, to: currentDate)!
+
+                if isManualPlan {
+                    // For manual plan, it's always the same rate
+                    result.append(
+                        MonthlyRate(month: currentDate, averageRate: manualRatePencePerKWh)
+                    )
+                } else {
+                    // Actual plan from DB
+                    if let rates = try? await RatesRepository.shared.fetchRatesByTariffCode(
+                        fullTariffCode)
+                    {
+                        let showVAT = globalSettings.settings.showRatesWithVAT
+
+                        // Filter rates that overlap with [currentDate, monthEnd)
+                        let monthlyRates = rates.filter { rate in
+                            guard
+                                let validFrom = rate.value(forKey: "valid_from") as? Date,
+                                let validTo = rate.value(forKey: "valid_to") as? Date
+                            else {
+                                return false
+                            }
+                            // Overlap if validFrom < monthEnd && validTo > currentDate
+                            return validFrom < monthEnd && validTo > currentDate
+                        }
+
+                        if !monthlyRates.isEmpty {
+                            var totalDuration: TimeInterval = 0
+                            var weightedSum: Double = 0
+
+                            for rateObj in monthlyRates {
+                                guard
+                                    let validFrom = rateObj.value(forKey: "valid_from") as? Date,
+                                    let validTo = rateObj.value(forKey: "valid_to") as? Date,
+                                    let rateVal = rateObj.value(
+                                        forKey: showVAT
+                                            ? "value_including_vat" : "value_excluding_vat")
+                                        as? Double
+                                else {
+                                    continue
+                                }
+
+                                let overlapStart = max(validFrom, currentDate)
+                                let overlapEnd = min(validTo, monthEnd)
+                                let duration = overlapEnd.timeIntervalSince(overlapStart)
+
+                                totalDuration += duration
+                                weightedSum += rateVal * duration
+                            }
+
+                            if totalDuration > 0 {
+                                let avgRate = weightedSum / totalDuration
+                                result.append(MonthlyRate(month: currentDate, averageRate: avgRate))
+                            }
+                        }
+                    }
+                }
+
+                currentDate = monthEnd
+            }
+
+            // Update state
+            self.monthlyRates = result
+
+        } catch {
+            monthlyRatesError = error
+            monthlyRates = []
+        }
+    }
+}
+
+// MARK: - Comparison Insight Card
+@available(iOS 17.0, *)
+private struct ComparisonInsightCard: View {
+    let accountTotals: TariffViewModel.TariffCalculation?
+    let compareTotals: TariffViewModel.TariffCalculation?
+    let isCalculating: Bool
+    let error: Error?
+    let showVAT: Bool
+    let comparedPlanName: String
+    let overlapDateRange: (start: Date, end: Date)?
+
+    // For animated difference gauge
+    @State private var animatedPercentage: Double = 0
+    @State private var displayNumber: Int = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Cost Comparison")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
-            if let (start, end) = calculateOverlapPeriod() {
+            // Reintroduce the date range below the title
+            if let range = overlapDateRange {
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
                         .font(.system(size: 12))
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.8))
-
-                    Text(formatDateRange(start: start, end: end))
+                    Text(formatDateRange(start: range.start, end: range.end))
                         .font(.system(size: 14))
                         .foregroundColor(Theme.secondaryTextColor)
                 }
-                .padding(.bottom, 6)
             }
 
             if let error = error {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
-                        Text("Error")
-                            .font(Theme.mainFont())
-                            .foregroundColor(.red)
-                    }
-                    Text(error.localizedDescription)
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.red.opacity(0.1))
-                )
+                errorView(error)
             } else if isCalculating {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        ProgressView()
-                        Text("Calculating costs...")
-                            .font(Theme.subFont())
-                            .foregroundColor(Theme.secondaryTextColor)
-                    }
-                    Spacer()
-                }
-            } else if let acctCalc = accountCalculation,
-                let cmpCalc = compareCalculation
-            {
-                HStack(spacing: 20) {
-                    // Cost difference visualization
-                    ZStack {
-                        Circle()
-                            .stroke(Theme.secondaryTextColor.opacity(0.2), lineWidth: 8)
-                        Circle()
-                            .trim(from: 0, to: animatedPercentage)
-                            .stroke(
-                                costDifference > 0 ? Color.red : Color.green,
-                                style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                            )
-                            .rotationEffect(.degrees(-90))
-
-                        VStack(spacing: 4) {
-                            Text(costDifference > 0 ? "More" : "Savings")
-                                .font(Theme.subFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                            Text("£\(displayNumber)")
-                                .font(Theme.mainFont())
-                                .foregroundColor(costDifference > 0 ? .red : .green)
-                        }
-                    }
-                    .frame(width: 100, height: 100)
-                    .task {
-                        // Reset animations
-                        animatedDifference = 0
-                        animatedPercentage = 0
-
-                        try? await Task.sleep(for: .milliseconds(100))
-
-                        // Animate to new values
-                        withAnimation(.spring(duration: 1.5, bounce: 0.2)) {
-                            animatedDifference = costDifference
-                            animatedPercentage = calculateSavingsPercentage()
-                        }
-                        // Start number counting animation
-                        await startNumberAnimation()
-                    }
-
-                    // Detailed breakdown
-                    VStack(alignment: .leading, spacing: 8) {
-                        costBreakdownRow(
-                            label: "My Account",
-                            cost: accountCostDV,
-                            color: Theme.secondaryTextColor
-                        )
-                        costBreakdownRow(
-                            label: planName,
-                            cost: compareCostDV,
-                            color: Theme.mainColor
-                        )
-
-                        if let savingsPercentage = calculateSavingsPercentageString() {
-                            Text(savingsPercentage)
-                                .font(Theme.subFont())
-                                .foregroundColor(Theme.secondaryTextColor)
-                        }
-                    }
-                }
+                loadingView
+            } else if let acct = accountTotals, let cmp = compareTotals {
+                contentView(acct: acct, cmp: cmp)
             }
         }
         .padding()
@@ -586,9 +578,124 @@ private struct ComparisonInsightCard: View {
                 .fill(Theme.mainBackground)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
-        .task {
-            await calculateCosts()
+    }
+
+    private func contentView(
+        acct: TariffViewModel.TariffCalculation,
+        cmp: TariffViewModel.TariffCalculation
+    ) -> some View {
+        let accountCostDV = showVAT ? acct.costIncVAT : acct.costExcVAT
+        let compareCostDV = showVAT ? cmp.costIncVAT : cmp.costExcVAT
+        let diff = compareCostDV - accountCostDV
+
+        return HStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .stroke(Theme.secondaryTextColor.opacity(0.2), lineWidth: 8)
+                Circle()
+                    .trim(from: 0, to: animatedPercentage)
+                    .stroke(
+                        diff > 0 ? Color.red : Color.green,
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+
+                VStack(spacing: 4) {
+                    Text(diff > 0 ? "More" : "Savings")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    Text("£\(displayNumber)")
+                        .font(Theme.mainFont())
+                        .foregroundColor(diff > 0 ? .red : .green)
+                }
+            }
+            .frame(width: 100, height: 100)
+            .task {
+                // Animate
+                withAnimation(.spring(duration: 1.5, bounce: 0.2)) {
+                    animatedPercentage = calculateSavingsPercentage(
+                        diff: diff, accountCost: accountCostDV)
+                }
+                await startNumberAnimation(diff: diff)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                costBreakdownRow(
+                    label: "My Account", cost: accountCostDV, color: Theme.secondaryTextColor)
+                costBreakdownRow(
+                    label: comparedPlanName, cost: compareCostDV, color: Theme.mainColor)
+
+                if let pctString = calculateSavingsPercentageString(
+                    diff: diff, accountCost: accountCostDV)
+                {
+                    Text(pctString)
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+            }
         }
+    }
+
+    private var loadingView: some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Calculating costs...")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+            }
+            Spacer()
+        }
+    }
+
+    private func errorView(_ error: Error) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+                Text("Error")
+                    .font(Theme.mainFont())
+                    .foregroundColor(.red)
+            }
+            Text(error.localizedDescription)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.red.opacity(0.1))
+        )
+    }
+
+    // MARK: - Animations
+    private func startNumberAnimation(diff: Double) async {
+        let absValuePounds = abs(diff) / 100.0
+        let targetValue = Int(round(absValuePounds))
+        displayNumber = 0
+
+        let duration: TimeInterval = 1.5
+        let steps = min(max(targetValue, 20), 50)
+        let stepDuration = duration / TimeInterval(steps)
+
+        for step in 1...steps {
+            try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
+            displayNumber = Int(round((Double(step) / Double(steps)) * Double(targetValue)))
+        }
+        displayNumber = targetValue
+    }
+
+    private func calculateSavingsPercentage(diff: Double, accountCost: Double) -> Double {
+        guard accountCost > 0 else { return 0 }
+        return min(abs(diff) / accountCost, 1.0)
+    }
+
+    private func calculateSavingsPercentageString(diff: Double, accountCost: Double) -> String? {
+        guard accountCost > 0 else { return nil }
+        let pct = abs(diff) / accountCost * 100
+        let suffix = diff > 0 ? "increase" : "savings"
+        return String(format: "%.1f%% \(suffix)", pct)
     }
 
     private func costBreakdownRow(label: String, cost: Double, color: Color) -> some View {
@@ -603,97 +710,39 @@ private struct ComparisonInsightCard: View {
         }
     }
 
-    private var planName: String {
-        if isManualPlan {
-            return "Manual Plan"
-        } else if let product = selectedProduct,
-            let displayName = product.value(forKey: "display_name") as? String
-        {
-            return displayName
-        } else {
-            return "Compared Plan"
-        }
-    }
-
+    /// Format the date range as short or medium style
     private func formatDateRange(start: Date, end: Date) -> String {
         let df = DateFormatter()
         df.dateStyle = .medium
 
-        // If in same year, only show year once at the end
+        // If in same year, only show year once
         let calendar = Calendar.current
         if calendar.component(.year, from: start) == calendar.component(.year, from: end) {
             df.setLocalizedDateFormatFromTemplate("d MMM")
-            let startStr = df.string(from: start)
+            let s = df.string(from: start)
             df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
-            let endStr = df.string(from: end)
-            return "\(startStr) - \(endStr)"
-        } else {
-            df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
-            return "\(df.string(from: start)) - \(df.string(from: end))"
+            let e = df.string(from: end)
+            return "\(s) - \(e)"
         }
+        return "\(df.string(from: start)) - \(df.string(from: end))"
     }
 }
 
 // MARK: - Rate Analysis Card
+@available(iOS 17.0, *)
 private struct RateAnalysisCard: View {
-    @ObservedObject var compareTariffVM: TariffViewModel
-    @ObservedObject var ratesVM: RatesViewModel
-    let showVAT: Bool
     let isManualPlan: Bool
     let manualStandingChargePencePerDay: Double
     let fullTariffCode: String
-    @State private var currentStandingCharge: Double = 0.0
-    @State private var highestRate: Double = 0.0
-    @State private var lowestRate: Double = 0.0
 
-    private func loadRates() async {
-        // Load standing charge
-        if isManualPlan {
-            currentStandingCharge = manualStandingChargePencePerDay
-        } else if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
-            tariffCode: fullTariffCode)
-        {
-            currentStandingCharge = showVAT ? charges.incVAT : charges.excVAT
-        }
+    let currentStandingCharge: Double
+    let highestRate: Double
+    let lowestRate: Double
+    let compareTotals: TariffViewModel.TariffCalculation?
 
-        // Load rates
-        if !isManualPlan {
-            if let rates = try? await RatesRepository.shared.fetchRatesByTariffCode(fullTariffCode)
-            {
-                // Get highest rate
-                let highest = rates.max { a, b in
-                    let aValue =
-                        (a.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
-                            as? Double) ?? Double.infinity
-                    let bValue =
-                        (b.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
-                            as? Double) ?? Double.infinity
-                    return aValue < bValue
-                }
-                if let rate = highest?.value(
-                    forKey: showVAT ? "value_including_vat" : "value_excluding_vat") as? Double
-                {
-                    highestRate = rate
-                }
-
-                // Get lowest rate
-                let lowest = rates.min { a, b in
-                    let aValue =
-                        (a.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
-                            as? Double) ?? Double.infinity
-                    let bValue =
-                        (b.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
-                            as? Double) ?? Double.infinity
-                    return aValue < bValue
-                }
-                if let rate = lowest?.value(
-                    forKey: showVAT ? "value_including_vat" : "value_excluding_vat") as? Double
-                {
-                    lowestRate = rate
-                }
-            }
-        }
-    }
+    let isFetching: Bool
+    let error: Error?
+    let showVAT: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -701,33 +750,12 @@ private struct RateAnalysisCard: View {
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
-            if let calc = compareTariffVM.currentCalculation {
-                let rates = extractRates(from: calc)
-
-                VStack(spacing: 12) {
-                    rateRow(
-                        label: "Average Rate",
-                        value: rates.average,
-                        icon: "chart.line.flattrend.xyaxis"
-                    )
-                    rateRow(
-                        label: "Lowest Rate",
-                        value: lowestRate,
-                        icon: "arrow.down.circle"
-                    )
-                    rateRow(
-                        label: "Highest Rate",
-                        value: highestRate,
-                        icon: "arrow.up.circle"
-                    )
-
-                    rateRow(
-                        label: "Standing Charge",
-                        value: currentStandingCharge,
-                        icon: "clock",
-                        isDaily: true
-                    )
-                }
+            if let error = error {
+                errorView(error)
+            } else if isFetching {
+                loadingView()
+            } else {
+                rateDetails()
             }
         }
         .padding()
@@ -736,23 +764,66 @@ private struct RateAnalysisCard: View {
                 .fill(Theme.mainBackground)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
-        .task {
-            await loadRates()
+    }
+
+    private func rateDetails() -> some View {
+        VStack(spacing: 12) {
+            // Show Average Rate if we have comparison totals
+            if let c = compareTotals {
+                let totalKWh = c.totalKWh
+                let stand = showVAT ? c.standingChargeIncVAT : c.standingChargeExcVAT
+                let cost = showVAT ? c.costIncVAT : c.costExcVAT
+                let avgRate = totalKWh > 0 ? (cost - stand) / totalKWh : 0
+                rateRow(label: "Average Rate", value: avgRate, icon: "chart.line.flattrend.xyaxis")
+            }
+
+            // Show Manual Plan text if applicable
+            if isManualPlan {
+                Text("Manual Plan: Fixed Rate")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+            } else {
+                // Only show highest/lowest rates for non-manual plans
+                rateRow(label: "Highest Rate", value: highestRate, icon: "arrow.up.circle")
+                rateRow(label: "Lowest Rate", value: lowestRate, icon: "arrow.down.circle")
+            }
+
+            let sc = isManualPlan ? manualStandingChargePencePerDay : currentStandingCharge
+            rateRow(label: "Standing Charge", value: sc, icon: "clock", isDaily: true)
         }
     }
 
-    private func extractRates(from calc: TariffViewModel.TariffCalculation) -> (
-        average: Double, lowest: Double, highest: Double
-    ) {
-        // Use the total cost minus standing charge divided by total consumption for average rate
-        let avgRate =
-            calc.totalKWh > 0
-            ? ((showVAT ? calc.costIncVAT : calc.costExcVAT)
-                - (showVAT ? calc.standingChargeIncVAT : calc.standingChargeExcVAT)) / calc.totalKWh
-            : 0.0
+    private func loadingView() -> some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Fetching rate analysis...")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+            }
+            Spacer()
+        }
+    }
 
-        // Return actual rates
-        return (average: avgRate, lowest: lowestRate, highest: highestRate)
+    private func errorView(_ error: Error) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+                Text("Error")
+                    .font(Theme.mainFont())
+                    .foregroundColor(.red)
+            }
+            Text(error.localizedDescription)
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.red.opacity(0.1))
+        )
     }
 
     private func rateRow(label: String, value: Double, icon: String, isDaily: Bool = false)
@@ -762,169 +833,32 @@ private struct RateAnalysisCard: View {
             Image(systemName: icon)
                 .foregroundColor(Theme.icon)
                 .frame(width: 24)
-
             Text(label)
                 .font(Theme.subFont())
                 .foregroundColor(Theme.secondaryTextColor)
-
             Spacer()
-
             Text("\(String(format: "%.2f", value))p\(isDaily ? "/day" : "/kWh")")
                 .font(Theme.subFont())
                 .foregroundColor(Theme.mainTextColor)
         }
     }
-
-    private func logStandingChargeError(_ error: String, details: [String: String] = [:]) {
-        DebugLogger.shared.log(
-            "⚠️ Standing charge error: \(error)",
-            details: details.merging([
-                "tariffCode": fullTariffCode,
-                "isManualPlan": String(isManualPlan),
-            ]) { (_, new) in new }
-        )
-    }
 }
 
-// MARK: - Monthly Average Rates Card
+// MARK: - Monthly Trends Card
+@available(iOS 17.0, *)
 private struct MonthlyTrendsCard: View {
-    @ObservedObject var compareTariffVM: TariffViewModel
-    @ObservedObject var consumptionVM: ConsumptionViewModel
-    let showVAT: Bool
-    let selectedProduct: NSManagedObject?
+    let monthlyRates: [TariffComparisonDetailView.MonthlyRate]
+
     let isManualPlan: Bool
     let manualRatePencePerKWh: Double
-    let fullTariffCode: String
+    let showVAT: Bool
 
     // Chart interaction states
     @State private var hoveredMonth: Date? = nil
     @State private var hoveredRate: Double? = nil
-    @State private var tooltipPosition: CGPoint = .zero
     @State private var lastSnappedMonth: Date? = nil
-    @State private var monthlyRates: [MonthlyRate] = []
 
-    // Haptic feedback generator
     private let hapticFeedback = UIImpactFeedbackGenerator(style: .light)
-
-    private struct MonthlyRate: Identifiable {
-        let id = UUID()
-        let month: Date
-        let averageRate: Double
-    }
-
-    private func calculateMonthlyRates() async {
-        // Get date range
-        guard let startDate = getStartDate(),
-            let endDate = getEndDate()
-        else {
-            return
-        }
-
-        // Generate months between start and end
-        let calendar = Calendar.current
-        var currentDate = startDate
-        var newRates: [MonthlyRate] = []
-
-        // For manual plan, just use the fixed rate for all months
-        if isManualPlan {
-            while currentDate <= endDate {
-                newRates.append(
-                    MonthlyRate(
-                        month: currentDate,
-                        averageRate: manualRatePencePerKWh
-                    ))
-                currentDate = calendar.date(byAdding: .month, value: 1, to: currentDate)!
-            }
-        } else {
-            // For actual plans, fetch all rates once and calculate monthly averages
-            if let rates = try? await RatesRepository.shared.fetchRatesByTariffCode(fullTariffCode)
-            {
-                while currentDate <= endDate {
-                    let monthEnd = calendar.date(byAdding: .month, value: 1, to: currentDate)!
-
-                    // Filter rates that overlap with this month
-                    let monthlyRates = rates.filter { rate in
-                        guard let validFrom = rate.value(forKey: "valid_from") as? Date,
-                            let validTo = rate.value(forKey: "valid_to") as? Date
-                        else {
-                            return false
-                        }
-                        // Rate overlaps with the month if:
-                        // 1. Rate starts before month ends AND
-                        // 2. Rate ends after month starts
-                        return validFrom < monthEnd && validTo > currentDate
-                    }
-
-                    if !monthlyRates.isEmpty {
-                        // Calculate time-weighted average for the month
-                        var totalDuration: TimeInterval = 0
-                        var weightedSum: Double = 0
-
-                        for rate in monthlyRates {
-                            guard let validFrom = rate.value(forKey: "valid_from") as? Date,
-                                let validTo = rate.value(forKey: "valid_to") as? Date,
-                                let rateValue = rate.value(
-                                    forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
-                                    as? Double
-                            else {
-                                continue
-                            }
-
-                            // Calculate overlap duration within this month
-                            let overlapStart = max(validFrom, currentDate)
-                            let overlapEnd = min(validTo, monthEnd)
-                            let duration = overlapEnd.timeIntervalSince(overlapStart)
-
-                            totalDuration += duration
-                            weightedSum += rateValue * duration
-                        }
-
-                        if totalDuration > 0 {
-                            let avgRate = weightedSum / totalDuration
-                            newRates.append(
-                                MonthlyRate(
-                                    month: currentDate,
-                                    averageRate: avgRate
-                                ))
-                        }
-                    }
-
-                    currentDate = monthEnd
-                }
-            }
-        }
-
-        // Update state on main thread
-        await MainActor.run {
-            monthlyRates = newRates
-        }
-    }
-
-    private func getStartDate() -> Date? {
-        if isManualPlan {
-            // For manual plan, use consumption start date
-            return consumptionVM.minInterval
-        } else if let product = selectedProduct,
-            let availableFrom = product.value(forKey: "available_from") as? Date
-        {
-            // For actual plan, use product's available_from date
-            return availableFrom
-        }
-        return consumptionVM.minInterval
-    }
-
-    private func getEndDate() -> Date? {
-        // End at consumption data end
-        consumptionVM.maxInterval
-    }
-
-    private var yRange: (Double, Double) {
-        let rates = monthlyRates.map { $0.averageRate }
-        guard !rates.isEmpty else { return (0, 50) }
-        let minVal = min(0, (rates.min() ?? 0) - 2)
-        let maxVal = (rates.max() ?? 0) + 2
-        return (minVal, maxVal)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -939,12 +873,6 @@ private struct MonthlyTrendsCard: View {
             } else {
                 chartView
                     .frame(height: 200)
-
-                // Keep existing Monthly Comparison Table
-                MonthlyComparisonTable(
-                    compareTariffVM: compareTariffVM,
-                    showVAT: showVAT
-                )
             }
         }
         .padding()
@@ -953,20 +881,19 @@ private struct MonthlyTrendsCard: View {
                 .fill(Theme.mainBackground)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
-        .task {
-            await calculateMonthlyRates()
-        }
     }
 
     private var chartView: some View {
-        let (minVal, maxVal) = yRange
+        let range = yRange(monthlyRates)
+        let minVal = range.0
+        let maxVal = range.1
 
-        // Calculate dynamic bar width based on number of bars
-        let maxPossibleBars = 65.0  // same as InteractiveLineChartCardView
-        let currentBars = Double(monthlyRates.count)
+        // Simple dynamic bar width
+        let count = Double(monthlyRates.count)
         let baseWidthPerBar = 5.0
-        let barGapRatio = 0.7  // 70% bar, 30% gap
-        let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
+        let barGapRatio = 0.7
+        let maxPossibleBars = 65.0
+        let totalChunk = (maxPossibleBars / count) * baseWidthPerBar
         let barWidth = totalChunk * barGapRatio
 
         return Chart(monthlyRates) { dataPoint in
@@ -996,7 +923,6 @@ private struct MonthlyTrendsCard: View {
             plotContent
                 .padding(.horizontal, 0)
                 .padding(.leading, 16)
-                .frame(maxWidth: .infinity)
         }
         .chartOverlay { proxy in
             GeometryReader { geo in
@@ -1006,7 +932,7 @@ private struct MonthlyTrendsCard: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { drag in
-                                handleDragChanged(drag: drag, proxy: proxy, geo: geo)
+                                handleDragChanged(drag, proxy: proxy, geo: geo)
                             }
                             .onEnded { _ in
                                 hoveredMonth = nil
@@ -1018,17 +944,39 @@ private struct MonthlyTrendsCard: View {
                 if let month = hoveredMonth,
                     let rate = hoveredRate,
                     let xPos = proxy.position(forX: month),
-                    let plotArea = proxy.plotFrame
+                    let plotFrame = proxy.plotFrame
                 {
-                    let rect = geo[plotArea]
-                    drawTooltip(rect: rect, xPos: xPos, month: month, rate: rate)
+                    let rect = geo[plotFrame]
+
+                    // Vertical highlight
+                    Rectangle()
+                        .fill(Theme.mainColor.opacity(0.3))
+                        .frame(width: 2, height: rect.height)
+                        .position(x: rect.minX + xPos, y: rect.midY)
+
+                    // Tooltip
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(formatMonth(month))
+                            .font(Theme.subFont())
+                        Text("\(String(format: "%.1f", rate))p avg")
+                            .font(Theme.subFont())
+                    }
+                    .padding(6)
+                    .background(Theme.secondaryBackground)
+                    .foregroundStyle(Theme.mainTextColor)
+                    .cornerRadius(6)
+                    .fixedSize()
+                    .position(
+                        x: min(max(rect.minX + xPos, rect.minX + 60), rect.maxX - 60),
+                        y: rect.minY + 20
+                    )
                 }
             }
         }
     }
 
     private func handleDragChanged(
-        drag: DragGesture.Value,
+        _ drag: DragGesture.Value,
         proxy: ChartProxy,
         geo: GeometryProxy
     ) {
@@ -1037,23 +985,17 @@ private struct MonthlyTrendsCard: View {
         let location = drag.location
         let plotRect = geo[plotFrame]
 
-        // Clamp x position to plot bounds
         let clampedX = min(max(location.x, plotRect.minX), plotRect.maxX)
-
-        // Get location in plot
         let locationInPlot = CGPoint(
             x: clampedX - plotRect.minX,
-            y: location.y - plotRect.minY
-        )
+            y: location.y - plotRect.minY)
 
         if let date: Date = proxy.value(atX: locationInPlot.x) {
-            // Find nearest month
             if let nearestMonth = findNearestMonth(to: date) {
                 if nearestMonth != lastSnappedMonth {
                     hapticFeedback.impactOccurred(intensity: 0.7)
                     lastSnappedMonth = nearestMonth
                 }
-
                 hoveredMonth = nearestMonth
                 hoveredRate =
                     monthlyRates.first {
@@ -1065,41 +1007,17 @@ private struct MonthlyTrendsCard: View {
     }
 
     private func findNearestMonth(to date: Date) -> Date? {
-        let calendar = Calendar.current
-        return monthlyRates.min {
+        monthlyRates.min {
             abs($0.month.timeIntervalSince(date)) < abs($1.month.timeIntervalSince(date))
         }?.month
     }
 
-    @ViewBuilder
-    private func drawTooltip(
-        rect: CGRect,
-        xPos: CGFloat,
-        month: Date,
-        rate: Double
-    ) -> some View {
-        // Vertical highlight line
-        Rectangle()
-            .fill(Theme.mainColor.opacity(0.3))
-            .frame(width: 2, height: rect.height)
-            .position(x: rect.minX + xPos, y: rect.midY)
-
-        // Tooltip
-        VStack(alignment: .leading, spacing: 4) {
-            Text(formatMonth(month))
-                .font(Theme.subFont())
-            Text("\(formatRate(rate)) avg")
-                .font(Theme.subFont())
-        }
-        .padding(6)
-        .background(Theme.secondaryBackground)
-        .foregroundStyle(Theme.mainTextColor)
-        .cornerRadius(6)
-        .fixedSize()
-        .position(
-            x: min(max(rect.minX + xPos, rect.minX + 60), rect.maxX - 60),
-            y: rect.minY + 20
-        )
+    private func yRange(_ data: [TariffComparisonDetailView.MonthlyRate]) -> (Double, Double) {
+        guard !data.isEmpty else { return (0, 50) }
+        let vals = data.map { $0.averageRate }
+        let minVal = min(0, vals.min() ?? 0) - 2
+        let maxVal = (vals.max() ?? 0) + 2
+        return (minVal, maxVal)
     }
 
     private func formatMonth(_ date: Date) -> String {
@@ -1107,98 +1025,143 @@ private struct MonthlyTrendsCard: View {
         formatter.dateFormat = "MMM yyyy"
         return formatter.string(from: date)
     }
-
-    private func formatRate(_ rate: Double) -> String {
-        String(format: "%.1fp", rate)
-    }
 }
 
 // MARK: - Monthly Comparison Table
+@available(iOS 17.0, *)
 private struct MonthlyComparisonTable: View {
-    @ObservedObject var compareTariffVM: TariffViewModel
-    let showVAT: Bool
-
-    private struct MonthlyComparison: Identifiable {
+    struct MonthlyComparison: Identifiable {
         let id = UUID()
         let month: Date
         let consumption: Double  // kWh
         let accountCostDV: Double
         let compareCostDV: Double
-
-        var difference: Double {
-            compareCostDV - accountCostDV
-        }
+        var difference: Double { compareCostDV - accountCostDV }
     }
 
-    private var monthlyData: [MonthlyComparison] {
-        // TODO: Replace with actual data from compareTariffVM
-        // This is placeholder data
-        let calendar = Calendar.current
-        let now = Date()
-        return (0..<6).map { monthOffset in
-            let month = calendar.date(byAdding: .month, value: -monthOffset, to: now)!
-            return MonthlyComparison(
-                month: month,
-                consumption: Double.random(in: 200...400),
-                accountCostDV: Double.random(in: 8000...15000),
-                compareCostDV: Double.random(in: 8000...15000)
-            )
-        }
-    }
+    let monthlyCalculations: TariffComparisonDetailView.MonthlyCalculationsData?
+    let isCalculating: Bool
+    let showVAT: Bool
 
     var body: some View {
         VStack(spacing: 16) {
-            // Header
             HStack {
                 Text("Monthly Comparison")
-                    .font(Theme.mainFont2())  // Updated to match other section titles
+                    .font(Theme.mainFont2())
                     .foregroundColor(Theme.mainTextColor)
                 Spacer()
             }
 
-            // Table Header
-            HStack {
-                Text("Month")
-                    .frame(width: 90, alignment: .leading)
-                Text("kWh")
-                    .frame(width: 60, alignment: .trailing)
-                Spacer()
-                Text("Current")
-                    .frame(width: 70, alignment: .trailing)
-                Text("Compare")
-                    .frame(width: 70, alignment: .trailing)
-                Text("Diff")
-                    .frame(width: 70, alignment: .trailing)
-            }
-            .font(Theme.captionFont())
-            .foregroundColor(Theme.secondaryTextColor)
+            if isCalculating {
+                loadingView
+            } else if let data = monthlyCalculations {
+                // Build table data
+                let tableData = buildMonthlyComparisons(data)
 
-            // Table Content
-            VStack(spacing: 12) {
-                ForEach(monthlyData) { data in
-                    HStack {
-                        Text(formatMonth(data.month))
-                            .frame(width: 90, alignment: .leading)
-                        Text(formatConsumption(data.consumption))
-                            .frame(width: 60, alignment: .trailing)
-                        Spacer()
-                        Text(formatCurrency(data.accountCostDV))
-                            .frame(width: 70, alignment: .trailing)
-                        Text(formatCurrency(data.compareCostDV))
-                            .frame(width: 70, alignment: .trailing)
-                        Text(formatDifference(data.difference))
-                            .frame(width: 70, alignment: .trailing)
-                            .foregroundColor(data.difference > 0 ? .red : .green)
-                    }
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.mainTextColor)
+                // Table Header
+                HStack {
+                    Text("Month").frame(width: 90, alignment: .leading)
+                    Text("kWh").frame(width: 60, alignment: .trailing)
+                    Spacer()
+                    Text("Current").frame(width: 70, alignment: .trailing)
+                    Text("Compare").frame(width: 70, alignment: .trailing)
+                    Text("Diff").frame(width: 70, alignment: .trailing)
                 }
+                .font(Theme.captionFont())
+                .foregroundColor(Theme.secondaryTextColor)
+
+                // Table Content
+                VStack(spacing: 12) {
+                    ForEach(tableData) { row in
+                        HStack {
+                            Text(formatMonth(row.month))
+                                .frame(width: 90, alignment: .leading)
+                            Text(formatConsumption(row.consumption))
+                                .frame(width: 60, alignment: .trailing)
+                            Spacer()
+                            Text(formatCurrency(row.accountCostDV))
+                                .frame(width: 70, alignment: .trailing)
+                            Text(formatCurrency(row.compareCostDV))
+                                .frame(width: 70, alignment: .trailing)
+                            Text(formatDifference(row.difference))
+                                .frame(width: 70, alignment: .trailing)
+                                .foregroundColor(row.difference > 0 ? .red : .green)
+                        }
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.mainTextColor)
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 4)
+
+            } else {
+                Text("No monthly calculation data.")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
             }
         }
-        .padding(.vertical, 16)  // Added vertical padding to match other sections
+        .padding(.vertical, 16)
         .padding(.horizontal, 4)
     }
 
+    private func buildMonthlyComparisons(_ data: TariffComparisonDetailView.MonthlyCalculationsData)
+        -> [MonthlyComparison]
+    {
+        // We zip the two arrays of NSManagedObject. Each array has 1 object per month in the same order.
+        // But be mindful: the order is not guaranteed unless we sort them. Let's assume they are in ascending date order, or else sort them.
+
+        let showVatKey = showVAT ? "total_cost_inc_vat" : "total_cost_exc_vat"
+
+        // Sort by period_start in descending order
+        let accountSorted = data.accountCalculations.sorted {
+            guard
+                let a = $0.value(forKey: "period_start") as? Date,
+                let b = $1.value(forKey: "period_start") as? Date
+            else { return false }
+            return a > b  // Changed from < to > for descending order
+        }
+        let compareSorted = data.compareCalculations.sorted {
+            guard
+                let a = $0.value(forKey: "period_start") as? Date,
+                let b = $1.value(forKey: "period_start") as? Date
+            else { return false }
+            return a > b  // Changed from < to > for descending order
+        }
+
+        var result: [MonthlyComparison] = []
+        for (acctObj, compObj) in zip(accountSorted, compareSorted) {
+            let month = (acctObj.value(forKey: "period_start") as? Date) ?? Date()
+            let consumption = acctObj.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
+
+            let acctCost = acctObj.value(forKey: showVatKey) as? Double ?? 0.0
+            let compCost = compObj.value(forKey: showVatKey) as? Double ?? 0.0
+
+            let entry = MonthlyComparison(
+                month: month,
+                consumption: consumption,
+                accountCostDV: acctCost,
+                compareCostDV: compCost
+            )
+            result.append(entry)
+        }
+
+        return result
+    }
+
+    private var loadingView: some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Calculating monthly breakdown...")
+                    .font(Theme.subFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+            }
+            Spacer()
+        }
+    }
+
+    // MARK: - Formatting
     private func formatMonth(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM yyyy"
@@ -1219,12 +1182,13 @@ private struct MonthlyComparisonTable: View {
 }
 
 // MARK: - Product Header View
+@available(iOS 17.0, *)
 private struct ProductHeaderView: View {
     let product: NSManagedObject
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {  // Increased spacing
+        VStack(alignment: .leading, spacing: 16) {
             // Close button
             HStack {
                 Spacer()
@@ -1239,15 +1203,13 @@ private struct ProductHeaderView: View {
             }
 
             // Product name and badges
-            VStack(alignment: .leading, spacing: 8) {  // Changed to VStack
+            VStack(alignment: .leading, spacing: 8) {
                 if let displayName = product.value(forKey: "display_name") as? String {
                     Text(displayName)
-                        .font(.system(size: 36))  // Larger font
+                        .font(.system(size: 36))
                         .foregroundColor(Theme.mainTextColor)
                 }
-
-                // Badges in their own row
-                HStack(spacing: 8) {  // Increased spacing between badges
+                HStack(spacing: 8) {
                     if (product.value(forKey: "is_green") as? Bool) == true {
                         BadgeView("Green", color: .green)
                     }
@@ -1263,7 +1225,7 @@ private struct ProductHeaderView: View {
             // Product description
             if let desc = product.value(forKey: "desc") as? String {
                 Text(desc)
-                    .font(.system(size: 17))  // Larger font
+                    .font(.system(size: 17))
                     .foregroundColor(Theme.secondaryTextColor)
                     .lineSpacing(4)
             }
@@ -1271,15 +1233,14 @@ private struct ProductHeaderView: View {
             // Availability info
             if let availableFrom = product.value(forKey: "available_from") as? Date {
                 Text("Available from: \(formatDate(availableFrom))")
-                    .font(.system(size: 16))  // Larger font
+                    .font(.system(size: 16))
                     .foregroundColor(Theme.secondaryTextColor)
 
-                // Add available to if exists and is before year 2100
                 if let availableTo = product.value(forKey: "available_to") as? Date,
                     Calendar.current.component(.year, from: availableTo) < 2100
                 {
                     Text("Available to: \(formatDate(availableTo))")
-                        .font(.system(size: 16))  // Larger font
+                        .font(.system(size: 16))
                         .foregroundColor(Theme.secondaryTextColor)
                 }
             }
@@ -1293,109 +1254,112 @@ private struct ProductHeaderView: View {
     }
 }
 
+// MARK: - Manual Plan Summary
+@available(iOS 17.0, *)
 private struct ManualPlanSummaryView: View {
     let manualRatePencePerKWh: Double
     let manualStandingChargePencePerDay: Double
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Text("Manual Plan")
-                    .foregroundColor(Theme.mainTextColor)
-                BadgeView("Fixed Rate", color: .purple)
+        VStack(alignment: .leading, spacing: 16) {
+            // Close button
+            HStack {
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
+                        .imageScale(.medium)
+                        .font(.system(size: 24))
+                }
             }
-            Text(
-                "\(String(format: "%.1f", manualRatePencePerKWh))p/kWh + \(String(format: "%.1f", manualStandingChargePencePerDay))p/day"
-            )
-            .font(Theme.captionFont())
-            .foregroundColor(Theme.secondaryTextColor)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text("Manual Plan")
+                        .font(.system(size: 36))
+                        .foregroundColor(Theme.mainTextColor)
+                }
+
+                BadgeView("Fixed Rate", color: .purple)
+
+                Text(
+                    "\(String(format: "%.1f", manualRatePencePerKWh))p/kWh + \(String(format: "%.1f", manualStandingChargePencePerDay))p/day"
+                )
+                .font(.system(size: 17))
+                .foregroundColor(Theme.secondaryTextColor)
+                .padding(.top, 8)
+            }
         }
     }
 }
 
-// MARK: - Cache Types
-private struct CacheInputs: Equatable {
-    let minInterval: Date?
-    let maxInterval: Date?
-    let productId: NSManagedObjectID?
-    let isManual: Bool
+// MARK: - Badge View
+@available(iOS 17.0, *)
 
-    static func == (lhs: CacheInputs, rhs: CacheInputs) -> Bool {
-        lhs.minInterval == rhs.minInterval && lhs.maxInterval == rhs.maxInterval
-            && lhs.productId == rhs.productId && lhs.isManual == rhs.isManual
-    }
-}
-
+// MARK: - Helper Calculation Functions
 @MainActor
 private let calculationRepository = TariffCalculationRepository(
     consumptionRepository: .shared,
     ratesRepository: .shared
 )
 
-// MARK: - Helper Functions
+/// Breaks a given date range into a list of month intervals.
 func breakdownDateRangeIntoMonths(start: Date, end: Date) -> [(start: Date, end: Date)] {
     var months: [(start: Date, end: Date)] = []
     let calendar = Calendar.current
 
     var currentDate = start
     while currentDate < end {
-        // Get start of month
+        // Start of the month
         let monthStart = calendar.date(
             from: calendar.dateComponents([.year, .month], from: currentDate))!
-
-        // Get start of next month
         let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart)!
-
-        // The end date for this month is either the next month start or the overall end date
         let monthEnd = min(nextMonth, end)
 
         months.append((start: max(monthStart, start), end: monthEnd))
-
-        // Move to next month
         currentDate = nextMonth
     }
-
     return months
 }
 
+/// Fetch any monthly calculation objects already in Core Data.
 func fetchStoredMonthlyCalculations(
     months: [(start: Date, end: Date)],
     tariffCode: String
 ) async throws -> [NSManagedObject] {
-    var storedCalculations: [NSManagedObject] = []
-
+    var stored: [NSManagedObject] = []
     for month in months {
-        if let stored = try await calculationRepository.fetchStoredCalculation(
+        if let calc = try await calculationRepository.fetchStoredCalculation(
             tariffCode: tariffCode,
             intervalType: "MONTHLY",
             periodStart: month.start,
             periodEnd: month.end
         ) {
-            storedCalculations.append(stored)
+            stored.append(calc)
         }
     }
-
-    return storedCalculations
+    return stored
 }
 
+/// For each month, if there's no stored calculation, perform a new calculation.
 func calculateMissingMonths(
     months: [(start: Date, end: Date)],
     storedCalculations: [NSManagedObject],
     tariffCode: String,
     accountData: OctopusAccountResponse? = nil
 ) async throws -> [NSManagedObject] {
-    var allCalculations = storedCalculations
+    var all = storedCalculations
 
     for month in months {
-        // Check if we already have this month
         let hasMonth = storedCalculations.contains { calc in
             (calc.value(forKey: "period_start") as? Date) == month.start
                 && (calc.value(forKey: "period_end") as? Date) == month.end
         }
-
         if !hasMonth {
-            // Calculate missing month
-            let calculation: NSManagedObject
+            let calc: NSManagedObject
             if tariffCode == "savedAccount" {
                 guard let accData = accountData else { continue }
                 let results = try await calculationRepository.calculateCostForAccount(
@@ -1404,23 +1368,24 @@ func calculateMissingMonths(
                     endDate: month.end,
                     intervalType: "MONTHLY"
                 )
-                guard let firstResult = results.first else { continue }
-                calculation = firstResult
+                guard let first = results.first else { continue }
+                calc = first
             } else {
-                calculation = try await calculationRepository.calculateCostForPeriod(
+                calc = try await calculationRepository.calculateCostForPeriod(
                     tariffCode: tariffCode,
                     startDate: month.start,
                     endDate: month.end,
                     intervalType: "MONTHLY"
                 )
             }
-            allCalculations.append(calculation)
+            all.append(calc)
         }
     }
 
-    return allCalculations
+    return all
 }
 
+/// Sums an array of monthly calculation objects into a single TariffCalculation struct.
 func sumMonthlyCalculations(_ calculations: [NSManagedObject]) -> TariffViewModel.TariffCalculation
 {
     var totalKWh = 0.0
@@ -1430,19 +1395,23 @@ func sumMonthlyCalculations(_ calculations: [NSManagedObject]) -> TariffViewMode
     var totalStandingChargeIncVAT = 0.0
 
     for calc in calculations {
-        totalKWh += calc.value(forKey: "total_consumption_kwh") as? Double ?? 0.0
-        totalCostExcVAT += calc.value(forKey: "total_cost_exc_vat") as? Double ?? 0.0
-        totalCostIncVAT += calc.value(forKey: "total_cost_inc_vat") as? Double ?? 0.0
+        totalKWh += calc.value(forKey: "total_consumption_kwh") as? Double ?? 0
+        totalCostExcVAT += calc.value(forKey: "total_cost_exc_vat") as? Double ?? 0
+        totalCostIncVAT += calc.value(forKey: "total_cost_inc_vat") as? Double ?? 0
         totalStandingChargeExcVAT +=
-            calc.value(forKey: "standing_charge_cost_exc_vat") as? Double ?? 0.0
+            calc.value(forKey: "standing_charge_cost_exc_vat") as? Double ?? 0
         totalStandingChargeIncVAT +=
-            calc.value(forKey: "standing_charge_cost_inc_vat") as? Double ?? 0.0
+            calc.value(forKey: "standing_charge_cost_inc_vat") as? Double ?? 0
     }
 
     let avgRateExcVAT =
-        totalKWh > 0 ? (totalCostExcVAT - totalStandingChargeExcVAT) / totalKWh : 0.0
+        totalKWh > 0
+        ? (totalCostExcVAT - totalStandingChargeExcVAT) / totalKWh
+        : 0.0
     let avgRateIncVAT =
-        totalKWh > 0 ? (totalCostIncVAT - totalStandingChargeIncVAT) / totalKWh : 0.0
+        totalKWh > 0
+        ? (totalCostIncVAT - totalStandingChargeIncVAT) / totalKWh
+        : 0.0
 
     return TariffViewModel.TariffCalculation(
         periodStart: calculations.first?.value(forKey: "period_start") as? Date ?? Date(),
