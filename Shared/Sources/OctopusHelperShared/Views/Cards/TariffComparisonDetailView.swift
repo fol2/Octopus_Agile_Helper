@@ -119,7 +119,9 @@ public struct TariffComparisonDetailView: View {
                     error: monthlyCalculationError,
                     showVAT: globalSettings.settings.showRatesWithVAT,
                     comparedPlanName: comparedPlanName,
-                    overlapDateRange: monthlyCalculations?.dateRange
+                    overlapDateRange: monthlyCalculations?.dateRange,
+                    consumptionStart: consumptionVM.minInterval,
+                    consumptionEnd: consumptionVM.maxInterval
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -448,7 +450,7 @@ extension TariffComparisonDetailView {
         defer { isCalculatingMonthlyRates = false }
 
         do {
-            guard let (startDate, endDate) = calculateOverlapPeriod() else {
+            guard let (startDate, endDate) = getMonthlyTrendRange() else {
                 monthlyRates = []
                 return
             }
@@ -529,6 +531,24 @@ extension TariffComparisonDetailView {
             monthlyRates = []
         }
     }
+
+    private func getMonthlyTrendRange() -> (Date, Date)? {
+        if isManualPlan {
+            guard let consumptionStart = consumptionVM.minInterval,
+                let consumptionEnd = consumptionVM.maxInterval
+            else {
+                return nil
+            }
+            return (consumptionStart, consumptionEnd)
+        } else {
+            // For actual plans, use available_from and today
+            guard let availableFrom = selectedProduct?.value(forKey: "available_from") as? Date
+            else {
+                return nil
+            }
+            return (availableFrom, Date())
+        }
+    }
 }
 
 // MARK: - Comparison Insight Card
@@ -541,10 +561,34 @@ private struct ComparisonInsightCard: View {
     let showVAT: Bool
     let comparedPlanName: String
     let overlapDateRange: (start: Date, end: Date)?
+    let consumptionStart: Date?
+    let consumptionEnd: Date?
 
     // For animated difference gauge
     @State private var animatedPercentage: Double = 0
     @State private var displayNumber: Int = 0
+
+    init(
+        accountTotals: TariffViewModel.TariffCalculation?,
+        compareTotals: TariffViewModel.TariffCalculation?,
+        isCalculating: Bool,
+        error: Error?,
+        showVAT: Bool,
+        comparedPlanName: String,
+        overlapDateRange: (start: Date, end: Date)?,
+        consumptionStart: Date?,
+        consumptionEnd: Date?
+    ) {
+        self.accountTotals = accountTotals
+        self.compareTotals = compareTotals
+        self.isCalculating = isCalculating
+        self.error = error
+        self.showVAT = showVAT
+        self.comparedPlanName = comparedPlanName
+        self.overlapDateRange = overlapDateRange
+        self.consumptionStart = consumptionStart
+        self.consumptionEnd = consumptionEnd
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -553,12 +597,12 @@ private struct ComparisonInsightCard: View {
                 .foregroundColor(Theme.mainTextColor)
 
             // Reintroduce the date range below the title
-            if let range = overlapDateRange {
+            if let dateRange = overlapDateRange, let consumptionEnd = consumptionEnd {
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
                         .font(.system(size: 12))
                         .foregroundColor(Theme.secondaryTextColor.opacity(0.8))
-                    Text(formatDateRange(start: range.start, end: range.end))
+                    Text(formatDateRange(start: dateRange.start, end: consumptionEnd))
                         .font(.system(size: 14))
                         .foregroundColor(Theme.secondaryTextColor)
                 }
@@ -715,16 +759,20 @@ private struct ComparisonInsightCard: View {
         let df = DateFormatter()
         df.dateStyle = .medium
 
+        // Adjust end date for display (subtract one day)
+        let displayEndDate = Calendar.current.date(byAdding: .day, value: -1, to: end) ?? end
+
         // If in same year, only show year once
         let calendar = Calendar.current
-        if calendar.component(.year, from: start) == calendar.component(.year, from: end) {
+        if calendar.component(.year, from: start) == calendar.component(.year, from: displayEndDate)
+        {
             df.setLocalizedDateFormatFromTemplate("d MMM")
             let s = df.string(from: start)
             df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
-            let e = df.string(from: end)
+            let e = df.string(from: displayEndDate)
             return "\(s) - \(e)"
         }
-        return "\(df.string(from: start)) - \(df.string(from: end))"
+        return "\(df.string(from: start)) - \(df.string(from: displayEndDate))"
     }
 }
 
@@ -921,8 +969,7 @@ private struct MonthlyTrendsCard: View {
         .chartXScale(range: .plotDimension(padding: 0))
         .chartPlotStyle { plotContent in
             plotContent
-                .padding(.horizontal, 0)
-                .padding(.leading, 16)
+                .padding(.horizontal, 4)
         }
         .chartOverlay { proxy in
             GeometryReader { geo in
