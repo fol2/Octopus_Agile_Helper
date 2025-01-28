@@ -211,7 +211,7 @@ extension CardRegistry {
         register(
             CardDefinition(
                 id: .interactiveChart,
-                displayNameKey: "Interactive Rates",
+                displayNameKey: "Interactive Chart",
                 descriptionKey: "A dynamic line chart showing rates, best time ranges, and more.",
                 isPremium: false,
                 makeView: { deps in

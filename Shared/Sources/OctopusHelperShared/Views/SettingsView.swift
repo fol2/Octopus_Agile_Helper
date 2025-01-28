@@ -1397,7 +1397,7 @@ public struct SettingsView: View {
                     Spacer()
                     InfoButton(
                         message: LocalizedStringKey(
-                            "Configure your API key and meter details to access personal consumption data and billing information."
+                            "API Key is optional for most features like viewing Agile rates, price trends, and historical data.\n\nYou only need an API key if you want to access your personal data such as:\n• Your actual consumption data\n• Your billing information\n• Your tariff details\nYour API key is stored securely on your device only and is never shared with app developers or third parties."
                         ),
                         title: LocalizedStringKey("API Configuration"),
                         mediaItems: []
@@ -1543,7 +1543,7 @@ public struct SettingsView: View {
                     Spacer()
                     InfoButton(
                         message: LocalizedStringKey(
-                            "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app. Rate display changes affect how prices are shown (pence vs pounds)."
+                            "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app.\n\nRate display changes affect how prices are shown (pence vs pounds).\n\nVAT display changes affect how VAT is shown (included vs excluded)."
                         ),
                         title: LocalizedStringKey("Preferences"),
                         mediaItems: []
