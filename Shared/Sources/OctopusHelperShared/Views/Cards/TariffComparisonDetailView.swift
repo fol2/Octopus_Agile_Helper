@@ -13,6 +13,8 @@ public struct TariffComparisonDetailView: View {
     let manualRatePencePerKWh: Double
     let manualStandingChargePencePerDay: Double
     let selectedProduct: NSManagedObject?
+    let standingChargeExcVAT: Double
+    let standingChargeIncVAT: Double
     @ObservedObject var globalSettings: GlobalSettingsManager
     @ObservedObject var compareTariffVM: TariffViewModel
     @ObservedObject var consumptionVM: ConsumptionViewModel
@@ -41,6 +43,8 @@ public struct TariffComparisonDetailView: View {
         manualRatePencePerKWh: Double,
         manualStandingChargePencePerDay: Double,
         selectedProduct: NSManagedObject?,
+        standingChargeExcVAT: Double,
+        standingChargeIncVAT: Double,
         globalSettings: GlobalSettingsManager,
         compareTariffVM: TariffViewModel,
         consumptionVM: ConsumptionViewModel,
@@ -55,6 +59,8 @@ public struct TariffComparisonDetailView: View {
         self.manualRatePencePerKWh = manualRatePencePerKWh
         self.manualStandingChargePencePerDay = manualStandingChargePencePerDay
         self.selectedProduct = selectedProduct
+        self.standingChargeExcVAT = standingChargeExcVAT
+        self.standingChargeIncVAT = standingChargeIncVAT
         self.globalSettings = globalSettings
         self.compareTariffVM = compareTariffVM
         self.consumptionVM = consumptionVM
@@ -89,7 +95,12 @@ public struct TariffComparisonDetailView: View {
                 // Rate Analysis Card
                 RateAnalysisCard(
                     compareTariffVM: compareTariffVM,
-                    showVAT: globalSettings.settings.showRatesWithVAT
+                    showVAT: globalSettings.settings.showRatesWithVAT,
+                    isManualPlan: isManualPlan,
+                    manualStandingChargePencePerDay: manualStandingChargePencePerDay,
+                    fullTariffCode: fullTariffCode,
+                    standingChargeExcVAT: standingChargeExcVAT,
+                    standingChargeIncVAT: standingChargeIncVAT
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -549,6 +560,11 @@ private struct ComparisonInsightCard: View {
 private struct RateAnalysisCard: View {
     @ObservedObject var compareTariffVM: TariffViewModel
     let showVAT: Bool
+    let isManualPlan: Bool
+    let manualStandingChargePencePerDay: Double
+    let fullTariffCode: String
+    let standingChargeExcVAT: Double
+    let standingChargeIncVAT: Double
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -575,9 +591,14 @@ private struct RateAnalysisCard: View {
                         value: rates.highest,
                         icon: "arrow.up.circle"
                     )
+                    // Use cached standing charge
+                    let dailyStandingCharge =
+                        isManualPlan
+                        ? manualStandingChargePencePerDay
+                        : (showVAT ? standingChargeIncVAT : standingChargeExcVAT)
                     rateRow(
                         label: "Standing Charge",
-                        value: showVAT ? calc.standingChargeIncVAT : calc.standingChargeExcVAT,
+                        value: dailyStandingCharge,
                         icon: "clock",
                         isDaily: true
                     )
@@ -595,7 +616,13 @@ private struct RateAnalysisCard: View {
     private func extractRates(from calc: TariffViewModel.TariffCalculation) -> (
         average: Double, lowest: Double, highest: Double
     ) {
-        let avgRate = showVAT ? calc.averageUnitRateIncVAT : calc.averageUnitRateExcVAT
+        // Use the total cost minus standing charge divided by total consumption for average rate
+        let avgRate =
+            calc.totalKWh > 0
+            ? ((showVAT ? calc.costIncVAT : calc.costExcVAT)
+                - (showVAT ? calc.standingChargeIncVAT : calc.standingChargeExcVAT)) / calc.totalKWh
+            : 0.0
+
         // Note: Add properties for lowest and highest rates in TariffCalculation
         return (average: avgRate, lowest: avgRate * 0.8, highest: avgRate * 1.2)  // Placeholder
     }

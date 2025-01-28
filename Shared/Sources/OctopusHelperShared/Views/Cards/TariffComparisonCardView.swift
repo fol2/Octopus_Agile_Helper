@@ -267,6 +267,24 @@ public struct TariffComparisonCardView: View {
                 ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
             })
 
+            // Get standing charges
+            let standingChargeExcVAT: Double
+            let standingChargeIncVAT: Double
+            if compareSettings.settings.isManualPlan {
+                standingChargeExcVAT = compareSettings.settings.manualStandingChargePencePerDay
+                standingChargeIncVAT = compareSettings.settings.manualStandingChargePencePerDay
+            } else if let currentStandingCharge = ratesVM.currentStandingCharge(
+                tariffCode: currentFullTariffCode)
+            {
+                standingChargeExcVAT =
+                    currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0
+                standingChargeIncVAT =
+                    currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0
+            } else {
+                standingChargeExcVAT = 0.0
+                standingChargeIncVAT = 0.0
+            }
+
             // Then create the detail view
             TariffComparisonDetailView(
                 selectedPlanCode: compareSettings.settings.selectedPlanCode,
@@ -276,9 +294,12 @@ public struct TariffComparisonCardView: View {
                 manualStandingChargePencePerDay: compareSettings.settings
                     .manualStandingChargePencePerDay,
                 selectedProduct: selectedProduct,
+                standingChargeExcVAT: standingChargeExcVAT,
+                standingChargeIncVAT: standingChargeIncVAT,
                 globalSettings: globalSettings,
                 compareTariffVM: compareTariffVM,
-                consumptionVM: consumptionVM,  // Pass the existing consumptionVM
+                consumptionVM: consumptionVM,
+                ratesVM: ratesVM,
                 currentDate: $currentDate,
                 selectedInterval: $selectedInterval,
                 overlapStart: $overlapStart,
