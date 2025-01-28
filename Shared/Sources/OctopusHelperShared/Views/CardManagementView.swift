@@ -116,6 +116,10 @@ struct CardRowView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @ObservedObject private var refreshManager = CardRefreshManager.shared
     @State private var clockIconTrigger = Date()
+    @State private var isPremium = false
+    @State private var starAngle = Angle.degrees(0)
+    @State private var starScale: CGFloat = 1.0
+    @State private var sparkleTrigger = false
     let onInfoTap: () -> Void
 
     var body: some View {
@@ -148,6 +152,65 @@ struct CardRowView: View {
                         .font(Theme.secondaryFont())
                         .foregroundColor(Theme.mainTextColor)
                         .textCase(.none)
+
+                    if definition.isPremium {
+                        ZStack {
+                            // Background glow
+                            Image(systemName: "sparkles")
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(
+                                    AngularGradient(
+                                        gradient: Gradient(colors: [
+                                            Theme.secondaryColor,
+                                            Theme.mainColor,
+                                            Theme.secondaryColor,
+                                        ]),
+                                        center: .center
+                                    )
+                                )
+                                .blur(radius: 1.5)
+                                .scaleEffect(sparkleTrigger ? 1.3 : 0.8)
+                                .opacity(sparkleTrigger ? 0.4 : 0.8)
+                                .animation(
+                                    .easeInOut(duration: 1.8).repeatForever(autoreverses: true),
+                                    value: sparkleTrigger
+                                )
+
+                            // Main sparkle
+                            Image(systemName: "sparkle")
+                                .symbolRenderingMode(.multicolor)
+                                .font(.system(size: 14))
+                                .rotationEffect(starAngle)
+                                .scaleEffect(starScale)
+                                .animation(
+                                    .spring(response: 0.3, dampingFraction: 0.2),
+                                    value: starScale
+                                )
+                                .onAppear {
+                                    withAnimation(
+                                        .easeInOut(duration: 2.8).repeatForever(autoreverses: true)
+                                    ) {
+                                        starAngle = .degrees(360)
+                                    }
+                                    sparkleTrigger = true
+                                }
+                        }
+                        .task {
+                            // Random sparkle bursts
+                            while true {
+                                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                                withAnimation(
+                                    .interactiveSpring(response: 0.3, dampingFraction: 0.5)
+                                ) {
+                                    starScale = 1.5
+                                }
+                                try? await Task.sleep(nanoseconds: 200_000_000)
+                                withAnimation(.easeOut(duration: 0.4)) {
+                                    starScale = 1.0
+                                }
+                            }
+                        }
+                    }
 
                     Spacer()
 
