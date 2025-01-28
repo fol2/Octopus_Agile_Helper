@@ -1,6 +1,60 @@
 import OctopusHelperShared
 import SwiftUI
 
+private struct PlanBadgesView: View {
+    let supportedPlans: [SupportedPlan]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(supportedPlans, id: \.self) { plan in
+                switch plan {
+                case .agile:
+                    BadgeView("Agile", color: .blue)
+                case .flux:
+                    BadgeView("Flux", color: .orange)
+                case .any:
+                    BadgeView("All Plans", color: .green)
+                }
+            }
+        }
+    }
+}
+
+private struct ShinyStarView: View {
+    @State private var isAnimating = false
+
+    var body: some View {
+        Image(systemName: "star.fill")
+            .foregroundColor(.yellow)
+            .font(Theme.subFont())
+            .overlay(
+                GeometryReader { geometry in
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.clear, .white.opacity(0.5), .clear]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .rotationEffect(.degrees(45))
+                        .offset(x: isAnimating ? geometry.size.width : -geometry.size.width)
+                        .opacity(0.5)
+                }
+            )
+            .clipShape(Rectangle())
+            .onAppear {
+                withAnimation(
+                    Animation
+                        .linear(duration: 1.5)
+                        .repeatForever(autoreverses: false)
+                ) {
+                    isAnimating = true
+                }
+            }
+    }
+}
+
 struct InfoSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
@@ -20,9 +74,7 @@ struct InfoSheet: View {
 
                     if viewModel.isPremium {
                         HStack {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                                .font(Theme.subFont())
+                            ShinyStarView()
                             Text(LocalizedStringKey("Premium Feature"))
                                 .font(Theme.titleFont())
                                 .foregroundColor(Theme.mainTextColor)
@@ -31,6 +83,10 @@ struct InfoSheet: View {
                         .padding(.bottom, 8)
                         .padding(.horizontal, 20)
                     }
+
+                    PlanBadgesView(supportedPlans: viewModel.supportedPlans)
+                        .padding(.bottom, 8)
+                        .padding(.horizontal, 20)
 
                     Text(viewModel.message)
                         .font(Theme.secondaryFont())
@@ -82,27 +138,4 @@ struct InfoSheet: View {
         }
         .environment(\.locale, locale)
     }
-}
-
-#Preview {
-    InfoSheet(
-        viewModel: InfoSheetViewModel(
-            title: "Example Title",
-            message: "This is an example message that explains something important.",
-            mediaItems: [
-                MediaItem(
-                    localName: "example-image",
-                    caption: "Example caption"
-                ),
-                MediaItem(
-                    youtubeID: "dQw4w9WgXcQ",
-                    caption: "Example YouTube video"
-                ),
-            ],
-            linkURL: URL(string: "https://example.com"),
-            linkText: "Learn more",
-            isPremium: true
-        )
-    )
-    .environmentObject(GlobalSettingsManager())
 }

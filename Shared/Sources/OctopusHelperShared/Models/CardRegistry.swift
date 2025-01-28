@@ -113,7 +113,7 @@ extension CardRegistry {
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "clock",
-                defaultSortOrder: 1,
+                defaultSortOrder: 3,
                 mediaItems: [
                     MediaItem(
                         localName: "imgCurrentRateInfo",
@@ -139,7 +139,7 @@ extension CardRegistry {
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.down",
-                defaultSortOrder: 2,
+                defaultSortOrder: 4,
                 mediaItems: [
                     MediaItem(
                         localName: "imgLowestRateInfo",
@@ -165,7 +165,7 @@ extension CardRegistry {
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chevron.up",
-                defaultSortOrder: 3,
+                defaultSortOrder: 5,
                 mediaItems: [
                     MediaItem(
                         localName: "imgHighestRateInfo",
@@ -186,13 +186,13 @@ extension CardRegistry {
                 displayNameKey: "Average Upcoming Rates",
                 descriptionKey:
                     "Shows the average cost over selected periods or the next 10 lowest windows.",
-                isPremium: true,
+                isPremium: false,
                 makeView: { deps in
                     AnyView(AverageUpcomingRateCardView(viewModel: deps.ratesViewModel))
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.fill",
-                defaultSortOrder: 4,
+                defaultSortOrder: 6,
                 mediaItems: [
                     MediaItem(
                         localName: "imgAvgRateInfo",
@@ -213,13 +213,13 @@ extension CardRegistry {
                 id: .interactiveChart,
                 displayNameKey: "Interactive Rates",
                 descriptionKey: "A dynamic line chart showing rates, best time ranges, and more.",
-                isPremium: true,
+                isPremium: false,
                 makeView: { deps in
                     AnyView(InteractiveLineChartCardView(viewModel: deps.ratesViewModel))
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.xyaxis.line",
-                defaultSortOrder: 5,
+                defaultSortOrder: 2,
                 mediaItems: [
                     MediaItem(
                         localName: "imgChartRateInfo",
@@ -243,8 +243,8 @@ extension CardRegistry {
                 id: .accountTariff,
                 displayNameKey: "Account Tariff",
                 descriptionKey:
-                    "View your account's tariff costs with daily, weekly, and monthly breakdowns.",
-                isPremium: true,
+                    "Unlock Premium Insights: See exactly how much you could save with smart tariff tracking. Get instant cost breakdowns, price change alerts, and personalized recommendations to maximize your energy savings!",
+                isPremium: false,
                 makeView: { deps in
                     AnyView(
                         AccountTariffCardView(
@@ -253,8 +253,21 @@ extension CardRegistry {
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "chart.bar.doc.horizontal",
-                defaultSortOrder: 6,
-                mediaItems: [],
+                defaultSortOrder: 7,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgAccTariff",
+                        caption: LocalizedStringKey(
+                            "Smart Tariff Tracker - See daily/weekly/monthly costs at a glance with our energy-saving snapshot"
+                        )
+                    ),
+                    MediaItem(
+                        localName: "imgAccTariff2",
+                        caption: LocalizedStringKey(
+                            "Deep Cost Analysis - Dive deeper into usage patterns, compare tariff periods, and forecast future bills"
+                        )
+                    ),
+                ],
                 supportedPlans: [.any]
             )
         )
@@ -264,24 +277,37 @@ extension CardRegistry {
                 id: .tariffComparison,
                 displayNameKey: "Tariff Comparison",
                 descriptionKey:
-                    "Compare your current account cost with another plan or a manual rate.",
-                isPremium: true,  // or false if you prefer
+                    "Want to know if you're on the best energy plan? Compare costs between your current tariff and ANY Octopus plan! \n\nFeatures:\n- Instant savings calculations\n- Indepth analysis\n- Manual rate input\n- Side-by-side cost comparison\nUpgrade to unlock smart energy comparisons!",
+                isPremium: true,
                 makeView: { deps in
                     AnyView(
                         TariffComparisonCardView(
-                            consumptionVM: deps.consumptionViewModel,  // We'll need consumption data
-                            ratesVM: deps.ratesViewModel,  // If we want fallback or custom logic
+                            consumptionVM: deps.consumptionViewModel,
+                            ratesVM: deps.ratesViewModel,
                             globalSettings: deps.globalSettings
                         )
                     )
                 },
                 makeWidgetView: { _ in AnyView(EmptyView()) },
                 iconName: "rectangle.split.3x1.fill",
-                defaultIsEnabled: true,  // Make sure it's enabled by default
-                defaultIsPurchased: true,  // Make sure it's purchased by default
-                defaultSortOrder: 7,  // after your existing cards
-                mediaItems: [],
-                supportedPlans: [.any]  // or [.agile], .any is fine if we allow any plan
+                defaultIsEnabled: false,
+                defaultIsPurchased: false,
+                defaultSortOrder: 1,
+                mediaItems: [
+                    MediaItem(
+                        localName: "imgTariffCompare",
+                        caption: LocalizedStringKey(
+                            "Comprehensive Comparison - See cost differences between your current plan and alternatives"
+                        )
+                    ),
+                    MediaItem(
+                        localName: "imgTariffCompare2",
+                        caption: LocalizedStringKey(
+                            "Deep Analysis - Interactive charts show monthly trends, rate breakdowns, and exact savings potential"
+                        )
+                    ),
+                ],
+                supportedPlans: [.any]
             )
         )
     }
