@@ -313,96 +313,77 @@ private struct ComparisonInsightCard: View {
             }
 
             // Calculate for account tariff
-            await compareTariffVM.calculateCosts(
-                for: startDate,
-                tariffCode: "savedAccount",
-                intervalType: .monthly,
-                accountData: accountData,
-                partialStart: startDate,
-                partialEnd: endDate
+            let months = breakdownDateRangeIntoMonths(start: startDate, end: endDate)
+            let storedAccountCalcs = try await fetchStoredMonthlyCalculations(
+                months: months,
+                tariffCode: "savedAccount"
             )
-            if let calc = compareTariffVM.currentCalculation {
-                accountCalculation = calc
-                DebugLogger.shared.log(
-                    "💰 Account tariff calculation completed",
-                    details: [
-                        "totalKWh": String(calc.totalKWh),
-                        "costExcVAT": String(calc.costExcVAT),
-                        "costIncVAT": String(calc.costIncVAT),
-                        "avgRateExcVAT": String(calc.averageUnitRateExcVAT),
-                        "avgRateIncVAT": String(calc.averageUnitRateIncVAT),
-                        "standingChargeExcVAT": String(calc.standingChargeExcVAT),
-                        "standingChargeIncVAT": String(calc.standingChargeIncVAT),
-                        "configuredStandingChargeExcVAT": String(standingCharges.0),
-                        "configuredStandingChargeIncVAT": String(standingCharges.1),
-                    ]
-                )
-            } else {
-                DebugLogger.shared.log(
-                    "⚠️ No account calculation results",
-                    details: ["status": "No calculation available"]
-                )
-            }
+            let allAccountCalcs = try await calculateMissingMonths(
+                months: months,
+                storedCalculations: storedAccountCalcs,
+                tariffCode: "savedAccount",
+                accountData: accountData
+            )
+            accountCalculation = sumMonthlyCalculations(allAccountCalcs)
 
             // Calculate for comparison tariff
             let tariffCode = isManualPlan ? "manualPlan" : fullTariffCode
             let compareAccountData = isManualPlan ? buildMockAccountResponseForManual() : nil
 
-            if isManualPlan {
+            let storedCompareCalcs = try await fetchStoredMonthlyCalculations(
+                months: months,
+                tariffCode: tariffCode
+            )
+            let allCompareCalcs = try await calculateMissingMonths(
+                months: months,
+                storedCalculations: storedCompareCalcs,
+                tariffCode: tariffCode,
+                accountData: compareAccountData
+            )
+            compareCalculation = sumMonthlyCalculations(allCompareCalcs)
+
+            // Log results
+            if let acct = accountCalculation {
                 DebugLogger.shared.log(
-                    "📝 Manual plan details",
+                    "💰 Account tariff calculation completed",
                     details: [
-                        "manualRatePencePerKWh": String(manualRatePencePerKWh),
-                        "manualStandingChargePencePerDay": String(manualStandingChargePencePerDay),
-                        "standingChargeExcVAT": String(standingCharges.0),
-                        "standingChargeIncVAT": String(standingCharges.1),
+                        "totalKWh": String(acct.totalKWh),
+                        "costExcVAT": String(acct.costExcVAT),
+                        "costIncVAT": String(acct.costIncVAT),
+                        "avgRateExcVAT": String(acct.averageUnitRateExcVAT),
+                        "avgRateIncVAT": String(acct.averageUnitRateIncVAT),
+                        "standingChargeExcVAT": String(acct.standingChargeExcVAT),
+                        "standingChargeIncVAT": String(acct.standingChargeIncVAT),
                     ]
                 )
             }
 
-            await compareTariffVM.calculateCosts(
-                for: startDate,
-                tariffCode: tariffCode,
-                intervalType: .monthly,
-                accountData: compareAccountData,
-                partialStart: startDate,
-                partialEnd: endDate
-            )
-            if let calc = compareTariffVM.currentCalculation {
-                compareCalculation = calc
+            if let comp = compareCalculation {
                 DebugLogger.shared.log(
                     "💰 Compare tariff calculation completed",
                     details: [
                         "tariffCode": tariffCode,
-                        "totalKWh": String(calc.totalKWh),
-                        "costExcVAT": String(calc.costExcVAT),
-                        "costIncVAT": String(calc.costIncVAT),
-                        "avgRateExcVAT": String(calc.averageUnitRateExcVAT),
-                        "avgRateIncVAT": String(calc.averageUnitRateIncVAT),
-                        "standingChargeExcVAT": String(calc.standingChargeExcVAT),
-                        "standingChargeIncVAT": String(calc.standingChargeIncVAT),
+                        "totalKWh": String(comp.totalKWh),
+                        "costExcVAT": String(comp.costExcVAT),
+                        "costIncVAT": String(comp.costIncVAT),
+                        "avgRateExcVAT": String(comp.averageUnitRateExcVAT),
+                        "avgRateIncVAT": String(comp.averageUnitRateIncVAT),
+                        "standingChargeExcVAT": String(comp.standingChargeExcVAT),
+                        "standingChargeIncVAT": String(comp.standingChargeIncVAT),
                     ]
-                )
-
-                // Log cost comparison
-                let costDiff =
-                    (showVAT ? calc.costIncVAT : calc.costExcVAT)
-                    - (showVAT
-                        ? accountCalculation?.costIncVAT ?? 0 : accountCalculation?.costExcVAT ?? 0)
-                DebugLogger.shared.log(
-                    "💡 Cost comparison",
-                    details: [
-                        "difference": String(costDiff),
-                        "percentageDifference": String(calculateSavingsPercentage() * 100),
-                        "showingVAT": String(showVAT),
-                    ]
-                )
-            } else {
-                DebugLogger.shared.log(
-                    "⚠️ No comparison calculation results",
-                    details: ["status": "No calculation available"]
                 )
             }
+
+            // Log cost comparison
+            let costDiff = costDifference
+            DebugLogger.shared.log(
+                "💡 Cost comparison",
+                details: [
+                    "difference": String(costDiff),
+                    "percentageDifference": String(calculateSavingsPercentage() * 100),
+                    "showingVAT": String(showVAT),
+                ]
+            )
         } catch let apiError as OctopusAPIError {
             self.error = apiError
             DebugLogger.shared.log(
@@ -1001,8 +982,10 @@ private struct ProductHeaderView: View {
                     .font(.system(size: 16))  // Larger font
                     .foregroundColor(Theme.secondaryTextColor)
 
-                // Add available to if exists
-                if let availableTo = product.value(forKey: "available_to") as? Date {
+                // Add available to if exists and is before year 2100
+                if let availableTo = product.value(forKey: "available_to") as? Date,
+                    Calendar.current.component(.year, from: availableTo) < 2100
+                {
                     Text("Available to: \(formatDate(availableTo))")
                         .font(.system(size: 16))  // Larger font
                         .foregroundColor(Theme.secondaryTextColor)
