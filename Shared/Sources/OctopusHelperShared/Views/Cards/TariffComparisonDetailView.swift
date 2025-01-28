@@ -558,12 +558,12 @@ private struct ComparisonInsightCard: View {
                         costBreakdownRow(
                             label: "My Account",
                             cost: accountCostDV,
-                            color: Theme.mainColor
+                            color: Theme.secondaryTextColor
                         )
                         costBreakdownRow(
                             label: planName,
                             cost: compareCostDV,
-                            color: Theme.secondaryTextColor
+                            color: Theme.mainColor
                         )
 
                         if let savingsPercentage = calculateSavingsPercentageString() {
@@ -638,38 +638,55 @@ private struct RateAnalysisCard: View {
     let manualStandingChargePencePerDay: Double
     let fullTariffCode: String
     @State private var currentStandingCharge: Double = 0.0
+    @State private var highestRate: Double = 0.0
+    @State private var lowestRate: Double = 0.0
 
-    private func loadStandingCharge() async {
-        // Early return for manual plan
+    private func loadRates() async {
+        // Load standing charge
         if isManualPlan {
             currentStandingCharge = manualStandingChargePencePerDay
-            return
-        }
-
-        // Get standing charge from repository
-        if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
+        } else if let charges = try? await RatesRepository.shared.getLatestStandingCharge(
             tariffCode: fullTariffCode)
         {
             currentStandingCharge = showVAT ? charges.incVAT : charges.excVAT
-        } else {
-            DebugLogger.shared.log(
-                "⚠️ No standing charge found",
-                details: [
-                    "tariffCode": fullTariffCode,
-                    "isManualPlan": String(isManualPlan),
-                ]
-            )
-            currentStandingCharge = 0.0
         }
 
-        if currentStandingCharge == 0.0 {
-            DebugLogger.shared.log(
-                "⚠️ Standing charge value is 0",
-                details: [
-                    "tariffCode": fullTariffCode,
-                    "showVAT": String(showVAT),
-                ]
-            )
+        // Load rates
+        if !isManualPlan {
+            if let rates = try? await RatesRepository.shared.fetchRatesByTariffCode(fullTariffCode)
+            {
+                // Get highest rate
+                let highest = rates.max { a, b in
+                    let aValue =
+                        (a.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                            as? Double) ?? Double.infinity
+                    let bValue =
+                        (b.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                            as? Double) ?? Double.infinity
+                    return aValue < bValue
+                }
+                if let rate = highest?.value(
+                    forKey: showVAT ? "value_including_vat" : "value_excluding_vat") as? Double
+                {
+                    highestRate = rate
+                }
+
+                // Get lowest rate
+                let lowest = rates.min { a, b in
+                    let aValue =
+                        (a.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                            as? Double) ?? Double.infinity
+                    let bValue =
+                        (b.value(forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                            as? Double) ?? Double.infinity
+                    return aValue < bValue
+                }
+                if let rate = lowest?.value(
+                    forKey: showVAT ? "value_including_vat" : "value_excluding_vat") as? Double
+                {
+                    lowestRate = rate
+                }
+            }
         }
     }
 
@@ -690,12 +707,12 @@ private struct RateAnalysisCard: View {
                     )
                     rateRow(
                         label: "Lowest Rate",
-                        value: rates.lowest,
+                        value: lowestRate,
                         icon: "arrow.down.circle"
                     )
                     rateRow(
                         label: "Highest Rate",
-                        value: rates.highest,
+                        value: highestRate,
                         icon: "arrow.up.circle"
                     )
 
@@ -715,7 +732,7 @@ private struct RateAnalysisCard: View {
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
         .task {
-            await loadStandingCharge()
+            await loadRates()
         }
     }
 
@@ -729,8 +746,8 @@ private struct RateAnalysisCard: View {
                 - (showVAT ? calc.standingChargeIncVAT : calc.standingChargeExcVAT)) / calc.totalKWh
             : 0.0
 
-        // Note: Add properties for lowest and highest rates in TariffCalculation
-        return (average: avgRate, lowest: avgRate * 0.8, highest: avgRate * 1.2)  // Placeholder
+        // Return actual rates
+        return (average: avgRate, lowest: lowestRate, highest: highestRate)
     }
 
     private func rateRow(label: String, value: Double, icon: String, isDaily: Bool = false)

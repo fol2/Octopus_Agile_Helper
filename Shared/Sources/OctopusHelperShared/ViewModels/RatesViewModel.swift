@@ -287,6 +287,16 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
         }
     }
 
+    /// Get the highest rate for a specific tariff (considering all rates)
+    public func highestRate(tariffCode: String) async throws -> NSManagedObject? {
+        let rates = try await repository.fetchRatesByTariffCode(tariffCode)
+        return rates.max { a, b in
+            let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            return aValue < bValue
+        }
+    }
+
     // ------------------------------------------------------
 
     // MARK: - New Rate Fetching Logic

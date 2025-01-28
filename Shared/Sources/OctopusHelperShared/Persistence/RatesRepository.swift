@@ -638,4 +638,24 @@ public final class RatesRepository: ObservableObject {
 
         return nil
     }
+
+    /// Get the highest rate for a specific tariff (considering all rates)
+    public func highestRate(tariffCode: String) async throws -> NSManagedObject? {
+        let rates = try await fetchRatesByTariffCode(tariffCode)
+        return rates.max { a, b in
+            let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            return aValue < bValue
+        }
+    }
+
+    /// Get the lowest rate for a specific tariff (considering all rates)
+    public func lowestRate(tariffCode: String) async throws -> NSManagedObject? {
+        let rates = try await fetchRatesByTariffCode(tariffCode)
+        return rates.min { a, b in
+            let aValue = (a.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            let bValue = (b.value(forKey: "value_including_vat") as? Double) ?? Double.infinity
+            return aValue < bValue
+        }
+    }
 }
