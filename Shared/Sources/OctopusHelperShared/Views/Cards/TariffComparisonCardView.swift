@@ -682,8 +682,19 @@ public struct TariffComparisonCardView: View {
             let daysToSubtract = weekday == 1 ? 7 : weekday - 1  // If Sunday, subtract 7, else weekday - 1
             let lastCompleteWeekEnd =
                 calendar.date(byAdding: .day, value: -daysToSubtract, to: startOfToday) ?? today
+
+            // Check if consumption data extends into current partial week
+            let currentWeekStart = calendar.date(
+                byAdding: .day, value: -daysToSubtract + 1, to: lastCompleteWeekEnd)!
+            let hasPartialWeekData =
+                (consumptionVM.maxInterval ?? .distantFuture) > currentWeekStart
+
+            // Modified max date calculation
             let rawMax = consumptionVM.maxInterval ?? .distantFuture
-            maxAllowedDate = min(rawMax, lastCompleteWeekEnd)
+            maxAllowedDate =
+                hasPartialWeekData
+                ? min(rawMax, consumptionVM.maxInterval ?? .distantFuture)
+                : min(rawMax, lastCompleteWeekEnd)
         case .monthly:
             // Find the end of the last complete month
             let lastDayOfPreviousMonth =

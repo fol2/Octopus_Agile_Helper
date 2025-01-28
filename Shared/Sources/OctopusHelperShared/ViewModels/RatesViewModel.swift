@@ -1163,3 +1163,28 @@ public final class RatesViewModel: ObservableObject, AccountRepositoryDelegate {
         // We don't need to do anything here anymore since we only use currentAgileCode
     }
 }
+
+extension RatesViewModel {
+    /// Returns the earliest `valid_from` and the latest `valid_to` for a given product code.
+    /// If no rates, returns an empty range that won't contain anything.
+    func coverageInterval(for productCode: String) -> ClosedRange<Date> {
+        guard let state = productStates[productCode], !state.allRates.isEmpty else {
+            return Date.distantFuture...Date.distantPast  // an "empty" range
+        }
+        let all = state.allRates
+
+        // Earliest valid_from
+        let earliest =
+            all.compactMap {
+                $0.value(forKey: "valid_from") as? Date
+            }.min() ?? .distantFuture
+
+        // Latest valid_to
+        let latest =
+            all.compactMap {
+                $0.value(forKey: "valid_to") as? Date
+            }.max() ?? .distantPast
+
+        return earliest...latest
+    }
+}

@@ -332,12 +332,23 @@ public struct AccountTariffCardView: View {
             maxAllowedDate = calendar.date(byAdding: .day, value: -1, to: startOfToday)
 
         case .weekly:
-            // For weekly view, find the end of the last complete week
+            // Find the end of the last complete week
             let weekday = calendar.component(.weekday, from: today)
             let daysToSubtract = weekday == 1 ? 7 : weekday - 1  // If Sunday, subtract 7, else weekday - 1
             let lastCompleteWeekEnd =
                 calendar.date(byAdding: .day, value: -daysToSubtract, to: startOfToday) ?? today
-            maxAllowedDate = min(rawMax, lastCompleteWeekEnd)
+
+            // Check if consumption data extends into current partial week
+            let currentWeekStart = calendar.date(
+                byAdding: .day, value: -daysToSubtract + 1, to: lastCompleteWeekEnd)!
+            let hasPartialWeekData =
+                (consumptionVM.maxInterval ?? .distantFuture) > currentWeekStart
+
+            // Modified max date calculation
+            maxAllowedDate =
+                hasPartialWeekData
+                ? min(rawMax, consumptionVM.maxInterval ?? .distantFuture)
+                : min(rawMax, lastCompleteWeekEnd)
 
         case .monthly:
             // For monthly view, find the end of the last complete month
