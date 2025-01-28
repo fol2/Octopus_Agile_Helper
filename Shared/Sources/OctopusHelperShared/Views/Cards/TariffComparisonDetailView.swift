@@ -107,7 +107,12 @@ public struct TariffComparisonDetailView: View {
                 // Monthly Trends Card
                 MonthlyTrendsCard(
                     compareTariffVM: compareTariffVM,
-                    showVAT: globalSettings.settings.showRatesWithVAT
+                    consumptionVM: consumptionVM,
+                    showVAT: globalSettings.settings.showRatesWithVAT,
+                    selectedProduct: selectedProduct,
+                    isManualPlan: isManualPlan,
+                    manualRatePencePerKWh: manualRatePencePerKWh,
+                    fullTariffCode: fullTariffCode
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -781,45 +786,161 @@ private struct RateAnalysisCard: View {
     }
 }
 
-// MARK: - Monthly Trends Card
+// MARK: - Monthly Average Rates Card
 private struct MonthlyTrendsCard: View {
     @ObservedObject var compareTariffVM: TariffViewModel
+    @ObservedObject var consumptionVM: ConsumptionViewModel
     let showVAT: Bool
+    let selectedProduct: NSManagedObject?
+    let isManualPlan: Bool
+    let manualRatePencePerKWh: Double
+    let fullTariffCode: String
 
-    private struct ChartDataPoint: Identifiable {
+    // Chart interaction states
+    @State private var hoveredMonth: Date? = nil
+    @State private var hoveredRate: Double? = nil
+    @State private var tooltipPosition: CGPoint = .zero
+    @State private var lastSnappedMonth: Date? = nil
+    @State private var monthlyRates: [MonthlyRate] = []
+
+    // Haptic feedback generator
+    private let hapticFeedback = UIImpactFeedbackGenerator(style: .light)
+
+    private struct MonthlyRate: Identifiable {
         let id = UUID()
-        let month: String
-        let rate: Double
+        let month: Date
+        let averageRate: Double
     }
 
-    private var chartData: [ChartDataPoint] {
-        (0..<6).map { month in
-            ChartDataPoint(
-                month: "Month \(month + 1)",
-                rate: Double.random(in: 20...40)
-            )
+    private func calculateMonthlyRates() async {
+        // Get date range
+        guard let startDate = getStartDate(),
+            let endDate = getEndDate()
+        else {
+            return
         }
+
+        // Generate months between start and end
+        let calendar = Calendar.current
+        var currentDate = startDate
+        var newRates: [MonthlyRate] = []
+
+        // For manual plan, just use the fixed rate for all months
+        if isManualPlan {
+            while currentDate <= endDate {
+                newRates.append(
+                    MonthlyRate(
+                        month: currentDate,
+                        averageRate: manualRatePencePerKWh
+                    ))
+                currentDate = calendar.date(byAdding: .month, value: 1, to: currentDate)!
+            }
+        } else {
+            // For actual plans, fetch all rates once and calculate monthly averages
+            if let rates = try? await RatesRepository.shared.fetchRatesByTariffCode(fullTariffCode)
+            {
+                while currentDate <= endDate {
+                    let monthEnd = calendar.date(byAdding: .month, value: 1, to: currentDate)!
+
+                    // Filter rates that overlap with this month
+                    let monthlyRates = rates.filter { rate in
+                        guard let validFrom = rate.value(forKey: "valid_from") as? Date,
+                            let validTo = rate.value(forKey: "valid_to") as? Date
+                        else {
+                            return false
+                        }
+                        // Rate overlaps with the month if:
+                        // 1. Rate starts before month ends AND
+                        // 2. Rate ends after month starts
+                        return validFrom < monthEnd && validTo > currentDate
+                    }
+
+                    if !monthlyRates.isEmpty {
+                        // Calculate time-weighted average for the month
+                        var totalDuration: TimeInterval = 0
+                        var weightedSum: Double = 0
+
+                        for rate in monthlyRates {
+                            guard let validFrom = rate.value(forKey: "valid_from") as? Date,
+                                let validTo = rate.value(forKey: "valid_to") as? Date,
+                                let rateValue = rate.value(
+                                    forKey: showVAT ? "value_including_vat" : "value_excluding_vat")
+                                    as? Double
+                            else {
+                                continue
+                            }
+
+                            // Calculate overlap duration within this month
+                            let overlapStart = max(validFrom, currentDate)
+                            let overlapEnd = min(validTo, monthEnd)
+                            let duration = overlapEnd.timeIntervalSince(overlapStart)
+
+                            totalDuration += duration
+                            weightedSum += rateValue * duration
+                        }
+
+                        if totalDuration > 0 {
+                            let avgRate = weightedSum / totalDuration
+                            newRates.append(
+                                MonthlyRate(
+                                    month: currentDate,
+                                    averageRate: avgRate
+                                ))
+                        }
+                    }
+
+                    currentDate = monthEnd
+                }
+            }
+        }
+
+        // Update state on main thread
+        await MainActor.run {
+            monthlyRates = newRates
+        }
+    }
+
+    private func getStartDate() -> Date? {
+        if isManualPlan {
+            // For manual plan, use consumption start date
+            return consumptionVM.minInterval
+        } else if let product = selectedProduct,
+            let availableFrom = product.value(forKey: "available_from") as? Date
+        {
+            // For actual plan, use product's available_from date
+            return availableFrom
+        }
+        return consumptionVM.minInterval
+    }
+
+    private func getEndDate() -> Date? {
+        // End at consumption data end
+        consumptionVM.maxInterval
+    }
+
+    private var yRange: (Double, Double) {
+        let rates = monthlyRates.map { $0.averageRate }
+        guard !rates.isEmpty else { return (0, 50) }
+        let minVal = min(0, (rates.min() ?? 0) - 2)
+        let maxVal = (rates.max() ?? 0) + 2
+        return (minVal, maxVal)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Monthly Trends")
+            Text("Monthly Average Rates")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
-            if let calc = compareTariffVM.currentCalculation {
-                // Placeholder for monthly data visualization
-                // TODO: Implement actual monthly data extraction and visualization
-                Chart(chartData) { dataPoint in
-                    LineMark(
-                        x: .value("Month", dataPoint.month),
-                        y: .value("Rate", dataPoint.rate)
-                    )
-                    .foregroundStyle(Theme.mainColor)
-                }
-                .frame(height: 200)
+            if monthlyRates.isEmpty {
+                Text("No monthly rate data available")
+                    .font(Theme.secondaryFont())
+                    .foregroundStyle(Theme.secondaryTextColor)
+            } else {
+                chartView
+                    .frame(height: 200)
 
-                // Add Monthly Comparison Table
+                // Keep existing Monthly Comparison Table
                 MonthlyComparisonTable(
                     compareTariffVM: compareTariffVM,
                     showVAT: showVAT
@@ -832,6 +953,163 @@ private struct MonthlyTrendsCard: View {
                 .fill(Theme.mainBackground)
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
         )
+        .task {
+            await calculateMonthlyRates()
+        }
+    }
+
+    private var chartView: some View {
+        let (minVal, maxVal) = yRange
+
+        // Calculate dynamic bar width based on number of bars
+        let maxPossibleBars = 65.0  // same as InteractiveLineChartCardView
+        let currentBars = Double(monthlyRates.count)
+        let baseWidthPerBar = 5.0
+        let barGapRatio = 0.7  // 70% bar, 30% gap
+        let totalChunk = (maxPossibleBars / currentBars) * baseWidthPerBar
+        let barWidth = totalChunk * barGapRatio
+
+        return Chart(monthlyRates) { dataPoint in
+            BarMark(
+                x: .value("Month", dataPoint.month),
+                y: .value("Rate", dataPoint.averageRate),
+                width: .fixed(barWidth)
+            )
+            .foregroundStyle(dataPoint.averageRate < 0 ? Theme.secondaryColor : Theme.mainColor)
+            .cornerRadius(4)
+        }
+        .chartYScale(domain: minVal...maxVal)
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .month)) { _ in
+                AxisGridLine()
+                    .foregroundStyle(Theme.secondaryTextColor.opacity(0.1))
+            }
+        }
+        .chartYAxis {
+            AxisMarks { _ in
+                AxisGridLine()
+                    .foregroundStyle(Theme.secondaryTextColor.opacity(0.1))
+            }
+        }
+        .chartXScale(range: .plotDimension(padding: 0))
+        .chartPlotStyle { plotContent in
+            plotContent
+                .padding(.horizontal, 0)
+                .padding(.leading, 16)
+                .frame(maxWidth: .infinity)
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { drag in
+                                handleDragChanged(drag: drag, proxy: proxy, geo: geo)
+                            }
+                            .onEnded { _ in
+                                hoveredMonth = nil
+                                hoveredRate = nil
+                                lastSnappedMonth = nil
+                            }
+                    )
+
+                if let month = hoveredMonth,
+                    let rate = hoveredRate,
+                    let xPos = proxy.position(forX: month),
+                    let plotArea = proxy.plotFrame
+                {
+                    let rect = geo[plotArea]
+                    drawTooltip(rect: rect, xPos: xPos, month: month, rate: rate)
+                }
+            }
+        }
+    }
+
+    private func handleDragChanged(
+        drag: DragGesture.Value,
+        proxy: ChartProxy,
+        geo: GeometryProxy
+    ) {
+        guard let plotFrame = proxy.plotFrame else { return }
+
+        let location = drag.location
+        let plotRect = geo[plotFrame]
+
+        // Clamp x position to plot bounds
+        let clampedX = min(max(location.x, plotRect.minX), plotRect.maxX)
+
+        // Get location in plot
+        let locationInPlot = CGPoint(
+            x: clampedX - plotRect.minX,
+            y: location.y - plotRect.minY
+        )
+
+        if let date: Date = proxy.value(atX: locationInPlot.x) {
+            // Find nearest month
+            if let nearestMonth = findNearestMonth(to: date) {
+                if nearestMonth != lastSnappedMonth {
+                    hapticFeedback.impactOccurred(intensity: 0.7)
+                    lastSnappedMonth = nearestMonth
+                }
+
+                hoveredMonth = nearestMonth
+                hoveredRate =
+                    monthlyRates.first {
+                        Calendar.current.isDate(
+                            $0.month, equalTo: nearestMonth, toGranularity: .month)
+                    }?.averageRate
+            }
+        }
+    }
+
+    private func findNearestMonth(to date: Date) -> Date? {
+        let calendar = Calendar.current
+        return monthlyRates.min {
+            abs($0.month.timeIntervalSince(date)) < abs($1.month.timeIntervalSince(date))
+        }?.month
+    }
+
+    @ViewBuilder
+    private func drawTooltip(
+        rect: CGRect,
+        xPos: CGFloat,
+        month: Date,
+        rate: Double
+    ) -> some View {
+        // Vertical highlight line
+        Rectangle()
+            .fill(Theme.mainColor.opacity(0.3))
+            .frame(width: 2, height: rect.height)
+            .position(x: rect.minX + xPos, y: rect.midY)
+
+        // Tooltip
+        VStack(alignment: .leading, spacing: 4) {
+            Text(formatMonth(month))
+                .font(Theme.subFont())
+            Text("\(formatRate(rate)) avg")
+                .font(Theme.subFont())
+        }
+        .padding(6)
+        .background(Theme.secondaryBackground)
+        .foregroundStyle(Theme.mainTextColor)
+        .cornerRadius(6)
+        .fixedSize()
+        .position(
+            x: min(max(rect.minX + xPos, rect.minX + 60), rect.maxX - 60),
+            y: rect.minY + 20
+        )
+    }
+
+    private func formatMonth(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+        return formatter.string(from: date)
+    }
+
+    private func formatRate(_ rate: Double) -> String {
+        String(format: "%.1fp", rate)
     }
 }
 
