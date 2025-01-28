@@ -220,27 +220,68 @@ public struct TariffComparisonCardView: View {
         DebugLogger.debug("🔄 TariffComparisonCardView init completed", component: .tariffViewModel)
     }
 
+    // MARK: - Body
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                if let def = CardRegistry.shared.definition(for: .tariffComparison) {
-                    Image(systemName: def.iconName)
-                        .foregroundColor(Theme.icon)
-                    Text(LocalizedStringKey(def.displayNameKey))
-                        .font(Theme.titleFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                    Spacer()
-                    Button(action: {
-                        showingDetails = true
-                    }) {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(Theme.secondaryTextColor)
-                    }
-                    .buttonStyle(.plain)
+        mainContent
+            .sheet(isPresented: $showingDetails) {
+                detailsSheetView
+            }
+            .environment(\.locale, globalSettings.locale)
+            .onAppear {
+                handleOnAppear()
+            }
+            .task {
+                handleTask()
+            }
+            // MARK: - OnChange handlers
+            .onChange(of: consumptionVM.minInterval) { _, _ in
+                compareSettings.batchUpdate {
+                    updateAllowedDateRange()
                 }
             }
-            .padding(.bottom, 2)
+            .onChange(of: consumptionVM.maxInterval) { _, _ in
+                compareSettings.batchUpdate {
+                    updateAllowedDateRange()
+                }
+            }
+            .onChange(of: compareSettings.settings.selectedPlanCode) { _ in
+                Task {
+                    await recalcBothTariffs(partialOverlap: true)
+                }
+            }
+            .onChange(of: compareSettings.settings.manualRatePencePerKWh) { _ in
+                if compareSettings.settings.isManualPlan {
+                    Task {
+                        await recalcBothTariffs(partialOverlap: true)
+                    }
+                }
+            }
+            .onChange(of: compareSettings.settings.manualStandingChargePencePerDay) { _ in
+                if compareSettings.settings.isManualPlan {
+                    Task {
+                        await recalcBothTariffs(partialOverlap: true)
+                    }
+                }
+            }
+            .onChange(of: compareSettings.settings.isManualPlan) { _ in
+                Task {
+                    await recalcBothTariffs(partialOverlap: true)
+                }
+            }
+            .onChange(of: consumptionVM.fetchState) { _, newState in
+                if case .success = newState {
+                    Task {
+                        await recalcBothTariffs(partialOverlap: true)
+                    }
+                }
+            }
+    }
+
+    // MARK: - Main Content
+    private var mainContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            headerSection
+                .padding(.bottom, 2)
 
             Spacer()
                 .padding(.vertical, 4)
@@ -248,7 +289,7 @@ public struct TariffComparisonCardView: View {
             if !hasAccountInfo {
                 noAccountView
             } else {
-                VStack(spacing: 0) {  // ← Structured content container
+                VStack(spacing: 0) {
                     configurationSection
 
                     Spacer()
@@ -260,128 +301,115 @@ public struct TariffComparisonCardView: View {
                 }
             }
         }
-        .rateCardStyle()  // ← Apply card style to root container
-        .sheet(isPresented: $showingDetails) {
-            // First, get the selected product
-            let selectedProduct = availablePlans.first(where: {
-                ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
-            })
+        .rateCardStyle()  // Apply your custom card style
+    }
 
-            // Get standing charges
-            let standingChargeExcVAT: Double
-            let standingChargeIncVAT: Double
-            if compareSettings.settings.isManualPlan {
-                standingChargeExcVAT = compareSettings.settings.manualStandingChargePencePerDay
-                standingChargeIncVAT = compareSettings.settings.manualStandingChargePencePerDay
-            } else if let currentStandingCharge = ratesVM.currentStandingCharge(
-                tariffCode: currentFullTariffCode)
-            {
-                standingChargeExcVAT =
-                    currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0
-                standingChargeIncVAT =
-                    currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0
-            } else {
-                standingChargeExcVAT = 0.0
-                standingChargeIncVAT = 0.0
+    // MARK: - Header
+    private var headerSection: some View {
+        HStack {
+            if let def = CardRegistry.shared.definition(for: .tariffComparison) {
+                Image(systemName: def.iconName)
+                    .foregroundColor(Theme.icon)
+                Text(LocalizedStringKey(def.displayNameKey))
+                    .font(Theme.titleFont())
+                    .foregroundColor(Theme.secondaryTextColor)
+                Spacer()
+                Button(action: {
+                    showingDetails = true
+                }) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(Theme.secondaryTextColor)
+                }
+                .buttonStyle(.plain)
             }
+        }
+    }
 
-            // Then create the detail view
-            TariffComparisonDetailView(
-                selectedPlanCode: compareSettings.settings.selectedPlanCode,
-                fullTariffCode: currentFullTariffCode,  // Pass the stored full tariff code
-                isManualPlan: compareSettings.settings.isManualPlan,
-                manualRatePencePerKWh: compareSettings.settings.manualRatePencePerKWh,
-                manualStandingChargePencePerDay: compareSettings.settings
-                    .manualStandingChargePencePerDay,
-                selectedProduct: selectedProduct,
-                standingChargeExcVAT: standingChargeExcVAT,
-                standingChargeIncVAT: standingChargeIncVAT,
-                globalSettings: globalSettings,
-                compareTariffVM: compareTariffVM,
-                consumptionVM: consumptionVM,
-                ratesVM: ratesVM,
-                currentDate: $currentDate,
-                selectedInterval: $selectedInterval,
-                overlapStart: $overlapStart,
-                overlapEnd: $overlapEnd
+    // MARK: - Sheet View
+    private var detailsSheetView: some View {
+        // First, get the selected product
+        let selectedProduct = availablePlans.first {
+            ($0.value(forKey: "code") as? String) == compareSettings.settings.selectedPlanCode
+        }
+
+        // Get standing charges
+        let charges = getStandingCharges()
+
+        return TariffComparisonDetailView(
+            selectedPlanCode: compareSettings.settings.selectedPlanCode,
+            fullTariffCode: currentFullTariffCode,
+            isManualPlan: compareSettings.settings.isManualPlan,
+            manualRatePencePerKWh: compareSettings.settings.manualRatePencePerKWh,
+            manualStandingChargePencePerDay: compareSettings.settings
+                .manualStandingChargePencePerDay,
+            selectedProduct: selectedProduct,
+            standingChargeExcVAT: charges.excVAT,
+            standingChargeIncVAT: charges.incVAT,
+            globalSettings: globalSettings,
+            compareTariffVM: compareTariffVM,
+            consumptionVM: consumptionVM,
+            currentDate: $currentDate,
+            selectedInterval: $selectedInterval,
+            overlapStart: $overlapStart,
+            overlapEnd: $overlapEnd
+        )
+    }
+
+    // Break out standing-charge logic into a helper function
+    private func getStandingCharges() -> (excVAT: Double, incVAT: Double) {
+        if compareSettings.settings.isManualPlan {
+            return (
+                compareSettings.settings.manualStandingChargePencePerDay,
+                compareSettings.settings.manualStandingChargePencePerDay
             )
+        } else if let currentStandingCharge = ratesVM.currentStandingCharge(
+            tariffCode: currentFullTariffCode)
+        {
+            let excVAT =
+                currentStandingCharge.value(forKey: "value_excluding_vat") as? Double ?? 0.0
+            let incVAT =
+                currentStandingCharge.value(forKey: "value_including_vat") as? Double ?? 0.0
+            return (excVAT, incVAT)
+        } else {
+            return (0.0, 0.0)
         }
-        .environment(\.locale, globalSettings.locale)
-        .onAppear {
-            DebugLogger.debug(
-                "🔄 TariffComparisonCardView onAppear triggered", component: .tariffViewModel)
-            Task {
-                guard !hasInitiallyLoaded else {
-                    DebugLogger.debug(
-                        "⏭️ Skipping initialization - already loaded", component: .tariffViewModel)
-                    return
-                }
+    }
 
-                DebugLogger.debug("🔄 Starting initial setup", component: .tariffViewModel)
-                // Batch all initialization updates
-                compareSettings.batchUpdate {
-                    DebugLogger.debug("🔄 Initializing from settings", component: .tariffViewModel)
-                    initializeFromSettings()
-                    updateAllowedDateRange()
-                }
-
-                DebugLogger.debug("🔄 Loading comparison plans", component: .tariffViewModel)
-                // Load comparison plans (may update settings)
-                await loadComparisonPlansIfNeeded()
-
-                DebugLogger.debug("🔄 Recalculating tariffs", component: .tariffViewModel)
-                // Only recalc after all initialization is complete
-                await recalcBothTariffs(partialOverlap: true)
-
-                hasInitiallyLoaded = true
-                DebugLogger.debug("✅ Initial setup completed", component: .tariffViewModel)
+    // MARK: - Lifecycle handlers
+    private func handleOnAppear() {
+        DebugLogger.debug(
+            "🔄 TariffComparisonCardView onAppear triggered", component: .tariffViewModel)
+        Task {
+            guard !hasInitiallyLoaded else {
+                DebugLogger.debug(
+                    "⏭️ Skipping initialization - already loaded", component: .tariffViewModel)
+                return
             }
-        }
-        .task {
-            guard let data = globalSettings.settings.accountData else { return }
-            // Move decoding to background thread
-            await Task.detached(priority: .userInitiated) {
-                let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
-                await MainActor.run {
-                    cachedAccountResponse = decoded
-                }
-            }.value
-        }
-        .onChange(of: consumptionVM.minInterval) { _, _ in
+
+            DebugLogger.debug("🔄 Starting initial setup", component: .tariffViewModel)
             compareSettings.batchUpdate {
+                DebugLogger.debug("🔄 Initializing from settings", component: .tariffViewModel)
+                initializeFromSettings()
                 updateAllowedDateRange()
             }
+
+            DebugLogger.debug("🔄 Loading comparison plans", component: .tariffViewModel)
+            await loadComparisonPlansIfNeeded()
+
+            DebugLogger.debug("🔄 Recalculating tariffs", component: .tariffViewModel)
+            await recalcBothTariffs(partialOverlap: true)
+
+            hasInitiallyLoaded = true
+            DebugLogger.debug("✅ Initial setup completed", component: .tariffViewModel)
         }
-        .onChange(of: consumptionVM.maxInterval) { _, _ in
-            compareSettings.batchUpdate {
-                updateAllowedDateRange()
-            }
-        }
-        .onChange(of: compareSettings.settings.selectedPlanCode) { _ in
-            Task {
-                await recalcBothTariffs(partialOverlap: true)
-            }
-        }
-        .onChange(of: compareSettings.settings.manualRatePencePerKWh) { _ in
-            if compareSettings.settings.isManualPlan {
-                Task { await recalcBothTariffs(partialOverlap: true) }
-            }
-        }
-        .onChange(of: compareSettings.settings.manualStandingChargePencePerDay) { _ in
-            if compareSettings.settings.isManualPlan {
-                Task { await recalcBothTariffs(partialOverlap: true) }
-            }
-        }
-        .onChange(of: compareSettings.settings.isManualPlan) { _ in
-            Task {
-                await recalcBothTariffs(partialOverlap: true)
-            }
-        }
-        .onChange(of: consumptionVM.fetchState) { oldState, newState in
-            if case .success = newState {
-                Task {
-                    await recalcBothTariffs(partialOverlap: true)
-                }
+    }
+
+    private func handleTask() {
+        guard let data = globalSettings.settings.accountData else { return }
+        Task.detached(priority: .userInitiated) {
+            let decoded = try? JSONDecoder().decode(OctopusAccountResponse.self, from: data)
+            await MainActor.run {
+                cachedAccountResponse = decoded
             }
         }
     }
