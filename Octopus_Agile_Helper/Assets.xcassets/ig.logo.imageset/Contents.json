@@ -1,0 +1,23 @@
+{
+  "images" : [
+    {
+      "filename" : "logo-computer-icons-clip-art-instagram-logo-607d95a9f56a8022c409ec097780b47f.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "logo-computer-icons-clip-art-instagram-logo-607d95a9f56a8022c409ec097780b47f 1.png",
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "logo-computer-icons-clip-art-instagram-logo-607d95a9f56a8022c409ec097780b47f 2.png",
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

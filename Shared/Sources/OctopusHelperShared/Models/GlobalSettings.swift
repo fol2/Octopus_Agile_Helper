@@ -492,4 +492,21 @@ public class GlobalSettingsManager: ObservableObject {
             saveSettings()
         }
     }
+
+    // MARK: - Reset Settings
+    public func resetToDefaults() {
+        // Create new default settings
+        let defaultSettings = GlobalSettings.defaultSettings
+
+        // Update settings
+        batchUpdate {
+            self.settings = defaultSettings
+        }
+
+        // Update locale
+        self.locale = defaultSettings.selectedLanguage.locale
+
+        // Force save
+        saveSettings()
+    }
 }

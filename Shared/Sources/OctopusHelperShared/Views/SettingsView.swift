@@ -1587,7 +1587,7 @@ public struct SettingsView: View {
             }
 
             // ----------------------------------
-            // NEW Billing Cycle Day Section
+            // NEW Billing Cycle Section
             // ----------------------------------
             Section(
                 header: HStack {
@@ -1612,6 +1612,42 @@ public struct SettingsView: View {
                     )
                     .font(Theme.secondaryFont())
                     .foregroundColor(Theme.mainTextColor)
+                }
+                .customListRow()
+            }
+
+            // ----------------------------------
+            // NEW More Info Section
+            // ----------------------------------
+            Section(
+                header: HStack {
+                    Text("About")
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                        .textCase(.none)
+                    Spacer()
+                    InfoButton(
+                        message: LocalizedStringKey(
+                            "Access important information about the app, including version details, support resources, and legal documentation."
+                        ),
+                        title: LocalizedStringKey("About"),
+                        mediaItems: []
+                    )
+                }
+            ) {
+                NavigationLink(destination: MoreInfo()) {
+                    HStack {
+                        Text(LocalizedStringKey("More Info"))
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.mainTextColor)
+                        Spacer()
+                        Text(
+                            Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+                                ?? ""
+                        )
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    }
                 }
                 .customListRow()
             }
