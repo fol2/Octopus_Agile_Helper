@@ -592,7 +592,7 @@ private struct ComparisonInsightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Cost Comparison", bundle: .module)
+            Text("Cost Comparison")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
@@ -665,8 +665,7 @@ private struct ComparisonInsightCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 costBreakdownRow(
-                    label: "My Account", cost: accountCostDV,
-                    color: Theme.secondaryTextColor)
+                    label: "My Account", cost: accountCostDV, color: Theme.secondaryTextColor)
                 costBreakdownRow(
                     label: comparedPlanName, cost: compareCostDV, color: Theme.mainColor)
 
@@ -686,7 +685,7 @@ private struct ComparisonInsightCard: View {
             Spacer()
             VStack(spacing: 8) {
                 ProgressView()
-                Text("Calculating costs...", bundle: .module)
+                Text("Calculating costs...")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -699,7 +698,7 @@ private struct ComparisonInsightCard: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
-                Text("Error", bundle: .module)
+                Text("Error")
                     .font(Theme.mainFont())
                     .foregroundColor(.red)
             }
@@ -795,7 +794,7 @@ private struct RateAnalysisCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Rate Analysis", bundle: .module)
+            Text("Rate Analysis")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
@@ -831,7 +830,7 @@ private struct RateAnalysisCard: View {
 
             // Show Manual Plan text if applicable
             if isManualPlan {
-                Text("Manual Plan: Fixed Rate", bundle: .module)
+                Text("Manual Plan: Fixed Rate")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             } else {
@@ -855,7 +854,7 @@ private struct RateAnalysisCard: View {
             Spacer()
             VStack(spacing: 8) {
                 ProgressView()
-                Text("Fetching rate analysis...", bundle: .module)
+                Text("Fetching rate analysis...")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -868,7 +867,7 @@ private struct RateAnalysisCard: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
-                Text("Error", bundle: .module)
+                Text("Error")
                     .font(Theme.mainFont())
                     .foregroundColor(.red)
             }
@@ -919,12 +918,12 @@ private struct MonthlyTrendsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Monthly Average Rates", bundle: .module)
+            Text("Monthly Average Rates")
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
             if monthlyRates.isEmpty {
-                Text("No monthly rate data available", bundle: .module)
+                Text("No monthly rate data available")
                     .font(Theme.secondaryFont())
                     .foregroundStyle(Theme.secondaryTextColor)
             } else {
@@ -1102,7 +1101,7 @@ private struct MonthlyComparisonTable: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("Monthly Comparison", bundle: .module)
+                Text("Monthly Comparison")
                     .font(Theme.mainFont2())
                     .foregroundColor(Theme.mainTextColor)
                 Spacer()
@@ -1116,12 +1115,12 @@ private struct MonthlyComparisonTable: View {
 
                 // Table Header
                 HStack {
-                    Text("Month", bundle: .module).frame(width: 90, alignment: .leading)
-                    Text("kWh", bundle: .module).frame(width: 60, alignment: .trailing)
+                    Text("Month").frame(width: 90, alignment: .leading)
+                    Text("kWh").frame(width: 60, alignment: .trailing)
                     Spacer()
-                    Text("Current", bundle: .module).frame(width: 70, alignment: .trailing)
-                    Text("Compare", bundle: .module).frame(width: 70, alignment: .trailing)
-                    Text("Diff", bundle: .module).frame(width: 70, alignment: .trailing)
+                    Text("Current").frame(width: 70, alignment: .trailing)
+                    Text("Compare").frame(width: 70, alignment: .trailing)
+                    Text("Diff").frame(width: 70, alignment: .trailing)
                 }
                 .font(Theme.captionFont())
                 .foregroundColor(Theme.secondaryTextColor)
@@ -1151,7 +1150,7 @@ private struct MonthlyComparisonTable: View {
                 .padding(.horizontal, 4)
 
             } else {
-                Text("No monthly calculation data.", bundle: .module)
+                Text("No monthly calculation data.")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -1209,7 +1208,7 @@ private struct MonthlyComparisonTable: View {
             Spacer()
             VStack(spacing: 8) {
                 ProgressView()
-                Text("Calculating monthly breakdown...", bundle: .module)
+                Text("Calculating monthly breakdown...")
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -1288,14 +1287,14 @@ private struct ProductHeaderView: View {
 
             // Availability info
             if let availableFrom = product.value(forKey: "available_from") as? Date {
-                Text("Available from: \(formatDate(availableFrom))", bundle: .module)
+                Text("Available from: \(formatDate(availableFrom))")
                     .font(.system(size: 16))
                     .foregroundColor(Theme.secondaryTextColor)
 
                 if let availableTo = product.value(forKey: "available_to") as? Date,
                     Calendar.current.component(.year, from: availableTo) < 2100
                 {
-                    Text("Available to: \(formatDate(availableTo))", bundle: .module)
+                    Text("Available to: \(formatDate(availableTo))")
                         .font(.system(size: 16))
                         .foregroundColor(Theme.secondaryTextColor)
                 }
@@ -1334,7 +1333,7 @@ private struct ManualPlanSummaryView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text("Manual Plan", bundle: .module)
+                    Text("Manual Plan")
                         .font(.system(size: 36))
                         .foregroundColor(Theme.mainTextColor)
                 }
