@@ -47,6 +47,7 @@ public struct PrivacyPolicyView: View {
     @StateObject private var viewModel = PrivacyPolicyViewModel()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     public var body: some View {
         ScrollView {
@@ -115,6 +116,7 @@ public struct PrivacyPolicyView: View {
         .background(Theme.mainBackground)
         .navigationTitle(LocalizedStringKey("Privacy Policy"))
         .navigationBarTitleDisplayMode(.inline)
+        .environment(\.locale, globalSettings.locale)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {

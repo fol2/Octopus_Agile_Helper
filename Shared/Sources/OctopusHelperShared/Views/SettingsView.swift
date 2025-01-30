@@ -276,6 +276,7 @@ struct APIConfigurationView: View {
     @State private var apiKeyFieldError: String?
     @State private var isCleaningUp = false
     @State private var cleanupError: String?
+    let didFinishEditing: (() -> Void)?
 
     private func isValidAPIKey(_ key: String) -> Bool {
         key.starts(with: "sk_live_") && key.count >= 32  // "sk_live_" + 32 chars
@@ -1410,7 +1411,10 @@ public struct SettingsView: View {
                     )
                 }
             ) {
-                NavigationLink(destination: APIConfigurationView()) {
+                NavigationLink {
+                    APIConfigurationView(didFinishEditing: didFinishEditing)
+                        .environment(\.locale, globalSettings.locale)
+                } label: {
                     HStack {
                         Text(LocalizedStringKey("Configure API Access"))
                             .font(Theme.secondaryFont())

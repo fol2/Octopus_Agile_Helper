@@ -131,6 +131,7 @@ public struct ContentView: View {
                                 }
                             })
                             .environment(\.locale, globalSettings.locale)
+                            .navigationTitle(LocalizedStringKey("Settings"))
                         } label: {
                             Image(systemName: "gear")
                                 .foregroundColor(Theme.mainTextColor)

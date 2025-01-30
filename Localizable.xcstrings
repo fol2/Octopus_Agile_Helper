@@ -1462,6 +1462,215 @@
         }
       }
     },
+    "⚠️ WARNING ⚠️\n\n'Clear Data' will remove all stored data except product list and settings.\n\n'Reset All' will remove ALL data including settings and product list.\n\nThese actions cannot be undone." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ تحذير ⚠️\n\n'مسح البيانات' سيزيل جميع البيانات المخزنة باستثناء قائمة المنتجات والإعدادات.\n\n'إعادة التعيين الكامل' سيزيل جميع البيانات بما في ذلك الإعدادات وقائمة المنتجات.\n\nلا يمكن التراجع عن هذه الإجراءات."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ AVÍS ⚠️\n\n'Esborra dades' eliminarà totes les dades emmagatzemades excepte la llista de productes i la configuració.\n\n'Restablir tot' eliminarà TOTES les dades, incloent-hi la configuració i la llista de productes.\n\nAquesta acció no es pot desfer."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ VAROVÁNÍ ⚠️\n\n'Vymazat data' odstraní všechna uložená data kromě seznamu produktů a nastavení.\n\n'Obnovit vše' odstraní VŠECHNA data včetně nastavení a seznamu produktů.\n\nTyto akce nelze vrátit zpět."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ ADVARSEL ⚠️\n\n'Ryd data' fjerner alle gemte data undtagen produktlisten og indstillinger.\n\n'Nulstil alt' fjerner ALLE data, inklusive indstillinger og produktlisten.\n\nDisse handlinger kan ikke fortrydes."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ WARNUNG ⚠️\n\n'Daten löschen' entfernt alle gespeicherten Daten mit Ausnahme der Produktliste und Einstellungen.\n\n'Alles zurücksetzen' entfernt ALLE Daten, einschließlich Einstellungen und Produktliste.\n\nDiese Aktionen können nicht rückgängig gemacht werden."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ ΠΡΟΕΙΔΟΠΟΙΗΣΗ ⚠️\n\n'Εκκαθάριση δεδομένων' θα αφαιρέσει όλα τα αποθηκευμένα δεδομένα εκτός από τη λίστα προϊόντων και τις ρυθμίσεις.\n\n'Επαναφορά όλων' θα αφαιρέσει ΟΛΑ τα δεδομένα, συμπεριλαμβανομένων των ρυθμίσεων και της λίστας προϊόντων.\n\nΑυτές οι ενέργειες δεν μπορούν να αναιρεθούν."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ WARNING ⚠️\n\n'Clear Data' will remove all stored data except product list and settings.\n\n'Reset All' will remove ALL data including settings and product list.\n\nThese actions cannot be undone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ ADVERTENCIA ⚠️\n\n'Borrar datos' eliminará todos los datos almacenados excepto la lista de productos y la configuración.\n\n'Restablecer todo' eliminará TODOS los datos, incluida la configuración y la lista de productos.\n\nEstas acciones no se pueden deshacer."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ VAROITUS ⚠️\n\n'Tyhjennä tiedot' poistaa kaikki tallennetut tiedot lukuun ottamatta tuotelistaa ja asetuksia.\n\n'Nollaa kaikki' poistaa KAIKKI tiedot, mukaan lukien asetukset ja tuotelistan.\n\nNäitä toimintoja ei voi perua."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ AVERTISSEMENT ⚠️\n\n'Supprimer les données' supprimera toutes les données stockées à l’exception de la liste de produits et des paramètres.\n\n'Tout réinitialiser' supprimera TOUTES les données, y compris les paramètres et la liste de produits.\n\nCes actions sont irréversibles."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ אזהרה ⚠️\n\n'ניקוי נתונים' יסיר את כל הנתונים השמורים למעט רשימת המוצרים וההגדרות.\n\n'איפוס הכול' יסיר את כל הנתונים, כולל ההגדרות ורשימת המוצרים.\n\nלא ניתן לבטל פעולות אלה."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ चेतावनी ⚠️\n\n'Clear Data' आपके संग्रहीत सभी डेटा को हटा देगा, सिवाय उत्पाद सूची और सेटिंग्स के।\n\n'Reset All' सभी डेटा हटा देगा, जिसमें सेटिंग्स और उत्पाद सूची भी शामिल हैं।\n\nइन क्रियाओं को वापस नहीं लिया जा सकता।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ UPOZORENJE ⚠️\n\n'Clear Data' će ukloniti sve pohranjene podatke osim popisa proizvoda i postavki.\n\n'Reset All' će ukloniti SVE podatke, uključujući postavke i popis proizvoda.\n\nTe se radnje ne mogu opozvati."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ FIGYELMEZTETÉS ⚠️\n\n'Adataim törlése' eltávolít minden tárolt adatot, kivéve a terméklistát és a beállításokat.\n\n'Minden visszaállítása' eltávolít MINDEN adatot, beleértve a beállításokat és a terméklistát is.\n\nEzek a műveletek nem vonhatók vissza."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ PERINGATAN ⚠️\n\n'Bersihkan Data' akan menghapus semua data yang tersimpan kecuali daftar produk dan pengaturan.\n\n'Atur Ulang Semua' akan menghapus SEMUA data termasuk pengaturan dan daftar produk.\n\nTindakan ini tidak dapat dibatalkan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ AVVERTENZA ⚠️\n\n'Cancella dati' rimuoverà tutti i dati memorizzati, ad eccezione dell’elenco prodotti e delle impostazioni.\n\n'Reimposta tutto' rimuoverà TUTTI i dati, incluse le impostazioni e l’elenco prodotti.\n\nQueste azioni non possono essere annullate."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ 警告 ⚠️\n\n「データをクリア」を実行すると、商品リストと設定を除くすべての保存データが削除されます。\n\n「すべてリセット」を実行すると、設定や商品リストを含むすべてのデータが削除されます。\n\nこれらの操作は元に戻せません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ 경고 ⚠️\n\n'데이터 삭제'를 실행하면 제품 목록과 설정을 제외한 모든 저장 데이터가 제거됩니다.\n\n'모두 재설정'을 실행하면 설정 및 제품 목록을 포함한 모든 데이터가 제거됩니다.\n\n이 작업들은 되돌릴 수 없습니다."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ AMARAN ⚠️\n\n'Padam Data' akan membuang semua data yang disimpan kecuali senarai produk dan tetapan.\n\n'Tetapkan Semula Semua' akan membuang SEMUA data termasuk tetapan dan senarai produk.\n\nTindakan ini tidak boleh diundurkan."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ ADVARSEL ⚠️\n\n'Slett data' vil fjerne alle lagrede data bortsett fra produktliste og innstillinger.\n\n'Tilbakestill alt' vil fjerne ALLE data, inkludert innstillinger og produktliste.\n\nDisse handlingene kan ikke angres."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ WAARSCHUWING ⚠️\n\n'Gegevens wissen' verwijdert alle opgeslagen gegevens behalve de productlijst en instellingen.\n\n'Alles opnieuw instellen' verwijdert ALLE gegevens, inclusief instellingen en productlijst.\n\nDeze handelingen kunnen niet ongedaan worden gemaakt."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ OSTRZEŻENIE ⚠️\n\n'Wyczyść dane' usunie wszystkie zapisane dane, z wyjątkiem listy produktów i ustawień.\n\n'Zresetuj wszystko' usunie WSZYSTKIE dane, w tym ustawienia i listę produktów.\n\nTych operacji nie można cofnąć."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ AVISO ⚠️\n\n'Limpar Dados' irá remover todos os dados guardados, exceto a lista de produtos e definições.\n\n'Redefinir Tudo' irá remover TODOS os dados, incluindo definições e a lista de produtos.\n\nEstas ações não podem ser anuladas."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ AVERTISMENT ⚠️\n\n„Șterge datele” va elimina toate datele stocate, cu excepția listei de produse și a setărilor.\n\n„Resetare totală” va elimina TOATE datele, inclusiv setările și lista de produse.\n\nAceste acțiuni nu pot fi anulate."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ ПРЕДУПРЕЖДЕНИЕ ⚠️\n\n'Очистить данные' удалит все сохранённые данные, кроме списка продуктов и настроек.\n\n'Сбросить всё' удалит ВСЕ данные, включая настройки и список продуктов.\n\nЭти действия невозможно отменить."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ VAROVANIE ⚠️\n\n'Vymazať údaje' odstráni všetky uložené údaje okrem zoznamu produktov a nastavení.\n\n'Obnoviť všetko' odstráni VŠETKY údaje vrátane nastavení a zoznamu produktov.\n\nTieto akcie nemožno vrátiť späť."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ OPOZORILO ⚠️\n\n'Počisti podatke' bo odstranilo vse shranjene podatke, razen seznama izdelkov in nastavitev.\n\n'Ponastavi vse' bo odstranilo VSE podatke, vključno z nastavitvami in seznamom izdelkov.\n\nTeh dejanj ni mogoče razveljaviti."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ VARNING ⚠️\n\n'Rensa data' tar bort all sparad data förutom produktlistan och inställningarna.\n\n'Återställ allt' tar bort ALL data, inklusive inställningar och produktlista.\n\nDessa åtgärder kan inte ångras."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ คำเตือน ⚠️\n\n'ล้างข้อมูล' จะลบข้อมูลที่บันทึกไว้ทั้งหมด ยกเว้นรายการสินค้าและการตั้งค่า\n\n'รีเซ็ตทั้งหมด' จะลบข้อมูลทั้งหมด รวมถึงการตั้งค่าและรายการสินค้า\n\nไม่สามารถย้อนกลับการกระทำเหล่านี้ได้"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ UYARI ⚠️\n\n'Verileri Temizle' ürün listesi ve ayarlar hariç tüm depolanmış verileri kaldırır.\n\n'Her Şeyi Sıfırla' ayarlar ve ürün listesi dahil TÜM verileri kaldırır.\n\nBu işlemler geri alınamaz."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ ПОПЕРЕДЖЕННЯ ⚠️\n\n«Очистити дані» видалить усі збережені дані, крім списку продуктів і налаштувань.\n\n«Скинути все» видалить УСІ дані, включно з налаштуваннями та списком продуктів.\n\nЦі дії неможливо скасувати."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ CẢNH BÁO ⚠️\n\n'Xoá Dữ Liệu' sẽ xoá tất cả dữ liệu đã lưu trữ ngoại trừ danh sách sản phẩm và cài đặt.\n\n'Đặt Lại Tất Cả' sẽ xoá TOÀN BỘ dữ liệu bao gồm cả cài đặt và danh sách sản phẩm.\n\nKhông thể hoàn tác các hành động này."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ 警告 ⚠️\n\n「清除数据」将移除除产品列表和设置之外的所有存储数据。\n\n「重置所有」将移除包括设置和产品列表在内的所有数据。\n\n此操作无法撤销。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠️ 警告 ⚠️\n\n「清除資料」會移除除產品清單和設定以外的所有儲存資料。\n\n「重設全部」會移除所有資料，包括設定和產品清單。\n\n此操作無法復原。"
+          }
+        }
+      }
+    },
     "A dynamic line chart showing rates, best time ranges, and more." : {
       "comment" : "descriptionKey for lineChart",
       "extractionState" : "manual",
@@ -7513,6 +7722,215 @@
         }
       }
     },
+    "Clear Data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مسح البيانات"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esborra dades"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vymazat data"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ryd data"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daten löschen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Διαγραφή δεδομένων"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Data"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar datos"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tyhjennä tiedot"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer les données"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נקה נתונים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "डेटा साफ़ करें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Očisti podatke"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Törölje az adatokat"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hapus Data"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancella dati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "データをクリア"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "데이터 지우기"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Padam Data"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tøm data"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gegevens wissen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyczyść dane"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar Dados"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Șterge datele"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить данные"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vymazať údaje"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Počisti podatke"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rensa data"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ล้างข้อมูล"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verileri Temizle"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистити дані"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xóa Dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除數據"
+          }
+        }
+      }
+    },
     "Configuration" : {
       "localizations" : {
         "ar" : {
@@ -8759,6 +9177,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "用量"
+          }
+        }
+      }
+    },
+    "Contact Support" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاتصال بالدعم"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacta amb el suport"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktujte podporu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontakt support"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support kontaktieren"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Επικοινωνήστε με την υποστήριξη"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contact Support"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contactar con soporte"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ota yhteyttä tukeen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacter l’assistance"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "צור קשר עם התמיכה"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सहायता से संपर्क करें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktirajte podršku"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lépjen kapcsolatba a támogatással"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hubungi Dukungan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contatta il supporto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サポートに連絡"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지원 센터 문의하기"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hubungi Sokongan"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontakt kundestøtte"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neem contact op met ondersteuning"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skontaktuj się z pomocą techniczną"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contactar Suporte"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contactați asistența"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Связаться со службой поддержки"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktovať podporu"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontaktirajte podporo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontakta support"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ติดต่อฝ่ายสนับสนุน"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destek ile iletişime geçin"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Звернутися до служби підтримки"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liên hệ Hỗ trợ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "联系支持"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聯絡支援"
           }
         }
       }
@@ -10219,6 +10846,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每日"
+          }
+        }
+      }
+    },
+    "Data Management" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إدارة البيانات"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestió de dades"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Správa dat"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datastyring"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenverwaltung"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Διαχείριση δεδομένων"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Management"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestión de datos"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tietojen hallinta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestion des données"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ניהול נתונים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "डेटा प्रबंधन"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upravljanje podacima"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adatkezelés"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pengelolaan Data"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestione dati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "データ管理"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "데이터 관리"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pengurusan Data"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Databehandling"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gegevensbeheer"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zarządzanie danymi"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestão de Dados"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Managementul datelor"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Управление данными"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Správa údajov"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upravljanje podatkov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hantering av data"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "การจัดการข้อมูล"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veri Yönetimi"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Управління даними"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quản lý dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据管理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "數據管理"
           }
         }
       }
@@ -14598,6 +15434,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "實體"
+          }
+        }
+      }
+    },
+    "Error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خطأ"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chyba"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fejl"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fehler"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Σφάλμα"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Virhe"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שגיאה"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "त्रुटि"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pogreška"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiba"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Galat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Errore"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エラー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오류"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ralat"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feil"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fout"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Błąd"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erro"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eroare"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ошибка"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chyba"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Napaka"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fel"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ข้อผิดพลาด"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hata"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помилка"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lỗi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "错误"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "錯誤"
           }
         }
       }
@@ -25232,6 +26277,215 @@
         }
       }
     },
+    "Privacy Policy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سياسة الخصوصية"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de privacitat"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zásady ochrany osobních údajů"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privatlivspolitik"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzrichtlinie"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Πολιτική απορρήτου"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de privacidad"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tietosuojakäytäntö"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Politique de confidentialité"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מדיניות פרטיות"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "गोपनीयता नीति"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pravila o privatnosti"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adatvédelmi szabályzat"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kebijakan Privasi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informativa sulla privacy"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシーポリシー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개인정보처리방침"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dasar Privasi"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personvernregler"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacybeleid"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polityka prywatności"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Política de Privacidade"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Politica de confidențialitate"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Политика конфиденциальности"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zásady ochrany osobných údajov"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pravilnik o zasebnosti"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integritetspolicy"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "นโยบายความเป็นส่วนตัว"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gizlilik Politikası"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Політика конфіденційності"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chính sách quyền riêng tư"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "私隱政策"
+          }
+        }
+      }
+    },
     "Products" : {
       "localizations" : {
         "ar" : {
@@ -28144,6 +29398,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重設 %@ 數據"
+          }
+        }
+      }
+    },
+    "Reset All" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة ضبط الكل"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restableix tot"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obnovit vše"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nulstil alt"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles zurücksetzen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Επαναφορά όλων"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset All"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restablecer todo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nollaa kaikki"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réinitialiser tout"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אפס הכל"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "सभी रीसेट करें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resetiraj sve"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alaphelyzetbe állít minden"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atur Ulang Semua"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reimposta tutto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてリセット"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모두 재설정"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tetapkan Semula Semua"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nullstill alt"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles resetten"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zresetuj wszystko"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redefinir tudo"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resetați tot"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сбросить все"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obnoviť všetko"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponastavi vse"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Återställ allt"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "รีเซ็ตทั้งหมด"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tümünü Sıfırla"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скинути все"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đặt Lại Tất Cả"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置全部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重設全部"
           }
         }
       }
@@ -33362,6 +34825,215 @@
         }
       }
     },
+    "Support Development" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "دعم التطوير"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donar suport al desenvolupament"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podpořte vývoj"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Støt udvikling"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entwicklung unterstützen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Υποστήριξη ανάπτυξης"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support Development"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apoyar el desarrollo"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tukeminen kehitykselle"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soutenir le développement"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לתמוך בפיתוח"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "विकास का समर्थन करें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podržite razvoj"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fejlesztés támogatása"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dukung Pengembangan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supporta lo sviluppo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開発をサポート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개발 지원"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sokong Pembangunan"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Støtt utvikling"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ondersteun ontwikkeling"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wspieraj rozwój"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apoiar Desenvolvimento"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Susține dezvoltarea"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поддержать разработку"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podporiť vývoj"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podprite razvoj"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stöd utveckling"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "สนับสนุนการพัฒนา"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geliştirmeyi Destekle"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Підтримати розробку"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hỗ trợ Phát triển"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持开发"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持開發"
+          }
+        }
+      }
+    },
     "Tariff" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -33988,6 +35660,215 @@
         }
       }
     },
+    "Terms of Use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شروط الاستخدام"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Condicions d'ús"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podmínky použití"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brugsbetingelser"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nutzungsbedingungen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Όροι χρήσης"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Términos de uso"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käyttöehdot"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conditions d’utilisation"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תנאי שימוש"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "उपयोग की शर्तें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uvjeti korištenja"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Felhasználási feltételek"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ketentuan Penggunaan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termini di utilizzo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "利用規約"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이용 약관"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terma Penggunaan"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruksvilkår"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruiksvoorwaarden"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warunki użytkowania"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termos de Uso"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termeni de utilizare"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Условия использования"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podmienky používania"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pogoji uporabe"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Användarvillkor"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ข้อกำหนดการใช้งาน"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kullanım Şartları"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умови використання"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Điều khoản sử dụng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用条款"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用條款"
+          }
+        }
+      }
+    },
     "Test View" : {
       "localizations" : {
         "ar" : {
@@ -34400,6 +36281,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "這將會刪除此實體的所有紀錄。此動作無法還原。"
+          }
+        }
+      }
+    },
+    "This will delete your:\n• API Key\n• Account Number\n• Meter Information\n• Account Data\n• Consumption History\n• Tariff Calculations\n\nYou will need to re-enter your account information to access your energy data." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيؤدي هذا إلى حذف ما يلي:\n• مفتاح API\n• رقم الحساب\n• معلومات العداد\n• بيانات الحساب\n• سجل الاستهلاك\n• حسابات التعرفة\n\nستحتاج إلى إعادة إدخال معلومات حسابك للوصول إلى بيانات الطاقة الخاصة بك."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Això suprimirà:\n• La vostra clau API\n• El número de compte\n• La informació del comptador\n• Les dades del compte\n• L’historial de consum\n• Els càlculs de tarifa\n\nHaureu de tornar a introduir la informació del vostre compte per accedir a les vostres dades d’energia."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tímto dojde k odstranění:\n• API klíče\n• Čísla účtu\n• Informací o měřiči\n• Účetních dat\n• Historie spotřeby\n• Výpočtů tarifu\n\nBudete muset znovu zadat informace o svém účtu, abyste měli přístup k údajům o energii."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dette vil slette:\n• Dit API-nøgle\n• Kontonummer\n• Måleroplysninger\n• Kontodata\n• Forbrugshistorik\n• Tariffberegninger\n\nDu skal indtaste dine kontooplysninger igen for at få adgang til dine energidata."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dies wird Folgendes löschen:\n• Ihren API-Schlüssel\n• Ihre Kontonummer\n• Ihre Zählerinformationen\n• Ihre Kontodaten\n• Ihren Verbrauchsverlauf\n• Ihre Tarifberechnungen\n\nSie müssen Ihre Kontoinformationen erneut eingeben, um auf Ihre Energiedaten zugreifen zu können."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αυτό θα διαγράψει:\n• Το κλειδί API\n• Τον αριθμό λογαριασμού\n• Τις πληροφορίες του μετρητή\n• Τα δεδομένα λογαριασμού\n• Το ιστορικό κατανάλωσης\n• Τους υπολογισμούς τιμολογίων\n\nΘα χρειαστεί να εισαγάγετε ξανά τα στοιχεία του λογαριασμού σας για να αποκτήσετε πρόσβαση στα δεδομένα ενέργειάς σας."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will delete your:\n• API Key\n• Account Number\n• Meter Information\n• Account Data\n• Consumption History\n• Tariff Calculations\n\nYou will need to re-enter your account information to access your energy data."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto eliminará:\n• Tu clave de API\n• Tu número de cuenta\n• La información del contador\n• Los datos de la cuenta\n• El historial de consumo\n• Los cálculos de tarifas\n\nDeberás volver a introducir la información de tu cuenta para acceder a tus datos de energía."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä poistaa:\n• API-avaimesi\n• Tilinumerosi\n• Mittaritietosi\n• Tilitietosi\n• Kulutushistoriasi\n• Tariffilaskelmat\n\nSinun on syötettävä tilitietosi uudelleen, jotta pääset käsiksi energiadataasi."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela supprimera :\n• Votre clé API\n• Votre numéro de compte\n• Les informations du compteur\n• Les données de compte\n• L’historique de consommation\n• Les calculs de tarif\n\nVous devrez saisir à nouveau les informations de votre compte pour accéder à vos données énergétiques."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פעולה זו תמחק את:\n• מפתח ה-API שלך\n• מספר החשבון\n• פרטי המונה\n• נתוני החשבון\n• היסטוריית הצריכה\n• חישובי התעריף\n\nתצטרך להזין מחדש את פרטי החשבון שלך כדי לגשת לנתוני האנרגיה."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "इससे आपकी ये चीज़ें हट जाएँगी:\n• API कुंजी\n• खाता संख्या\n• मीटर जानकारी\n• खाता डेटा\n• खपत इतिहास\n• टैरिफ कैलकुलेशन\n\nअपनी ऊर्जा डेटा तक पहुंचने के लिए आपको अपना खाता विवरण दोबारा दर्ज करना होगा।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ovo će izbrisati:\n• Vaš API ključ\n• Broj računa\n• Informacije o brojilu\n• Podatke računa\n• Povijest potrošnje\n• Izračune tarifa\n\nMorat ćete ponovno unijeti podatke o računu da biste pristupili svojim energetskim podacima."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ezzel törlésre kerül:\n• API-kulcs\n• Fiókszám\n• Mérő adatai\n• Fiókadatok\n• Fogyasztási előzmények\n• Tarifaszámítások\n\nAz energiaadataid eléréséhez újra meg kell adnod a fiókadataidat."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ini akan menghapus:\n• Kunci API Anda\n• Nomor Akun\n• Informasi Meteran\n• Data Akun\n• Riwayat Konsumsi\n• Perhitungan Tarif\n\nAnda harus memasukkan kembali informasi akun Anda untuk mengakses data energi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo rimuoverà:\n• La tua chiave API\n• Il numero di conto\n• Le informazioni del contatore\n• I dati del conto\n• Lo storico dei consumi\n• I calcoli tariffari\n\nDovrai inserire nuovamente i dati del tuo account per accedere alle tue informazioni energetiche."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これにより、以下が削除されます:\n• APIキー\n• アカウント番号\n• メーター情報\n• アカウントデータ\n• 消費履歴\n• タリフ計算\n\nエネルギーデータにアクセスするには、アカウント情報を再度入力する必要があります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 작업은 다음 항목을 삭제합니다:\n• API 키\n• 계정 번호\n• 계량기 정보\n• 계정 데이터\n• 소비 내역\n• 요금 계산\n\n에너지 데이터를 다시 이용하려면 계정 정보를 재입력해야 합니다."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ini akan memadam:\n• Kunci API anda\n• Nombor Akaun\n• Maklumat Meter\n• Data Akaun\n• Sejarah Penggunaan\n• Pengiraan Tarif\n\nAnda perlu memasukkan semula maklumat akaun untuk mengakses data tenaga anda."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dette vil slette:\n• API-nøkkelen din\n• Kontonummer\n• Målerinformasjon\n• Kontodata\n• Forbruksoversikt\n• Tariffberegninger\n\nDu må legge inn kontoinformasjonen din på nytt for å få tilgang til energidataene dine."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit zal het volgende verwijderen:\n• Je API-sleutel\n• Je rekeningnummer\n• Je meterinformatie\n• Je rekeninggegevens\n• Je verbruiksgeschiedenis\n• Je tariefberekeningen\n\nJe moet je accountgegevens opnieuw invoeren om toegang te krijgen tot je energiedata."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spowoduje to usunięcie:\n• Klucza API\n• Numeru konta\n• Informacji o liczniku\n• Danych konta\n• Historii zużycia\n• Obliczeń taryf\n\nAby uzyskać dostęp do swoich danych energetycznych, będziesz musiał ponownie wprowadzić dane konta."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto irá eliminar:\n• A sua chave API\n• O número de conta\n• As informações do contador\n• Os dados da conta\n• O histórico de consumo\n• Os cálculos de tarifa\n\nTerá de voltar a introduzir as informações da sua conta para aceder aos seus dados de energia."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceasta va șterge:\n• Cheia API\n• Numărul de cont\n• Informațiile contorului\n• Datele de cont\n• Istoricul de consum\n• Calculele tarifare\n\nVa trebui să reintroduceți informațiile contului pentru a accesa datele de energie."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это удалит:\n• Ваш ключ API\n• Номер счета\n• Информацию о счётчике\n• Данные аккаунта\n• Историю потребления\n• Тарифные расчёты\n\nВам потребуется заново ввести данные учётной записи, чтобы получить доступ к своей энергетической информации."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Týmto sa vymaže:\n• API kľúč\n• Číslo účtu\n• Informácie o merači\n• Údaje účtu\n• História spotreby\n• Výpočty taríf\n\nNa prístup k svojim údajom o energii budete musieť znova zadať informácie o účte."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S tem boste izbrisali:\n• svoj API ključ\n• številko računa\n• informacije o števcu\n• podatke o računu\n• zgodovino porabe\n• izračune tarif\n\nZa dostop do svojih energetskih podatkov boste morali znova vnesti podatke o računu."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detta kommer att ta bort:\n• Din API-nyckel\n• Kontonummer\n• Mätarinformation\n• Kontodata\n• Förbrukningshistorik\n• Tariffberäkningar\n\nDu måste ange dina kontouppgifter igen för att få åtkomst till din energidata."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "การดำเนินการนี้จะลบ:\n• คีย์ API ของคุณ\n• หมายเลขบัญชี\n• ข้อมูลมิเตอร์\n• ข้อมูลบัญชี\n• ประวัติการใช้พลังงาน\n• การคำนวณอัตราค่าไฟ\n\nคุณจำเป็นต้องป้อนข้อมูลบัญชีอีกครั้งเพื่อเข้าถึงข้อมูลพลังงานของคุณ"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu işlem şunları silecektir:\n• API Anahtarınızı\n• Hesap Numaranızı\n• Sayaç Bilgilerinizi\n• Hesap Verilerinizi\n• Tüketim Geçmişinizi\n• Tarife Hesaplamalarınızı\n\nEnerji verilerinize erişmek için hesap bilgilerinizi yeniden girmeniz gerekecek."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Це видалить:\n• Ваш API-ключ\n• Номер облікового запису\n• Інформацію про лічильник\n• Дані облікового запису\n• Історію споживання\n• Розрахунки тарифу\n\nЩоб отримати доступ до своїх енергетичних даних, вам потрібно буде повторно ввести інформацію про обліковий запис."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thao tác này sẽ xóa:\n• Khóa API của bạn\n• Số Tài Khoản\n• Thông Tin Công Tơ\n• Dữ Liệu Tài Khoản\n• Lịch Sử Tiêu Thụ\n• Các Tính Toán Biểu Phí\n\nBạn sẽ phải nhập lại thông tin tài khoản để truy cập dữ liệu năng lượng của mình."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作将删除以下内容：\n• API 密钥\n• 账户号\n• 电表信息\n• 账户数据\n• 历史用量\n• 费率计算\n\n要访问您的能源数据，您需要重新输入账户信息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此操作會刪除以下項目：\n• API 金鑰\n• 帳戶號碼\n• 電錶資訊\n• 帳戶資料\n• 使用量記錄\n• 費率計算\n\n您需要重新輸入帳戶資訊以存取您的能源數據。"
           }
         }
       }

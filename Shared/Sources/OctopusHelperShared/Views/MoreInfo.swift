@@ -5,6 +5,7 @@ public struct MoreInfo: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.openURL) private var openURL
+    @Environment(\.locale) private var locale
 
     // Alert States
     @State private var showingClearDataAlert = false
@@ -378,15 +379,18 @@ public struct MoreInfo: View {
         }
         .scrollContentBackground(.hidden)
         .background(Theme.mainBackground)
-        .navigationTitle("More Info")
+        .environment(\.locale, globalSettings.locale)
+        .navigationTitle(Text(LocalizedStringKey("More Info")))
         .sheet(isPresented: $showingGDPR) {
             NavigationView {
                 PrivacyPolicyView()
+                    .environment(\.locale, globalSettings.locale)
             }
         }
         .sheet(isPresented: $showingTerms) {
             NavigationView {
                 TermsAndConditionsView()
+                    .environment(\.locale, globalSettings.locale)
             }
         }
         .confirmationDialog(
@@ -399,7 +403,10 @@ public struct MoreInfo: View {
                     await clearData()
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) {
+                showingClearDataAlert = false
+                showingResetAllAlert = false
+            }
         } message: {
             Text(
                 "This will delete:\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nProduct List and Settings will be preserved.\nThis action cannot be undone."
@@ -415,7 +422,10 @@ public struct MoreInfo: View {
                     await resetAll()
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) {
+                showingResetAllAlert = false
+                showingClearDataAlert = false
+            }
         } message: {
             Text(
                 "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone."
