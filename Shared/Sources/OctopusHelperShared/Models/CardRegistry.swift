@@ -264,7 +264,7 @@ extension CardRegistry {
                     MediaItem(
                         localName: "imgAccTariff2",
                         caption: LocalizedStringKey(
-                            "Deep Cost Analysis - Dive deeper into usage patterns, compare tariff periods, and forecast future bills"
+                            "In-depth Cost Analysis - Dive deeper into usage patterns, compare tariff periods, and forecast future bills"
                         )
                     ),
                 ],
@@ -303,7 +303,7 @@ extension CardRegistry {
                     MediaItem(
                         localName: "imgTariffCompare2",
                         caption: LocalizedStringKey(
-                            "Deep Analysis - Interactive charts show monthly trends, rate breakdowns, and exact savings potential"
+                            "In-depth Analysis - Interactive charts show monthly trends, rate breakdowns, and exact savings potential"
                         )
                     ),
                 ],

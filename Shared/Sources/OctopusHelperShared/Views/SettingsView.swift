@@ -78,6 +78,7 @@ private class GDPRViewModel: ObservableObject {
 struct GDPRDeclarationView: View {
     @StateObject private var viewModel = GDPRViewModel()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -122,6 +123,7 @@ struct GDPRDeclarationView: View {
                     .foregroundColor(.red)
             }
         }
+        .environment(\.locale, globalSettings.locale)
     }
 }
 
@@ -174,6 +176,7 @@ private class GuideViewModel: ObservableObject {
 struct GuideView: View {
     @StateObject private var viewModel = GuideViewModel()
     @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -216,6 +219,7 @@ struct GuideView: View {
                     .foregroundColor(.red)
             }
         }
+        .environment(\.locale, globalSettings.locale)
     }
 }
 
@@ -260,6 +264,7 @@ private struct DetailRow: View {
 struct APIConfigurationView: View {
     @EnvironmentObject var globalSettings: GlobalSettingsManager
     @Environment(\.dismiss) var dismiss
+    @Environment(\.locale) private var locale
     @State private var showGDPRConsent = false
     @State private var gdprAccepted = false
     @State private var showDeleteAPIKeyWarning = false
@@ -937,6 +942,7 @@ struct APIConfigurationView: View {
         }
         .background(Theme.mainBackground)
         .navigationTitle(LocalizedStringKey("API Configuration"))
+        .environment(\.locale, globalSettings.locale)
         .onAppear {
             // Restore account number from settings when view appears
             accountNumberInput = globalSettings.settings.accountNumber ?? ""
