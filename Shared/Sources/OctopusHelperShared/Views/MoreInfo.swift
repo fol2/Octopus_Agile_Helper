@@ -199,7 +199,7 @@ public struct MoreInfo: View {
                         .foregroundColor(.secondary)
                 }
                 .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
-                .listRowBackground(Theme.secondaryBackground)
+                .listRowBackground(Color.clear)
             }
 
             // Support Section

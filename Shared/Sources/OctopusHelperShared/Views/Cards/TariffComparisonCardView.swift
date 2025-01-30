@@ -89,7 +89,14 @@ public enum CompareIntervalType: String, CaseIterable {
     case monthly = "MONTHLY"
     case quarterly = "QUARTERLY"
 
-    var displayName: String { rawValue.capitalized }
+    var displayName: String {
+        switch self {
+        case .daily: String(localized: "Daily")
+        case .weekly: String(localized: "Weekly")
+        case .monthly: String(localized: "Monthly")
+        case .quarterly: String(localized: "Quarterly")
+        }
+    }
 
     // Bridge to TariffViewModel's interval enum
     var vmInterval: TariffViewModel.IntervalType {

@@ -67,19 +67,20 @@ public struct PrivacyPolicyView: View {
                         .foregroundColor(Theme.secondaryTextColor)
                     }
                     .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
                             .fill(Theme.secondaryBackground)
                             .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                     )
-                    .padding(.horizontal)
 
                     // Introduction
                     Text(LocalizedStringKey(gdprData.introduction))
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(Theme.mainTextColor)
-                        .padding(.horizontal)
+                        .padding(.horizontal, 20)
                         .padding(.top, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     // Sections
                     ForEach(Array(gdprData.sections.enumerated()), id: \.offset) { index, section in
@@ -95,12 +96,12 @@ public struct PrivacyPolicyView: View {
                             }
                         }
                         .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Theme.secondaryBackground)
                                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                         )
-                        .padding(.horizontal)
                     }
                 } else {
                     Text(LocalizedStringKey("Unable to load privacy policy."))
@@ -113,5 +114,19 @@ public struct PrivacyPolicyView: View {
         }
         .background(Theme.mainBackground)
         .navigationTitle(LocalizedStringKey("Privacy Policy"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    withAnimation(.spring(duration: 0.3)) {
+                        dismiss()
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(Theme.secondaryTextColor.opacity(0.9))
+                        .imageScale(.large)
+                }
+            }
+        }
     }
 }

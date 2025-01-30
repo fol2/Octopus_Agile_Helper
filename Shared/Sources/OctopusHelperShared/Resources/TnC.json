@@ -1,79 +1,99 @@
 {
-    "tldr": {
-        "en": "By using Octomiser, you agree to these terms. The app helps you monitor Octopus Energy rates and usage. We respect your privacy and don't collect personal data. Your API key and account details are stored only on your device and in your private iCloud account.",
-        "zh-Hant": "使用Octomiser即表示您同意這些條款。該應用程式幫助您監控Octopus Energy費率和使用情況。我們尊重您的隱私，不收集個人數據。您的API密鑰和帳戶詳細信息僅存儲在您的設備和私人iCloud帳戶中。",
-        "zh-Hans": "使用Octomiser即表示您同意这些条款。该应用程序帮助您监控Octopus Energy费率和使用情况。我们尊重您的隐私，不收集个人数据。您的API密钥和账户详细信息仅存储在您的设备和私人iCloud账户中。"
+  "tldr": {
+    "en": "By using Octomiser, you agree to these Terms. The app helps you track Octopus Energy rates and usage. We respect your privacy and do not collect any personal data. Your API key and account details are kept solely on your device and within your private iCloud account.",
+    "zh-Hant": "使用 Octomiser 即表示你同意這些條款。此應用程式可協助你追蹤 Octopus Energy 的費率與用量。我們重視你的私隱，絕不收集任何個人數據。你的 API 密鑰及帳戶資料只會儲存在你的裝置及個人 iCloud 帳戶中。",
+    "zh-Hans": "使用 Octomiser 即表示您同意这些条款。此应用程序可帮助您跟踪 Octopus Energy 的费率与使用情况。我们尊重您的隐私，不会收集任何个人数据。您的 API 密钥和账户信息仅存储在您的设备和私人 iCloud 账户中。",
+    "es": "Al usar Octomiser, aceptas estos Términos. La aplicación te ayuda a supervisar las tarifas y el consumo de Octopus Energy. Respetamos tu privacidad y no recopilamos datos personales. Tu clave API y los detalles de tu cuenta se guardan únicamente en tu dispositivo y en tu cuenta privada de iCloud.",
+    "fr": "En utilisant Octomiser, vous acceptez ces Conditions. L'application vous aide à suivre les tarifs et l'utilisation d'Octopus Energy. Nous respectons votre vie privée et ne collectons aucune donnée personnelle. Votre clé API et les informations de votre compte sont stockées uniquement sur votre appareil et dans votre compte iCloud privé.",
+    "de": "Durch die Nutzung von Octomiser stimmst du diesen Bedingungen zu. Die App hilft dir, die Tarife und Nutzung von Octopus Energy zu verfolgen. Wir achten deine Privatsphäre und sammeln keinerlei personenbezogene Daten. Dein API-Schlüssel und deine Kontodetails werden ausschließlich auf deinem Gerät und in deinem privaten iCloud-Konto gespeichert.",
+    "it": "Utilizzando Octomiser, accetti questi Termini. L'app ti aiuta a monitorare le tariffe e l'utilizzo di Octopus Energy. Rispettiamo la tua privacy e non raccogliamo alcun dato personale. La tua chiave API e i dettagli del tuo account sono conservati esclusivamente sul tuo dispositivo e nel tuo account iCloud privato.",
+    "ja": "Octomiser を使用することで、これらの利用規約に同意したことになります。このアプリは Octopus Energy の料金や使用量をモニターするのに役立ちます。私たちはお客様のプライバシーを尊重し、個人データを一切収集しません。APIキーやアカウント情報はお使いのデバイスとプライベートな iCloud アカウントにのみ保存されます。",
+    "ko": "Octomiser를 사용함으로써 귀하는 이러한 약관에 동의하게 됩니다. 이 앱은 Octopus Energy 요금과 사용량을 모니터링하는 데 도움이 됩니다. 당사는 사용자의 프라이버시를 존중하며 어떠한 개인 정보도 수집하지 않습니다. 사용자의 API 키와 계정 정보는 오직 사용자 기기와 개인 iCloud 계정에만 저장됩니다.",
+    "pt-PT": "Ao utilizar o Octomiser, concorda com estes Termos. A aplicação ajuda-o a acompanhar as tarifas e o consumo da Octopus Energy. Respeitamos a sua privacidade e não recolhemos quaisquer dados pessoais. A sua chave API e os detalhes da sua conta são guardados apenas no seu dispositivo e na sua conta iCloud privada.",
+    "nl": "Door Octomiser te gebruiken, ga je akkoord met deze Voorwaarden. De app helpt je de tarieven en het verbruik van Octopus Energy te volgen. Wij respecteren je privacy en verzamelen geen persoonlijke gegevens. Je API-sleutel en accountgegevens worden alleen op je apparaat en in je privé iCloud-account opgeslagen.",
+    "pl": "Korzystając z Octomiser, akceptujesz niniejsze Warunki. Aplikacja pomaga w monitorowaniu stawek i zużycia Octopus Energy. Szanujemy Twoją prywatność i nie gromadzimy żadnych danych osobowych. Twój klucz API i dane konta są przechowywane wyłącznie na Twoim urządzeniu oraz w prywatnym koncie iCloud.",
+    "ru": "Используя Octomiser, вы соглашаетесь с этими Условиями. Приложение помогает отслеживать тарифы и потребление Octopus Energy. Мы уважаем вашу конфиденциальность и не собираем никакие персональные данные. Ваш API-ключ и данные учетной записи хранятся исключительно на вашем устройстве и в вашем личном аккаунте iCloud.",
+    "tr": "Octomiser'ı kullanarak bu Şartları kabul etmiş olursunuz. Uygulama, Octopus Energy tarifelerini ve kullanımınızı izlemenize yardımcı olur. Gizliliğinize saygı duyuyor ve hiçbir kişisel veri toplamıyoruz. API anahtarınız ve hesap bilgileriniz yalnızca cihazınızda ve özel iCloud hesabınızda saklanır.",
+    "ar": "باستخدامك Octomiser، فإنك توافق على هذه الشروط. يساعدك التطبيق في مراقبة أسعار واستخدام Octopus Energy. نحن نحترم خصوصيتك ولا نجمع أي بيانات شخصية. يتم تخزين مفتاح API الخاص بك وتفاصيل حسابك فقط على جهازك وفي حساب iCloud الخاص بك.",
+    "cs": "Používáním Octomiser vyjadřujete souhlas s těmito Podmínkami. Aplikace vám pomáhá sledovat sazby a spotřebu Octopus Energy. Respektujeme vaše soukromí a neshromažďujeme žádné osobní údaje. Váš klíč API a informace o účtu jsou uloženy pouze ve vašem zařízení a ve vašem soukromém účtu iCloud.",
+    "da": "Ved at bruge Octomiser accepterer du disse Vilkår. Appen hjælper dig med at overvåge Octopus Energy-priser og -forbrug. Vi respekterer dit privatliv og indsamler ikke personlige data. Din API-nøgle og kontodetaljer gemmes kun på din enhed og i din private iCloud-konto.",
+    "fi": "Octomiserin käyttö tarkoittaa, että hyväksyt nämä Ehdot. Sovellus auttaa sinua seuraamaan Octopus Energyn hintoja ja käyttöä. Kunnioitamme yksityisyyttäsi emmekä kerää mitään henkilötietoja. API-avaimesi ja tilitietosi tallennetaan vain laitteellesi ja yksityiseen iCloud-tiliisi.",
+    "el": "Χρησιμοποιώντας το Octomiser, συμφωνείτε με αυτούς τους Όρους. Η εφαρμογή σας βοηθά να παρακολουθείτε τις χρεώσεις και τη χρήση της Octopus Energy. Σεβόμαστε το απόρρητό σας και δεν συλλέγουμε προσωπικά δεδομένα. Το κλειδί API και τα στοιχεία του λογαριασμού σας αποθηκεύονται αποκλειστικά στη συσκευή σας και στον ιδιωτικό λογαριασμό σας iCloud.",
+    "he": "באמצעות השימוש ב-Octomiser, אתה מסכים לתנאים אלה. האפליקציה מסייעת לך לעקוב אחר תעריפים ושימוש של Octopus Energy. אנו מכבדים את הפרטיות שלך ולא אוספים נתונים אישיים. מפתח ה-API ופרטי החשבון שלך נשמרים אך ורק במכשיר שלך ובחשבון iCloud הפרטי שלך.",
+    "hi": "Octomiser का उपयोग करके, आप इन शर्तों से सहमत होते हैं। यह ऐप आपको Octopus Energy की दरों और उपयोग की निगरानी करने में मदद करता है। हम आपकी गोपनीयता का सम्मान करते हैं और कोई भी निजी डेटा एकत्र नहीं करते हैं। आपकी API कुंजी और खाता विवरण केवल आपके डिवाइस और निजी iCloud खाते में संग्रहीत किए जाते हैं।",
+    "hu": "Az Octomiser használatával elfogadod ezeket a Feltételeket. Az alkalmazás segít nyomon követni az Octopus Energy díjait és felhasználását. Tiszteletben tartjuk a magánéletedet, és nem gyűjtünk személyes adatokat. Az API-kulcsod és fiókadataid kizárólag a saját készülékeden és a privát iCloud-fiókodban kerülnek tárolásra.",
+    "id": "Dengan menggunakan Octomiser, Anda menyetujui Syarat-Syarat ini. Aplikasi ini membantu Anda memantau tarif dan penggunaan Octopus Energy. Kami menghormati privasi Anda dan tidak mengumpulkan data pribadi apa pun. Kunci API dan detail akun Anda disimpan hanya di perangkat Anda dan akun iCloud pribadi Anda.",
+    "nb": "Ved å bruke Octomiser godtar du disse Vilkårene. Appen hjelper deg med å overvåke priser og forbruk av Octopus Energy. Vi respekterer personvernet ditt og samler ikke inn personopplysninger. Din API-nøkkel og kontoinformasjon lagres kun på enheten din og i din private iCloud-konto.",
+    "ro": "Prin utilizarea Octomiser, sunteți de acord cu acești Termeni. Aplicația vă ajută să monitorizați tarifele și consumul Octopus Energy. Respectăm confidențialitatea dvs. și nu colectăm date personale. Cheia dvs. API și detaliile contului sunt stocate exclusiv pe dispozitivul dvs. și în contul dvs. privat iCloud.",
+    "sk": "Používaním Octomiser vyjadrujete súhlas s týmito Podmienkami. Aplikácia vám pomáha sledovať tarify a spotrebu Octopus Energy. Rešpektujeme vaše súkromie a nezhromažďujeme žiadne osobné údaje. Váš API kľúč a údaje o účte sa ukladajú iba vo vašom zariadení a vo vašom súkromnom iCloud účte.",
+    "sv": "Genom att använda Octomiser godkänner du dessa Villkor. Appen hjälper dig att övervaka Octopus Energys priser och användning. Vi respekterar din integritet och samlar inte in några personuppgifter. Din API-nyckel och kontoinformation sparas endast på din enhet och i ditt privata iCloud-konto.",
+    "th": "เมื่อคุณใช้ Octomiser คุณยอมรับข้อกำหนดเหล่านี้ แอปจะช่วยคุณติดตามอัตราและการใช้ของ Octopus Energy เราเคารพความเป็นส่วนตัวของคุณและจะไม่เก็บรวบรวมข้อมูลส่วนบุคคลใดๆ คีย์ API และรายละเอียดบัญชีของคุณจะถูกจัดเก็บไว้เฉพาะในอุปกรณ์และบัญชี iCloud ส่วนตัวของคุณเท่านั้น",
+    "uk": "Використовуючи Octomiser, ви погоджуєтеся з цими Умовами. Додаток допомагає відстежувати тарифи та споживання Octopus Energy. Ми поважаємо вашу конфіденційність і не збираємо жодних персональних даних. Ваш API-ключ та дані облікового запису зберігаються виключно на вашому пристрої та у вашому приватному акаунті iCloud.",
+    "vi": "Bằng việc sử dụng Octomiser, bạn đồng ý với các Điều khoản này. Ứng dụng giúp bạn theo dõi biểu giá và mức sử dụng của Octopus Energy. Chúng tôi tôn trọng quyền riêng tư của bạn và không thu thập bất kỳ dữ liệu cá nhân nào. Khóa API và thông tin tài khoản của bạn chỉ được lưu trữ trên thiết bị của bạn và trong tài khoản iCloud riêng tư của bạn."
+  },
+  "title": "Terms and Conditions",
+  "introduction": "Welcome to Octomiser. By downloading or using the app, you agree to these terms which will be legally binding. Please read them carefully before using the app.",
+  "sections": [
+    {
+      "heading": "1. Acceptance of Terms",
+      "body": [
+        "By accessing and using Octomiser, you acknowledge that you have read, understood, and agree to be bound by these Terms.",
+        "If you do not agree with any part of these terms, you must not use the app."
+      ]
     },
-    "title": "Terms and Conditions",
-    "introduction": "Welcome to Octomiser. By downloading or using the app, you agree to these terms which will be legally binding. Please read them carefully before using the app.",
-    "sections": [
-        {
-            "heading": "1. Acceptance of Terms",
-            "body": [
-                "By accessing and using Octomiser, you acknowledge that you have read, understood, and agree to be bound by these Terms.",
-                "If you do not agree with any part of these terms, you must not use the app."
-            ]
-        },
-        {
-            "heading": "2. App Usage",
-            "body": [
-                "Octomiser is designed to help you monitor and analyze your Octopus Energy usage and rates.",
-                "The app requires your Octopus Energy API key and account details to access your energy data.",
-                "You are responsible for maintaining the confidentiality of your API key and account information.",
-                "You agree to use the app only for its intended purpose and in compliance with all applicable laws."
-            ]
-        },
-        {
-            "heading": "3. Data and Privacy",
-            "body": [
-                "We do not collect or store any personal data on our servers.",
-                "Your API key and account details are stored exclusively on your device and in your private iCloud account.",
-                "You maintain full control over your data and can delete it at any time.",
-                "By using the app, you grant Octopus Energy permission to share your energy data with the app."
-            ]
-        },
-        {
-            "heading": "4. Intellectual Property",
-            "body": [
-                "The app, including its original content, features, and functionality, is owned by Eugnel and protected by international copyright, trademark, and other intellectual property laws.",
-                "You may not modify, reproduce, distribute, or create derivative works based on any portion of the app without explicit permission."
-            ]
-        },
-        {
-            "heading": "5. Disclaimer of Warranties",
-            "body": [
-                "The app is provided 'as is' and 'as available' without any warranties of any kind.",
-                "We do not guarantee that the app will be uninterrupted, timely, secure, or error-free.",
-                "Any reliance you place on the information provided by the app is strictly at your own risk."
-            ]
-        },
-        {
-            "heading": "6. Limitation of Liability",
-            "body": [
-                "To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the app.",
-                "This includes, but is not limited to, loss of data, profits, or business opportunities."
-            ]
-        },
-        {
-            "heading": "7. Changes to Terms",
-            "body": [
-                "We reserve the right to modify these terms at any time.",
-                "Continued use of the app after any changes constitutes acceptance of the new terms.",
-                "It is your responsibility to review these terms periodically."
-            ]
-        },
-        {
-            "heading": "8. Termination",
-            "body": [
-                "We reserve the right to terminate or suspend your access to the app at any time, without prior notice, for any reason.",
-                "Upon termination, all provisions of these terms which should survive termination shall remain in effect."
-            ]
-        },
-        {
-            "heading": "9. Contact",
-            "body": [
-                "If you have any questions about these Terms, please contact us at octomiser@eugnel.com."
-            ]
-        }
-    ]
-} 
+    {
+      "heading": "2. App Usage",
+      "body": [
+        "Octomiser is designed to help you monitor and analyze your Octopus Energy usage and rates.",
+        "The app requires your Octopus Energy API key and account details to access your energy data.",
+        "You are responsible for maintaining the confidentiality of your API key and account information.",
+        "You agree to use the app only for its intended purpose and in compliance with all applicable laws."
+      ]
+    },
+    {
+      "heading": "3. Data and Privacy",
+      "body": [
+        "We do not collect or store any personal data on our servers.",
+        "Your API key and account details are stored exclusively on your device and in your private iCloud account.",
+        "You maintain full control over your data and can delete it at any time.",
+        "By using the app, you grant Octopus Energy permission to share your energy data with the app."
+      ]
+    },
+    {
+      "heading": "4. Intellectual Property",
+      "body": [
+        "The app, including its original content, features, and functionality, is owned by Eugnel and protected by international copyright, trademark, and other intellectual property laws.",
+        "You may not modify, reproduce, distribute, or create derivative works based on any portion of the app without explicit permission."
+      ]
+    },
+    {
+      "heading": "5. Disclaimer of Warranties",
+      "body": [
+        "The app is provided 'as is' and 'as available' without any warranties of any kind.",
+        "We do not guarantee that the app will be uninterrupted, timely, secure, or error-free.",
+        "Any reliance you place on the information provided by the app is strictly at your own risk."
+      ]
+    },
+    {
+      "heading": "6. Limitation of Liability",
+      "body": [
+        "To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the app.",
+        "This includes, but is not limited to, loss of data, profits, or business opportunities."
+      ]
+    },
+    {
+      "heading": "7. Changes to Terms",
+      "body": [
+        "We reserve the right to modify these terms at any time.",
+        "Continued use of the app after any changes constitutes acceptance of the new terms.",
+        "It is your responsibility to review these terms periodically."
+      ]
+    },
+    {
+      "heading": "8. Contact",
+      "body": [
+        "If you have any questions about these Terms, please contact us at octomiser@eugnel.com."
+      ]
+    }
+  ]
+}

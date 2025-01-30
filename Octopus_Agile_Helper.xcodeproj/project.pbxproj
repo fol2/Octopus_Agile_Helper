@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BF20C1702D4A4810004881A4 /* TnC.json in Resources */ = {isa = PBXBuildFile; fileRef = BF20C16F2D4A4810004881A4 /* TnC.json */; };
 		BF3400902D2630AD00CD068B /* Octopus_HelperWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFF9574A2D248B6A002EE392 /* Octopus_HelperWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BF3400942D26DE9C00CD068B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
-		BF8CE89E2D49A7C200372D9C /* TnC.json in Resources */ = {isa = PBXBuildFile; fileRef = BF8CE89D2D49A7C200372D9C /* TnC.json */; };
 		BF9640372D29F93D00A6B723 /* GDPR.json in Resources */ = {isa = PBXBuildFile; fileRef = BF9640352D29F93C00A6B723 /* GDPR.json */; };
 		BF9640382D29F93D00A6B723 /* Guide.json in Resources */ = {isa = PBXBuildFile; fileRef = BF9640362D29F93D00A6B723 /* Guide.json */; };
 		BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BFC264112D1F14E600279D9E /* Localizable.xcstrings */; };
@@ -96,8 +96,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BF20C16F2D4A4810004881A4 /* TnC.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = TnC.json; path = Shared/Sources/OctopusHelperShared/Resources/TnC.json; sourceTree = "<group>"; };
 		BF47C08D2D24A0A200BA093D /* Octopus_HelperWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Octopus_HelperWidgetsExtension.entitlements; sourceTree = "<group>"; };
-		BF8CE89D2D49A7C200372D9C /* TnC.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = TnC.json; sourceTree = "<group>"; };
 		BF9640352D29F93C00A6B723 /* GDPR.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = GDPR.json; path = Shared/Sources/OctopusHelperShared/Resources/GDPR.json; sourceTree = "<group>"; };
 		BF9640362D29F93D00A6B723 /* Guide.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = Guide.json; path = Shared/Sources/OctopusHelperShared/Resources/Guide.json; sourceTree = "<group>"; };
 		BFC264112D1F14E600279D9E /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -203,7 +203,7 @@
 		BFE3DE532D1E0705003E74A4 = {
 			isa = PBXGroup;
 			children = (
-				BF8CE89D2D49A7C200372D9C /* TnC.json */,
+				BF20C16F2D4A4810004881A4 /* TnC.json */,
 				BF9640352D29F93C00A6B723 /* GDPR.json */,
 				BF9640362D29F93D00A6B723 /* Guide.json */,
 				BF47C08D2D24A0A200BA093D /* Octopus_HelperWidgetsExtension.entitlements */,
@@ -426,8 +426,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				BF9640372D29F93D00A6B723 /* GDPR.json in Resources */,
+				BF20C1702D4A4810004881A4 /* TnC.json in Resources */,
 				BF9640382D29F93D00A6B723 /* Guide.json in Resources */,
-				BF8CE89E2D49A7C200372D9C /* TnC.json in Resources */,
 				BFC264122D1F14E600279D9E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

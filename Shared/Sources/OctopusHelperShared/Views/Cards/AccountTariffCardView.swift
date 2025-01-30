@@ -25,9 +25,12 @@ public struct AccountTariffCardView: View {
         case monthly = "MONTHLY"
 
         var displayName: String {
-            rawValue.capitalized
+            switch self {
+            case .daily: "Daily"
+            case .weekly: "Weekly"
+            case .monthly: "Monthly"
+            }
         }
-
         var viewModelInterval: TariffViewModel.IntervalType {
             switch self {
             case .daily: return .daily
