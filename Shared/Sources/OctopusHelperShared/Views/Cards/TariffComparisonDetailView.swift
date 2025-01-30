@@ -592,7 +592,7 @@ private struct ComparisonInsightCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Cost Comparison")
+            Text("Cost Comparison", bundle: .module)
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
@@ -665,7 +665,8 @@ private struct ComparisonInsightCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 costBreakdownRow(
-                    label: "My Account", cost: accountCostDV, color: Theme.secondaryTextColor)
+                    label: "My Account", cost: accountCostDV,
+                    color: Theme.secondaryTextColor)
                 costBreakdownRow(
                     label: comparedPlanName, cost: compareCostDV, color: Theme.mainColor)
 
@@ -685,7 +686,7 @@ private struct ComparisonInsightCard: View {
             Spacer()
             VStack(spacing: 8) {
                 ProgressView()
-                Text("Calculating costs...")
+                Text("Calculating costs...", bundle: .module)
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -698,7 +699,7 @@ private struct ComparisonInsightCard: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
-                Text("Error")
+                Text("Error", bundle: .module)
                     .font(Theme.mainFont())
                     .foregroundColor(.red)
             }
@@ -794,7 +795,7 @@ private struct RateAnalysisCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Rate Analysis")
+            Text("Rate Analysis", bundle: .module)
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
@@ -822,22 +823,30 @@ private struct RateAnalysisCard: View {
                 let stand = showVAT ? c.standingChargeIncVAT : c.standingChargeExcVAT
                 let cost = showVAT ? c.costIncVAT : c.costExcVAT
                 let avgRate = totalKWh > 0 ? (cost - stand) / totalKWh : 0
-                rateRow(label: "Average Rate", value: avgRate, icon: "chart.line.flattrend.xyaxis")
+                rateRow(
+                    label: "Average Rate", value: avgRate,
+                    icon: "chart.line.flattrend.xyaxis"
+                )
             }
 
             // Show Manual Plan text if applicable
             if isManualPlan {
-                Text("Manual Plan: Fixed Rate")
+                Text("Manual Plan: Fixed Rate", bundle: .module)
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             } else {
                 // Only show highest/lowest rates for non-manual plans
-                rateRow(label: "Highest Rate", value: highestRate, icon: "arrow.up.circle")
-                rateRow(label: "Lowest Rate", value: lowestRate, icon: "arrow.down.circle")
+                rateRow(
+                    label: "Highest Rate", value: highestRate,
+                    icon: "arrow.up.circle")
+                rateRow(
+                    label: "Lowest Rate", value: lowestRate,
+                    icon: "arrow.down.circle")
             }
 
             let sc = isManualPlan ? manualStandingChargePencePerDay : currentStandingCharge
-            rateRow(label: "Standing Charge", value: sc, icon: "clock", isDaily: true)
+            rateRow(
+                label: "Standing Charge", value: sc, icon: "clock", isDaily: true)
         }
     }
 
@@ -846,7 +855,7 @@ private struct RateAnalysisCard: View {
             Spacer()
             VStack(spacing: 8) {
                 ProgressView()
-                Text("Fetching rate analysis...")
+                Text("Fetching rate analysis...", bundle: .module)
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -859,7 +868,7 @@ private struct RateAnalysisCard: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
-                Text("Error")
+                Text("Error", bundle: .module)
                     .font(Theme.mainFont())
                     .foregroundColor(.red)
             }
@@ -910,12 +919,12 @@ private struct MonthlyTrendsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Monthly Average Rates")
+            Text("Monthly Average Rates", bundle: .module)
                 .font(Theme.mainFont2())
                 .foregroundColor(Theme.mainTextColor)
 
             if monthlyRates.isEmpty {
-                Text("No monthly rate data available")
+                Text("No monthly rate data available", bundle: .module)
                     .font(Theme.secondaryFont())
                     .foregroundStyle(Theme.secondaryTextColor)
             } else {
@@ -1093,7 +1102,7 @@ private struct MonthlyComparisonTable: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("Monthly Comparison")
+                Text("Monthly Comparison", bundle: .module)
                     .font(Theme.mainFont2())
                     .foregroundColor(Theme.mainTextColor)
                 Spacer()
@@ -1107,12 +1116,12 @@ private struct MonthlyComparisonTable: View {
 
                 // Table Header
                 HStack {
-                    Text("Month").frame(width: 90, alignment: .leading)
-                    Text("kWh").frame(width: 60, alignment: .trailing)
+                    Text("Month", bundle: .module).frame(width: 90, alignment: .leading)
+                    Text("kWh", bundle: .module).frame(width: 60, alignment: .trailing)
                     Spacer()
-                    Text("Current").frame(width: 70, alignment: .trailing)
-                    Text("Compare").frame(width: 70, alignment: .trailing)
-                    Text("Diff").frame(width: 70, alignment: .trailing)
+                    Text("Current", bundle: .module).frame(width: 70, alignment: .trailing)
+                    Text("Compare", bundle: .module).frame(width: 70, alignment: .trailing)
+                    Text("Diff", bundle: .module).frame(width: 70, alignment: .trailing)
                 }
                 .font(Theme.captionFont())
                 .foregroundColor(Theme.secondaryTextColor)
@@ -1142,7 +1151,7 @@ private struct MonthlyComparisonTable: View {
                 .padding(.horizontal, 4)
 
             } else {
-                Text("No monthly calculation data.")
+                Text("No monthly calculation data.", bundle: .module)
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -1200,7 +1209,7 @@ private struct MonthlyComparisonTable: View {
             Spacer()
             VStack(spacing: 8) {
                 ProgressView()
-                Text("Calculating monthly breakdown...")
+                Text("Calculating monthly breakdown...", bundle: .module)
                     .font(Theme.subFont())
                     .foregroundColor(Theme.secondaryTextColor)
             }
@@ -1279,14 +1288,14 @@ private struct ProductHeaderView: View {
 
             // Availability info
             if let availableFrom = product.value(forKey: "available_from") as? Date {
-                Text("Available from: \(formatDate(availableFrom))")
+                Text("Available from: \(formatDate(availableFrom))", bundle: .module)
                     .font(.system(size: 16))
                     .foregroundColor(Theme.secondaryTextColor)
 
                 if let availableTo = product.value(forKey: "available_to") as? Date,
                     Calendar.current.component(.year, from: availableTo) < 2100
                 {
-                    Text("Available to: \(formatDate(availableTo))")
+                    Text("Available to: \(formatDate(availableTo))", bundle: .module)
                         .font(.system(size: 16))
                         .foregroundColor(Theme.secondaryTextColor)
                 }
@@ -1325,7 +1334,7 @@ private struct ManualPlanSummaryView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text("Manual Plan")
+                    Text("Manual Plan", bundle: .module)
                         .font(.system(size: 36))
                         .foregroundColor(Theme.mainTextColor)
                 }
@@ -1342,9 +1351,6 @@ private struct ManualPlanSummaryView: View {
         }
     }
 }
-
-// MARK: - Badge View
-@available(iOS 17.0, *)
 
 // MARK: - Helper Calculation Functions
 @MainActor
