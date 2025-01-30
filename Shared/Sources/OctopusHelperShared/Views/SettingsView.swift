@@ -649,7 +649,7 @@ struct APIConfigurationView: View {
                                                                     .valid_from
                                                                 {
                                                                     DetailRow(
-                                                                        title: "Valid From",
+                                                                        title: "Valid From:",
                                                                         date: validFrom
                                                                     )
                                                                     .padding(.horizontal, 20)
@@ -664,7 +664,7 @@ struct APIConfigurationView: View {
                                                                 if let validTo = agreement.valid_to
                                                                 {
                                                                     DetailRow(
-                                                                        title: "Valid To",
+                                                                        title: "Valid To:",
                                                                         date: validTo
                                                                     )
                                                                     .padding(.horizontal, 20)

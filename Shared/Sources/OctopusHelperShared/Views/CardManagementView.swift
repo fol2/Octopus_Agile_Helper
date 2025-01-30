@@ -1,4 +1,5 @@
 import AVKit
+import Foundation
 import OctopusHelperShared
 import SwiftUI
 import WebKit
@@ -51,6 +52,7 @@ struct CardManagementView: View {
         }
         .background(Theme.mainBackground.ignoresSafeArea())
         .environment(\.editMode, $editMode)
+        .environment(\.locale, globalSettings.locale)
         .sheet(item: $selectedCard) { config in
             if let definition = CardRegistry.shared.definition(for: config.cardType) {
                 InfoSheet(viewModel: InfoSheetViewModel(from: definition))
@@ -152,6 +154,7 @@ struct CardRowView: View {
                         .font(Theme.secondaryFont())
                         .foregroundColor(Theme.mainTextColor)
                         .textCase(.none)
+                        .environment(\.locale, globalSettings.locale)
 
                     if definition.isPremium {
                         ZStack {
