@@ -1397,7 +1397,7 @@ public struct SettingsView: View {
                     Spacer()
                     InfoButton(
                         message: LocalizedStringKey(
-                            "API Key is optional for most features like viewing Agile rates, price trends, and historical data.\n\nYou only need an API key if you want to access your personal data such as:\n• Your actual consumption data\n• Your billing information\n• Your tariff details\nYour API key is stored securely on your device only and is never shared with app developers or third parties."
+                            "An API Key is generally optional for most features, such as checking Agile rates, tracking price trends, and reviewing historical data.\n\nYou only need an API Key if you'd like to access your personal data, including:\n• Your actual consumption details\n• Your billing information\n• Your tariff details\nYour API Key is securely stored on your device and is never shared with the app developers or any third parties."
                         ),
                         title: LocalizedStringKey("API Configuration"),
                         mediaItems: []
