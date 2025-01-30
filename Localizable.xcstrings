@@ -838,7 +838,7 @@
       "shouldTranslate" : false
     },
     "%lld Active" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1673,7 +1673,7 @@
       }
     },
     "About" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1877,6 +1877,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "關於"
+          }
+        }
+      }
+    },
+    "Access important information about the app, including version details, support resources, and legal documentation." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "احصل على معلومات هامة حول التطبيق، بما في ذلك تفاصيل الإصدار وموارد الدعم والوثائق القانونية."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accedeix a informació important sobre l’aplicació, incloent-hi detalls de la versió, recursos de suport i documentació legal."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Získejte důležité informace o aplikaci, včetně podrobností o verzi, podpůrných zdrojů a právní dokumentace."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Få adgang til vigtige oplysninger om appen, herunder versionsdetaljer, supportressourcer og juridisk dokumentation."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Greifen Sie auf wichtige Informationen zur App zu, einschließlich Versionsdetails, Support-Ressourcen und rechtlicher Dokumentation."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αποκτήστε πρόσβαση σε σημαντικές πληροφορίες σχετικά με την εφαρμογή, συμπεριλαμβανομένων λεπτομερειών έκδοσης, πόρων υποστήριξης και νομικής τεκμηρίωσης."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access important information about the app, including version details, support resources, and legal documentation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accede a información importante sobre la aplicación, incluidos detalles de la versión, recursos de soporte y documentación legal."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarkastele tärkeitä tietoja sovelluksesta, mukaan lukien versiokohtaiset tiedot, tukiresurssit ja oikeudelliset asiakirjat."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accédez à des informations importantes sur l’application, notamment les détails de version, les ressources de support et la documentation légale."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קבל/י גישה למידע חשוב על האפליקציה, כולל פרטי גרסה, משאבי תמיכה ותיעוד משפטי."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ऐप से जुड़ी महत्वपूर्ण जानकारी जैसे संस्करण विवरण, सहायता संसाधन और कानूनी दस्तावेज़ों तक पहुँचें।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pristupite važnim informacijama o aplikaciji, uključujući pojedinosti o verziji, resurse za podršku i pravnu dokumentaciju."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Férjen hozzá fontos információkhoz az alkalmazásról, beleértve a verzió részleteit, támogatási forrásokat és jogi dokumentációt."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akses informasi penting tentang aplikasi, termasuk detail versi, sumber dukungan, dan dokumentasi hukum."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accedi a informazioni importanti sull’app, incluse le informazioni sulla versione, le risorse di supporto e la documentazione legale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリに関する重要な情報（バージョン情報、サポートリソース、法的文書など）にアクセスできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱에 대한 중요한 정보(버전 세부 정보, 지원 자료, 법적 문서 등)에 접근하세요."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Akses maklumat penting tentang aplikasi, termasuk butiran versi, sumber sokongan dan dokumentasi perundangan."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Få tilgang til viktig informasjon om appen, inkludert versjonsdetaljer, støtteressurser og juridisk dokumentasjon."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toegang tot belangrijke informatie over de app, zoals versiedetails, ondersteuningsbronnen en juridische documentatie."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uzyskaj dostęp do ważnych informacji o aplikacji, w tym szczegółów wersji, zasobów wsparcia i dokumentacji prawnej."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceda a informações importantes sobre a aplicação, incluindo detalhes de versão, recursos de suporte e documentação legal."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accesează informații importante despre aplicație, inclusiv detalii despre versiune, resurse de asistență și documentație legală."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получите доступ к важной информации об этом приложении, включая сведения о версии, материалы поддержки и юридическую документацию."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Získajte prístup k dôležitým informáciám o aplikácii vrátane podrobností o verzii, zdrojov podpory a právnej dokumentácie."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dostopite do pomembnih informacij o aplikaciji, vključno s podrobnostmi o različici, viri podpore in pravno dokumentacijo."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Få åtkomst till viktig information om appen, inklusive versionsinformation, supportresurser och juridisk dokumentation."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "เข้าถึงข้อมูลสำคัญเกี่ยวกับแอป เช่น รายละเอียดเวอร์ชัน แหล่งข้อมูลสนับสนุน และเอกสารทางกฎหมาย"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uygulama hakkında önemli bilgilere ulaşın; sürüm ayrıntıları, destek kaynakları ve yasal belgeler dahil."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отримайте доступ до важливої інформації про застосунок, зокрема відомостей про версію, ресурсів підтримки й юридичної документації."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Truy cập thông tin quan trọng về ứng dụng, bao gồm chi tiết phiên bản, tài nguyên hỗ trợ và tài liệu pháp lý."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "获取有关本应用的重要信息，包括版本详细信息、支持资源以及法律文档。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存取有關此應用程式的重要資訊，包括版本詳細資訊、支援資源以及法律文件。"
           }
         }
       }
@@ -2090,7 +2299,7 @@
       }
     },
     "Account Number" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3342,7 +3551,7 @@
       }
     },
     "Agreements" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3760,7 +3969,7 @@
       }
     },
     "An API Key is generally optional for most features, such as checking Agile rates, tracking price trends, and reviewing historical data.\n\nYou only need an API Key if you'd like to access your personal data, including:\n• Your actual consumption details\n• Your billing information\n• Your tariff details\nYour API Key is securely stored on your device and is never shared with the app developers or any third parties." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3969,7 +4178,7 @@
       }
     },
     "API Configuration" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4178,7 +4387,7 @@
       }
     },
     "API Key" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4382,6 +4591,424 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "API Key"
+          }
+        }
+      }
+    },
+    "API Key is required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مطلوب مفتاح API"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es requereix una clau API"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je vyžadován klíč API"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-nøgle er påkrævet"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-Schlüssel ist erforderlich"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Απαιτείται κλειδί API"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key is required"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se requiere clave API"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-avain vaaditaan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La clé API est requise"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נדרש מפתח API"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API कुंजी आवश्यक है"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potreban je API ključ"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-kulcs szükséges"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunci API diperlukan"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "È necessaria la chiave API"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APIキーが必要です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 키가 필요합니다"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunci API diperlukan"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-nøkkel er nødvendig"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-sleutel is vereist"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wymagany jest klucz API"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É necessária a chave API"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cheia API este necesară"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Требуется ключ API"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je potrebný API kľúč"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Potreben je API ključ"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-nyckel krävs"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ต้องใช้คีย์ API"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API anahtarı gerekli"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потрібен ключ API"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yêu cầu khóa API"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 API 密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 API 金鑰"
+          }
+        }
+      }
+    },
+    "API Key should start with 'sk_live_' followed by 32 characters" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يجب أن يبدأ مفتاح API بـ 'sk_live_' متبوعًا بـ 32 حرفًا"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La clau API ha de començar amb 'sk_live_' seguit de 32 caràcters"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klíč API by měl začínat „sk_live_“ a pokračovat 32 znaky"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-nøglen skal starte med 'sk_live_' efterfulgt af 32 tegn"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der API-Schlüssel sollte mit 'sk_live_' beginnen, gefolgt von 32 Zeichen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Το κλειδί API πρέπει να ξεκινά με 'sk_live_' και να ακολουθούν 32 χαρακτήρες"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key should start with 'sk_live_' followed by 32 characters"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La clave API debe empezar con 'sk_live_' seguida de 32 caracteres"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-avaimen tulisi alkaa 'sk_live_'-merkkijonolla ja sitä seuraavilla 32 merkillä"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La clé API doit commencer par 'sk_live_', suivie de 32 caractères"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מפתח API אמור להתחיל ב-'sk_live_' ולאחריו 32 תווים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API कुंजी 'sk_live_' से शुरू होनी चाहिए, जिसके बाद 32 वर्ण हों"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API ključ treba početi s 'sk_live_' praćen s 32 znaka"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Az API-kulcsnak 'sk_live_'-val kell kezdődnie, majd 32 karakter követi"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunci API harus diawali dengan 'sk_live_' diikuti 32 karakter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chiave API deve iniziare con 'sk_live_' seguita da 32 caratteri"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APIキーは「sk_live_」で始まり、その後に32文字が続く必要があります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 키는 'sk_live_'로 시작하고 뒤이어 32자여야 합니다"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunci API perlu bermula dengan 'sk_live_' diikuti 32 aksara"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-nøkkelen bør starte med 'sk_live_' etterfulgt av 32 tegn"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-sleutel moet beginnen met 'sk_live_', gevolgd door 32 tekens"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klucz API powinien zaczynać się od 'sk_live_', a następnie 32 znaki"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A chave API deve começar com 'sk_live_', seguida de 32 caracteres"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cheia API trebuie să înceapă cu 'sk_live_', urmată de 32 de caractere"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ключ API должен начинаться с 'sk_live_' и включать ещё 32 символа"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API kľúč musí začínať 'sk_live_' a pokračovať 32 znakmi"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API ključ se mora začeti z 'sk_live_', sledi pa 32 znakov"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API-nyckeln bör börja med 'sk_live_' följt av 32 tecken"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "คีย์ API ต้องขึ้นต้นด้วย 'sk_live_' ตามด้วย 32 อักขระ"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Anahtarı 'sk_live_' ile başlamalı ve ardından 32 karakter gelmelidir"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ключ API має починатися з 'sk_live_', а далі — 32 символи"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khoá API phải bắt đầu bằng 'sk_live_' và theo sau là 32 ký tự"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 密钥应以“sk_live_”开头，并随后有 32 个字符"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API 金鑰必須以「sk_live_」開頭，後接 32 個字元"
           }
         }
       }
@@ -5636,7 +6263,7 @@
       }
     },
     "Billing Cycle" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5845,7 +6472,7 @@
       }
     },
     "Billing Start Day: %lld" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6678,7 +7305,7 @@
       }
     },
     "Cards" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7095,7 +7722,7 @@
       }
     },
     "Configure API Access" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7507,6 +8134,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定您的 MPAN 與電錶序列號以查看使用量。"
+          }
+        }
+      }
+    },
+    "Configure your preferred language and how rates are displayed. Language changes will be applied immediately across the app.\n\nRate display changes affect how prices are shown (pence vs pounds).\n\nVAT display changes affect how VAT is shown (included vs excluded)." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اضبط لغتك المفضلة وكيفية عرض التعريفة. سيتم تطبيق تغييرات اللغة فورًا في جميع أنحاء التطبيق.\n\nتؤثر تغييرات عرض التعريفة على كيفية ظهور الأسعار (بنس مقابل جنيه).\n\nتؤثر تغييرات عرض ضريبة القيمة المضافة على كيفية عرضها (مشمولة أم مستثناة)."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura la teva llengua preferida i com es mostren les tarifes. Els canvis d'idioma s'aplicaran immediatament a tota l'aplicació.\n\nEls canvis en la visualització de tarifes afecten com es mostren els preus (penics vs lliures).\n\nEls canvis en la visualització de l’IVA afecten com es mostra l’IVA (inclòs vs exclòs)."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavte si preferovaný jazyk a způsob zobrazení sazeb. Změny jazyka se uplatní okamžitě v celé aplikaci.\n\nZměny zobrazení sazeb ovlivňují způsob, jakým se zobrazují ceny (pence vs. libry).\n\nZměny zobrazení DPH ovlivňují, jak se DPH zobrazuje (včetně či bez zahrnutí)."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurer dit foretrukne sprog og hvordan takster vises. Sprogrettelserne anvendes straks overalt i appen.\n\nÆndringer i takstvisning påvirker, hvordan priser vises (pence vs. pund).\n\nÆndringer i momsvisning påvirker, hvordan moms vises (inkluderet vs. ekskluderet)."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurieren Sie Ihre bevorzugte Sprache und wie Tarife angezeigt werden. Sprachänderungen werden sofort in der gesamten App angewendet.\n\nÄnderungen bei der Tarifanzeige beeinflussen, wie Preise dargestellt werden (Pence vs. Pfund).\n\nÄnderungen bei der MwSt.-Anzeige bestimmen, ob MwSt. ein- oder ausgeschlossen wird."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ρυθμίστε την προτιμώμενη γλώσσα σας και τον τρόπο εμφάνισης των χρεώσεων. Οι αλλαγές γλώσσας εφαρμόζονται άμεσα σε όλη την εφαρμογή.\n\nΟι αλλαγές στην εμφάνιση των χρεώσεων επηρεάζουν πώς εμφανίζονται οι τιμές (πένες έναντι λιρών).\n\nΟι αλλαγές στην εμφάνιση ΦΠΑ καθορίζουν πώς εμφανίζεται ο ΦΠΑ (συμπεριλαμβάνεται ή εξαιρείται)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configure your preferred language and how rates are displayed. Language changes are applied immediately throughout the app.\n\nRate display changes affect how prices appear (pence vs. pounds).\n\nVAT display changes affect how VAT is shown (included vs. excluded)."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura tu idioma preferido y cómo se muestran las tarifas. Los cambios de idioma se aplican inmediatamente en toda la aplicación.\n\nLos cambios en la visualización de tarifas afectan cómo se muestran los precios (peniques frente a libras).\n\nLos cambios en la visualización del IVA afectan cómo se muestra el IVA (incluido o excluido)."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Määritä haluamasi kieli ja miten hinnat näytetään. Kielimuutokset otetaan heti käyttöön koko sovelluksessa.\n\nHinnanäytön muutokset vaikuttavat siihen, miten hinnat esitetään (penniä vs. puntaa).\n\nALV-näytön muutokset määrittävät, miten ALV näytetään (sisällytettynä tai poissuljettuna)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurez votre langue préférée et la façon dont les tarifs sont affichés. Les changements de langue sont appliqués immédiatement dans toute l’application.\n\nLes modifications d’affichage des tarifs influent sur la présentation des prix (pence vs livres).\n\nLes modifications d’affichage de la TVA déterminent si la TVA est incluse ou non."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדר את השפה המועדפת עליך ואת אופן הצגת התעריפים. שינויים בשפה מיושמים מיד בכל האפליקציה.\n\nשינויים בתצוגת התעריפים משפיעים על אופן הצגת המחירים (פני לעומת פאונד).\n\nשינויים בתצוגת המע\"מ משפיעים על האם המע\"מ כלול או לא כלול."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अपनी पसंदीदा भाषा और दरों के प्रदर्शन को कॉन्फ़िगर करें। भाषा में किए गए परिवर्तन ऐप में तुरंत लागू हो जाते हैं।\n\nदर प्रदर्शन में बदलाव से यह प्रभावित होता है कि कीमतें कैसे दिखाई देंगी (पेंस बनाम पाउंड)।\n\nVAT प्रदर्शन में बदलाव से यह निर्धारित होता है कि VAT कैसे दिखाया जाए (शामिल या बाहर)।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postavite željeni jezik i način prikaza cijena. Promjene jezika primjenjuju se odmah u cijeloj aplikaciji.\n\nPromjene načina prikaza cijena utječu na to kako se prikazuju (pence vs. funte).\n\nPromjene prikaza PDV-a određuju hoće li PDV biti uključen ili isključen."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Állítsa be a kívánt nyelvet és a díjak megjelenítésének módját. A nyelvi módosítások azonnal érvénybe lépnek az alkalmazásban.\n\nA díjmegjelenítés változtatásai befolyásolják az árak megjelenítését (pence vs. font).\n\nAz ÁFA megjelenítésének módosításai meghatározzák, hogy az ÁFA beleértve vagy kizárva jelenik meg."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurasikan bahasa pilihan Anda dan cara menampilkan tarif. Perubahan bahasa akan diterapkan secara instan di seluruh aplikasi.\n\nPerubahan tampilan tarif memengaruhi cara harga ditampilkan (pence vs. pound).\n\nPerubahan tampilan PPN memengaruhi bagaimana PPN ditampilkan (termasuk atau tidak)."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura la lingua preferita e come visualizzare le tariffe. Le modifiche alla lingua vengono applicate immediatamente in tutta l’app.\n\nLe modifiche di visualizzazione delle tariffe influiscono su come vengono mostrati i prezzi (pence vs. sterline).\n\nLe modifiche alla visualizzazione dell’IVA determinano se l’IVA è inclusa o esclusa."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用する言語と料金の表示方法を設定してください。言語の変更はアプリ全体に即時に適用されます。\n\n料金表示の変更では、価格（ペンス対ポンド）の表示形式が変わります。\n\n消費税 (VAT) 表示の変更では、消費税を含むか含まないかが決まります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선호하는 언어와 요금 표시 방식을 설정하세요. 언어 변경은 앱 전반에 즉시 적용됩니다.\n\n요금 표시 설정을 변경하면 가격이 어떻게 표시되는지에 영향을 줍니다(펜스 vs. 파운드).\n\n부가가치세(VAT) 표시 설정을 변경하면 VAT를 포함할지 여부가 결정됩니다."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tetapkan bahasa pilihan anda dan cara tarif dipaparkan. Perubahan bahasa akan diterapkan serta-merta dalam seluruh aplikasi.\n\nPerubahan paparan tarif mempengaruhi cara harga dipaparkan (pence vs. paun).\n\nPerubahan paparan VAT mempengaruhi cara VAT ditunjukkan (termasuk atau tidak termasuk)."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurer foretrukket språk og hvordan priser vises. Endringer i språk brukes umiddelbart i hele appen.\n\nEndringer i prisvisning påvirker hvordan prisene vises (pence vs. pund).\n\nEndringer i MVA-visning påvirker hvordan MVA vises (inkludert eller ekskludert)."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configureer je voorkeurstaal en hoe tarieven worden getoond. Taalwijzigingen worden direct in de hele app doorgevoerd.\n\nWijzigingen in de tariefweergave bepalen hoe prijzen worden getoond (pence versus ponden).\n\nWijzigingen in de btw-weergave bepalen of de btw wordt inbegrepen of uitgesloten."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skonfiguruj preferowany język oraz sposób wyświetlania stawek. Zmiany języka są natychmiast stosowane w całej aplikacji.\n\nZmiany w wyświetlaniu cen wpływają na to, jak pokazywane są ceny (pensy kontra funty).\n\nZmiany w wyświetlaniu VAT decydują, czy VAT jest uwzględniony czy wyłączony."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configure a sua língua preferida e como as tarifas são apresentadas. As alterações de língua são aplicadas imediatamente em toda a aplicação.\n\nAs alterações na apresentação das tarifas afetam a forma como os preços são mostrados (pence vs. libras).\n\nAs alterações na apresentação do IVA determinam se o IVA está incluído ou excluído."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configurează limba preferată și modul în care sunt afișate tarifele. Modificările de limbă se aplică imediat în toată aplicația.\n\nModificările de afișare a tarifelor afectează modul în care apar prețurile (pence vs. lire).\n\nModificările de afișare a TVA determină dacă TVA este inclusă sau exclusă."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройте предпочитаемый язык и способ отображения тарифов. Изменения языка применяются немедленно во всем приложении.\n\nИзменения в отображении тарифов влияют на то, как показываются цены (пенсы или фунты).\n\nИзменения в отображении НДС влияют на то, учитывается НДС или нет."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nakonfigurujte si preferovaný jazyk a spôsob zobrazovania sadzieb. Zmeny jazyka sa okamžite prejavia v celej aplikácii.\n\nZmeny zobrazovania sadzieb ovplyvnia, ako sa zobrazujú ceny (pence verzus libry).\n\nZmeny zobrazovania DPH určujú, či je DPH zahrnutá alebo nie."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavite želeni jezik in način prikaza tarif. Spremembe jezika se uporabijo takoj po celotni aplikaciji.\n\nSpremembe prikaza tarif vplivajo na to, kako so cene prikazane (peni proti funtom).\n\nSpremembe prikaza DDV določajo, ali je DDV vključen ali izključen."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurera ditt föredragna språk och hur priser visas. Språkändringar tillämpas omedelbart i hela appen.\n\nÄndringar av prisvisningen påverkar hur priserna visas (pence kontra pund).\n\nÄndringar av momsvisning påverkar om momsen inkluderas eller utesluts."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "กำหนดภาษาที่คุณต้องการและวิธีแสดงอัตรา ค่าเปลี่ยนแปลงของภาษาจะมีผลทันทีทั่วทั้งแอป\n\nการเปลี่ยนแปลงการแสดงอัตราจะมีผลต่อวิธีการแสดงราคา (เพนนี เทียบกับ ปอนด์)\n\nการเปลี่ยนแปลงการแสดง VAT จะกำหนดว่าจะรวมภาษีมูลค่าเพิ่มหรือไม่"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tercih ettiğiniz dili ve tarifelerin nasıl görüntüleneceğini yapılandırın. Dil değişiklikleri uygulama genelinde derhal geçerli olur.\n\nTarife görüntüleme değişiklikleri, fiyatların nasıl gösterileceğini etkiler (pence vs. pound).\n\nKDV görüntüleme değişiklikleri, KDV'nin dahil mi yoksa hariç mi olduğunu belirler."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Налаштуйте бажану мову та спосіб відображення тарифів. Зміни мови негайно застосовуються в усій програмі.\n\nЗміни відображення тарифів впливають на те, як показуються ціни (пенси проти фунтів).\n\nЗміни відображення ПДВ визначають, чи включений ПДВ, чи виключений."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cấu hình ngôn ngữ ưa thích và cách hiển thị giá. Thay đổi ngôn ngữ sẽ được áp dụng ngay lập tức trên toàn ứng dụng.\n\nThay đổi cách hiển thị giá ảnh hưởng đến cách hiển thị mức giá (xu Anh so với bảng Anh).\n\nThay đổi hiển thị VAT xác định VAT được bao gồm hay không."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置您偏好的语言以及费率的显示方式。语言更改将在整个应用程序中立即生效。\n\n费率显示的更改会影响价格的显示方式（便士与英镑）。\n\n增值税 (VAT) 显示的更改会影响增值税的显示方式（包含或未包含）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定您偏好的語言及費率顯示方式。語言更改將立即於整個應用程式生效。\n\n費率顯示的更改會影響價格的顯示方式（便士與英鎊）。\n\n增值稅 (VAT) 顯示的更改會影響增值稅的顯示方式（包含或未包含）。"
           }
         }
       }
@@ -8970,7 +9806,7 @@
       }
     },
     "Customise your dashboard by managing your cards:\n\n• Enable/disable cards to show only what matters to you\n• Reorder cards to arrange your perfect layout\n• Each card offers unique insights into your energy usage and rates\n\nStay tuned for new card modules - we're constantly developing new features to help you better understand and manage your energy usage." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10428,7 +11264,7 @@
       }
     },
     "Default Region H" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10636,8 +11472,426 @@
         }
       }
     },
+    "Delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suprimeix"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smazat"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slet"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Διαγραφή"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מחק"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "हटाएं"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obriši"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Törlés"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hapus"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elimina"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "삭제"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Padam"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slett"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwijderen"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usuń"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Șterge"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vymazať"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Izbriši"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radera"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ลบ"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sil"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видалити"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xóa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        }
+      }
+    },
+    "Delete Account Information?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف معلومات الحساب؟"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar la informació del compte?"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smazat informace o účtu?"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slette kontooplysninger?"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontoinformationen löschen?"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Διαγραφή πληροφοριών λογαριασμού;"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Account Information?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Eliminar la información de la cuenta?"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poistetaanko tilin tiedot?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer les informations du compte ?"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "למחוק את פרטי החשבון?"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "खाता जानकारी हटाएं?"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obrisati podatke računa?"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fiókinformációk törlése?"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hapus Informasi Akun?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminare le informazioni dell’account?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アカウント情報を削除しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "계정 정보를 삭제하시겠습니까?"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Padam Maklumat Akaun?"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slette kontoinformasjon?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accountinformatie verwijderen?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usunąć informacje o koncie?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar informações da conta?"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Șterge informațiile contului?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить информацию об аккаунте?"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vymazať informácie o účte?"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Izbrisati podatke o računu?"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radera kontoinformation?"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ลบข้อมูลบัญชี?"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesap bilgilerini silmek istiyor musunuz?"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видалити інформацію облікового запису?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xóa Thông tin Tài khoản?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除账户信息？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除帳戶資訊？"
+          }
+        }
+      }
+    },
     "Display Rates in Pounds (£)" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11681,7 +12935,7 @@
       }
     },
     "Drag to reorder cards" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11890,7 +13144,7 @@
       }
     },
     "e.g., SW1A 1AA, SW1A or H" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12099,7 +13353,7 @@
       }
     },
     "Electricity Supply" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12932,7 +14186,7 @@
       }
     },
     "Enter your postcode to determine your electricity region for accurate rates, or directly enter your region code (A-P) if you know it.\n\nExamples:\n• Postcode: SW1A 1AA or SW1A\n• Region Code: H\n\nIf empty or invalid, region 'H' (Southern England) will be used as default." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13027,7 +14281,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inserisci il tuo codice postale per determinare la tua area elettrica e ottenere tariffe accurate, oppure inserisci direttamente il codice area (A-P) se lo conosci.\n\nEsempi:\n• Codice postale: SW1A 1AA o SW1A\n• Codice area: H\n\nSe vuoto o non valido, verrà utilizzata per impostazione predefinita l’area 'H' (Inghilterra meridionale)."
+            "value" : "Inserisci il tuo codice pomanual per determinare la tua area elettrica e ottenere tariffe accurate, oppure inserisci direttamente il codice area (A-P) se lo conosci.\n\nEsempi:\n• Codice pomanual: SW1A 1AA o SW1A\n• Codice area: H\n\nSe vuoto o non valido, verrà utilizzata per impostazione predefinita l’area 'H' (Inghilterra meridionale)."
           }
         },
         "ja" : {
@@ -15013,7 +16267,7 @@
       }
     },
     "GDPR (UK) and Data Usage Declaration" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15222,7 +16476,7 @@
       }
     },
     "Get Account Number (Login Required)" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15431,7 +16685,7 @@
       }
     },
     "Get API Key (Login Required)" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15640,7 +16894,7 @@
       }
     },
     "Guide" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16058,7 +17312,7 @@
       }
     },
     "How zonal pricing could make bills cheaper" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16267,7 +17521,7 @@
       }
     },
     "Include VAT" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17726,7 +18980,7 @@
       }
     },
     "Manage Cards" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18977,7 +20231,7 @@
       }
     },
     "More Info" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19597,6 +20851,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "N"
+          }
+        }
+      }
+    },
+    "No account data available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا توجد بيانات حساب متاحة"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hi ha dades de compte disponibles"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nejsou k dispozici žádná data účtu"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingen kontodata tilgængelige"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Kontodaten verfügbar"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Δεν υπάρχουν διαθέσιμα δεδομένα λογαριασμού"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No account data available"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay datos de cuenta disponibles"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ei saatavilla olevia tilitietoja"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée de compte disponible"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אין נתוני חשבון זמינים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कोई खाता डेटा उपलब्ध नहीं है"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nema dostupnih podataka o računu"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nincsenek elérhető fiókadatok"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak ada data akun yang tersedia"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun dato dell’account disponibile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アカウントデータがありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "계정 데이터가 없습니다"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiada data akaun tersedia"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ingen kontodata tilgjengelig"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen accountgegevens beschikbaar"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak dostępnych danych konta"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum dado de conta disponível"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu există date de cont disponibile"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет доступных данных учётной записи"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie sú k dispozícii žiadne údaje o účte"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni podatkov o računu"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inga kontouppgifter tillgängliga"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ไม่มีข้อมูลบัญชีที่พร้อมใช้งาน"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hesap verisi bulunmuyor"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Немає доступних даних облікового запису"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có dữ liệu tài khoản"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无可用账户数据"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有可用的帳戶資料"
           }
         }
       }
@@ -22518,6 +23981,215 @@
         }
       }
     },
+    "Please configure your Octopus account in settings to compare tariffs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يرجى تكوين حساب Octopus في الإعدادات لمقارنة التعريفات"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura el teu compte de Octopus als paràmetres per comparar tarifes"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prosím nakonfigurujte svůj účet Octopus v nastavení pro porovnání tarifů"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurer venligst din Octopus-konto i indstillingerne for at sammenligne tariffer"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitte richten Sie Ihr Octopus-Konto in den Einstellungen ein, um Tarife zu vergleichen"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Παρακαλούμε ρυθμίστε τον λογαριασμό σας Octopus στις ρυθμίσεις για να συγκρίνετε τιμές"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please configure your Octopus account in settings to compare tariffs"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por favor, configura tu cuenta de Octopus en la configuración para comparar tarifas"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Määritä Octopus-tilisi asetuksissa vertaillaksesi tariffivaihtoehtoja"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veuillez configurer votre compte Octopus dans les paramètres pour comparer les tarifs"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אנא הגדר את חשבון Octopus שלך בהגדרות כדי להשוות תעריפים"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "कृपया शुल्कों की तुलना करने के लिए सेटिंग्स में अपना Octopus खाता कॉन्फ़िगर करें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Molimo konfigurirajte svoj Octopus račun u postavkama za usporedbu tarifa"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kérjük, állítsa be Octopus-fiókját a beállításokban a díjak összehasonlításához"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silakan konfigurasikan akun Octopus Anda di pengaturan untuk membandingkan tarif"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per confrontare le tariffe, configura il tuo account Octopus nelle impostazioni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "料金を比較するには、Octopus アカウントを設定で構成してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "요금을 비교하려면 설정에서 Octopus 계정을 구성하세요"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sila konfigurasikan akaun Octopus anda dalam tetapan untuk membandingkan tarif"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vennligst konfigurer din Octopus-konto i innstillinger for å sammenligne tariffer"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configureer je Octopus-account in de instellingen om tarieven te vergelijken"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skonfiguruj swoje konto Octopus w ustawieniach, aby porównać taryfy"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por favor, configure a sua conta Octopus nas definições para comparar tarifas"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vă rugăm să vă configurați contul Octopus în setări pentru a compara tarifele"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пожалуйста, настройте вашу учётную запись Octopus в настройках, чтобы сравнить тарифы"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prosím nakonfigurujte svoj účet Octopus v nastaveniach na porovnanie taríf"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prosimo, konfigurirajte svoj Octopus račun v nastavitvah, da primerjate tarife"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfigurera ditt Octopus-konto i inställningarna för att jämföra tariffer"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "โปรดกำหนดค่าบัญชี Octopus ของคุณในการตั้งค่าเพื่อเปรียบเทียบอัตราค่าบริการ"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarifleri karşılaştırmak için lütfen ayarlardan Octopus hesabınızı yapılandırın"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Будь ласка, налаштуйте свій обліковий запис Octopus у налаштуваннях, щоб порівняти тарифи"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vui lòng cấu hình tài khoản Octopus của bạn trong cài đặt để so sánh các mức giá"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在设置中配置您的 Octopus 帐户以比较费率"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在設定中配置你的 Octopus 帳戶以比較費率"
+          }
+        }
+      }
+    },
     "Please configure your Octopus account in settings to use account-based calculations" : {
       "localizations" : {
         "ar" : {
@@ -23352,7 +25024,7 @@
       }
     },
     "Preferences" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23977,7 +25649,7 @@
       }
     },
     "Property %@" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -25851,7 +27523,7 @@
       }
     },
     "Region Lookup" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26060,7 +27732,7 @@
       }
     },
     "Remove Account Access" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27928,6 +29600,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定 AGILE 產品"
+          }
+        }
+      }
+    },
+    "Set your billing cycle start day to match your Octopus Energy bill. This helps in accurately tracking your energy costs across billing periods." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اضبط يوم بدء دورة الفواتير لديك ليتطابق مع فاتورة Octopus Energy الخاصة بك. يساعد ذلك في تتبع تكاليف الطاقة بدقة عبر فترات الفوترة."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura el dia d'inici del teu cicle de facturació perquè coincideixi amb la factura d’Octopus Energy. Això ajuda a fer un seguiment precís de les despeses energètiques al llarg dels períodes de facturació."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavte si počáteční den fakturačního cyklu tak, aby odpovídal faktuře od Octopus Energy. To pomůže přesně sledovat náklady na energii v jednotlivých obdobích fakturace."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indstil startdagen for din faktureringscyklus, så den matcher din Octopus Energy-regning. Dette hjælper med nøjagtigt at spore dine energiomkostninger gennem faktureringsperioder."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legen Sie den Starttag Ihres Abrechnungszyklus fest, damit er mit Ihrer Octopus Energy-Rechnung übereinstimmt. Dies hilft dabei, Ihre Energiekosten während der Abrechnungszeiträume genau zu verfolgen."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ορίστε την ημέρα έναρξης του κύκλου χρέωσης ώστε να ταιριάζει με τον λογαριασμό σας από την Octopus Energy. Αυτό βοηθά στην ακριβή παρακολούθηση του κόστους ενέργειας σε κάθε περίοδο χρέωσης."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set your billing cycle start day to align with your Octopus Energy bill. This helps in accurately tracking your energy costs across billing periods."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configura el día de inicio de tu ciclo de facturación para que coincida con tu factura de Octopus Energy. Esto ayuda a realizar un seguimiento preciso de tus costes de energía a lo largo de los periodos de facturación."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aseta laskutusjakson aloituspäivä vastaamaan Octopus Energy -laskuasi. Tämä auttaa seuraamaan energiakustannuksia tarkasti laskutuskausien aikana."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définissez le jour de début de votre cycle de facturation pour qu’il corresponde à votre facture Octopus Energy. Cela permet de suivre précisément vos coûts énergétiques au fil des périodes de facturation."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדר את יום תחילת מחזור החיוב כך שיתאים לחשבון ה- Octopus Energy שלך. זה עוזר במעקב מדויק אחר עלויות האנרגיה לאורך תקופות החיוב."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अपना बिलिंग साइकिल आरंभ दिन Octopus Energy बिल के अनुरूप सेट करें। यह बिलिंग अवधियों में आपकी ऊर्जा लागतों को सटीक रूप से ट्रैक करने में मदद करता है।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postavite početni dan obračunskog razdoblja tako da odgovara vašem Octopus Energy računu. Time se pomaže preciznije pratiti troškove energije tijekom obračunskih razdoblja."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Állítsa be a számlázási ciklus kezdőnapját, hogy illeszkedjen az Octopus Energy számlájához. Ez segít pontosan nyomon követni az energiaköltségeket a számlázási időszakok során."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tetapkan hari mulai siklus penagihan Anda agar sesuai dengan tagihan Octopus Energy. Ini membantu dalam melacak biaya energi Anda secara akurat selama periode penagihan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imposta il giorno di inizio del ciclo di fatturazione in modo che corrisponda alla fattura di Octopus Energy. Questo aiuta a tenere traccia con precisione dei costi energetici durante i periodi di fatturazione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求サイクル開始日を Octopus Energy の請求書に合わせて設定してください。これにより、請求期間中のエネルギーコストを正確に追跡できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "청구 주기의 시작일을 Octopus Energy 청구서와 일치하도록 설정하세요. 이렇게 하면 청구 기간 동안 에너지 비용을 정확하게 추적할 수 있습니다."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tetapkan hari mula kitaran pengebilan anda agar sepadan dengan bil Octopus Energy anda. Ini membantu menjejaki kos tenaga anda dengan lebih tepat sepanjang tempoh pengebilan."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sett startdagen for faktureringssyklusen slik at den samsvarer med din Octopus Energy-faktura. Dette hjelper med nøyaktig sporing av energikostnader gjennom faktureringsperioder."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stel de startdag van je factureringscyclus in zodat deze overeenkomt met je Octopus Energy-factuur. Dit helpt bij het nauwkeurig bijhouden van je energiekosten gedurende de factureringsperioden."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ustaw dzień rozpoczęcia cyklu rozliczeniowego tak, aby pasował do rachunku z Octopus Energy. Dzięki temu można precyzyjnie śledzić koszty energii w poszczególnych okresach rozliczeniowych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Defina o dia de início do seu ciclo de faturação para corresponder à sua fatura da Octopus Energy. Isto ajuda a acompanhar com precisão os custos de energia ao longo dos períodos de faturação."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setează ziua de început a ciclului de facturare pentru a corespunde cu factura ta Octopus Energy. Acest lucru ajută la urmărirea precisă a costurilor de energie pe parcursul perioadelor de facturare."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Установите день начала расчетного цикла так, чтобы он совпадал с вашим счетом от Octopus Energy. Это помогает точно отслеживать затраты на энергию в течение расчетных периодов."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavte si deň začiatku fakturačného cyklu tak, aby zodpovedal vašej faktúre od spoločnosti Octopus Energy. Pomáha to presne sledovať náklady na energiu v jednotlivých fakturačných obdobiach."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nastavite začetni dan obračunskega cikla, da se ujema z računom vašega Octopus Energy. Tako boste lažje natančno spremljali stroške energije v vsakem obračunskem obdobju."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ställ in din faktureringscykels startdag så att den matchar din Octopus Energy-faktura. Detta hjälper dig att noggrant följa dina energikostnader under faktureringsperioderna."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ตั้งค่าวันเริ่มรอบบิลของคุณให้ตรงกับใบเรียกเก็บเงิน Octopus Energy ซึ่งช่วยติดตามค่าใช้จ่ายพลังงานของคุณได้อย่างแม่นยำในช่วงรอบบิล"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fatura döngüsü başlangıç gününüzü Octopus Energy faturanıza uyacak şekilde ayarlayın. Bu, fatura dönemlerinde enerji maliyetlerinizi doğru bir şekilde takip etmenize yardımcı olur."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Встановіть день початку вашого білінгового циклу так, щоб він відповідав рахунку Octopus Energy. Це допомагає точно відстежувати витрати на енергію впродовж розрахункових періодів."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đặt ngày bắt đầu chu kỳ thanh toán của bạn sao cho khớp với hóa đơn Octopus Energy. Điều này giúp theo dõi chính xác chi phí năng lượng trong suốt các kỳ thanh toán."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置您的账单周期开始日以匹配您的 Octopus Energy 账单。这有助于在整个计费周期内更准确地跟踪您的能源费用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定您的帳單週期開始日以對應您的 Octopus Energy 帳單。這有助於在整個計費週期內更準確地追蹤您的能源費用。"
           }
         }
       }
@@ -31482,7 +33363,7 @@
       }
     },
     "Tariff" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -31899,7 +33780,7 @@
       }
     },
     "Tariff Comparison" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -32942,8 +34823,426 @@
         }
       }
     },
+    "Unable to load GDPR text." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "غير قادر على تحميل نص GDPR."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es pot carregar el text de la GDPR."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nelze načíst text GDPR."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan ikke indlæse GDPR-tekst."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GDPR-Text kann nicht geladen werden."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αδυναμία φόρτωσης κειμένου GDPR."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to load GDPR text."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede cargar el texto de GDPR."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GDPR-tekstiä ei voi ladata."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger le texte RGPD."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן לטעון את טקסט ה-GDPR."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GDPR पाठ लोड करने में असमर्थ।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nije moguće učitati GDPR tekst."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A GDPR-szöveg betöltése sikertelen."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak dapat memuat teks GDPR."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile caricare il testo GDPR."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GDPRテキストを読み込めません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GDPR 텍스트를 불러올 수 없습니다."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak dapat memuat teks GDPR."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan ikke laste inn GDPR-tekst."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan GDPR-tekst niet laden."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie można wczytać tekstu RODO."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é possível carregar o texto GDPR."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu se poate încărca textul GDPR."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось загрузить текст GDPR."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie je možné načítať text GDPR."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni mogoče naložiti besedila GDPR."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det gick inte att ladda GDPR-text."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ไม่สามารถโหลดข้อความ GDPR ได้"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GDPR metni yüklenemedi."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалося завантажити текст GDPR."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể tải văn bản GDPR."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载 GDPR 文本。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入 GDPR 文字內容。"
+          }
+        }
+      }
+    },
+    "Unable to load guide text." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "غير قادر على تحميل نص الدليل."
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No es pot carregar el text de la guia."
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nelze načíst text průvodce."
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan ikke indlæse guide-tekst."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leitfaden-Text kann nicht geladen werden."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αδυναμία φόρτωσης του κειμένου του οδηγού."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to load guide text."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede cargar el texto de la guía."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opastetekstiä ei voi ladata."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger le texte du guide."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן לטעון את טקסט המדריך."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "गाइड पाठ लोड करने में असमर्थ।"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nije moguće učitati tekst vodiča."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A súgószöveg betöltése sikertelen."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak dapat memuat teks panduan."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile caricare il testo della guida."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ガイドテキストを読み込めません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가이드 텍스트를 불러올 수 없습니다."
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak dapat memuat teks panduan."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan ikke laste inn guide-tekst."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kan de gids-tekst niet laden."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie można wczytać tekstu przewodnika."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não é possível carregar o texto de ajuda."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu se poate încărca textul ghidului."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось загрузить текст руководства."
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie je možné načítať text sprievodcu."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ni mogoče naložiti besedila navodil."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Det gick inte att ladda guiden."
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ไม่สามารถโหลดข้อความคู่มือได้"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rehber metni yüklenemedi."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалося завантажити текст посібника."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể tải văn bản hướng dẫn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载指南文本。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入指南文字內容。"
+          }
+        }
+      }
+    },
     "Unlock" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -33776,8 +36075,217 @@
         }
       }
     },
+    "Using Region %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "باستخدام المنطقة %@"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S’està utilitzant la regió %@"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Používá se region %@"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruger regionen %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwendete Region: %@"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Χρήση περιοχής %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Using Region %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usando la región %@"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käytössä alue %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Région utilisée : %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "באמצעות אזור %@"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "क्षेत्र %@ का उपयोग हो रहा है"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koristi se regija %@"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Használt régió: %@"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menggunakan Wilayah %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilizzo della regione %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 地域を使用中"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지역 %@ 사용 중"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menggunakan Rantau %@"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruker region %@"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruikt regio %@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Używany region: %@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A utilizar a região %@"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilizarea regiunii %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используемый регион: %@"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Používa sa oblasť %@"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uporabljena regija %@"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Använder region %@"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "กำลังใช้ภูมิภาค %@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Şu bölge kullanılıyor: %@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Використовується регіон %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang sử dụng khu vực %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用区域 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用地區 %@"
+          }
+        }
+      }
+    },
     "Valid From" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -36069,7 +38577,7 @@
       }
     },
     "Zonal pricing would make energy bills cheaper..." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -38769,1462 +41277,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "退出費用"
-          }
-        }
-      }
-    },
-    "API Key is required" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "مطلوب مفتاح API"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Es requereix una clau API"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je vyžadován klíč API"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-nøgle er påkrævet"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-Schlüssel ist erforderlich"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Απαιτείται κλειδί API"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API Key is required"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Se requiere clave API"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-avain vaaditaan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La clé API est requise"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "נדרש מפתח API"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API कुंजी आवश्यक है"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Potreban je API ključ"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-kulcs szükséges"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kunci API diperlukan"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "È necessaria la chiave API"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "APIキーが必要です"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API 키가 필요합니다"
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kunci API diperlukan"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-nøkkel er nødvendig"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-sleutel is vereist"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wymagany jest klucz API"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "É necessária a chave API"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cheia API este necesară"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Требуется ключ API"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je potrebný API kľúč"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Potreben je API ključ"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-nyckel krävs"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ต้องใช้คีย์ API"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API anahtarı gerekli"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Потрібен ключ API"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yêu cầu khóa API"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "需要 API 密钥"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "需要 API 金鑰"
-          }
-        }
-      }
-    },
-    "API Key should start with 'sk_live_' followed by 32 characters" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يجب أن يبدأ مفتاح API بـ 'sk_live_' متبوعًا بـ 32 حرفًا"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La clau API ha de començar amb 'sk_live_' seguit de 32 caràcters"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Klíč API by měl začínat „sk_live_“ a pokračovat 32 znaky"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-nøglen skal starte med 'sk_live_' efterfulgt af 32 tegn"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der API-Schlüssel sollte mit 'sk_live_' beginnen, gefolgt von 32 Zeichen"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Το κλειδί API πρέπει να ξεκινά με 'sk_live_' και να ακολουθούν 32 χαρακτήρες"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API Key should start with 'sk_live_' followed by 32 characters"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La clave API debe empezar con 'sk_live_' seguida de 32 caracteres"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-avaimen tulisi alkaa 'sk_live_'-merkkijonolla ja sitä seuraavilla 32 merkillä"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La clé API doit commencer par 'sk_live_', suivie de 32 caractères"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "מפתח API אמור להתחיל ב-'sk_live_' ולאחריו 32 תווים"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API कुंजी 'sk_live_' से शुरू होनी चाहिए, जिसके बाद 32 वर्ण हों"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API ključ treba početi s 'sk_live_' praćen s 32 znaka"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Az API-kulcsnak 'sk_live_'-val kell kezdődnie, majd 32 karakter követi"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kunci API harus diawali dengan 'sk_live_' diikuti 32 karakter"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La chiave API deve iniziare con 'sk_live_' seguita da 32 caratteri"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "APIキーは「sk_live_」で始まり、その後に32文字が続く必要があります"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API 키는 'sk_live_'로 시작하고 뒤이어 32자여야 합니다"
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kunci API perlu bermula dengan 'sk_live_' diikuti 32 aksara"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-nøkkelen bør starte med 'sk_live_' etterfulgt av 32 tegn"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-sleutel moet beginnen met 'sk_live_', gevolgd door 32 tekens"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Klucz API powinien zaczynać się od 'sk_live_', a następnie 32 znaki"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A chave API deve começar com 'sk_live_', seguida de 32 caracteres"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cheia API trebuie să înceapă cu 'sk_live_', urmată de 32 de caractere"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ключ API должен начинаться с 'sk_live_' и включать ещё 32 символа"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API kľúč musí začínať 'sk_live_' a pokračovať 32 znakmi"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API ključ se mora začeti z 'sk_live_', sledi pa 32 znakov"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API-nyckeln bör börja med 'sk_live_' följt av 32 tecken"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "คีย์ API ต้องขึ้นต้นด้วย 'sk_live_' ตามด้วย 32 อักขระ"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API Anahtarı 'sk_live_' ile başlamalı ve ardından 32 karakter gelmelidir"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ключ API має починатися з 'sk_live_', а далі — 32 символи"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Khoá API phải bắt đầu bằng 'sk_live_' và theo sau là 32 ký tự"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API 密钥应以“sk_live_”开头，并随后有 32 个字符"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API 金鑰必須以「sk_live_」開頭，後接 32 個字元"
-          }
-        }
-      }
-    },
-    "No account data available" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "لا توجد بيانات حساب متاحة"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No hi ha dades de compte disponibles"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nejsou k dispozici žádná data účtu"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ingen kontodata tilgængelige"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine Kontodaten verfügbar"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Δεν υπάρχουν διαθέσιμα δεδομένα λογαριασμού"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No account data available"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No hay datos de cuenta disponibles"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ei saatavilla olevia tilitietoja"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune donnée de compte disponible"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "אין נתוני חשבון זמינים"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "कोई खाता डेटा उपलब्ध नहीं है"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nema dostupnih podataka o računu"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nincsenek elérhető fiókadatok"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tidak ada data akun yang tersedia"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nessun dato dell’account disponibile"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アカウントデータがありません"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "계정 데이터가 없습니다"
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiada data akaun tersedia"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ingen kontodata tilgjengelig"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geen accountgegevens beschikbaar"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Brak dostępnych danych konta"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nenhum dado de conta disponível"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nu există date de cont disponibile"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нет доступных данных учётной записи"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nie sú k dispozícii žiadne údaje o účte"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ni podatkov o računu"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inga kontouppgifter tillgängliga"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไม่มีข้อมูลบัญชีที่พร้อมใช้งาน"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hesap verisi bulunmuyor"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Немає доступних даних облікового запису"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có dữ liệu tài khoản"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无可用账户数据"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "沒有可用的帳戶資料"
-          }
-        }
-      }
-    },
-    "Please configure your Octopus account in settings to compare tariffs" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "يرجى تكوين حساب Octopus في الإعدادات لمقارنة التعريفات"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configura el teu compte de Octopus als paràmetres per comparar tarifes"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prosím nakonfigurujte svůj účet Octopus v nastavení pro porovnání tarifů"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Konfigurer venligst din Octopus-konto i indstillingerne for at sammenligne tariffer"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bitte richten Sie Ihr Octopus-Konto in den Einstellungen ein, um Tarife zu vergleichen"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Παρακαλούμε ρυθμίστε τον λογαριασμό σας Octopus στις ρυθμίσεις για να συγκρίνετε τιμές"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Please configure your Octopus account in settings to compare tariffs"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Por favor, configura tu cuenta de Octopus en la configuración para comparar tarifas"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Määritä Octopus-tilisi asetuksissa vertaillaksesi tariffivaihtoehtoja"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Veuillez configurer votre compte Octopus dans les paramètres pour comparer les tarifs"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "אנא הגדר את חשבון Octopus שלך בהגדרות כדי להשוות תעריפים"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "कृपया शुल्कों की तुलना करने के लिए सेटिंग्स में अपना Octopus खाता कॉन्फ़िगर करें"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Molimo konfigurirajte svoj Octopus račun u postavkama za usporedbu tarifa"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kérjük, állítsa be Octopus-fiókját a beállításokban a díjak összehasonlításához"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Silakan konfigurasikan akun Octopus Anda di pengaturan untuk membandingkan tarif"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Per confrontare le tariffe, configura il tuo account Octopus nelle impostazioni"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "料金を比較するには、Octopus アカウントを設定で構成してください"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "요금을 비교하려면 설정에서 Octopus 계정을 구성하세요"
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sila konfigurasikan akaun Octopus anda dalam tetapan untuk membandingkan tarif"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vennligst konfigurer din Octopus-konto i innstillinger for å sammenligne tariffer"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Configureer je Octopus-account in de instellingen om tarieven te vergelijken"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skonfiguruj swoje konto Octopus w ustawieniach, aby porównać taryfy"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Por favor, configure a sua conta Octopus nas definições para comparar tarifas"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vă rugăm să vă configurați contul Octopus în setări pentru a compara tarifele"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пожалуйста, настройте вашу учётную запись Octopus в настройках, чтобы сравнить тарифы"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prosím nakonfigurujte svoj účet Octopus v nastaveniach na porovnanie taríf"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prosimo, konfigurirajte svoj Octopus račun v nastavitvah, da primerjate tarife"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Konfigurera ditt Octopus-konto i inställningarna för att jämföra tariffer"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "โปรดกำหนดค่าบัญชี Octopus ของคุณในการตั้งค่าเพื่อเปรียบเทียบอัตราค่าบริการ"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tarifleri karşılaştırmak için lütfen ayarlardan Octopus hesabınızı yapılandırın"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Будь ласка, налаштуйте свій обліковий запис Octopus у налаштуваннях, щоб порівняти тарифи"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vui lòng cấu hình tài khoản Octopus của bạn trong cài đặt để so sánh các mức giá"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请在设置中配置您的 Octopus 帐户以比较费率"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "請在設定中配置你的 Octopus 帳戶以比較費率"
-          }
-        }
-      }
-    },
-    "Using Region %@" : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "باستخدام المنطقة %@"
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "S’està utilitzant la regió %@"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Používá se region %@"
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bruger regionen %@"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verwendete Region: %@"
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Χρήση περιοχής %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Using Region %@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usando la región %@"
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Käytössä alue %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Région utilisée : %@"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "באמצעות אזור %@"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "क्षेत्र %@ का उपयोग हो रहा है"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Koristi se regija %@"
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Használt régió: %@"
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Menggunakan Wilayah %@"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilizzo della regione %@"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 地域を使用中"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "지역 %@ 사용 중"
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Menggunakan Rantau %@"
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bruker region %@"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gebruikt regio %@"
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Używany region: %@"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A utilizar a região %@"
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilizarea regiunii %@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Используемый регион: %@"
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Používa sa oblasť %@"
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uporabljena regija %@"
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Använder region %@"
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "กำลังใช้ภูมิภาค %@"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Şu bölge kullanılıyor: %@"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Використовується регіон %@"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đang sử dụng khu vực %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用区域 %@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用地區 %@"
-          }
-        }
-      }
-    },
-    "Unable to load GDPR text." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "غير قادر على تحميل نص GDPR."
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No es pot carregar el text de la GDPR."
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nelze načíst text GDPR."
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kan ikke indlæse GDPR-tekst."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GDPR-Text kann nicht geladen werden."
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Αδυναμία φόρτωσης κειμένου GDPR."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to load GDPR text."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se puede cargar el texto de GDPR."
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GDPR-tekstiä ei voi ladata."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de charger le texte RGPD."
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "לא ניתן לטעון את טקסט ה-GDPR."
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GDPR पाठ लोड करने में असमर्थ।"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nije moguće učitati GDPR tekst."
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A GDPR-szöveg betöltése sikertelen."
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tidak dapat memuat teks GDPR."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossibile caricare il testo GDPR."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GDPRテキストを読み込めません。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GDPR 텍스트를 불러올 수 없습니다."
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tidak dapat memuat teks GDPR."
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kan ikke laste inn GDPR-tekst."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kan GDPR-tekst niet laden."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nie można wczytać tekstu RODO."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Não é possível carregar o texto GDPR."
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nu se poate încărca textul GDPR."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось загрузить текст GDPR."
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nie je možné načítať text GDPR."
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ni mogoče naložiti besedila GDPR."
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Det gick inte att ladda GDPR-text."
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไม่สามารถโหลดข้อความ GDPR ได้"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GDPR metni yüklenemedi."
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не вдалося завантажити текст GDPR."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể tải văn bản GDPR."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法加载 GDPR 文本。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法載入 GDPR 文字內容。"
-          }
-        }
-      }
-    },
-    "Unable to load guide text." : {
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "غير قادر على تحميل نص الدليل."
-          }
-        },
-        "ca" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No es pot carregar el text de la guia."
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nelze načíst text průvodce."
-          }
-        },
-        "da" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kan ikke indlæse guide-tekst."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leitfaden-Text kann nicht geladen werden."
-          }
-        },
-        "el" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Αδυναμία φόρτωσης του κειμένου του οδηγού."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to load guide text."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se puede cargar el texto de la guía."
-          }
-        },
-        "fi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opastetekstiä ei voi ladata."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de charger le texte du guide."
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "לא ניתן לטעון את טקסט המדריך."
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "गाइड पाठ लोड करने में असमर्थ।"
-          }
-        },
-        "hr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nije moguće učitati tekst vodiča."
-          }
-        },
-        "hu" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A súgószöveg betöltése sikertelen."
-          }
-        },
-        "id" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tidak dapat memuat teks panduan."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossibile caricare il testo della guida."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ガイドテキストを読み込めません。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "가이드 텍스트를 불러올 수 없습니다."
-          }
-        },
-        "ms" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tidak dapat memuat teks panduan."
-          }
-        },
-        "nb" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kan ikke laste inn guide-tekst."
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kan de gids-tekst niet laden."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nie można wczytać tekstu przewodnika."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Não é possível carregar o texto de ajuda."
-          }
-        },
-        "ro" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nu se poate încărca textul ghidului."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось загрузить текст руководства."
-          }
-        },
-        "sk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nie je možné načítať text sprievodcu."
-          }
-        },
-        "sl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ni mogoče naložiti besedila navodil."
-          }
-        },
-        "sv" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Det gick inte att ladda guiden."
-          }
-        },
-        "th" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ไม่สามารถโหลดข้อความคู่มือได้"
-          }
-        },
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rehber metni yüklenemedi."
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не вдалося завантажити текст посібника."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể tải văn bản hướng dẫn."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法加载指南文本。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法載入指南文字內容。"
           }
         }
       }
