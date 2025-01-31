@@ -121,7 +121,8 @@ public struct TariffComparisonDetailView: View {
                     comparedPlanName: comparedPlanName,
                     overlapDateRange: monthlyCalculations?.dateRange,
                     consumptionStart: consumptionVM.minInterval,
-                    consumptionEnd: consumptionVM.maxInterval
+                    consumptionEnd: consumptionVM.maxInterval,
+                    globalSettings: globalSettings
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -146,7 +147,8 @@ public struct TariffComparisonDetailView: View {
                 MonthlyComparisonTable(
                     monthlyCalculations: monthlyCalculations,
                     isCalculating: isCalculatingMonthly,
-                    showVAT: globalSettings.settings.showRatesWithVAT
+                    showVAT: globalSettings.settings.showRatesWithVAT,
+                    globalSettings: globalSettings
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -156,7 +158,8 @@ public struct TariffComparisonDetailView: View {
                     monthlyRates: monthlyRates,
                     isManualPlan: isManualPlan,
                     manualRatePencePerKWh: manualRatePencePerKWh,
-                    showVAT: globalSettings.settings.showRatesWithVAT
+                    showVAT: globalSettings.settings.showRatesWithVAT,
+                    globalSettings: globalSettings
                 )
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
@@ -215,7 +218,8 @@ public struct TariffComparisonDetailView: View {
             if isManualPlan {
                 ManualPlanSummaryView(
                     manualRatePencePerKWh: manualRatePencePerKWh,
-                    manualStandingChargePencePerDay: manualStandingChargePencePerDay
+                    manualStandingChargePencePerDay: manualStandingChargePencePerDay,
+                    globalSettings: globalSettings
                 )
             } else if let product = selectedProduct {
                 ProductHeaderView(product: product)
@@ -563,6 +567,7 @@ private struct ComparisonInsightCard: View {
     let overlapDateRange: (start: Date, end: Date)?
     let consumptionStart: Date?
     let consumptionEnd: Date?
+    let globalSettings: GlobalSettingsManager
 
     // For animated difference gauge
     @State private var animatedPercentage: Double = 0
@@ -577,7 +582,8 @@ private struct ComparisonInsightCard: View {
         comparedPlanName: String,
         overlapDateRange: (start: Date, end: Date)?,
         consumptionStart: Date?,
-        consumptionEnd: Date?
+        consumptionEnd: Date?,
+        globalSettings: GlobalSettingsManager
     ) {
         self.accountTotals = accountTotals
         self.compareTotals = compareTotals
@@ -588,6 +594,7 @@ private struct ComparisonInsightCard: View {
         self.overlapDateRange = overlapDateRange
         self.consumptionStart = consumptionStart
         self.consumptionEnd = consumptionEnd
+        self.globalSettings = globalSettings
     }
 
     var body: some View {
@@ -665,14 +672,16 @@ private struct ComparisonInsightCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 costBreakdownRow(
-                    label: "My Account", cost: accountCostDV, color: Theme.secondaryTextColor)
+                    label: forcedLocalizedString(
+                        key: "My Account", locale: globalSettings.locale), cost: accountCostDV,
+                    color: Theme.secondaryTextColor)
                 costBreakdownRow(
                     label: comparedPlanName, cost: compareCostDV, color: Theme.mainColor)
 
                 if let pctString = calculateSavingsPercentageString(
                     diff: diff, accountCost: accountCostDV)
                 {
-                    Text(pctString)
+                    Text(forcedLocalizedString(key: pctString, locale: globalSettings.locale))
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
                 }
@@ -757,15 +766,18 @@ private struct ComparisonInsightCard: View {
     /// Format the date range as short or medium style
     private func formatDateRange(start: Date, end: Date) -> String {
         let df = DateFormatter()
+        df.locale = globalSettings.locale
         df.dateStyle = .medium
 
+        // Use the same locale for date math
+        var cal = Calendar.current
+        cal.locale = globalSettings.locale
+
         // Adjust end date for display (subtract one day)
-        let displayEndDate = Calendar.current.date(byAdding: .day, value: -1, to: end) ?? end
+        let displayEndDate = cal.date(byAdding: .day, value: -1, to: end) ?? end
 
         // If in same year, only show year once
-        let calendar = Calendar.current
-        if calendar.component(.year, from: start) == calendar.component(.year, from: displayEndDate)
-        {
+        if cal.component(.year, from: start) == cal.component(.year, from: displayEndDate) {
             df.setLocalizedDateFormatFromTemplate("d MMM")
             let s = df.string(from: start)
             df.setLocalizedDateFormatFromTemplate("d MMM yyyy")
@@ -779,6 +791,7 @@ private struct ComparisonInsightCard: View {
 // MARK: - Rate Analysis Card
 @available(iOS 17.0, *)
 private struct RateAnalysisCard: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let isManualPlan: Bool
     let manualStandingChargePencePerDay: Double
     let fullTariffCode: String
@@ -823,7 +836,8 @@ private struct RateAnalysisCard: View {
                 let cost = showVAT ? c.costIncVAT : c.costExcVAT
                 let avgRate = totalKWh > 0 ? (cost - stand) / totalKWh : 0
                 rateRow(
-                    label: "Average Rate", value: avgRate,
+                    label: forcedLocalizedString(
+                        key: "Average Rate", locale: globalSettings.locale), value: avgRate,
                     icon: "chart.line.flattrend.xyaxis"
                 )
             }
@@ -836,16 +850,20 @@ private struct RateAnalysisCard: View {
             } else {
                 // Only show highest/lowest rates for non-manual plans
                 rateRow(
-                    label: "Highest Rate", value: highestRate,
+                    label: forcedLocalizedString(
+                        key: "Highest Rate", locale: globalSettings.locale), value: highestRate,
                     icon: "arrow.up.circle")
                 rateRow(
-                    label: "Lowest Rate", value: lowestRate,
+                    label: forcedLocalizedString(
+                        key: "Lowest Rate", locale: globalSettings.locale), value: lowestRate,
                     icon: "arrow.down.circle")
             }
 
             let sc = isManualPlan ? manualStandingChargePencePerDay : currentStandingCharge
             rateRow(
-                label: "Standing Charge", value: sc, icon: "clock", isDaily: true)
+                label: forcedLocalizedString(
+                    key: "Standing Charge", locale: globalSettings.locale), value: sc,
+                icon: "clock", isDaily: true)
         }
     }
 
@@ -904,10 +922,10 @@ private struct RateAnalysisCard: View {
 @available(iOS 17.0, *)
 private struct MonthlyTrendsCard: View {
     let monthlyRates: [TariffComparisonDetailView.MonthlyRate]
-
     let isManualPlan: Bool
     let manualRatePencePerKWh: Double
     let showVAT: Bool
+    let globalSettings: GlobalSettingsManager
 
     // Chart interaction states
     @State private var hoveredMonth: Date? = nil
@@ -915,6 +933,13 @@ private struct MonthlyTrendsCard: View {
     @State private var lastSnappedMonth: Date? = nil
 
     private let hapticFeedback = UIImpactFeedbackGenerator(style: .light)
+
+    private func formatMonth(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = globalSettings.locale
+        formatter.setLocalizedDateFormatFromTemplate("yMMMM")
+        return formatter.string(from: date)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1074,12 +1099,6 @@ private struct MonthlyTrendsCard: View {
         let maxVal = (vals.max() ?? 0) + 2
         return (minVal, maxVal)
     }
-
-    private func formatMonth(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yyyy"
-        return formatter.string(from: date)
-    }
 }
 
 // MARK: - Monthly Comparison Table
@@ -1097,6 +1116,7 @@ private struct MonthlyComparisonTable: View {
     let monthlyCalculations: TariffComparisonDetailView.MonthlyCalculationsData?
     let isCalculating: Bool
     let showVAT: Bool
+    let globalSettings: GlobalSettingsManager
 
     var body: some View {
         VStack(spacing: 16) {
@@ -1219,20 +1239,36 @@ private struct MonthlyComparisonTable: View {
     // MARK: - Formatting
     private func formatMonth(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yyyy"
+        formatter.locale = globalSettings.locale
+        formatter.setLocalizedDateFormatFromTemplate("yMMMM")
         return formatter.string(from: date)
     }
 
     private func formatConsumption(_ kwh: Double) -> String {
-        String(format: "%.0f", kwh)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.locale = globalSettings.locale
+        return formatter.string(from: NSNumber(value: kwh)) ?? String(format: "%.0f", kwh)
     }
 
     private func formatCurrency(_ amount: Double) -> String {
-        String(format: "£%.2f", amount / 100)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = globalSettings.locale
+        formatter.currencyCode = "GBP"
+        return formatter.string(from: NSNumber(value: amount / 100))
+            ?? String(format: "£%.2f", amount / 100)
     }
 
     private func formatDifference(_ amount: Double) -> String {
-        String(format: "%@£%.2f", amount >= 0 ? "+" : "", amount / 100)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = globalSettings.locale
+        formatter.currencyCode = "GBP"
+        formatter.positivePrefix = "+" + formatter.positivePrefix
+        return formatter.string(from: NSNumber(value: amount / 100))
+            ?? String(format: "%@£%.2f", amount >= 0 ? "+" : "", amount / 100)
     }
 }
 
@@ -1301,10 +1337,14 @@ private struct ProductHeaderView: View {
             }
         }
     }
-
+    @Environment(\.locale) var locale
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
+
+        // Make the formatter use the environment locale
+        formatter.locale = locale
+
         return formatter.string(from: date)
     }
 }
@@ -1314,7 +1354,17 @@ private struct ProductHeaderView: View {
 private struct ManualPlanSummaryView: View {
     let manualRatePencePerKWh: Double
     let manualStandingChargePencePerDay: Double
+    let globalSettings: GlobalSettingsManager
     @Environment(\.dismiss) var dismiss
+
+    private func formatNumber(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 1
+        formatter.minimumFractionDigits = 1
+        formatter.locale = globalSettings.locale
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.1f", value)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1341,7 +1391,7 @@ private struct ManualPlanSummaryView: View {
                 BadgeView("Fixed Rate", color: .purple)
 
                 Text(
-                    "\(String(format: "%.1f", manualRatePencePerKWh))p/kWh + \(String(format: "%.1f", manualStandingChargePencePerDay))p/day"
+                    "\(formatNumber(manualRatePencePerKWh))p/kWh + \(formatNumber(manualStandingChargePencePerDay))p/day"
                 )
                 .font(.system(size: 17))
                 .foregroundColor(Theme.secondaryTextColor)

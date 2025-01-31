@@ -91,10 +91,10 @@ public enum CompareIntervalType: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .daily: String(localized: "Daily")
-        case .weekly: String(localized: "Weekly")
-        case .monthly: String(localized: "Monthly")
-        case .quarterly: String(localized: "Quarterly")
+        case .daily: "Daily"
+        case .weekly: "Weekly"
+        case .monthly: "Monthly"
+        case .quarterly: "Quarterly"
         }
     }
 
@@ -156,9 +156,10 @@ private struct ProductGroup: Identifiable, Hashable {
         }?.value(forKey: "code") as? String
     }
 
-    func formatDate(_ date: Date) -> String {
+    func formatDate(_ date: Date, locale: Locale) -> String {
         let df = DateFormatter()
-        df.dateFormat = "d MMMM yyyy"
+        df.locale = locale
+        df.setLocalizedDateFormatFromTemplate("yMMMMd")
         return df.string(from: date)
     }
 }
@@ -1620,71 +1621,81 @@ private struct ComparisonDateNavView: View {
     }
 
     private func dateRangeText() -> String {
+        // 1. Grab start/end from your view model
         let (start, end) = accountTariffVM.calculateDateRange(
             for: currentDate,
             intervalType: selectedInterval.vmInterval,
             billingDay: globalSettings.settings.billingDay
         )
 
-        // Format dates according to requirements:
-        // - Daily: "23 Jan 2025"
-        // - Weekly: "20 Jan - 26 Jan 2025" (or "30 Dec 2024 - 5 Jan 2025")
-        // - Monthly: "4 Jan - 3 Feb 2025" (or "4 Dec 2024 - 3 Jan 2025")
-        // - Quarterly: "4 Jan - 3 Mar 2025" (or "4 Dec 2024 - 3 Jan 2025")
+        // 2. Use a Calendar matching the chosen locale
+        var cal = Calendar.current
+        cal.locale = globalSettings.locale
 
-        let cal = Calendar.current
+        // 3. Create date formatters:
+        // (A) day+month only, e.g. "20 Jan" (English), "1月20日" (Chinese)
+        let dayMonthFormatter = DateFormatter()
+        dayMonthFormatter.locale = globalSettings.locale
+        dayMonthFormatter.setLocalizedDateFormatFromTemplate("MMMd")
 
-        // Shared formatters
-        let dayMonthFmt = DateFormatter()
-        dayMonthFmt.locale = globalSettings.locale
-        dayMonthFmt.dateFormat = "d MMM"
+        // (B) day+month+year, e.g. "20 Jan 2025" (English), "2025年1月20日" (Chinese)
+        let dayMonthYearFormatter = DateFormatter()
+        dayMonthYearFormatter.locale = globalSettings.locale
+        dayMonthYearFormatter.setLocalizedDateFormatFromTemplate("yMMMd")
 
-        let dayMonthYearFmt = DateFormatter()
-        dayMonthYearFmt.locale = globalSettings.locale
-        dayMonthYearFmt.dateFormat = "d MMM yyyy"
+        // (C) year-only in a localised style, e.g. "2025" (English), "2025年" (Chinese)
+        let yearOnlyFormatter = DateFormatter()
+        yearOnlyFormatter.locale = globalSettings.locale
+        // "y" = show year with locale rules, e.g. "2025年" in zh-Hant
+        yearOnlyFormatter.setLocalizedDateFormatFromTemplate("y")
+
+        // 4. Determine if both dates are in the same year
+        let startYear = cal.component(.year, from: start)
+        let endYear = cal.component(.year, from: end)
 
         switch selectedInterval {
         case .daily:
-            // "23 Jan 2025"
-            return dayMonthYearFmt.string(from: start)
+            // Single day => just show day+month+year
+            return dayMonthYearFormatter.string(from: start)
 
-        case .weekly:
-            // "20 Jan - 26 Jan 2025" or crossing year => "30 Dec 2024 - 5 Jan 2025"
-            let startYear = cal.component(.year, from: start)
-            let endYear = cal.component(.year, from: end)
-
+        case .weekly, .monthly, .quarterly:
+            // Multi-day range
             if startYear == endYear {
-                return
-                    "\(dayMonthFmt.string(from: start)) - \(dayMonthFmt.string(from: end)) \(startYear)"
+                // ---- SAME-YEAR RANGE ----
+                // We'll localise the day+month for each date, and localise the year separately
+
+                // e.g. "20 Jan" in English, "1月20日" in Chinese
+                let startNoYear = dayMonthFormatter.string(from: start)
+                let endNoYear = dayMonthFormatter.string(from: end)
+
+                // Generate a date for (startYear)-01-01 so we can localise the year via yearOnlyFormatter
+                var comps = DateComponents()
+                comps.year = startYear
+                comps.month = 1
+                comps.day = 1
+                let january1 = cal.date(from: comps) ?? start
+
+                let yearString = yearOnlyFormatter.string(from: january1)
+                // e.g. "2025" in English, "2025年" in Chinese
+
+                let pattern = forcedLocalizedString(
+                    key: "SAME_YEAR_RANGE", locale: globalSettings.locale)
+                //  - en: "%1$@ - %2$@ %3$@" → "20 Jan - 26 Jan 2025"
+                //  - zh: "%3$@%1$@ - %2$@"   → "2025年1月20日 - 1月26日"
+
+                return String(format: pattern, startNoYear, endNoYear, yearString)
             } else {
-                return
-                    "\(dayMonthFmt.string(from: start)) \(startYear) - \(dayMonthFmt.string(from: end)) \(endYear)"
-            }
+                // ---- CROSS-YEAR RANGE ----
+                // Show day+month+year for both
+                let startWithYear = dayMonthYearFormatter.string(from: start)
+                let endWithYear = dayMonthYearFormatter.string(from: end)
 
-        case .monthly:
-            // "4 Jan - 3 Feb 2025" or crossing year => "4 Dec 2024 - 3 Jan 2025"
-            let startYear = cal.component(.year, from: start)
-            let endYear = cal.component(.year, from: end)
+                let pattern = forcedLocalizedString(
+                    key: "CROSS_YEAR_RANGE", locale: globalSettings.locale)
+                //  - en: "%1$@ - %2$@" → "30 Dec 2024 - 5 Jan 2025"
+                //  - zh: "%1$@ - %2$@" → "2024年12月30日 - 2025年1月5日"
 
-            if startYear == endYear {
-                return
-                    "\(dayMonthFmt.string(from: start)) - \(dayMonthFmt.string(from: end)) \(startYear)"
-            } else {
-                return
-                    "\(dayMonthFmt.string(from: start)) \(startYear) - \(dayMonthFmt.string(from: end)) \(endYear)"
-            }
-
-        case .quarterly:
-            // "4 Jan - 3 Mar 2025" or crossing year => "4 Dec 2024 - 3 Jan 2025"
-            let startYear = cal.component(.year, from: start)
-            let endYear = cal.component(.year, from: end)
-
-            if startYear == endYear {
-                return
-                    "\(dayMonthFmt.string(from: start)) - \(dayMonthFmt.string(from: end)) \(startYear)"
-            } else {
-                return
-                    "\(dayMonthFmt.string(from: start)) \(startYear) - \(dayMonthFmt.string(from: end)) \(endYear)"
+                return String(format: pattern, startWithYear, endWithYear)
             }
         }
     }
@@ -1754,6 +1765,7 @@ private struct ComparisonPlanSelectionView: View {
 // MARK: - Subviews: Comparison Results
 
 private struct ComparisonCostSummaryView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let accountCalculation: TariffViewModel.TariffCalculation
     let compareCalculation: TariffViewModel.TariffCalculation
     let calculationError: String?
@@ -1854,9 +1866,12 @@ private struct ComparisonCostSummaryView: View {
                                     .imageScale(.small)
                                     .frame(alignment: .leading)
                                 Spacer()
-                                Text(interval.displayName)
-                                    .font(.callout)
-                                    .frame(alignment: .trailing)
+                                Text(
+                                    forcedLocalizedString(
+                                        key: interval.displayName, locale: globalSettings.locale)
+                                )
+                                .font(.callout)
+                                .frame(alignment: .trailing)
                             }
                             .font(Theme.subFont())
                             .foregroundColor(
@@ -1885,7 +1900,10 @@ private struct ComparisonCostSummaryView: View {
 
     private func formatDateRange(_ start: Date, _ end: Date) -> String {
         let df = DateFormatter()
-        df.dateFormat = "d MMM yyyy"
+        df.locale = globalSettings.locale
+        // Let the system figure out the best localised pattern:
+        df.setLocalizedDateFormatFromTemplate("yMMMd")
+        // e.g. "May 12, 2024" in English, "2024年5月12日" in Chinese
         return "\(df.string(from: start)) - \(df.string(from: end))"
     }
 
@@ -1950,6 +1968,7 @@ private struct ComparisonCostSummaryView: View {
 
 // Add the placeholder view after ComparisonCostSummaryView
 private struct ComparisonCostPlaceholderView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let selectedInterval: CompareIntervalType
     let comparePlanLabel: String
     let isPartialPeriod: Bool
@@ -1972,7 +1991,8 @@ private struct ComparisonCostPlaceholderView: View {
 
     private func formatDateRange(_ start: Date, _ end: Date) -> String {
         let df = DateFormatter()
-        df.dateFormat = "d MMM yyyy"
+        df.locale = globalSettings.locale
+        df.setLocalizedDateFormatFromTemplate("yMMMd")
         return "\(df.string(from: start)) - \(df.string(from: end))"
     }
 
@@ -2173,6 +2193,8 @@ private struct ManualPlanSummaryView: View {
 }
 
 private struct PlanSummaryView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+
     let group: ProductGroup
     let availableDate: Date
 
@@ -2185,9 +2207,11 @@ private struct PlanSummaryView: View {
                 if group.isTracker { BadgeView("Tracker", color: .blue) }
                 if group.isGreen { BadgeView("Green", color: .green) }
             }
-            Text("Available from: \(group.formatDate(availableDate))")
-                .font(Theme.captionFont())
-                .foregroundColor(Theme.secondaryTextColor)
+            Text(
+                "Available from: \(group.formatDate(availableDate, locale: globalSettings.locale))"
+            )
+            .font(Theme.captionFont())
+            .foregroundColor(Theme.secondaryTextColor)
         }
     }
 }
@@ -2195,6 +2219,7 @@ private struct PlanSummaryView: View {
 // Reuse the PlanSelectionView, PlanDetailView, etc. from existing code:
 
 private struct PlanSelectionView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let groups: [ProductGroup]
     @Binding var selectedPlanCode: String
     let region: String
@@ -2259,7 +2284,9 @@ private struct PlanSelectionView: View {
                                         selectedPlanCode = code
                                     } label: {
                                         HStack {
-                                            Text(group.formatDate(date))
+                                            Text(
+                                                group.formatDate(
+                                                    date, locale: globalSettings.locale))
                                             Spacer()
                                             if selectedPlanCode == code {
                                                 Image(systemName: "checkmark")
@@ -2271,7 +2298,9 @@ private struct PlanSelectionView: View {
                             }
                         } label: {
                             HStack {
-                                Text("Available from: \(group.formatDate(date))")
+                                Text(
+                                    "Available from: \(group.formatDate(date, locale: globalSettings.locale))"
+                                )
                                 Spacer()
                                 Image(systemName: "chevron.down")
                             }
@@ -2282,7 +2311,9 @@ private struct PlanSelectionView: View {
                     } else {
                         // Single date case
                         HStack {
-                            Text("Available from: \(group.formatDate(date))")
+                            Text(
+                                "Available from: \(group.formatDate(date, locale: globalSettings.locale))"
+                            )
                             Spacer()
                         }
                         .padding(.vertical, 12)  // Increased vertical padding for single date display
@@ -2744,7 +2775,10 @@ private struct ProductDetailView: View {
 
     private func formatDate(_ date: Date) -> String {
         let df = DateFormatter()
-        df.dateFormat = "d MMMM yyyy"
+        df.locale = globalSettings.locale
+        // Let the system figure out the best localised pattern:
+        df.setLocalizedDateFormatFromTemplate("yMMMMd")
+        // e.g. "May 12, 2024" in English, "2024年5月12日" in Chinese
         return df.string(from: date)
     }
 
@@ -2827,4 +2861,24 @@ extension TariffComparisonCardView {
             await ratesVM.refreshRates(productCode: currentFullTariffCode, force: true)
         }
     }
+}
+
+extension Bundle {
+    static func forcedBundle(for locale: Locale) -> Bundle {
+        // Attempt language+script? or just language?
+        let code = locale.identifier
+        guard
+            let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+            let b = Bundle(path: path)
+        else {
+            return .main
+        }
+        return b
+    }
+}
+
+func forcedLocalizedString(key: String, locale: Locale) -> String {
+    let bundle = Bundle.forcedBundle(for: locale)
+    // If you want tableName, pass it in; here we just use nil
+    return NSLocalizedString(key, tableName: nil, bundle: bundle, value: key, comment: "")
 }

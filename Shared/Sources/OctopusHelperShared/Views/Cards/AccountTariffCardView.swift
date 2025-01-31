@@ -676,58 +676,80 @@ private struct AccountTariffDateNavView: View {
     }
 
     private func dateRangeText() -> String {
-        let (startOfInterval, nominalEnd) = tariffVM.calculateDateRange(
+        let (start, end) = tariffVM.calculateDateRange(
             for: currentDate,
             intervalType: selectedInterval.viewModelInterval,
             billingDay: globalSettings.settings.billingDay
         )
 
-        let cal = Calendar.current
+        // 2. Use a Calendar matching the chosen locale
+        var cal = Calendar.current
+        cal.locale = globalSettings.locale
 
-        // Shared formatters
-        let dayMonthFmt = DateFormatter()
-        dayMonthFmt.locale = globalSettings.locale
-        dayMonthFmt.dateFormat = "d MMM"
+        // 3. Create date formatters:
+        // (A) day+month only, e.g. "20 Jan" (English), "1月20日" (Chinese)
+        let dayMonthFormatter = DateFormatter()
+        dayMonthFormatter.locale = globalSettings.locale
+        dayMonthFormatter.setLocalizedDateFormatFromTemplate("MMMd")
 
-        let dayMonthYearFmt = DateFormatter()
-        dayMonthYearFmt.locale = globalSettings.locale
-        dayMonthYearFmt.dateFormat = "d MMM yyyy"
+        // (B) day+month+year, e.g. "20 Jan 2025" (English), "2025年1月20日" (Chinese)
+        let dayMonthYearFormatter = DateFormatter()
+        dayMonthYearFormatter.locale = globalSettings.locale
+        dayMonthYearFormatter.setLocalizedDateFormatFromTemplate("yMMMd")
+
+        // (C) year-only in a localised style, e.g. "2025" (English), "2025年" (Chinese)
+        let yearOnlyFormatter = DateFormatter()
+        yearOnlyFormatter.locale = globalSettings.locale
+        // "y" = show year with locale rules, e.g. "2025年" in zh-Hant
+        yearOnlyFormatter.setLocalizedDateFormatFromTemplate("y")
+
+        // 4. Determine if both dates are in the same year
+        let startYear = cal.component(.year, from: start)
+        let endYear = cal.component(.year, from: end)
 
         switch selectedInterval {
         case .daily:
-            // Keep it simple: "24 Jan 2025"
-            return dayMonthYearFmt.string(from: startOfInterval)
+            // Single day => just show day+month+year
+            return dayMonthYearFormatter.string(from: start)
 
-        case .weekly:
-            // Example: "13 Jan - 19 Jan 2025" or cross-year "30 Dec 2024 - 5 Jan 2025"
-            let endDate = cal.date(byAdding: .day, value: 6, to: startOfInterval) ?? nominalEnd
+        case .weekly, .monthly:
+            // Multi-day range
+            if startYear == endYear {
+                // ---- SAME-YEAR RANGE ----
+                // We'll localise the day+month for each date, and localise the year separately
 
-            let startYr = cal.component(.year, from: startOfInterval)
-            let endYr = cal.component(.year, from: endDate)
+                // e.g. "20 Jan" in English, "1月20日" in Chinese
+                let startNoYear = dayMonthFormatter.string(from: start)
+                let endNoYear = dayMonthFormatter.string(from: end)
 
-            let s1 = dayMonthFmt.string(from: startOfInterval)
-            if startYr == endYr {
-                // same year
-                let s2 = dayMonthFmt.string(from: endDate) + " \(startYr)"
-                return "\(s1) - \(s2)"
+                // Generate a date for (startYear)-01-01 so we can localise the year via yearOnlyFormatter
+                var comps = DateComponents()
+                comps.year = startYear
+                comps.month = 1
+                comps.day = 1
+                let january1 = cal.date(from: comps) ?? start
+
+                let yearString = yearOnlyFormatter.string(from: january1)
+                // e.g. "2025" in English, "2025年" in Chinese
+
+                let pattern = forcedLocalizedString(
+                    key: "SAME_YEAR_RANGE", locale: globalSettings.locale)
+                //  - en: "%1$@ - %2$@ %3$@" → "20 Jan - 26 Jan 2025"
+                //  - zh: "%3$@%1$@ - %2$@"   → "2025年1月20日 - 1月26日"
+
+                return String(format: pattern, startNoYear, endNoYear, yearString)
             } else {
-                // crossing year boundary
-                let s2 = dayMonthYearFmt.string(from: endDate)
-                return "\(s1) \(startYr) - \(s2)"
-            }
+                // ---- CROSS-YEAR RANGE ----
+                // Show day+month+year for both
+                let startWithYear = dayMonthYearFormatter.string(from: start)
+                let endWithYear = dayMonthYearFormatter.string(from: end)
 
-        case .monthly:
-            // Show something like "4 Dec 2024 - 3 Jan 2025"
-            let startYr = cal.component(.year, from: startOfInterval)
-            let endYr = cal.component(.year, from: nominalEnd)
+                let pattern = forcedLocalizedString(
+                    key: "CROSS_YEAR_RANGE", locale: globalSettings.locale)
+                //  - en: "%1$@ - %2$@" → "30 Dec 2024 - 5 Jan 2025"
+                //  - zh: "%1$@ - %2$@" → "2024年12月30日 - 2025年1月5日"
 
-            let s1 = dayMonthFmt.string(from: startOfInterval)
-            if startYr == endYr {
-                let s2 = dayMonthFmt.string(from: nominalEnd) + " \(endYr)"
-                return "\(s1) - \(s2)"
-            } else {
-                let s2 = dayMonthYearFmt.string(from: nominalEnd)
-                return "\(s1) \(startYr) - \(s2)"
+                return String(format: pattern, startWithYear, endWithYear)
             }
         }
     }
@@ -768,9 +790,12 @@ private struct AccountTariffMainContentView: View {
                                 .imageScale(.small)
                                 .frame(alignment: .leading)
                             Spacer()
-                            Text(interval.displayName)
-                                .font(.callout)
-                                .frame(alignment: .trailing)
+                            Text(
+                                forcedLocalizedString(
+                                    key: interval.displayName, locale: globalSettings.locale)
+                            )
+                            .font(.callout)
+                            .frame(alignment: .trailing)
                         }
                         .font(Theme.subFont())
                         .foregroundColor(
@@ -1142,50 +1167,62 @@ struct AccountTariffDetailView: View {
         to end: Date,
         _ interval: AccountTariffCardView.IntervalType
     ) -> String {
-        let cal = Calendar.current
+        // 1. Use a Calendar matching the chosen locale
+        var cal = Calendar.current
+        cal.locale = globalSettings.locale
 
-        // Shared formatters
-        let dayMonthFmt = DateFormatter()
-        dayMonthFmt.locale = globalSettings.locale
-        dayMonthFmt.dateFormat = "d MMM"
+        // 2. Create date formatters:
+        // (A) day+month only, e.g. "20 Jan" (English), "1月20日" (Chinese)
+        let dayMonthFormatter = DateFormatter()
+        dayMonthFormatter.locale = globalSettings.locale
+        dayMonthFormatter.setLocalizedDateFormatFromTemplate("MMMd")
 
-        let dayMonthYearFmt = DateFormatter()
-        dayMonthYearFmt.locale = globalSettings.locale
-        dayMonthYearFmt.dateFormat = "d MMM yyyy"
+        // (B) day+month+year, e.g. "20 Jan 2025" (English), "2025年1月20日" (Chinese)
+        let dayMonthYearFormatter = DateFormatter()
+        dayMonthYearFormatter.locale = globalSettings.locale
+        dayMonthYearFormatter.setLocalizedDateFormatFromTemplate("yMMMd")
+
+        // (C) year-only in a localised style, e.g. "2025" (English), "2025年" (Chinese)
+        let yearOnlyFormatter = DateFormatter()
+        yearOnlyFormatter.locale = globalSettings.locale
+        yearOnlyFormatter.setLocalizedDateFormatFromTemplate("y")
+
+        // 3. Determine if both dates are in the same year
+        let startYear = cal.component(.year, from: start)
+        let endYear = cal.component(.year, from: end)
 
         switch interval {
         case .daily:
-            // Keep it simple: "24 Jan 2025"
-            return dayMonthYearFmt.string(from: start)
+            // Single day => just show day+month+year
+            return dayMonthYearFormatter.string(from: start)
 
-        case .weekly:
-            // Example: "13 Jan - 19 Jan 2025" or cross-year "30 Dec 2024 - 5 Jan 2025"
-            let startYr = cal.component(.year, from: start)
-            let endYr = cal.component(.year, from: end)
+        case .weekly, .monthly:
+            if startYear == endYear {
+                // ---- SAME-YEAR RANGE ----
+                // We'll localise the day+month for each date, and localise the year separately
+                let startNoYear = dayMonthFormatter.string(from: start)
+                let endNoYear = dayMonthFormatter.string(from: end)
 
-            let s1 = dayMonthFmt.string(from: start)
-            if startYr == endYr {
-                // same year
-                let s2 = dayMonthFmt.string(from: end) + " \(startYr)"
-                return "\(s1) - \(s2)"
+                // Generate a date for (startYear)-01-01 so we can localise the year via yearOnlyFormatter
+                var comps = DateComponents()
+                comps.year = startYear
+                comps.month = 1
+                comps.day = 1
+                let january1 = cal.date(from: comps) ?? start
+                let yearString = yearOnlyFormatter.string(from: january1)
+
+                let pattern = forcedLocalizedString(
+                    key: "SAME_YEAR_RANGE", locale: globalSettings.locale)
+                return String(format: pattern, startNoYear, endNoYear, yearString)
             } else {
-                // crossing year boundary
-                let s2 = dayMonthYearFmt.string(from: end)
-                return "\(s1) \(startYr) - \(s2)"
-            }
+                // ---- CROSS-YEAR RANGE ----
+                // Show day+month+year for both dates
+                let startWithYear = dayMonthYearFormatter.string(from: start)
+                let endWithYear = dayMonthYearFormatter.string(from: end)
 
-        case .monthly:
-            // Show something like "4 Dec 2024 - 3 Jan 2025"
-            let startYr = cal.component(.year, from: start)
-            let endYr = cal.component(.year, from: end)
-
-            let s1 = dayMonthFmt.string(from: start)
-            if startYr == endYr {
-                let s2 = dayMonthFmt.string(from: end) + " \(endYr)"
-                return "\(s1) - \(s2)"
-            } else {
-                let s2 = dayMonthYearFmt.string(from: end)
-                return "\(s1) \(startYr) - \(s2)"
+                let pattern = forcedLocalizedString(
+                    key: "CROSS_YEAR_RANGE", locale: globalSettings.locale)
+                return String(format: pattern, startWithYear, endWithYear)
             }
         }
     }
@@ -1234,8 +1271,11 @@ struct AccountTariffDetailView: View {
                         HStack {
                             Image(systemName: iconName(for: interval))
                                 .imageScale(.small)
-                            Text(interval.displayName)
-                                .font(Theme.subFont())
+                            Text(
+                                forcedLocalizedString(
+                                    key: interval.displayName, locale: globalSettings.locale)
+                            )
+                            .font(Theme.subFont())
                         }
                         .foregroundColor(
                             selectedInterval == interval

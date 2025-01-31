@@ -277,7 +277,7 @@ extension CardRegistry {
                 id: .tariffComparison,
                 displayNameKey: "Tariff Comparison",
                 descriptionKey:
-                    "Want to know if you're on the best energy plan? Compare costs between your current tariff and ANY Octopus plan! \n\nFeatures:\n- Instant savings calculations\n- Indepth analysis\n- Manual rate input\n- Side-by-side cost comparison\nUpgrade to unlock smart energy comparisons!",
+                    "TariffComparison.descriptionKey",
                 isPremium: true,
                 makeView: { deps in
                     AnyView(

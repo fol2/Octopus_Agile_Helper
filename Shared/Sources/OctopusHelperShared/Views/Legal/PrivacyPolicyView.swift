@@ -55,7 +55,7 @@ public struct PrivacyPolicyView: View {
                 if let gdprData = viewModel.gdprData {
                     // TL;DR section with modern card style
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(LocalizedStringKey("TL;DR"))
+                        Text("TL;DR")
                             .font(.system(.title2, design: .rounded, weight: .bold))
                             .foregroundColor(Theme.mainTextColor)
 
@@ -105,7 +105,7 @@ public struct PrivacyPolicyView: View {
                         )
                     }
                 } else {
-                    Text(LocalizedStringKey("Unable to load privacy policy."))
+                    Text("Unable to load privacy policy.")
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(.red)
                         .padding()
@@ -114,9 +114,9 @@ public struct PrivacyPolicyView: View {
             .padding(.vertical, 24)
         }
         .background(Theme.mainBackground)
-        .navigationTitle(LocalizedStringKey("Privacy Policy"))
-        .navigationBarTitleDisplayMode(.inline)
         .environment(\.locale, globalSettings.locale)
+        .navigationTitle(Text("Privacy Policy"))
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {

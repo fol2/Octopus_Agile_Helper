@@ -655,7 +655,13 @@ struct APIConfigurationView: View {
                                                                     .valid_from
                                                                 {
                                                                     DetailRow(
-                                                                        title: "Valid From:",
+                                                                        title:
+                                                                            forcedLocalizedString(
+                                                                                key: "Valid From",
+                                                                                locale:
+                                                                                    globalSettings
+                                                                                    .locale
+                                                                            ),
                                                                         date: validFrom
                                                                     )
                                                                     .padding(.horizontal, 20)
@@ -670,7 +676,13 @@ struct APIConfigurationView: View {
                                                                 if let validTo = agreement.valid_to
                                                                 {
                                                                     DetailRow(
-                                                                        title: "Valid To:",
+                                                                        title:
+                                                                            forcedLocalizedString(
+                                                                                key: "Valid To",
+                                                                                locale:
+                                                                                    globalSettings
+                                                                                    .locale
+                                                                            ),
                                                                         date: validTo
                                                                     )
                                                                     .padding(.horizontal, 20)
@@ -830,7 +842,13 @@ struct APIConfigurationView: View {
                                                                     .valid_from
                                                                 {
                                                                     DetailRow(
-                                                                        title: "Valid From",
+                                                                        title:
+                                                                            forcedLocalizedString(
+                                                                                key: "Valid From",
+                                                                                locale:
+                                                                                    globalSettings
+                                                                                    .locale
+                                                                            ),
                                                                         date: validFrom
                                                                     )
                                                                     .padding(.horizontal, 20)
@@ -845,7 +863,13 @@ struct APIConfigurationView: View {
                                                                 if let validTo = agreement.valid_to
                                                                 {
                                                                     DetailRow(
-                                                                        title: "Valid To",
+                                                                        title:
+                                                                            forcedLocalizedString(
+                                                                                key: "Valid To",
+                                                                                locale:
+                                                                                    globalSettings
+                                                                                    .locale
+                                                                            ),
                                                                         date: validTo
                                                                     )
                                                                     .padding(.horizontal, 20)
@@ -942,8 +966,9 @@ struct APIConfigurationView: View {
             .padding(.vertical)
         }
         .background(Theme.mainBackground)
-        .navigationTitle(LocalizedStringKey("API Configuration"))
-        .environment(\.locale, globalSettings.locale)
+        .navigationTitle(
+            forcedLocalizedString(key: "API Configuration", locale: globalSettings.locale)
+        )
         .onAppear {
             // Restore account number from settings when view appears
             accountNumberInput = globalSettings.settings.accountNumber ?? ""
@@ -1629,8 +1654,25 @@ public struct SettingsView: View {
             // ----------------------------------
             // NEW More Info Section
             // ----------------------------------
-            Section(
-                header: HStack {
+
+            Section {
+                NavigationLink(destination: MoreInfo()) {
+                    HStack {
+                        Text(forcedLocalizedString(key: "More Info", locale: globalSettings.locale))
+                            .font(Theme.secondaryFont())
+                            .foregroundColor(Theme.mainTextColor)
+                        Spacer()
+                        Text(
+                            Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+                                ?? ""
+                        )
+                        .font(Theme.subFont())
+                        .foregroundColor(Theme.secondaryTextColor)
+                    }
+                }
+                .customListRow()
+            } header: {
+                HStack {
                     Text("About")
                         .font(Theme.subFont())
                         .foregroundColor(Theme.secondaryTextColor)
@@ -1644,28 +1686,11 @@ public struct SettingsView: View {
                         mediaItems: []
                     )
                 }
-            ) {
-                NavigationLink(destination: MoreInfo()) {
-                    HStack {
-                        Text(LocalizedStringKey("More Info"))
-                            .font(Theme.secondaryFont())
-                            .foregroundColor(Theme.mainTextColor)
-                        Spacer()
-                        Text(
-                            Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-                                ?? ""
-                        )
-                        .font(Theme.subFont())
-                        .foregroundColor(Theme.secondaryTextColor)
-                    }
-                }
-                .customListRow()
             }
         }
         .scrollContentBackground(.hidden)
         .background(Theme.mainBackground)
-        .environment(\.locale, globalSettings.locale)
-        .navigationTitle(LocalizedStringKey("Settings"))
+        .navigationTitle(forcedLocalizedString(key: "Settings", locale: globalSettings.locale))
         .onDisappear {
             // Call the completion handler when view disappears
             didFinishEditing?()
