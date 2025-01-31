@@ -174,18 +174,14 @@ public struct MoreInfo: View {
                 )
             }
             .alert(
-                forcedLocalizedString(key: "Restart Required", locale: globalSettings.locale),
+                "Final Confirmation",
                 isPresented: $showingRestartAlert
             ) {
-                Button(
-                    forcedLocalizedString(key: "Restart Now", locale: globalSettings.locale),
-                    role: .destructive
-                ) {
+                Button("Restart Now", role: .destructive) {
                     // Execute the pending operation and restart
                     if let operation = pendingOperation {
                         Task {
                             await operation()
-                            // After operation completes, force close the app
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                 UIApplication.shared.perform(#selector(NSXPCConnection.suspend))
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -195,20 +191,13 @@ public struct MoreInfo: View {
                         }
                     }
                 }
-
-                Button(role: .cancel) {
+                Button("Cancel", role: .cancel) {
                     showingRestartAlert = false
                     pendingOperation = nil
-                } label: {
-                    Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
                 }
             } message: {
                 Text(
-                    forcedLocalizedString(
-                        key:
-                            "The app needs to restart to perform this operation. Do you want to restart now?",
-                        locale: globalSettings.locale
-                    )
+                    "This will permanently remove the data and force restart the app. This action cannot be undone. Do you wish to continue?"
                 )
             }
             .alert(
@@ -356,12 +345,13 @@ public struct MoreInfo: View {
             // Show restart alert on success
             await MainActor.run {
                 isProcessing = false
-                showingRestartAlert = true
             }
         } catch {
             print("❌ Error clearing data: \(error)")
             await MainActor.run {
-                operationError = error.localizedDescription
+                operationError =
+                    (error.localizedDescription.isEmpty || error.localizedDescription == "nilError")
+                    ? "An unknown error occurred while clearing data." : error.localizedDescription
                 isProcessing = false
             }
         }
@@ -396,12 +386,13 @@ public struct MoreInfo: View {
             // Show restart alert on success
             await MainActor.run {
                 isProcessing = false
-                showingRestartAlert = true
             }
         } catch {
             print("❌ Error resetting all data: \(error)")
             await MainActor.run {
-                operationError = error.localizedDescription
+                operationError =
+                    (error.localizedDescription.isEmpty || error.localizedDescription == "nilError")
+                    ? "An unknown error occurred while resetting data." : error.localizedDescription
                 isProcessing = false
             }
         }
