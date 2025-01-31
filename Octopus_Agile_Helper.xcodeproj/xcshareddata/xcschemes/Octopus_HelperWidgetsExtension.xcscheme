@@ -57,8 +57,18 @@
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES"
       launchAutomaticallySubstyle = "2">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
+      <RemoteRunnable
+         runnableDebuggingMode = "2"
+         BundleIdentifier = "com.apple.springboard">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "BFF957492D248B6A002EE392"
+            BuildableName = "Octopus_HelperWidgetsExtension.appex"
+            BlueprintName = "Octopus_HelperWidgetsExtension"
+            ReferencedContainer = "container:Octopus_Agile_Helper.xcodeproj">
+         </BuildableReference>
+      </RemoteRunnable>
+      <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "BFE3DE5B2D1E0706003E74A4"
@@ -66,7 +76,7 @@
             BlueprintName = "Octopus_Agile_Helper"
             ReferencedContainer = "container:Octopus_Agile_Helper.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCWidgetKind"

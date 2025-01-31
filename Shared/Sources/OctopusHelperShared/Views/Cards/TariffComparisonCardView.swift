@@ -2875,12 +2875,20 @@ extension TariffComparisonCardView {
                 "⏭️ Skipping rate coverage check - empty tariff code", component: .tariffViewModel)
             return
         }
-        // 1. Get the stored coverage range for the relevant tariff code
-        //    (defined in Step 3: coverageInterval(for:) within RatesViewModel)
+
+        // Add validation for date ordering
+        let (validStart, validEnd) = start <= end ? (start, end) : (end, start)
+        if start > end {
+            DebugLogger.debug(
+                "⚠️ Date range reversed: \(start) > \(end). Using clamped range",
+                component: .tariffViewModel)
+        }
+
+        // 1. Get the stored coverage range
         let coverage = ratesVM.coverageInterval(for: currentFullTariffCode)
 
-        // 2. Build the user-requested range
-        let requestedInterval = start...end
+        // 2. Build the user-requested range with validated dates
+        let requestedInterval = validStart...validEnd
 
         // 3. Compare coverage boundaries with requested boundaries
         let coversLowerBound = coverage.lowerBound <= requestedInterval.lowerBound
