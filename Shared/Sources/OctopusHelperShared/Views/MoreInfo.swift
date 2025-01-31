@@ -62,7 +62,7 @@ public struct MoreInfo: View {
 
     // MARK: - Body
     public var body: some View {
-        Form {
+        VStack(spacing: 24) {
             // 1. App Information
             AppInfoSectionView(
                 animationConfig: animationConfig,
@@ -72,27 +72,162 @@ public struct MoreInfo: View {
                 tiltAngle: tiltAngle,
                 shineOffset: shineOffset
             )
+            .padding(.horizontal)
 
             // 2. Support
-            SupportSectionView(openURL: { url in
-                openURL(url)
-            })
+            VStack(spacing: 4) {
+                Button(action: {
+                    openURL(URL(string: "mailto:octomiser@eugnel.com")!)
+                }) {
+                    HStack {
+                        Label {
+                            Text("Contact Support")
+                                .foregroundColor(Theme.mainTextColor)
+                        } icon: {
+                            Image(systemName: "envelope.fill")
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(.footnote))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Theme.secondaryBackground)
+                    .cornerRadius(10)
+                }
+
+                Button(action: {
+                    openURL(URL(string: "https://octomiser.com/support")!)
+                }) {
+                    HStack {
+                        Label {
+                            Text("Support Development")
+                                .foregroundColor(Theme.mainTextColor)
+                        } icon: {
+                            Image(systemName: "heart.fill")
+                                .foregroundColor(.pink)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(.footnote))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Theme.secondaryBackground)
+                    .cornerRadius(10)
+                }
+            }
+            .padding(.horizontal)
 
             // 3. Legal
-            LegalSectionView(showingGDPR: $showingGDPR, showingTerms: $showingTerms)
+            VStack(spacing: 4) {
+                Button(action: { showingGDPR = true }) {
+                    HStack {
+                        Label {
+                            Text("Privacy Policy")
+                                .foregroundColor(Theme.mainTextColor)
+                        } icon: {
+                            Image(systemName: "hand.raised.fill")
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(.footnote))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Theme.secondaryBackground)
+                    .cornerRadius(10)
+                }
+
+                Button(action: { showingTerms = true }) {
+                    HStack {
+                        Label {
+                            Text("Terms of Use")
+                                .foregroundColor(Theme.mainTextColor)
+                        } icon: {
+                            Image(systemName: "doc.text.fill")
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(.footnote))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Theme.secondaryBackground)
+                    .cornerRadius(10)
+                }
+            }
+            .padding(.horizontal)
 
             // 4. Data Management
-            DataManagementSectionView(
-                showingClearDataAlert: $showingClearDataAlert,
-                showingResetAllAlert: $showingResetAllAlert
-            )
+            HStack(alignment: .center, spacing: 16) {
+                HStack(spacing: 16) {
+                    ClearDataButtonView(
+                        showingClearDataAlert: $showingClearDataAlert,
+                        clearData: clearData
+                    )
+
+                    ResetAllButtonView(
+                        showingResetAllAlert: $showingResetAllAlert,
+                        resetAll: resetAll
+                    )
+                }
+
+                InfoButton(
+                    message: LocalizedStringKey(
+                        "⚠️ WARNING ⚠️\n\n'Clear Data' will remove all stored data except product list and settings.\n\n'Reset All' will remove ALL data including settings and product list.\n\nThese actions cannot be undone."
+                    ),
+                    title: LocalizedStringKey("Data Management"),
+                    mediaItems: []
+                )
+            }
+            .padding(.horizontal)
+
+            Spacer()
 
             // 5. Social Media
-            SocialMediaSectionView(openURL: { url in
-                openURL(url)
-            })
+            HStack(spacing: 60) {
+                // Website
+                Button(action: {
+                    openURL(URL(string: "https://octomiser.eugnel.com")!)
+                }) {
+                    Image(systemName: "safari")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+
+                // X/Twitter
+                Button(action: {
+                    openURL(URL(string: "https://twitter.com/octomiser")!)
+                }) {
+                    Image("x.logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+
+                // Instagram
+                Button(action: {
+                    openURL(URL(string: "https://instagram.com/octomiser")!)
+                }) {
+                    Image("ig.logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal)
         }
-        .scrollContentBackground(.hidden)
+        .padding(.vertical)
         .background(Theme.mainBackground)
         .environment(\.locale, globalSettings.locale)
         .navigationTitle(
@@ -109,56 +244,6 @@ public struct MoreInfo: View {
                 TermsAndConditionsView()
                     .environment(\.locale, globalSettings.locale)
             }
-        }
-        .confirmationDialog(
-            Text(forcedLocalizedString(key: "Clear Data", locale: globalSettings.locale)),
-            isPresented: $showingClearDataAlert,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                Task { await clearData() }
-            } label: {
-                Text(forcedLocalizedString(key: "Clear All Data", locale: globalSettings.locale))
-            }
-            Button(role: .cancel) {
-                showingClearDataAlert = false
-                showingResetAllAlert = false
-            } label: {
-                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
-            }
-        } message: {
-            Text(
-                forcedLocalizedString(
-                    key:
-                        "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone.",
-                    locale: globalSettings.locale
-                )
-            )
-        }
-        .confirmationDialog(
-            Text(forcedLocalizedString(key: "Reset All", locale: globalSettings.locale)),
-            isPresented: $showingResetAllAlert,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                Task { await resetAll() }
-            } label: {
-                Text(forcedLocalizedString(key: "Reset Everything", locale: globalSettings.locale))
-            }
-            Button(role: .cancel) {
-                showingResetAllAlert = false
-                showingClearDataAlert = false
-            } label: {
-                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
-            }
-        } message: {
-            Text(
-                forcedLocalizedString(
-                    key:
-                        "This will delete:\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nProduct List and Settings will be preserved.\nThis action cannot be undone.",
-                    locale: globalSettings.locale
-                )
-            )
         }
         .alert(
             Text(forcedLocalizedString(key: "Error", locale: globalSettings.locale)),
@@ -448,202 +533,96 @@ private struct LoadingIconView: View {
     }
 }
 
-// 2) Support Section
-private struct SupportSectionView: View {
-    let openURL: (URL) -> Void
+// MARK: - Data Management Button Style
+private struct DataManagementButtonStyle: ViewModifier {
+    let backgroundColor: Color
 
-    var body: some View {
-        Section {
-            // Email Support
-            Button(action: {
-                openURL(URL(string: "mailto:octomiser@eugnel.com")!)
-            }) {
-                HStack {
-                    Label {
-                        Text("Contact Support")
-                            .foregroundColor(Theme.mainTextColor)
-                    } icon: {
-                        Image(systemName: "envelope.fill")
-                            .foregroundColor(.blue)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(.footnote))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .listRowBackground(Theme.secondaryBackground)
-
-            // Support Development
-            Button(action: {
-                openURL(URL(string: "https://octomiser.com/support")!)
-            }) {
-                HStack {
-                    Label {
-                        Text("Support Development")
-                            .foregroundColor(Theme.mainTextColor)
-                    } icon: {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.pink)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(.footnote))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .listRowBackground(Theme.secondaryBackground)
-        }
-    }
-}
-
-// 3) Legal Section
-private struct LegalSectionView: View {
-    @Binding var showingGDPR: Bool
-    @Binding var showingTerms: Bool
-
-    var body: some View {
-        Section {
-            // Privacy Policy
-            Button(action: { showingGDPR = true }) {
-                HStack {
-                    Label {
-                        Text("Privacy Policy")
-                            .foregroundColor(Theme.mainTextColor)
-                    } icon: {
-                        Image(systemName: "hand.raised.fill")
-                            .foregroundColor(.blue)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(.footnote))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .listRowBackground(Theme.secondaryBackground)
-
-            // Terms of Use
-            Button(action: { showingTerms = true }) {
-                HStack {
-                    Label {
-                        Text("Terms of Use")
-                            .foregroundColor(Theme.mainTextColor)
-                    } icon: {
-                        Image(systemName: "doc.text.fill")
-                            .foregroundColor(.blue)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(.footnote))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .listRowBackground(Theme.secondaryBackground)
-        }
-    }
-}
-
-// 4) Data Management Section
-private struct DataManagementSectionView: View {
-    @Binding var showingClearDataAlert: Bool
-    @Binding var showingResetAllAlert: Bool
-
-    var body: some View {
-        Section {
-            HStack(spacing: 16) {
-                Button(action: { showingClearDataAlert = true }) {
-                    Text("Clear Data")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color("IconColor"))
-                        )
-                        .contentShape(Rectangle())
-                }
-
-                Button(action: { showingResetAllAlert = true }) {
-                    Text("Reset All")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.red)
-                        )
-                        .contentShape(Rectangle())
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
-            .listRowBackground(Color.clear)
-        } header: {
-            HStack {
-                Text("Data Management")
-                    .textCase(.none)
-                Spacer()
-                InfoButton(
-                    message: LocalizedStringKey(
-                        "⚠️ WARNING ⚠️\n\n'Clear Data' will remove all stored data except product list and settings.\n\n'Reset All' will remove ALL data including settings and product list.\n\nThese actions cannot be undone."
-                    ),
-                    title: LocalizedStringKey("Data Management"),
-                    mediaItems: []
-                )
-            }
-        }
-    }
-}
-
-// 5) Social Media Section
-private struct SocialMediaSectionView: View {
-    let openURL: (URL) -> Void
-
-    var body: some View {
-        Section {
-            HStack(spacing: 60) {
-                // Website
-                Button(action: {
-                    openURL(URL(string: "https://octomiser.eugnel.com")!)
-                }) {
-                    Image(systemName: "safari")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(.white)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                // X/Twitter
-                Button(action: {
-                    openURL(URL(string: "https://twitter.com/octomiser")!)
-                }) {
-                    Image("x.logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                // Instagram
-                Button(action: {
-                    openURL(URL(string: "https://instagram.com/octomiser")!)
-                }) {
-                    Image("ig.logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
+    func body(content: Content) -> some View {
+        content
+            .font(.system(.body, design: .rounded, weight: .medium))
+            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .padding(.top, 40)
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(backgroundColor)
+            )
+            .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Clear Data Button View
+private struct ClearDataButtonView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @Binding var showingClearDataAlert: Bool
+    let clearData: () async -> Void
+
+    var body: some View {
+        Button(action: { showingClearDataAlert = true }) {
+            Text("Clear Data")
+                .modifier(DataManagementButtonStyle(backgroundColor: Color("IconColor")))
+        }
+        .confirmationDialog(
+            Text(forcedLocalizedString(key: "Clear Data", locale: globalSettings.locale)),
+            isPresented: $showingClearDataAlert,
+            titleVisibility: .visible
+        ) {
+            Button(role: .destructive) {
+                Task { await clearData() }
+            } label: {
+                Text(forcedLocalizedString(key: "Clear All Data", locale: globalSettings.locale))
+            }
+            Button(role: .cancel) {
+                showingClearDataAlert = false
+            } label: {
+                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
+            }
+        } message: {
+            Text(
+                forcedLocalizedString(
+                    key:
+                        "This will delete:\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nProduct List and Settings will be preserved.\nThis action cannot be undone.",
+                    locale: globalSettings.locale
+                )
+            )
+        }
+    }
+}
+
+// MARK: - Reset All Button View
+private struct ResetAllButtonView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
+    @Binding var showingResetAllAlert: Bool
+    let resetAll: () async -> Void
+
+    var body: some View {
+        Button(action: { showingResetAllAlert = true }) {
+            Text("Reset All")
+                .modifier(DataManagementButtonStyle(backgroundColor: .red))
+        }
+        .confirmationDialog(
+            Text(forcedLocalizedString(key: "Reset All", locale: globalSettings.locale)),
+            isPresented: $showingResetAllAlert,
+            titleVisibility: .visible
+        ) {
+            Button(role: .destructive) {
+                Task { await resetAll() }
+            } label: {
+                Text(forcedLocalizedString(key: "Reset Everything", locale: globalSettings.locale))
+            }
+            Button(role: .cancel) {
+                showingResetAllAlert = false
+            } label: {
+                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
+            }
+        } message: {
+            Text(
+                forcedLocalizedString(
+                    key:
+                        "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone.",
+                    locale: globalSettings.locale
+                )
+            )
         }
     }
 }
