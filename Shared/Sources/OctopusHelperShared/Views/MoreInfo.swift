@@ -32,6 +32,7 @@ public struct MoreInfo: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.openURL) private var openURL
     @Environment(\.locale) private var locale
+    @Environment(\.dismiss) private var dismiss
 
     // MARK: - Alert / Processing States
     @State private var showingClearDataAlert = false
@@ -40,6 +41,8 @@ public struct MoreInfo: View {
     @State private var operationError: String?
     @State private var showingGDPR = false
     @State private var showingTerms = false
+    @State private var showingRestartAlert = false
+    @State private var pendingOperation: (() async -> Void)?  // New state for pending operation
 
     // MARK: - Animation States
     @State private var isAnimating = false
@@ -117,7 +120,8 @@ public struct MoreInfo: View {
             titleVisibility: .visible
         ) {
             Button(role: .destructive) {
-                Task { await clearData() }
+                showingRestartAlert = true
+                pendingOperation = clearData
             } label: {
                 Text(forcedLocalizedString(key: "Clear All Data", locale: globalSettings.locale))
             }
@@ -142,7 +146,8 @@ public struct MoreInfo: View {
             titleVisibility: .visible
         ) {
             Button(role: .destructive) {
-                Task { await resetAll() }
+                showingRestartAlert = true
+                pendingOperation = resetAll
             } label: {
                 Text(forcedLocalizedString(key: "Reset Everything", locale: globalSettings.locale))
             }
@@ -156,6 +161,44 @@ public struct MoreInfo: View {
                 forcedLocalizedString(
                     key:
                         "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone.",
+                    locale: globalSettings.locale
+                )
+            )
+        }
+        .alert(
+            forcedLocalizedString(key: "Restart Required", locale: globalSettings.locale),
+            isPresented: $showingRestartAlert
+        ) {
+            Button(
+                forcedLocalizedString(key: "Restart Now", locale: globalSettings.locale),
+                role: .destructive
+            ) {
+                // Execute the pending operation and restart
+                if let operation = pendingOperation {
+                    Task {
+                        await operation()
+                        // After operation completes, force close the app
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            UIApplication.shared.perform(#selector(NSXPCConnection.suspend))
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                exit(0)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button(role: .cancel) {
+                showingRestartAlert = false
+                pendingOperation = nil
+            } label: {
+                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
+            }
+        } message: {
+            Text(
+                forcedLocalizedString(
+                    key:
+                        "The app needs to restart to perform this operation. Do you want to restart now?",
                     locale: globalSettings.locale
                 )
             )
@@ -301,15 +344,17 @@ public struct MoreInfo: View {
                 globalSettings.settings.electricityMeterSerialNumber = nil
             }
 
+            // Show restart alert on success
+            await MainActor.run {
+                isProcessing = false
+                showingRestartAlert = true
+            }
         } catch {
             print("❌ Error clearing data: \(error)")
             await MainActor.run {
                 operationError = error.localizedDescription
+                isProcessing = false
             }
-        }
-
-        await MainActor.run {
-            isProcessing = false
         }
     }
 
@@ -339,15 +384,17 @@ public struct MoreInfo: View {
                 globalSettings.resetToDefaults()
             }
 
+            // Show restart alert on success
+            await MainActor.run {
+                isProcessing = false
+                showingRestartAlert = true
+            }
         } catch {
             print("❌ Error resetting all data: \(error)")
             await MainActor.run {
                 operationError = error.localizedDescription
+                isProcessing = false
             }
-        }
-
-        await MainActor.run {
-            isProcessing = false
         }
     }
 }
