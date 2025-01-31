@@ -18,6 +18,16 @@ public struct TariffComparisonCardSettings: Codable {
     )
 }
 
+// Add this extension for UserDefaults persistence
+extension TariffComparisonCardSettings {
+    fileprivate func saveToUserDefaults() {
+        if let encoded = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(encoded, forKey: "TariffComparisonCardSettings")
+            UserDefaults.standard.synchronize()  // Force immediate write
+        }
+    }
+}
+
 public class TariffComparisonCardSettingsManager: ObservableObject {
     private var isBatchUpdating = false
     private var isInitializing = false
@@ -2499,6 +2509,9 @@ private struct ManualInputView: View {
 
     private func recalculateWithNewRates() {
         Task {
+
+            settings.saveToUserDefaults()
+
             // Add debug logging
             DebugLogger.debug("🔄 Starting manual rate recalculation", component: .tariffViewModel)
 
@@ -2569,7 +2582,15 @@ private struct ManualInputView: View {
             }
         }
         .onChange(of: globalSettings.settings.showRatesWithVAT) { _, newValue in
-            // Keep existing VAT handling...
+            // Convert rates when VAT setting changes
+            settings.manualRatePencePerKWh = convertRateForVATChange(
+                rate: settings.manualRatePencePerKWh,
+                toIncludeVAT: newValue
+            )
+            settings.manualStandingChargePencePerDay = convertRateForVATChange(
+                rate: settings.manualStandingChargePencePerDay,
+                toIncludeVAT: newValue
+            )
             recalculateWithNewRates()
         }
     }

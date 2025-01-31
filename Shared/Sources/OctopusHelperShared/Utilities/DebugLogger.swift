@@ -38,9 +38,9 @@ public final class DebugLogger {
     public static var isRatesVMLoggingEnabled = false
     public static var isRatesRepoLoggingEnabled = false
     public static var isStateChangesLoggingEnabled = false
-    public static var isTariffVMLoggingEnabled = false
+    public static var isTariffVMLoggingEnabled = true
     public static var isCardManagementLoggingEnabled = false
-    public static var isUILoggingEnabled = true
+    public static var isUILoggingEnabled = false
     // MARK: - Logging Methods
 
     /// Log a debug message for a specific component
