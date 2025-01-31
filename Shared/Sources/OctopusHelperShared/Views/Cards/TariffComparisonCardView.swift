@@ -1316,10 +1316,10 @@ public struct TariffComparisonCardView: View {
         let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
         let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
         let manualAgreement = OctopusAgreement(
-            tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
+            tariff_code: "manualPlan", valid_from: fromStr, valid_to: toStr)
         let mp = OctopusElectricityMP(
             mpan: "0000000000000",
-            meters: [OctopusElecMeter(serial_number: "MANUAL")],
+            meters: [OctopusElecMeter(serial_number: "manualPlan")],
             agreements: [manualAgreement]
         )
         let prop = OctopusProperty(
@@ -1775,7 +1775,7 @@ private struct ComparisonPlanSelectionView: View {
         VStack(spacing: 12) {
             Picker("Mode", selection: $compareSettings.settings.isManualPlan) {
                 Text("Octopus Plan").tag(false)
-                Text("Manual").tag(true)
+                Text("manualPlan").tag(true)
             }
             .pickerStyle(.segmented)
 
@@ -2477,10 +2477,10 @@ private struct ManualInputView: View {
         let fromStr = dateFormatter.string(from: now.addingTimeInterval(-3600 * 24 * 365))
         let toStr = dateFormatter.string(from: now.addingTimeInterval(3600 * 24 * 365))
         let manualAgreement = OctopusAgreement(
-            tariff_code: "MANUAL", valid_from: fromStr, valid_to: toStr)
+            tariff_code: "manualPlan", valid_from: fromStr, valid_to: toStr)
         let mp = OctopusElectricityMP(
             mpan: "0000000000000",
-            meters: [OctopusElecMeter(serial_number: "MANUAL")],
+            meters: [OctopusElecMeter(serial_number: "manualPlan")],
             agreements: [manualAgreement]
         )
         let prop = OctopusProperty(
@@ -2511,7 +2511,7 @@ private struct ManualInputView: View {
             // Then recalculate with new rates
             await compareTariffVM.calculateCosts(
                 for: currentDate,
-                tariffCode: "MANUAL",  // Use consistent tariff code
+                tariffCode: "manualPlan",  // Use consistent tariff code
                 intervalType: selectedInterval.vmInterval,
                 accountData: mockAccount,
                 partialStart: overlapStart,
