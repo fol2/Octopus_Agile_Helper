@@ -65,177 +65,186 @@ public struct MoreInfo: View {
 
     // MARK: - Body
     public var body: some View {
-        Form {
-            // 1. App Information
-            AppInfoSectionView(
-                animationConfig: animationConfig,
-                isAnimating: isAnimating,
-                rotationAngle: rotationAngle,
-                cornerRadius: cornerRadius,
-                tiltAngle: tiltAngle,
-                shineOffset: shineOffset
-            )
-
-            // 2. Support
-            SupportSectionView(openURL: { url in
-                openURL(url)
-            })
-
-            // 3. Legal
-            LegalSectionView(showingGDPR: $showingGDPR, showingTerms: $showingTerms)
-
-            // 4. Data Management
-            DataManagementSectionView(
-                showingClearDataAlert: $showingClearDataAlert,
-                showingResetAllAlert: $showingResetAllAlert
-            )
-
-            // 5. Social Media
-            SocialMediaSectionView(openURL: { url in
-                openURL(url)
-            })
-        }
-        .scrollContentBackground(.hidden)
-        .background(Theme.mainBackground)
-        .environment(\.locale, globalSettings.locale)
-        .navigationTitle(
-            forcedLocalizedString(key: "More Info", locale: globalSettings.locale)
-        )
-        .sheet(isPresented: $showingGDPR) {
-            NavigationView {
-                PrivacyPolicyView()
-                    .environment(\.locale, globalSettings.locale)
-            }
-        }
-        .sheet(isPresented: $showingTerms) {
-            NavigationView {
-                TermsAndConditionsView()
-                    .environment(\.locale, globalSettings.locale)
-            }
-        }
-        // Clear Data Confirmation Dialog
-        .confirmationDialog(
-            Text(forcedLocalizedString(key: "Clear Data", locale: globalSettings.locale)),
-            isPresented: $showingClearDataAlert,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                showingRestartAlert = true
-                pendingOperation = clearData
-            } label: {
-                Text(forcedLocalizedString(key: "Clear All Data", locale: globalSettings.locale))
-            }
-            Button(role: .cancel) {
-                showingClearDataAlert = false
-            } label: {
-                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
-            }
-        } message: {
-            Text(
-                forcedLocalizedString(
-                    key:
-                        "This will delete:\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nProduct List and Settings will be preserved.\nThis action cannot be undone.",
-                    locale: globalSettings.locale
+        GeometryReader { proxy in
+            Form {
+                // 1. App Information
+                AppInfoSectionView(
+                    animationConfig: animationConfig,
+                    isAnimating: isAnimating,
+                    rotationAngle: rotationAngle,
+                    cornerRadius: cornerRadius,
+                    tiltAngle: tiltAngle,
+                    shineOffset: shineOffset
                 )
-            )
-        }
-        // Reset All Confirmation Dialog
-        .confirmationDialog(
-            Text(forcedLocalizedString(key: "Reset All", locale: globalSettings.locale)),
-            isPresented: $showingResetAllAlert,
-            titleVisibility: .visible
-        ) {
-            Button(role: .destructive) {
-                showingRestartAlert = true
-                pendingOperation = resetAll
-            } label: {
-                Text(forcedLocalizedString(key: "Reset Everything", locale: globalSettings.locale))
-            }
-            Button(role: .cancel) {
-                showingResetAllAlert = false
-            } label: {
-                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
-            }
-        } message: {
-            Text(
-                forcedLocalizedString(
-                    key:
-                        "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone.",
-                    locale: globalSettings.locale
+
+                // 2. Support
+                SupportSectionView(openURL: { url in
+                    openURL(url)
+                })
+
+                // 3. Legal
+                LegalSectionView(showingGDPR: $showingGDPR, showingTerms: $showingTerms)
+
+                // 4. Data Management
+                DataManagementSectionView(
+                    showingClearDataAlert: $showingClearDataAlert,
+                    showingResetAllAlert: $showingResetAllAlert
                 )
+
+                // Add Social Media Section as the last section in the Form
+                Section {
+                    SocialMediaSectionView(openURL: { url in
+                        openURL(url)
+                    })
+                    .padding()
+                }
+            }
+            .frame(minHeight: proxy.size.height)  // Ensure Form expands to fill available vertical space
+            .scrollContentBackground(.hidden)
+            .background(Theme.mainBackground)
+            .environment(\.locale, globalSettings.locale)
+            .navigationTitle(
+                forcedLocalizedString(key: "More Info", locale: globalSettings.locale)
             )
-        }
-        .alert(
-            forcedLocalizedString(key: "Restart Required", locale: globalSettings.locale),
-            isPresented: $showingRestartAlert
-        ) {
-            Button(
-                forcedLocalizedString(key: "Restart Now", locale: globalSettings.locale),
-                role: .destructive
+            .sheet(isPresented: $showingGDPR) {
+                NavigationView {
+                    PrivacyPolicyView()
+                        .environment(\.locale, globalSettings.locale)
+                }
+            }
+            .sheet(isPresented: $showingTerms) {
+                NavigationView {
+                    TermsAndConditionsView()
+                        .environment(\.locale, globalSettings.locale)
+                }
+            }
+            // Clear Data Confirmation Dialog
+            .confirmationDialog(
+                Text(forcedLocalizedString(key: "Clear Data", locale: globalSettings.locale)),
+                isPresented: $showingClearDataAlert,
+                titleVisibility: .visible
             ) {
-                // Execute the pending operation and restart
-                if let operation = pendingOperation {
-                    Task {
-                        await operation()
-                        // After operation completes, force close the app
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            UIApplication.shared.perform(#selector(NSXPCConnection.suspend))
+                Button(role: .destructive) {
+                    showingRestartAlert = true
+                    pendingOperation = clearData
+                } label: {
+                    Text(
+                        forcedLocalizedString(key: "Clear All Data", locale: globalSettings.locale))
+                }
+                Button(role: .cancel) {
+                    showingClearDataAlert = false
+                } label: {
+                    Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
+                }
+            } message: {
+                Text(
+                    forcedLocalizedString(
+                        key:
+                            "This will delete:\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nProduct List and Settings will be preserved.\nThis action cannot be undone.",
+                        locale: globalSettings.locale
+                    )
+                )
+            }
+            // Reset All Confirmation Dialog
+            .confirmationDialog(
+                Text(forcedLocalizedString(key: "Reset All", locale: globalSettings.locale)),
+                isPresented: $showingResetAllAlert,
+                titleVisibility: .visible
+            ) {
+                Button(role: .destructive) {
+                    showingRestartAlert = true
+                    pendingOperation = resetAll
+                } label: {
+                    Text(
+                        forcedLocalizedString(
+                            key: "Reset Everything", locale: globalSettings.locale))
+                }
+                Button(role: .cancel) {
+                    showingResetAllAlert = false
+                } label: {
+                    Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
+                }
+            } message: {
+                Text(
+                    forcedLocalizedString(
+                        key:
+                            "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone.",
+                        locale: globalSettings.locale
+                    )
+                )
+            }
+            .alert(
+                forcedLocalizedString(key: "Restart Required", locale: globalSettings.locale),
+                isPresented: $showingRestartAlert
+            ) {
+                Button(
+                    forcedLocalizedString(key: "Restart Now", locale: globalSettings.locale),
+                    role: .destructive
+                ) {
+                    // Execute the pending operation and restart
+                    if let operation = pendingOperation {
+                        Task {
+                            await operation()
+                            // After operation completes, force close the app
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                exit(0)
+                                UIApplication.shared.perform(#selector(NSXPCConnection.suspend))
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    exit(0)
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Button(role: .cancel) {
-                showingRestartAlert = false
-                pendingOperation = nil
-            } label: {
-                Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
-            }
-        } message: {
-            Text(
-                forcedLocalizedString(
-                    key:
-                        "The app needs to restart to perform this operation. Do you want to restart now?",
-                    locale: globalSettings.locale
+                Button(role: .cancel) {
+                    showingRestartAlert = false
+                    pendingOperation = nil
+                } label: {
+                    Text(forcedLocalizedString(key: "Cancel", locale: globalSettings.locale))
+                }
+            } message: {
+                Text(
+                    forcedLocalizedString(
+                        key:
+                            "The app needs to restart to perform this operation. Do you want to restart now?",
+                        locale: globalSettings.locale
+                    )
                 )
-            )
-        }
-        .alert(
-            Text(forcedLocalizedString(key: "Error", locale: globalSettings.locale)),
-            isPresented: .init(
-                get: { operationError != nil },
-                set: { if !$0 { operationError = nil } }
-            )
-        ) {
-            Button(role: .cancel) {
-                operationError = nil
-            } label: {
-                Text(forcedLocalizedString(key: "OK", locale: globalSettings.locale))
             }
-        } message: {
-            if let error = operationError {
-                Text(error)
+            .alert(
+                Text(forcedLocalizedString(key: "Error", locale: globalSettings.locale)),
+                isPresented: .init(
+                    get: { operationError != nil },
+                    set: { if !$0 { operationError = nil } }
+                )
+            ) {
+                Button(role: .cancel) {
+                    operationError = nil
+                } label: {
+                    Text(forcedLocalizedString(key: "OK", locale: globalSettings.locale))
+                }
+            } message: {
+                if let error = operationError {
+                    Text(error)
+                }
             }
-        }
-        .overlay {
-            if isProcessing {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .tint(.white)
-                    .scaleEffect(1.5)
+            .overlay {
+                if isProcessing {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                }
             }
-        }
-        .onAppear {
-            startRandomAnimation()
-        }
-        .onDisappear {
-            timer?.invalidate()
-            timer = nil
+            .onAppear {
+                startRandomAnimation()
+            }
+            .onDisappear {
+                timer?.invalidate()
+                timer = nil
+            }
         }
     }
 
