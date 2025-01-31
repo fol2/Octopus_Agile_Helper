@@ -1,6 +1,6 @@
 # Octopus Agile Helper
 
-A macOS application to help Octopus Energy Agile tariff customers monitor and optimize their energy usage.
+An iOS application to help Octopus Energy Agile tariff customers monitor and optimize their energy usage.
 
 ## Features
 
@@ -103,4 +103,13 @@ For issues and feature requests, please use the GitHub issue tracker.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+### Tariff Comparison
+- **Tariff Comparison**: Offers a visual and detailed analysis of different energy tariffs, enabling you to compare and choose the most cost-effective plan based on current and historical data.
+
+### Widget Support
+- **Widget Support**: Provides a home screen widget for quick access to real-time rate information, alerts, and energy usage summaries, enhancing user engagement and convenience.
+
+### Historical Rate Analysis
+- **Historical Rate Analysis**: Analyzes past energy consumption and rate trends to offer insights and forecasting, helping users understand their energy usage over time. 

@@ -174,10 +174,13 @@ public struct MoreInfo: View {
                 )
             }
             .alert(
-                "Final Confirmation",
+                forcedLocalizedString(key: "Final Confirmation", locale: globalSettings.locale),
                 isPresented: $showingRestartAlert
             ) {
-                Button("Restart Now", role: .destructive) {
+                Button(
+                    forcedLocalizedString(key: "Restart Now", locale: globalSettings.locale),
+                    role: .destructive
+                ) {
                     // Execute the pending operation and restart
                     if let operation = pendingOperation {
                         Task {
@@ -191,13 +194,20 @@ public struct MoreInfo: View {
                         }
                     }
                 }
-                Button("Cancel", role: .cancel) {
+                Button(
+                    forcedLocalizedString(key: "Cancel", locale: globalSettings.locale),
+                    role: .cancel
+                ) {
                     showingRestartAlert = false
                     pendingOperation = nil
                 }
             } message: {
                 Text(
-                    "This will permanently remove the data and force restart the app. This action cannot be undone. Do you wish to continue?"
+                    forcedLocalizedString(
+                        key:
+                            "This will permanently remove the data and force restart the app. This action cannot be undone. Do you wish to continue?",
+                        locale: globalSettings.locale
+                    )
                 )
             }
             .alert(

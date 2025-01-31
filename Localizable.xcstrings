@@ -22340,6 +22340,215 @@
         }
       }
     },
+    "Final Confirmation" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تأكيد نهائي"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmació Final"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konečné potvrzení"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endelig bekræftelse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endgültige Bestätigung"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τελική Επιβεβαίωση"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final Confirmation"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmación final"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lopullinen vahvistus"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmation finale"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אישור סופי"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अंतिम पुष्टि"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konačno potvrđenje"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Végleges megerősítés"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konfirmasi Akhir"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conferma finale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最終確認"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최종 확인"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pengesahan Akhir"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endelig bekreftelse"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definitieve bevestiging"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostateczne potwierdzenie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmação Final"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmare finală"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Окончательное подтверждение"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Konečné potvrdenie"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Končna potrditev"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slutgiltig bekräftelse"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "การยืนยันขั้นสุดท้าย"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nihai Onay"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Остаточне підтвердження"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xác nhận cuối cùng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最终确认"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最終確認"
+          }
+        }
+      }
+    },
     "Fixed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -22550,7 +22759,7 @@
       }
     },
     "Fixed Rate" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27561,7 +27770,7 @@
       }
     },
     "Manual Plan: Fixed Rate" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -40489,6 +40698,215 @@
         }
       }
     },
+    "Restart Now" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أعد التشغيل الآن"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reinicia ara"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restartovat nyní"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genstart nu"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt neu starten"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Επανεκκίνηση τώρα"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restart Now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reiniciar ahora"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Käynnistä uudelleen nyt"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redémarrer maintenant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעל מחדש עכשיו"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "अब पुनः आरंभ करें"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponovno pokreni sada"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indítsa újra most"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mulai ulang sekarang"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riavvia ora"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今すぐ再起動"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지금 재시작"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mulakan semula sekarang"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start på nytt nå"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herstart nu"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uruchom ponownie teraz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reinicie agora"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repornește acum"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезапустить сейчас"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reštartovať teraz"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Znova zaženi zdaj"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starta om nu"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "รีสตาร์ทตอนนี้"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Şimdi yeniden başlat"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезапустити зараз"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khởi động lại ngay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即重启"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即重啟"
+          }
+        }
+      }
+    },
     "SAME_YEAR_RANGE" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -49685,6 +50103,215 @@
         }
       }
     },
+    "This will permanently remove the data and force restart the app. This action cannot be undone. Do you wish to continue?" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيؤدي هذا إلى إزالة البيانات نهائياً وإجبار التطبيق على إعادة التشغيل. لا يمكن التراجع عن هذا الإجراء. هل ترغب في المتابعة؟"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Això eliminarà permanentment les dades i forçarà la reiniciació de l'aplicació. Aquesta acció no es pot desfer. Vols continuar?"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tímto se data trvale odstraní a aplikace bude nuceně restartována. Tuto akci nelze vrátit zpět. Chcete pokračovat?"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dette vil permanent fjerne dataene og tvinge appen til at genstarte. Denne handling kan ikke fortrydes. Ønsker du at fortsætte?"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dadurch werden die Daten dauerhaft entfernt und die App wird zwangsweise neu gestartet. Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie fortfahren?"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αυτό θα διαγράψει οριστικά τα δεδομένα και θα αναγκάσει την επανεκκίνηση της εφαρμογής. Αυτή η ενέργεια δεν μπορεί να αναιρεθεί. Θέλετε να συνεχίσετε;"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will permanently remove the data and force restart the app. This action cannot be undone. Do you wish to continue?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto eliminará permanentemente los datos y forzará el reinicio de la aplicación. Esta acción no se puede deshacer. ¿Deseas continuar?"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tämä poistaa tiedot pysyvästi ja pakottaa sovelluksen uudelleenkäynnistyksen. Tätä toimintoa ei voi peruuttaa. Haluatko jatkaa?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela supprimera définitivement les données et forcera le redémarrage de l'application. Cette action est irréversible. Voulez-vous continuer ?"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פעולה זו תסיר את הנתונים לצמיתות ותכריח את האפליקציה לאתחל מחדש. לא ניתן לבטל פעולה זו. האם ברצונך להמשיך?"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "यह डेटा को स्थायी रूप से हटा देगा और ऐप को पुनः आरंभ करने पर मजबूर करेगा। इस क्रिया को पूर्ववत नहीं किया जा सकता। क्या आप जारी रखना चाहते हैं?"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ovo će trajno ukloniti podatke i prisilno ponovno pokrenuti aplikaciju. Ova radnja se ne može poništiti. Želite li nastaviti?"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ez véglegesen törli az adatokat, és kényszeríti az alkalmazás újraindítását. Ez a művelet nem vonható vissza. Folytatja?"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ini akan menghapus data secara permanen dan memaksa aplikasi untuk restart. Tindakan ini tidak dapat dibatalkan. Apakah Anda ingin melanjutkan?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo eliminerà definitivamente i dati e forzerà il riavvio dell'app. Questa azione non può essere annullata. Vuoi continuare?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これにより、データが永久に削除され、アプリが強制的に再起動されます。この操作は取り消せません。続行しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 작업은 데이터를 영구적으로 제거하고 앱을 강제로 재시작합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ini akan menghapus data secara kekal dan memaksa aplikasi untuk dimulakan semula. Tindakan ini tidak boleh diundur. Adakah anda ingin meneruskan?"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dette vil permanent fjerne dataene og tvinge appen til å starte på nytt. Denne handlingen kan ikke angres. Vil du fortsette?"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiermee worden de gegevens permanent verwijderd en wordt de app gedwongen opnieuw op te starten. Deze actie kan niet ongedaan worden gemaakt. Wilt u doorgaan?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spowoduje to trwałe usunięcie danych oraz wymusi ponowne uruchomienie aplikacji. Tego działania nie można cofnąć. Czy chcesz kontynuować?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto irá remover permanentemente os dados e forçar a reinicialização da aplicação. Esta ação não pode ser desfeita. Deseja continuar?"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceasta va elimina definitiv datele și va forța repornirea aplicației. Această acțiune nu poate fi anulată. Doriți să continuați?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это действие безвозвратно удалит данные и принудительно перезапустит приложение. Это действие нельзя отменить. Хотите продолжить?"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Týmto sa údaje trvale odstránia a aplikácia bude nútene reštartovaná. Túto akciu nie je možné vrátiť späť. Chcete pokračovať?"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To bo trajno odstranilo podatke in prisilno zagnalo aplikacijo. Te dejanje ni mogoče razveljaviti. Želite nadaljevati?"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detta kommer permanent att ta bort data och tvinga appen att starta om. Denna åtgärd kan inte ångras. Vill du fortsätta?"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "การดำเนินการนี้จะลบข้อมูลออกอย่างถาวรและบังคับให้แอปพลิเคชันเริ่มต้นใหม่ การดำเนินการนี้ไม่สามารถยกเลิกได้ คุณต้องการดำเนินการต่อหรือไม่?"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu işlem verileri kalıcı olarak kaldıracak ve uygulamayı zorla yeniden başlatacaktır. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Це безповоротно видалить дані та примусово перезапустить додаток. Цю дію неможливо скасувати. Бажаєте продовжити?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thao tác này sẽ xóa dữ liệu vĩnh viễn và buộc ứng dụng khởi động lại. Hành động này không thể hoàn tác. Bạn có muốn tiếp tục không?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这将永久删除数据并强制重启应用程序。此操作无法撤销。您要继续吗？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這將永久刪除資料並強制重啟應用程式。此操作無法復原。您要繼續嗎？"
+          }
+        }
+      }
+    },
     "Time" : {
 
     },
@@ -52605,6 +53232,215 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "有效開始時間："
+          }
+        }
+      }
+    },
+    "Valid To" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صالح حتى"
+          }
+        },
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vàlid fins a"
+          }
+        },
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Platné do"
+          }
+        },
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gyldig til"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gültig bis"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ισχύει μέχρι"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid To"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Válido hasta"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voimassa asti"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valable jusqu'au"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "בתוקף עד"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "तक मान्य"
+          }
+        },
+        "hr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vrijedi do"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Érvényes"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Berlaku hingga"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valido fino al"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有効期限"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "유효기간"
+          }
+        },
+        "ms" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sah Sehingga"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gyldig til"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geldig tot"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ważne do"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Válido até"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valabil până la"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Действителен до"
+          }
+        },
+        "sk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Platné do"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velja do"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giltigt till"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ใช้ได้ถึง"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geçerlilik Tarihi"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дійсно до"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hợp lệ đến"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效至"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有效至"
           }
         }
       }
