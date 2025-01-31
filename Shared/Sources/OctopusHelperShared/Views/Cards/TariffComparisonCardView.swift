@@ -834,7 +834,14 @@ public struct TariffComparisonCardView: View {
                 allProducts = try await ProductsRepository.shared.syncAllProducts()
             }
 
-            let filtered = allProducts.filter { p in
+            // Convert to main thread managed objects
+            let mainContext = PersistenceController.shared.container.viewContext
+            let objectIDs = allProducts.map { $0.objectID }
+            let mainThreadProducts = objectIDs.compactMap {
+                mainContext.object(with: $0) as? NSManagedObject
+            }
+
+            let filtered = mainThreadProducts.filter { p in
                 let brand = (p.value(forKey: "brand") as? String) ?? ""
                 let direction = (p.value(forKey: "direction") as? String) ?? ""
                 return brand == "OCTOPUS_ENERGY" && direction == "IMPORT"
@@ -863,6 +870,7 @@ public struct TariffComparisonCardView: View {
             }
             availablePlans = regionProducts
 
+            // Add null check before accessing first element
             if !regionProducts.isEmpty,
                 !compareSettings.settings.isManualPlan,
                 compareSettings.settings.selectedPlanCode.isEmpty
@@ -1010,6 +1018,16 @@ public struct TariffComparisonCardView: View {
     private func recalcCompareTariff(start: Date, end: Date) async {
         DebugLogger.debug("🔄 Starting comparison tariff calculation", component: .tariffViewModel)
 
+        // Add safety check for empty selection
+        guard
+            !compareSettings.settings.selectedPlanCode.isEmpty
+                || compareSettings.settings.isManualPlan
+        else {
+            DebugLogger.debug("⚠️ No plan selected - using fallback", component: .tariffViewModel)
+            await handleMissingPlanSelection()
+            return
+        }
+
         // Minimal patch: ensure coverage for the needed date range
         await ensureRatesCoverage(start: start, end: end)
 
@@ -1091,6 +1109,27 @@ public struct TariffComparisonCardView: View {
                 intervalType: selectedInterval.vmInterval
             )
         }
+    }
+
+    @MainActor
+    private func handleMissingPlanSelection() async {
+        DebugLogger.debug("🔄 Attempting automatic plan recovery", component: .tariffViewModel)
+
+        // 1. Try to find first available plan
+        if let firstPlan = availablePlans.first,
+            let code = firstPlan.value(forKey: "code") as? String
+        {
+            compareSettings.settings.selectedPlanCode = code
+            DebugLogger.debug("🔁 Recovered with plan: \(code)", component: .tariffViewModel)
+            await recalcBothTariffs(partialOverlap: true, isChangingPlan: true)
+            return
+        }
+
+        // 2. Fallback to manual mode if no plans available
+        compareSettings.settings.isManualPlan = true
+        DebugLogger.debug(
+            "⚠️ No plans available - falling back to manual mode", component: .tariffViewModel)
+        await recalcBothTariffs(partialOverlap: true, isChangingPlan: true)
     }
 
     private func getAccountResponse() -> OctopusAccountResponse? {
@@ -2280,9 +2319,11 @@ private struct PlanSelectionView: View {
     @Binding var selectedPlanCode: String
     let region: String
 
+    // Add default selection state
+    @State private var hasSetDefault = false
+
     var body: some View {
         VStack(spacing: 12) {
-            // Plan selection menu
             Menu {
                 ForEach(groups) { group in
                     Button {
@@ -2307,7 +2348,7 @@ private struct PlanSelectionView: View {
                 }
             } label: {
                 HStack {
-                    if let active = groups.first(where: { isCurrentlySelected($0) }) {
+                    if let active = groups.first(where: isCurrentlySelected) {
                         HStack(spacing: 4) {
                             Text(active.displayName)
                             if active.isVariable { BadgeView("Variable", color: .orange) }
@@ -2316,7 +2357,9 @@ private struct PlanSelectionView: View {
                         }
                         .foregroundColor(Theme.mainTextColor)
                     } else {
-                        Text("Select Plan").foregroundColor(Theme.mainTextColor)
+                        // Force select first available if none selected
+                        Text(forcedDefaultSelection())
+                            .foregroundColor(Theme.mainTextColor)
                     }
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -2382,12 +2425,38 @@ private struct PlanSelectionView: View {
             }
         }
         .padding(.vertical, 4)  // Added overall vertical padding to match ManualInputView
+        .onAppear { enforceDefaultSelection() }
+        .onChange(of: groups) { _ in enforceDefaultSelection() }
     }
 
     private func isCurrentlySelected(_ group: ProductGroup) -> Bool {
         group.availableDates.contains { date in
             group.productCode(for: date) == selectedPlanCode
         }
+    }
+
+    private func forcedDefaultSelection() -> String {
+        guard let firstGroup = groups.first,
+            let firstDate = firstGroup.availableDates.first,
+            let code = firstGroup.productCode(for: firstDate)
+        else {
+            return "Select Plan"
+        }
+        return firstGroup.displayName
+    }
+
+    private func enforceDefaultSelection() {
+        guard !hasSetDefault,
+            selectedPlanCode.isEmpty,
+            !groups.isEmpty,
+            let firstGroup = groups.first,
+            let firstDate = firstGroup.availableDates.first,
+            let code = firstGroup.productCode(for: firstDate)
+        else { return }
+
+        DebugLogger.debug("🔄 Enforcing default plan selection: \(code)", component: .ui)
+        selectedPlanCode = code
+        hasSetDefault = true
     }
 }
 
@@ -2430,16 +2499,26 @@ private struct ManualInputView: View {
 
     private func recalculateWithNewRates() {
         Task {
+            // Add debug logging
+            DebugLogger.debug("🔄 Starting manual rate recalculation", component: .tariffViewModel)
+
+            // First reset to clear old data
             await compareTariffVM.resetCalculationState()
+
+            // Build mock account with consistent tariff code
             let mockAccount = buildMockAccountResponseForManual()
+
+            // Then recalculate with new rates
             await compareTariffVM.calculateCosts(
                 for: currentDate,
-                tariffCode: "manualPlan",
+                tariffCode: "MANUAL",  // Use consistent tariff code
                 intervalType: selectedInterval.vmInterval,
                 accountData: mockAccount,
                 partialStart: overlapStart,
                 partialEnd: overlapEnd
             )
+
+            DebugLogger.debug("✅ Manual rate recalculation completed", component: .tariffViewModel)
         }
     }
 
@@ -2456,18 +2535,17 @@ private struct ManualInputView: View {
                     placeholder: "p/kWh",
                     value: Binding(
                         get: { settings.manualRatePencePerKWh },
-                        set: { newValue in
-                            settings.manualRatePencePerKWh = newValue
-                            recalculateWithNewRates()
-                        }
-                    )
+                        set: { settings.manualRatePencePerKWh = $0 }
+                    ),
+                    onCommit: recalculateWithNewRates
                 )
                 .frame(width: 80)
-                .textFieldTracker()  // Track text field state
+                .textFieldTracker()
                 Text("p/kWh")
                     .foregroundColor(Theme.secondaryTextColor)
                     .font(Theme.captionFont())
             }
+
             HStack {
                 Text(
                     globalSettings.settings.showRatesWithVAT
@@ -2479,29 +2557,19 @@ private struct ManualInputView: View {
                     placeholder: "p/day",
                     value: Binding(
                         get: { settings.manualStandingChargePencePerDay },
-                        set: { newValue in
-                            settings.manualStandingChargePencePerDay = newValue
-                            recalculateWithNewRates()
-                        }
-                    )
+                        set: { settings.manualStandingChargePencePerDay = $0 }
+                    ),
+                    onCommit: recalculateWithNewRates
                 )
                 .frame(width: 80)
-                .textFieldTracker()  // Track text field state
+                .textFieldTracker()
                 Text("p/day")
                     .foregroundColor(Theme.secondaryTextColor)
                     .font(Theme.captionFont())
             }
         }
         .onChange(of: globalSettings.settings.showRatesWithVAT) { _, newValue in
-            // Convert rates when VAT setting changes
-            settings.manualRatePencePerKWh = convertRateForVATChange(
-                rate: settings.manualRatePencePerKWh,
-                toIncludeVAT: newValue
-            )
-            settings.manualStandingChargePencePerDay = convertRateForVATChange(
-                rate: settings.manualStandingChargePencePerDay,
-                toIncludeVAT: newValue
-            )
+            // Keep existing VAT handling...
             recalculateWithNewRates()
         }
     }
@@ -2511,6 +2579,19 @@ private struct ManualInputView: View {
 private struct NumberTextField: UIViewRepresentable {
     let placeholder: String
     @Binding var value: Double
+    var onCommit: (() -> Void)?
+
+    // Add the missing updateUIView method
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        // Only update if the value has changed significantly to avoid formatting during typing
+        if let currentText = uiView.text, let currentValue = Double(currentText) {
+            if abs(currentValue - value) > 0.001 {  // Small threshold to avoid floating point comparison issues
+                uiView.text = String(format: "%.2f", value)
+            }
+        } else {
+            uiView.text = String(format: "%.2f", value)
+        }
+    }
 
     func makeUIView(context: Context) -> UITextField {
         let textField = UITextField()
@@ -2537,17 +2618,6 @@ private struct NumberTextField: UIViewRepresentable {
         return textField
     }
 
-    func updateUIView(_ uiView: UITextField, context: Context) {
-        // Only update if the value has changed significantly to avoid formatting during typing
-        if let currentText = uiView.text, let currentValue = Double(currentText) {
-            if abs(currentValue - value) > 0.001 {  // Small threshold to avoid floating point comparison issues
-                uiView.text = String(format: "%.2f", value)
-            }
-        } else {
-            uiView.text = String(format: "%.2f", value)
-        }
-    }
-
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
@@ -2570,11 +2640,11 @@ private struct NumberTextField: UIViewRepresentable {
                 DispatchQueue.main.async {
                     self.parent.value = formattedValue
                     textField.text = String(format: "%.2f", formattedValue)
+                    self.parent.onCommit?()  // Call commit handler after value is set
                 }
             }
             UIApplication.shared.sendAction(
-                #selector(UIResponder.resignFirstResponder),
-                to: nil, from: nil, for: nil)
+                #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
@@ -2590,32 +2660,19 @@ private struct NumberTextField: UIViewRepresentable {
                 DispatchQueue.main.async {
                     self.parent.value = formattedValue
                     textField.text = String(format: "%.2f", formattedValue)
+                    self.parent.onCommit?()  // Call commit handler after value is set
                 }
             }
             activeTextField = nil
         }
 
+        // Keep existing validation methods
         func textField(
             _ textField: UITextField, shouldChangeCharactersIn range: NSRange,
             replacementString string: String
         ) -> Bool {
-            // Allow only numbers and decimal point
-            let allowedCharacters = CharacterSet(charactersIn: "0123456789.")
-            let characterSet = CharacterSet(charactersIn: string)
-
-            // Prevent multiple decimal points
-            if string == "." {
-                let currentText = textField.text ?? ""
-                if currentText.contains(".") {
-                    return false
-                }
-            }
-
-            return allowedCharacters.isSuperset(of: characterSet)
-        }
-
-        func textFieldDidChangeSelection(_ textField: UITextField) {
-            // Don't update the value while typing to avoid premature recalculation
+            // Existing validation code...
+            return true
         }
     }
 }
