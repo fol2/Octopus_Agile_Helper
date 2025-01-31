@@ -2718,7 +2718,7 @@
       }
     },
     "A fixed-rate plan where the same rate applies to all hours." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7102,7 +7102,7 @@
       }
     },
     "Available data: %@" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10858,7 +10858,7 @@
       }
     },
     "Clear All Data" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15043,7 +15043,7 @@
       }
     },
     "Daily Standing Charge: %@p/day" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19841,7 +19841,7 @@
       }
     },
     "Energy Rate: %@p/kWh" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27143,7 +27143,7 @@
       }
     },
     "Manual Plan Configuration" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -39863,7 +39863,7 @@
       }
     },
     "Reset Everything" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -48433,7 +48433,7 @@
       }
     },
     "This will delete ALL data including:\n• All Settings\n• API Configuration\n• Product Information\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nThe app will return to its initial state.\nThis action cannot be undone." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -49059,7 +49059,7 @@
       }
     },
     "This will delete:\n• Consumption History\n• Tariff Calculations\n• Rate Information\n\nProduct List and Settings will be preserved.\nThis action cannot be undone." : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

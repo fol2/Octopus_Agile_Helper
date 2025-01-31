@@ -2150,41 +2150,78 @@ private struct ComparisonCostPlaceholderView: View {
 // MARK: - Additional Sub-views
 
 private struct ManualPlanDetailView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let settings: TariffComparisonCardSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Manual Plan Configuration")
-                .font(Theme.mainFont2())
-                .foregroundColor(Theme.mainTextColor)
+            Text(
+                forcedLocalizedString(
+                    key: "Manual Plan Configuration",
+                    locale: globalSettings.locale
+                )
+            )
+            .font(Theme.mainFont2())
+            .foregroundColor(Theme.mainTextColor)
             VStack(alignment: .leading, spacing: 8) {
-                Text("Energy Rate: \(String(format: "%.2f", settings.manualRatePencePerKWh))p/kWh")
                 Text(
-                    "Daily Standing Charge: \(String(format: "%.2f", settings.manualStandingChargePencePerDay))p/day"
+                    forcedLocalizedString(
+                        key:
+                            "Energy Rate: \(String(format: "%.2f", settings.manualRatePencePerKWh))p/kWh",
+                        locale: globalSettings.locale
+                    )
+                )
+                Text(
+                    forcedLocalizedString(
+                        key:
+                            "Daily Standing Charge: \(String(format: "%.2f", settings.manualStandingChargePencePerDay))p/day",
+                        locale: globalSettings.locale
+                    )
                 )
             }
             .font(Theme.subFont())
             .foregroundColor(Theme.secondaryTextColor)
-            Text("A fixed-rate plan where the same rate applies to all hours.")
-                .font(Theme.captionFont())
-                .foregroundColor(Theme.secondaryTextColor)
-                .padding(.top, 8)
+            Text(
+                forcedLocalizedString(
+                    key: "A fixed-rate plan where the same rate applies to all hours.",
+                    locale: globalSettings.locale
+                )
+            )
+            .font(Theme.captionFont())
+            .foregroundColor(Theme.secondaryTextColor)
+            .padding(.top, 8)
         }
     }
 }
 
 private struct ManualPlanSummaryView: View {
+    @EnvironmentObject var globalSettings: GlobalSettingsManager
     let settings: TariffComparisonCardSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text("Manual Plan")
-                    .foregroundColor(Theme.mainTextColor)
-                BadgeView("Fixed Rate", color: .purple)
+                Text(
+                    forcedLocalizedString(
+                        key: "Manual Plan",
+                        locale: globalSettings.locale
+                    )
+                )
+                .foregroundColor(Theme.mainTextColor)
+                BadgeView(
+                    forcedLocalizedString(
+                        key: "Fixed Rate",
+                        locale: globalSettings.locale
+                    ),
+                    color: .purple
+                )
             }
             Text(
-                "\(String(format: "%.1f", settings.manualRatePencePerKWh))p/kWh + \(String(format: "%.1f", settings.manualStandingChargePencePerDay))p/day"
+                forcedLocalizedString(
+                    key:
+                        "\(String(format: "%.1f", settings.manualRatePencePerKWh))p/kWh + \(String(format: "%.1f", settings.manualStandingChargePencePerDay))p/day",
+                    locale: globalSettings.locale
+                )
             )
             .font(Theme.captionFont())
             .foregroundColor(Theme.secondaryTextColor)

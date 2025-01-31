@@ -844,9 +844,14 @@ private struct RateAnalysisCard: View {
 
             // Show Manual Plan text if applicable
             if isManualPlan {
-                Text("Manual Plan: Fixed Rate")
-                    .font(Theme.subFont())
-                    .foregroundColor(Theme.secondaryTextColor)
+                Text(
+                    forcedLocalizedString(
+                        key: "Manual Plan: Fixed Rate",
+                        locale: globalSettings.locale
+                    )
+                )
+                .font(Theme.subFont())
+                .foregroundColor(Theme.secondaryTextColor)
             } else {
                 // Only show highest/lowest rates for non-manual plans
                 rateRow(
@@ -1383,15 +1388,30 @@ private struct ManualPlanSummaryView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text("Manual Plan")
-                        .font(.system(size: 36))
-                        .foregroundColor(Theme.mainTextColor)
+                    Text(
+                        forcedLocalizedString(
+                            key: "Manual Plan",
+                            locale: globalSettings.locale
+                        )
+                    )
+                    .font(.system(size: 36))
+                    .foregroundColor(Theme.mainTextColor)
                 }
 
-                BadgeView("Fixed Rate", color: .purple)
+                BadgeView(
+                    forcedLocalizedString(
+                        key: "Fixed Rate",
+                        locale: globalSettings.locale
+                    ),
+                    color: .purple
+                )
 
                 Text(
-                    "\(formatNumber(manualRatePencePerKWh))p/kWh + \(formatNumber(manualStandingChargePencePerDay))p/day"
+                    forcedLocalizedString(
+                        key:
+                            "\(formatNumber(manualRatePencePerKWh))p/kWh + \(formatNumber(manualStandingChargePencePerDay))p/day",
+                        locale: globalSettings.locale
+                    )
                 )
                 .font(.system(size: 17))
                 .foregroundColor(Theme.secondaryTextColor)
