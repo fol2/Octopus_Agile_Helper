@@ -166,6 +166,23 @@ private struct ProductGroup: Identifiable, Hashable {
 
 // MARK: - Main TariffComparisonCardView
 
+/// Tracks active menus, text fields, and the last user interaction time
+private final class CollapseStateManager: ObservableObject {
+    @Published var activeMenus = 0
+    @Published var activeTextFields = 0
+    @Published var lastInteraction = Date()
+
+    /// If either a menu or text field is active, we block auto-collapse
+    var shouldBlockCollapse: Bool {
+        activeMenus > 0 || activeTextFields > 0
+    }
+
+    /// Whenever there's user interaction, update `lastInteraction`
+    func userInteracted() {
+        lastInteraction = Date()
+    }
+}
+
 public struct TariffComparisonCardView: View {
     // Dependencies
     @ObservedObject var consumptionVM: ConsumptionViewModel
@@ -175,6 +192,7 @@ public struct TariffComparisonCardView: View {
     // Two separate TariffViewModels for actual account vs. comparison
     @StateObject private var accountTariffVM = TariffViewModel()
     @StateObject private var compareTariffVM = TariffViewModel()
+    @StateObject private var collapseState = CollapseStateManager()
 
     // Interval & date state
     @State private var selectedInterval: CompareIntervalType = .daily
@@ -237,6 +255,7 @@ public struct TariffComparisonCardView: View {
                 detailsSheetView
             }
             .environment(\.locale, globalSettings.locale)
+            .environmentObject(collapseState)  // Provide the collapse state manager
             .onAppear {
                 if !hasInitialized {
                     handleOnAppear()
@@ -2307,8 +2326,9 @@ private struct PlanSelectionView: View {
                 .background(Theme.mainBackground.opacity(0.3))
                 .cornerRadius(8)
             }
+            .menuTracker()  // Track menu state
 
-            // Version selection (if applicable)
+            // Version selection menu (if applicable)
             if let group = groups.first(where: { isCurrentlySelected($0) }) {
                 if let date = group.availableDates.first(where: {
                     group.productCode(for: $0) == selectedPlanCode
@@ -2345,6 +2365,7 @@ private struct PlanSelectionView: View {
                             .background(Theme.mainBackground.opacity(0.3))
                             .cornerRadius(8)
                         }
+                        .menuTracker()  // Track menu state
                     } else {
                         // Single date case
                         HStack {
@@ -2442,6 +2463,7 @@ private struct ManualInputView: View {
                     )
                 )
                 .frame(width: 80)
+                .textFieldTracker()  // Track text field state
                 Text("p/kWh")
                     .foregroundColor(Theme.secondaryTextColor)
                     .font(Theme.captionFont())
@@ -2464,6 +2486,7 @@ private struct ManualInputView: View {
                     )
                 )
                 .frame(width: 80)
+                .textFieldTracker()  // Track text field state
                 Text("p/day")
                     .foregroundColor(Theme.secondaryTextColor)
                     .font(Theme.captionFont())
@@ -2616,13 +2639,65 @@ public struct BadgeView: View {
     }
 }
 
+/// Tracks when a SwiftUI `Menu` appears / disappears.
+private struct MenuTracker: ViewModifier {
+    @EnvironmentObject private var collapseState: CollapseStateManager
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                collapseState.activeMenus += 1
+                collapseState.userInteracted()
+            }
+            .onDisappear {
+                collapseState.activeMenus -= 1
+                collapseState.userInteracted()
+            }
+    }
+}
+
+/// Convenience extension so we can do `.menuTracker()`
+extension View {
+    fileprivate func menuTracker() -> some View {
+        self.modifier(MenuTracker())
+    }
+}
+
+/// Tracks when a UIKit text field (wrapped in SwiftUI) begins/ends editing.
+private struct TextFieldTracker: ViewModifier {
+    @EnvironmentObject private var collapseState: CollapseStateManager
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UITextField.textDidBeginEditingNotification)
+            ) { _ in
+                collapseState.activeTextFields += 1
+                collapseState.userInteracted()
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)
+            ) { _ in
+                collapseState.activeTextFields -= 1
+                collapseState.userInteracted()
+            }
+    }
+}
+
+/// Convenience extension so we can do `.textFieldTracker()`
+extension View {
+    fileprivate func textFieldTracker() -> some View {
+        self.modifier(TextFieldTracker())
+    }
+}
+
 // The CollapsibleSection used in frontView
 private struct CollapsibleSection<Label: View, Content: View>: View {
+    @EnvironmentObject private var collapseState: CollapseStateManager
     private let label: () -> Label
     private let content: () -> Content
     @State private var isExpanded = false
-    // Add these new states
-    @State private var lastInteractionTime = Date()
     @State private var autoCollapseTask: Task<Void, Never>?
 
     init(
@@ -2637,17 +2712,24 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
         // Cancel any existing timer
         autoCollapseTask?.cancel()
 
-        // Start new timer
         autoCollapseTask = Task {
-            try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)  // 5 seconds
+            while !Task.isCancelled {
+                let now = Date()
+                let elapsed = now.timeIntervalSince(collapseState.lastInteraction)
+                let block = collapseState.shouldBlockCollapse
+                let shouldCollapse = (elapsed >= 5.0 && !block)
 
-            // Check if 5 seconds have passed since last interaction
-            if Date().timeIntervalSince(lastInteractionTime) >= 5 {
-                await MainActor.run {
-                    withAnimation(.spring(duration: 0.3)) {
-                        isExpanded = false
+                if shouldCollapse {
+                    await MainActor.run {
+                        withAnimation(.spring(duration: 0.3)) {
+                            isExpanded = false
+                        }
                     }
+                    break
                 }
+
+                // Sleep half a second between checks
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }
@@ -2655,12 +2737,14 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             Button {
-                lastInteractionTime = Date()
+                collapseState.userInteracted()
                 withAnimation(.spring(duration: 0.3)) {
                     isExpanded.toggle()
                 }
                 if isExpanded {
                     startAutoCollapseTimer()
+                } else {
+                    autoCollapseTask?.cancel()
                 }
             } label: {
                 HStack {
@@ -2684,14 +2768,12 @@ private struct CollapsibleSection<Label: View, Content: View>: View {
                 content()
                     .padding(.vertical, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
-                    // Add gesture to track interaction with content
                     .onTapGesture {
-                        lastInteractionTime = Date()
+                        collapseState.userInteracted()
                         startAutoCollapseTimer()
                     }
             }
         }
-        // Clean up timer when view disappears
         .onDisappear {
             autoCollapseTask?.cancel()
         }

@@ -9,6 +9,7 @@ public enum LogComponent: String {
     case stateChanges = "STATE CHANGES"
     case tariffViewModel = "TARIFF VM"
     case cardManagement = "CardManagement"
+    case ui = "UI"
 
     var isEnabled: Bool {
         switch self {
@@ -19,6 +20,7 @@ public enum LogComponent: String {
         case .stateChanges: return DebugLogger.isStateChangesLoggingEnabled
         case .tariffViewModel: return DebugLogger.isTariffVMLoggingEnabled
         case .cardManagement: return DebugLogger.isCardManagementLoggingEnabled
+        case .ui: return DebugLogger.isUILoggingEnabled
         }
     }
 }
@@ -33,12 +35,12 @@ public final class DebugLogger {
     /// Component-specific switches
     public static var isWidgetLoggingEnabled = false
     public static var isWidgetCacheLoggingEnabled = false
-    public static var isRatesVMLoggingEnabled = true
-    public static var isRatesRepoLoggingEnabled = true
-    public static var isStateChangesLoggingEnabled = true
-    public static var isTariffVMLoggingEnabled = true
-    public static var isCardManagementLoggingEnabled = true
-
+    public static var isRatesVMLoggingEnabled = false
+    public static var isRatesRepoLoggingEnabled = false
+    public static var isStateChangesLoggingEnabled = false
+    public static var isTariffVMLoggingEnabled = false
+    public static var isCardManagementLoggingEnabled = false
+    public static var isUILoggingEnabled = true
     // MARK: - Logging Methods
 
     /// Log a debug message for a specific component
@@ -84,6 +86,8 @@ public final class DebugLogger {
                 isTariffVMLoggingEnabled = true
             case .cardManagement:
                 isCardManagementLoggingEnabled = true
+            case .ui:
+                isUILoggingEnabled = true
             }
         }
     }
@@ -107,6 +111,8 @@ public final class DebugLogger {
                 isTariffVMLoggingEnabled = false
             case .cardManagement:
                 isCardManagementLoggingEnabled = false
+            case .ui:
+                isUILoggingEnabled = false
             }
         }
 
